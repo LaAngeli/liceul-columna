@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class AcademicYear extends Model
+{
+    /** @use HasFactory<\Database\Factories\AcademicYearFactory> */
+    use HasFactory, SoftDeletes;
+
+    protected $fillable = [
+        'name',
+        'starts_on',
+        'ends_on',
+        'is_current',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'starts_on' => 'date',
+            'ends_on' => 'date',
+            'is_current' => 'boolean',
+        ];
+    }
+
+    /** @return HasMany<Term, $this> */
+    public function terms(): HasMany
+    {
+        return $this->hasMany(Term::class);
+    }
+
+    /** @return HasMany<SchoolClass, $this> */
+    public function schoolClasses(): HasMany
+    {
+        return $this->hasMany(SchoolClass::class);
+    }
+
+    /** @return HasMany<Enrollment, $this> */
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+}

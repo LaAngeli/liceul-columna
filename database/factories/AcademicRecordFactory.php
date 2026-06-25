@@ -1,0 +1,30 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Models\AcademicRecord;
+use App\Models\SchoolClass;
+use App\Models\Student;
+use App\Models\Subject;
+use App\Models\Term;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends Factory<AcademicRecord>
+ */
+class AcademicRecordFactory extends Factory
+{
+    protected $model = AcademicRecord::class;
+
+    public function definition(): array
+    {
+        return [
+            'student_id' => Student::factory(),
+            'subject_id' => Subject::factory(),
+            'school_class_id' => SchoolClass::factory(),
+            'term_id' => Term::factory(),
+            'value' => fake()->numberBetween(1, 10),
+            'calificativ' => null,
+        ];
+    }
+}
