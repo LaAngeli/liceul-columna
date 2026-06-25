@@ -2,18 +2,25 @@
 
 namespace App\Models;
 
+use Database\Factories\GradeFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
+/**
+ * @property Carbon $graded_on
+ * @property numeric-string|null $value
+ * @property string|null $calificativ
+ */
 class Grade extends Model implements Auditable
 {
     use AuditableTrait;
 
-    /** @use HasFactory<\Database\Factories\GradeFactory> */
+    /** @use HasFactory<GradeFactory> */
     use HasFactory, SoftDeletes;
 
     protected $fillable = [

@@ -10,6 +10,7 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -45,6 +46,29 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->hasAnyRole(UserRole::panelRoleValues());
+    }
+
+    /**
+     * Pagina de start după autentificare, decisă pe server în funcție de rol:
+     * personalul → panoul Filament (/admin); elevii/părinții → cabinetul Inertia.
+     * Sursă UNICĂ, refolosită în LoginResponse, TwoFactorLoginResponse și garda cabinetului.
+     */
+    public function homePath(): string
+    {
+        return $this->hasAnyRole(UserRole::panelRoleValues())
+            ? '/admin'
+            : route('dashboard');
+    }
+
+    /**
+     * Elevii la care acest cont (părinte/tutore) are acces.
+     *
+     * @return BelongsToMany<Student, $this>
+     */
+    public function students(): BelongsToMany
+    {
+        return $this->belongsToMany(Student::class, 'guardian_student', 'guardian_user_id', 'student_id')
+            ->withTimestamps();
     }
 
     /**

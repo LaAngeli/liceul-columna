@@ -11,3 +11,8 @@ parameters:
         - routes/
 
     level: 7
+
+    # Fișiere publicate de pachete terțe (Pulse) — nu le întreținem noi.
+    excludePaths:
+        - config/pulse.php
+        - database/migrations/*_create_pulse_tables.php

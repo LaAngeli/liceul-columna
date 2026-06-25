@@ -18,11 +18,12 @@ logați (service layer, ex. Prism PHP; aceleași endpoints cu permisiuni scoped)
 ## 2. Stack & mediu local
 - Laravel 13 + Inertia 3 + React 19 + TypeScript + Tailwind 4 + shadcn/ui (starter kit `react`).
 - Filament v4 = panou gestiune (admin/profesor). Auth = Fortify (built-in). Pest + Laravel Boost.
-- Windows + Laragon. PHP 8.3.30: `C:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe`.
-- MySQL (Laragon, 3306): user `root` / parolă `root`, baza `liceul_columna`.
+- Windows + Laragon (CLI/PHP/MySQL) + **Herd** (servește site-ul). PHP 8.3.30: `C:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe`.
+- MySQL (3306): user `root` / parolă `root`, baza `liceul_columna`.
 - Limbă: doar RO (`APP_LOCALE=ro`, `APP_FALLBACK_LOCALE=ro`, `APP_FAKER_LOCALE=ro_MD`).
+- **Adresă locală canonică: `https://liceul-columna.test`** (Herd, https; `APP_URL` aliniat). NU folosi `php artisan serve`/`localhost:8000` — două domenii înseamnă sesiuni + temă/sidebar (localStorage) separate, deși e același cod/DB → pare „alt panou". Hot-reload: `npm run dev` (Vite servește către `.test:5173`, vezi `public/hot`).
 - Comenzi uzuale: `php artisan ...`, `php artisan test --compact`, `vendor/bin/pint --dirty --format agent`,
-  `vendor/bin/phpstan analyse`. Dev: `php artisan serve` (:8000) + `npm run dev` (Vite :5173).
+  `vendor/bin/phpstan analyse`.
 - ⚠️ **Norton/SSL:** Norton interceptează `codeload.github.com`. Fix aplicat: rootul Norton e adăugat în
   `C:\laragon\etc\ssl\cacert.pem` (verificarea TLS rămâne activă). Dacă un `composer require` pică cu
   `curl error 60`, reverifică acest root. NU folosi `secure-http false` / `disable-tls true`.
@@ -78,11 +79,11 @@ Toate comenzile se rulează din rădăcina proiectului. `php` = calea Laragon di
 
 | Ai modificat / adăugat | Rulează |
 |---|---|
-| **Frontend** (`resources/js/**`, `.tsx`, `.css`, Tailwind) | În dev: `npm run dev` (HMR pornit). Pentru build de producție / dacă modificarea nu apare: `npm run build` |
+| **Frontend** (`resources/js/**`, `.tsx`, `.css`, Tailwind) | Pe Herd, simplu: `npm run build` (asset-uri statice, fără server). Pentru hot-reload: `npm run dev` în paralel. ⚠️ **Pagină albă pe Herd** = a rămas `public/hot` dintr-un `npm run dev` oprit → șterge `public/hot` + `npm run build`. |
 | **Cod PHP** (model, controller, Action, policy, enum) | `vendor/bin/pint --dirty --format agent` → `vendor/bin/phpstan analyse` → `php artisan test --compact` |
 | **Migrare nouă** | `php artisan migrate` (testele folosesc RefreshDatabase automat) |
 | **Model nou** | `php artisan make:model Nume -mf` (model + migrare + factory); adaugă relații/cast-uri + un test |
-| **`.env` sau `config/**`** | `php artisan config:clear` și repornește `php artisan serve` (în prod: `php artisan config:cache`) |
+| **`.env` sau `config/**`** | `php artisan config:clear` (Herd preia automat; în prod: `php artisan config:cache`) |
 | **Rute** (`routes/**`) | `php artisan route:clear`; verifică cu `php artisan route:list --except-vendor` |
 | **Rute folosite în frontend** (Wayfinder, `@/actions`, `@/routes`) | `php artisan wayfinder:generate` (apoi `npm run build` dacă nu ești pe `npm run dev`) |
 | **Resursă/pagină/widget Filament nou** | Auto-descoperit; dacă nu apare: `php artisan optimize:clear`. În prod: `php artisan filament:optimize` |

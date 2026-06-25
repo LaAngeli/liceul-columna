@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\Sex;
+use Database\Factories\TeacherFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Teacher extends Model
 {
-    /** @use HasFactory<\Database\Factories\TeacherFactory> */
+    /** @use HasFactory<TeacherFactory> */
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
@@ -28,6 +30,16 @@ class Teacher extends Model
         return [
             'sex' => Sex::class,
         ];
+    }
+
+    /**
+     * Numele complet (nume + prenume).
+     *
+     * @return Attribute<string, never>
+     */
+    protected function fullName(): Attribute
+    {
+        return Attribute::get(fn (): string => trim("{$this->last_name} {$this->first_name}"));
     }
 
     /** @return BelongsTo<User, $this> */

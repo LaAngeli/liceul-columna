@@ -161,7 +161,9 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Auto-înregistrarea este DEZACTIVATĂ intenționat: profilele sunt create exclusiv
+        // de admin din panou. Fără self-registration și fără login social (Google etc.).
+        // Features::registration(),
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

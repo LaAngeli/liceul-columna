@@ -6,8 +6,9 @@ enum UserRole: string
 {
     case Admin = 'admin';
     case Director = 'director';
-    case Profesor = 'profesor';
+    case DirectorAdjunct = 'director-adjunct';
     case Diriginte = 'diriginte';
+    case Profesor = 'profesor';
     case Elev = 'elev';
     case Parinte = 'parinte';
 
@@ -19,8 +20,9 @@ enum UserRole: string
         return match ($this) {
             self::Admin => 'Administrator',
             self::Director => 'Director',
-            self::Profesor => 'Profesor',
+            self::DirectorAdjunct => 'Director adjunct',
             self::Diriginte => 'Diriginte',
+            self::Profesor => 'Profesor',
             self::Elev => 'Elev',
             self::Parinte => 'Părinte',
         };
@@ -34,7 +36,7 @@ enum UserRole: string
      */
     public static function panelRoles(): array
     {
-        return [self::Admin, self::Director, self::Profesor, self::Diriginte];
+        return [self::Admin, self::Director, self::DirectorAdjunct, self::Diriginte, self::Profesor];
     }
 
     /**
