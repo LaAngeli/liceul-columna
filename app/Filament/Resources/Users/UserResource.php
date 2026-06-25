@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Users;
 
-use App\Enums\UserRole;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
@@ -14,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
 class UserResource extends Resource
@@ -31,11 +31,29 @@ class UserResource extends Resource
     protected static ?string $pluralModelLabel = 'Utilizatori';
 
     /**
-     * Doar adminul poate gestiona conturile (creare profile = exclusiv admin).
+     * Gestiunea conturilor e rezervată administrației (admin/director/director-adjunct).
+     * Ierarhia exactă de creare/editare e impusă în canCreate/canEdit/canDelete + UserForm.
      */
     public static function canAccess(): bool
     {
-        return auth()->user()?->hasRole(UserRole::Admin->value) ?? false;
+        return auth()->user()?->isAdministrator() ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->isAdministrator() ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return $record instanceof User
+            && (auth()->user()?->canManageUser($record) ?? false);
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return $record instanceof User
+            && (auth()->user()?->canManageUser($record) ?? false);
     }
 
     public static function form(Schema $schema): Schema

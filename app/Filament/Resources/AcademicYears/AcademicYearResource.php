@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AcademicYears;
 
+use App\Filament\Concerns\AdministratorOnly;
 use App\Filament\Resources\AcademicYears\Pages\CreateAcademicYear;
 use App\Filament\Resources\AcademicYears\Pages\EditAcademicYear;
 use App\Filament\Resources\AcademicYears\Pages\ListAcademicYears;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class AcademicYearResource extends Resource
 {
+    use AdministratorOnly;
+
     protected static ?string $model = AcademicYear::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;

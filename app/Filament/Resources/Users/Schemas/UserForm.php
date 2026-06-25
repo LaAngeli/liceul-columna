@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 use Spatie\Permission\Models\Role;
 
 class UserForm
@@ -35,7 +36,13 @@ class UserForm
                     ->helperText('La editare, lasă gol pentru a păstra parola actuală.'),
                 Select::make('roles')
                     ->label('Roluri')
-                    ->relationship('roles', 'name')
+                    // Doar rolurile pe care actorul are dreptul să le atribuie (ierarhia):
+                    // director nu poate atribui admin, director-adjunct nu poate admin/director.
+                    ->relationship(
+                        'roles',
+                        'name',
+                        fn (Builder $query) => $query->whereIn('name', auth()->user()?->manageableRoleValues() ?? []),
+                    )
                     ->multiple()
                     ->preload()
                     ->getOptionLabelFromRecordUsing(

@@ -49,9 +49,10 @@ export function SiteHeader() {
 
             {/* Bara principală */}
             <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
-                <Link href="/" className="flex items-center gap-2">
-                    <span className="flex size-9 items-center justify-center rounded-md bg-primary font-bold text-primary-foreground">C</span>
-                    <span className="text-lg leading-tight font-semibold tracking-tight">Liceul Columna</span>
+                <Link href="/" className="flex items-center gap-2.5">
+                    <img src="/images/logo/columna-navy.png" alt="Liceul Columna" className="h-11 w-auto dark:hidden" />
+                    <img src="/images/logo/columna-white.png" alt="Liceul Columna" className="hidden h-11 w-auto dark:block" />
+                    <span className="font-serif text-lg leading-tight font-semibold tracking-tight">Liceul Columna</span>
                 </Link>
 
                 {/* Navigare desktop */}

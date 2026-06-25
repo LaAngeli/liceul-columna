@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\SchoolClasses;
 
+use App\Filament\Concerns\ManagedByAdministrators;
 use App\Filament\Resources\SchoolClasses\Pages\CreateSchoolClass;
 use App\Filament\Resources\SchoolClasses\Pages\EditSchoolClass;
 use App\Filament\Resources\SchoolClasses\Pages\ListSchoolClasses;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class SchoolClassResource extends Resource
 {
+    use ManagedByAdministrators;
+
     protected static ?string $model = SchoolClass::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleGroup;
@@ -54,6 +57,22 @@ class SchoolClassResource extends Resource
             'create' => CreateSchoolClass::route('/create'),
             'edit' => EditSchoolClass::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Scoping: administrația vede toate clasele; profesorul/dirigintele doar clasele lui.
+     * Se aplică și la listă, și la binding-ul de rută (acces direct prin URL → 404).
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if (! $user || $user->isAdministrator()) {
+            return $query;
+        }
+
+        return $query->whereKey($user->teacher?->visibleSchoolClassIds() ?? []);
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

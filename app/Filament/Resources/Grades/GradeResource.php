@@ -1,0 +1,99 @@
+<?php
+
+namespace App\Filament\Resources\Grades;
+
+use App\Filament\Resources\Grades\Pages\CreateGrade;
+use App\Filament\Resources\Grades\Pages\EditGrade;
+use App\Filament\Resources\Grades\Pages\ListGrades;
+use App\Filament\Resources\Grades\Schemas\GradeForm;
+use App\Filament\Resources\Grades\Tables\GradesTable;
+use App\Models\Grade;
+use BackedEnum;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+
+class GradeResource extends Resource
+{
+    protected static ?string $model = Grade::class;
+
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPencilSquare;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+
+    protected static ?string $navigationLabel = 'Note';
+
+    protected static ?string $modelLabel = 'notă';
+
+    protected static ?string $pluralModelLabel = 'Note';
+
+    public static function form(Schema $schema): Schema
+    {
+        return GradeForm::configure($schema);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return GradesTable::configure($table);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            //
+        ];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => ListGrades::route('/'),
+            'create' => CreateGrade::route('/create'),
+            'edit' => EditGrade::route('/{record}/edit'),
+        ];
+    }
+
+    /**
+     * Scoping: administrația vede toate notele. Profesorul vede notele de la
+     * (clasa, disciplina) pe care le predă; dirigintele — toate notele clasei lui.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if (! $user || $user->isAdministrator()) {
+            return $query;
+        }
+
+        $teacher = $user->teacher;
+
+        if (! $teacher) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $q) use ($teacher) {
+            $q->whereIn('school_class_id', $teacher->homeroomSchoolClassIds())
+                ->orWhereExists(function (QueryBuilder $sub) use ($teacher) {
+                    $sub->selectRaw('1')
+                        ->from('teaching_assignments as ta')
+                        ->whereColumn('ta.school_class_id', 'grades.school_class_id')
+                        ->whereColumn('ta.subject_id', 'grades.subject_id')
+                        ->where('ta.teacher_id', $teacher->id)
+                        ->whereNull('ta.deleted_at');
+                });
+        });
+    }
+
+    public static function getRecordRouteBindingEloquentQuery(): Builder
+    {
+        return parent::getRecordRouteBindingEloquentQuery()
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ]);
+    }
+}

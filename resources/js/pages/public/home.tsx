@@ -29,7 +29,7 @@ export default function Home() {
                     <span className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
                         IPL „Liceul Columna” · Chișinău
                     </span>
-                    <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
+                    <h1 className="mx-auto mt-6 max-w-3xl font-serif text-4xl font-bold tracking-tight sm:text-5xl">
                         {siteContact.tagline}
                     </h1>
                     <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
@@ -70,7 +70,7 @@ export default function Home() {
             {/* Acces rapid */}
             <section className="border-t border-border bg-muted/30">
                 <div className="mx-auto max-w-7xl px-6 py-14">
-                    <h2 className="text-2xl font-bold tracking-tight">Acces rapid</h2>
+                    <h2 className="font-serif text-2xl font-bold tracking-tight">Acces rapid</h2>
                     <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {quickLinks.map((link) => {
                             const Icon = link.icon;
@@ -97,7 +97,7 @@ export default function Home() {
             {/* Actualități (placeholder) */}
             <section className="mx-auto max-w-7xl px-6 py-14">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold tracking-tight">Ultimele actualități</h2>
+                    <h2 className="font-serif text-2xl font-bold tracking-tight">Ultimele actualități</h2>
                     <Button asChild variant="ghost" size="sm">
                         <Link href="/actualitati-si-evenimente">
                             Toate <ArrowRight className="size-4" />

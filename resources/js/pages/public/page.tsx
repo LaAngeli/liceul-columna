@@ -39,7 +39,7 @@ export default function PublicPage({ title, description, breadcrumbs = [], hasDo
                             </span>
                         ))}
                     </nav>
-                    <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
+                    <h1 className="mt-3 font-serif text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
                     {description && <p className="mt-2 max-w-3xl text-muted-foreground">{description}</p>}
                 </div>
             </section>

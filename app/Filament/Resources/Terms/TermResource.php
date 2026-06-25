@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Terms;
 
+use App\Filament\Concerns\AdministratorOnly;
 use App\Filament\Resources\Terms\Pages\CreateTerm;
 use App\Filament\Resources\Terms\Pages\EditTerm;
 use App\Filament\Resources\Terms\Pages\ListTerms;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class TermResource extends Resource
 {
+    use AdministratorOnly;
+
     protected static ?string $model = Term::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendar;

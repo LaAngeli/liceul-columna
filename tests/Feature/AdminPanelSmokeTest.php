@@ -24,6 +24,7 @@ it('adminul poate deschide paginile principale ale panoului', function (string $
     '/admin/subjects',
     '/admin/school-classes',
     '/admin/enrollments',
+    '/admin/grades',
     '/admin/users',
 ]);
 

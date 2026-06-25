@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Subjects;
 
+use App\Filament\Concerns\ManagedByAdministrators;
 use App\Filament\Resources\Subjects\Pages\CreateSubject;
 use App\Filament\Resources\Subjects\Pages\EditSubject;
 use App\Filament\Resources\Subjects\Pages\ListSubjects;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class SubjectResource extends Resource
 {
+    use ManagedByAdministrators;
+
     protected static ?string $model = Subject::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBookOpen;

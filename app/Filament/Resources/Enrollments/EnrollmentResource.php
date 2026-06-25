@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Enrollments;
 
+use App\Filament\Concerns\AdministratorOnly;
 use App\Filament\Resources\Enrollments\Pages\CreateEnrollment;
 use App\Filament\Resources\Enrollments\Pages\EditEnrollment;
 use App\Filament\Resources\Enrollments\Pages\ListEnrollments;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class EnrollmentResource extends Resource
 {
+    use AdministratorOnly;
+
     protected static ?string $model = Enrollment::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;

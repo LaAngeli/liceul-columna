@@ -50,6 +50,20 @@ enum UserRole: string
     }
 
     /**
+     * Rolurile de „administrație" — văd și gestionează TOT (fără scoping).
+     * Profesorii/diriginții (restul personalului) sunt limitați la clasele lor.
+     *
+     * @return list<string>
+     */
+    public static function administratorValues(): array
+    {
+        return array_map(
+            static fn (self $role): string => $role->value,
+            [self::Admin, self::Director, self::DirectorAdjunct],
+        );
+    }
+
+    /**
      * Toate valorile string ale rolurilor.
      *
      * @return list<string>

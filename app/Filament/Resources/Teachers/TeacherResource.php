@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Teachers;
 
+use App\Filament\Concerns\AdministratorOnly;
 use App\Filament\Resources\Teachers\Pages\CreateTeacher;
 use App\Filament\Resources\Teachers\Pages\EditTeacher;
 use App\Filament\Resources\Teachers\Pages\ListTeachers;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class TeacherResource extends Resource
 {
+    use AdministratorOnly;
+
     protected static ?string $model = Teacher::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;

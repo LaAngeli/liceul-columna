@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -58,6 +59,62 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
         return $this->hasAnyRole(UserRole::panelRoleValues())
             ? '/admin'
             : route('dashboard');
+    }
+
+    /**
+     * Administrația (admin/director/director-adjunct) vede tot, fără scoping.
+     */
+    public function isAdministrator(): bool
+    {
+        return $this->hasAnyRole(UserRole::administratorValues());
+    }
+
+    /**
+     * Fișa de profesor legată de acest cont (pentru scoping pe clase/discipline).
+     *
+     * @return HasOne<Teacher, $this>
+     */
+    public function teacher(): HasOne
+    {
+        return $this->hasOne(Teacher::class);
+    }
+
+    /**
+     * Rolurile pe care acest utilizator (actor) le poate ATRIBUI altora la crearea/editarea conturilor:
+     * admin → toate; director → toate în afară de admin; director-adjunct → toate în afară de admin și director.
+     *
+     * @return list<string>
+     */
+    public function manageableRoleValues(): array
+    {
+        if ($this->hasRole(UserRole::Admin->value)) {
+            return UserRole::values();
+        }
+
+        if ($this->hasRole(UserRole::Director->value)) {
+            return array_values(array_diff(UserRole::values(), [UserRole::Admin->value]));
+        }
+
+        if ($this->hasRole(UserRole::DirectorAdjunct->value)) {
+            return array_values(array_diff(UserRole::values(), [UserRole::Admin->value, UserRole::Director->value]));
+        }
+
+        return [];
+    }
+
+    /**
+     * Poate acest cont să gestioneze (editeze/șteargă) contul-țintă? Doar dacă toate rolurile
+     * țintei sunt în setul pe care actorul îl poate administra (un director NU atinge un admin).
+     */
+    public function canManageUser(self $target): bool
+    {
+        if (! $this->isAdministrator()) {
+            return false;
+        }
+
+        $manageable = $this->manageableRoleValues();
+
+        return $target->getRoleNames()->every(static fn (string $role): bool => in_array($role, $manageable, true));
     }
 
     /**

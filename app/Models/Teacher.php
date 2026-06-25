@@ -63,4 +63,56 @@ class Teacher extends Model
     {
         return $this->hasMany(TeachingAssignment::class);
     }
+
+    /**
+     * Clasele la care PREDĂ (din repartizări) — acces limitat la disciplinele lui.
+     *
+     * @return list<int>
+     */
+    public function taughtSchoolClassIds(): array
+    {
+        return array_values(
+            $this->teachingAssignments()->pluck('school_class_id')
+                ->map(static fn ($id): int => (int) $id)->unique()->all()
+        );
+    }
+
+    /**
+     * Disciplinele pe care le predă (din repartizări).
+     *
+     * @return list<int>
+     */
+    public function taughtSubjectIds(): array
+    {
+        return array_values(
+            $this->teachingAssignments()->pluck('subject_id')
+                ->map(static fn ($id): int => (int) $id)->unique()->all()
+        );
+    }
+
+    /**
+     * Clasele la care e DIRIGINTE — acces complet la toată clasa (orice disciplină).
+     *
+     * @return list<int>
+     */
+    public function homeroomSchoolClassIds(): array
+    {
+        return array_values(
+            $this->homeroomClasses()->pluck('id')
+                ->map(static fn ($id): int => (int) $id)->all()
+        );
+    }
+
+    /**
+     * Toate clasele vizibile profesorului/dirigintelui (predate + cele ca diriginte).
+     *
+     * @return list<int>
+     */
+    public function visibleSchoolClassIds(): array
+    {
+        return array_values(array_unique([
+            ...$this->taughtSchoolClassIds(),
+            ...$this->homeroomSchoolClassIds(),
+        ]));
+    }
 }

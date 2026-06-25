@@ -7,9 +7,10 @@ export function SiteFooter() {
         <footer className="mt-16 border-t border-border bg-muted/30">
             <div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 md:grid-cols-2 lg:grid-cols-5">
                 <div className="lg:col-span-1">
-                    <div className="flex items-center gap-2">
-                        <span className="flex size-9 items-center justify-center rounded-md bg-primary font-bold text-primary-foreground">C</span>
-                        <span className="font-semibold">Liceul Columna</span>
+                    <div className="flex items-center gap-2.5">
+                        <img src="/images/logo/columna-navy.png" alt="Liceul Columna" className="h-12 w-auto dark:hidden" />
+                        <img src="/images/logo/columna-white.png" alt="Liceul Columna" className="hidden h-12 w-auto dark:block" />
+                        <span className="font-serif font-semibold">Liceul Columna</span>
                     </div>
                     <p className="mt-3 text-sm text-muted-foreground">{siteContact.tagline}</p>
                     <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
