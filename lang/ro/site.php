@@ -217,6 +217,18 @@ return [
         'extract_grades' => 'Mediile se calculează automat, pe cicluri, până la sutimi fără rotunjire (Regulament intern, §2.4). Media semestrială se actualizează după fiecare notă nouă.',
         'extract_absences' => 'Absențele se motivează de diriginte, la cererea familiei, în termenul prevăzut de ROF. Atașează justificativul la cererea de motivare.',
         'extract_requests' => 'Cererile se generează ca document PDF și se transmit secretariatului; termenul de răspuns e cel prevăzut de procedura aplicabilă.',
+        'notif_title' => 'Notificări',
+        'notif_settings' => 'Setări notificări',
+        'notif_mark_all' => 'Marchează toate citite',
+        'notif_empty' => 'Nicio notificare.',
+        'notif_open' => 'Deschide',
+        'notif_contacts' => 'Date de contact',
+        'notif_contacts_hint' => 'Adaugă datele pe care vrei să primești notificări. Lasă gol ce nu folosești.',
+        'notif_matrix' => 'Pe ce canal primești fiecare notificare',
+        'notif_type' => 'Notificare',
+        'notif_save' => 'Salvează preferințele',
+        'notif_saved' => 'Salvat.',
+        'notif_email_account' => 'E-mail (din cont)',
     ],
 
     'auth' => [

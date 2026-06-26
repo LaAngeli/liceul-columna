@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 class Student extends Model
 {
@@ -51,6 +52,23 @@ class Student extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Conturile cărora le merg notificările despre acest elev (spec §5): contul propriu (elev)
+     * + tutorii atribuiți, deduplicate.
+     *
+     * @return Collection<int, User>
+     */
+    public function notifiableUsers(): Collection
+    {
+        $users = $this->guardians()->get();
+
+        if ($this->user !== null) {
+            $users->push($this->user);
+        }
+
+        return $users->unique('id')->values();
     }
 
     /**

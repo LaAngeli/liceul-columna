@@ -7,6 +7,7 @@ use App\Http\Controllers\ForcedPasswordController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\MessagesController;
+use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Middleware\SetPublicLocale;
 use App\Http\Middleware\SetUserLocale;
@@ -139,6 +140,13 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     // Cereri tipice (spec §4.3): depunere (→ PDF, secretariat) + descărcare PDF privat.
     Route::post('cabinet/elev/{student}/cereri', [CabinetController::class, 'requestDocument'])->name('cabinet.requests.store');
     Route::get('cabinet/cereri/{documentRequest}/pdf', [CabinetController::class, 'downloadRequest'])->name('cabinet.requests.pdf');
+
+    // Notificări (spec §5): inbox in-app + setări (contacte + matrice canal × tip).
+    Route::get('cabinet/notificari', [NotificationsController::class, 'index'])->name('cabinet.notifications');
+    Route::post('cabinet/notificari/citeste-tot', [NotificationsController::class, 'markAllRead'])->name('cabinet.notifications.read-all');
+    Route::post('cabinet/notificari/{notification}/citit', [NotificationsController::class, 'markRead'])->name('cabinet.notifications.read');
+    Route::get('cabinet/notificari/setari', [NotificationsController::class, 'settings'])->name('cabinet.notifications.settings');
+    Route::put('cabinet/notificari/setari', [NotificationsController::class, 'updateSettings'])->name('cabinet.notifications.settings.update');
 });
 
 // Schimbarea obligatorie a parolei (userii migrați) — doar `auth`.

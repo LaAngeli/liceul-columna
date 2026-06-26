@@ -119,6 +119,16 @@ logați (service layer, ex. Prism PHP; aceleași endpoints cu permisiuni scoped)
   autentificată (familie SAU administrație, niciodată URL public). Secretariatul vede/procesează în resursa Filament
   „Cereri" (badge în așteptare). **Extrase contextuale** (§4.4): `<details>` cu fragmente de procedură lângă
   note/absențe/cereri (i18n RO/RU/EN). ⚠️ `mpdf` ales în loc de `spatie/laravel-pdf` ca să evităm Node/Chromium + Faza B.
+- 🟡 **Notificări multicanal (spec §5, #37) — FĂRĂ SMS:** sistemul nativ Laravel. `NotificationType` (notă/absență/temă/
+  mesaj/statut/anunț) × `NotificationChannel` (cabinet/email/telegram/viber/messenger/whatsapp). Preferințe per user
+  (JSON pe `users`: `notification_contacts` + `notification_preferences`) → `User::channelsFor()`; o singură clasă
+  `CatalogNotification` (`ShouldQueue`) cu `via()` care livrează DOAR pe canalele alese ȘI setate. Canale: cabinet
+  (database) + email — **funcționale**; Telegram/Viber/Messenger = canale custom HTTP (`App\Notifications\Channels\*`,
+  **fără pachet Composer**) gata-de-activat când pui token-ul în `.env` (`config/services.php`); WhatsApp = doar
+  contact+preferință (API plătit, amânat). Declanșare: observers pe Grade/Absence/Message (`created` → notifică familia/
+  destinatarul; importul prin query builder NU declanșează). Cabinet: `cabinet/notificari` (inbox) + `cabinet/notificari/
+  setari` (contacte + matrice canal×tip); badge necitite în `HandleInertiaRequests`. ⏳ Follow-up: dispatch temă + anunț
+  broadcast, digest săptămânal (scheduler), token-urile reale de bot (liceul).
 - ✅ **Status elev (spec §2.5):** `StudentStatus` (promovat/corigent/amânat) + `App\Actions\DetermineStudentStatus`
   (corigent dacă o medie < 5, cu disciplinele restante; din `term_averages`, semestrul curent). Afișat în cabinet
   (badge) + indicator „Corigenți" în DirectorOverview (școală) și TeacherOverview (clasele mele). ⏳ De finalizat

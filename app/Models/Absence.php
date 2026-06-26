@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Observers\AbsenceObserver;
+use Database\Factories\AbsenceFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,11 +12,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
+#[ObservedBy(AbsenceObserver::class)]
 class Absence extends Model implements Auditable
 {
     use AuditableTrait;
 
-    /** @use HasFactory<\Database\Factories\AbsenceFactory> */
+    /** @use HasFactory<AbsenceFactory> */
     use HasFactory, SoftDeletes;
 
     protected $fillable = [

@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\NotificationChannel;
+use App\Enums\NotificationType;
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -31,10 +33,12 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
  * @property string|null $locale
+ * @property array<string, string>|null $notification_contacts
+ * @property array<string, list<string>>|null $notification_preferences
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'username', 'email', 'password', 'must_change_password', 'locale'])]
+#[Fillable(['name', 'username', 'email', 'password', 'must_change_password', 'locale', 'notification_contacts', 'notification_preferences'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
@@ -264,6 +268,44 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Canalele pe care utilizatorul vrea să primească un tip de notificare (§5). Implicit: doar
+     * „cabinet" (in-app). Familia personalizează matricea în Setări → Notificări.
+     *
+     * @return list<NotificationChannel>
+     */
+    public function channelsFor(NotificationType $type): array
+    {
+        $preferences = $this->notification_preferences ?? [];
+        $chosen = $preferences[$type->value] ?? [NotificationChannel::Cabinet->value];
+
+        $channels = [];
+        foreach ((array) $chosen as $value) {
+            $channel = NotificationChannel::tryFrom((string) $value);
+            if ($channel !== null) {
+                $channels[] = $channel;
+            }
+        }
+
+        return $channels;
+    }
+
+    /**
+     * Contactul setat pentru un canal (e-mail / telegram / viber / messenger / whatsapp), sau null
+     * dacă lipsește. Canalul „cabinet" nu are nevoie de contact.
+     */
+    public function notificationContact(NotificationChannel $channel): ?string
+    {
+        if ($channel === NotificationChannel::Email) {
+            return $this->email;
+        }
+
+        $contacts = $this->notification_contacts ?? [];
+        $value = $contacts[$channel->value] ?? null;
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
      * Fișa de profesor legată de acest cont (pentru scoping pe clase/discipline).
      *
      * @return HasOne<Teacher, $this>
@@ -346,6 +388,8 @@ class User extends Authenticatable implements FilamentUser
             'password' => 'hashed',
             'must_change_password' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
+            'notification_contacts' => 'array',
+            'notification_preferences' => 'array',
         ];
     }
 }

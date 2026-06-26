@@ -45,6 +45,8 @@ class HandleInertiaRequests extends Middleware
                 'canAccessAdmin' => $request->user()?->hasAnyRole(UserRole::panelRoleValues()) ?? false,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            // Badge de notificări necitite (lazy: query doar pentru utilizatori autentificați).
+            'notificationsUnread' => fn (): int => $request->user()?->unreadNotifications()->count() ?? 0,
             // Lazy: share() rulează înaintea middleware-ului de limbă, deci rezolvăm
             // limba la randare (după ce locale-ul a fost setat).
             'locale' => fn (): string => app()->getLocale(),

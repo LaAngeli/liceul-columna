@@ -2,7 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
-import { messages as messageRoutes, motivation } from '@/routes/cabinet';
+import { messages as messageRoutes, motivation, notifications as notificationRoutes } from '@/routes/cabinet';
 import { store as requestRoute } from '@/routes/cabinet/requests';
 
 interface StudentSummary {
@@ -210,8 +210,14 @@ export default function StudentProfile({
                         )}
                     </div>
                     <Link
-                        href={messageRoutes.url()}
+                        href={notificationRoutes.url()}
                         className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
+                    >
+                        {t('cabinet.notif_title')}
+                    </Link>
+                    <Link
+                        href={messageRoutes.url()}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
                     >
                         {t('cabinet.messages_title')}
                     </Link>

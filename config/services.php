@@ -35,4 +35,19 @@ return [
         ],
     ],
 
+    // Canale de notificare sociale (spec §5). Goale = neconfigurate → canalul e sărit elegant.
+    // Liceul completează token-urile când are conturile de bot/pagină pregătite.
+    'telegram' => [
+        'token' => env('TELEGRAM_BOT_TOKEN'),
+    ],
+
+    'viber' => [
+        'token' => env('VIBER_BOT_TOKEN'),
+        'sender' => env('VIBER_SENDER', 'Liceul Columna'),
+    ],
+
+    'messenger' => [
+        'token' => env('MESSENGER_PAGE_TOKEN'),
+    ],
+
 ];

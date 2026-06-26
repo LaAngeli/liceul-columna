@@ -217,6 +217,18 @@ return [
         'extract_grades' => 'Averages are computed automatically by cycle, to hundredths without rounding (internal regulation, §2.4). The term average updates after each new grade.',
         'extract_absences' => 'Absences are excused by the homeroom teacher upon the family request, within the deadline set by the regulations. Attach the supporting document to the excuse request.',
         'extract_requests' => 'Requests are generated as a PDF and sent to the secretariat; the response time follows the applicable procedure.',
+        'notif_title' => 'Notifications',
+        'notif_settings' => 'Notification settings',
+        'notif_mark_all' => 'Mark all as read',
+        'notif_empty' => 'No notifications.',
+        'notif_open' => 'Open',
+        'notif_contacts' => 'Contact details',
+        'notif_contacts_hint' => 'Add where you want to receive notifications. Leave blank what you do not use.',
+        'notif_matrix' => 'Which channel each notification arrives on',
+        'notif_type' => 'Notification',
+        'notif_save' => 'Save preferences',
+        'notif_saved' => 'Saved.',
+        'notif_email_account' => 'Email (from account)',
     ],
 
     'auth' => [

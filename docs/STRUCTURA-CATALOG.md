@@ -1,6 +1,7 @@
 <!-- Extras din „Structura catalog electronic.docx" (Telegram, 26 iunie 2026). -->
 <!-- Specificație funcțională AUTORITATIVĂ pentru catalogul electronic. Roadmap = taskurile P1–P8. -->
 <!-- DEVIERE confirmată de conducerea proiectului: UN singur rol per utilizator (nu cumul, contrar §1/§3.1). -->
+<!-- EXCLUS de conducere (26 iun 2026): cerința de accesibilitate WCAG/contrast/font/tastatură (§8) și orice referință la SICE. -->
 
 LICEUL COLUMNA
 Catalogul Electronic — Specificație de structură funcțională
@@ -197,10 +198,10 @@ Cerința centrală: aceeași rigoare aplicată DPIA-ului pentru recunoașterea f
 - Jurnalizarea accesului: audit_log extins — cine a vizualizat/modificat ce date sensibile, nu doar modificările.
 - Securitate: criptare în tranzit și la repaus, notificarea incidentelor, principiul minimizării datelor. DPIA recomandată înainte de punerea în funcțiune.
 
-# 8.  Cerințe non-funcționale și accesibilitate
+# 8.  Cerințe non-funcționale
 Calitatea de utilizare pentru toate rolurile, în condiții reale.
-- Multilingv RO / RU / EN: interfață disponibilă în română, rusă și engleză (ca SICE). Suplimentar — documente oficiale exportabile în engleză: foaia matricolă / situația școlară, solicitate de absolvenții care aspiră la universități din străinătate unde engleza este limba de lucru.
-- Accesibilitate: contrast verificat (paleta navy/auriu — WCAG), mărimea fontului reglabilă, navigare la tastatură.
+- Multilingv RO / RU / EN: interfață disponibilă în română, rusă și engleză. Suplimentar — documente oficiale exportabile în engleză: foaia matricolă / situația școlară, solicitate de absolvenții care aspiră la universități din străinătate unde engleza este limba de lucru.
+- ~~Accesibilitate: contrast verificat (paleta navy/auriu — WCAG), mărimea fontului reglabilă, navigare la tastatură.~~ — **EXCLUS** (decizia conducerii, 26 iun 2026).
 - Autosalvare și reziliență la căderi de net în timpul introducerii notelor — nimic pierdut.
 - Performanță la vârf: sistemul rămâne rapid la sfârșit de semestru, când toți profesorii introduc note simultan.
 - Căutare rapidă (elev, clasă, disciplină) și vedere simplificată pentru primar, adaptată claselor mici.

@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Actions\SendMessage;
 use App\Enums\MessageType;
+use App\Observers\MessageObserver;
 use Database\Factories\MessageFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property MessageType $type
  * @property Carbon|null $read_at
  */
+#[ObservedBy(MessageObserver::class)]
 class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */

@@ -14,12 +14,14 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Icons\Heroicon;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\View;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -36,14 +38,16 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->userMenuItems([
-                'lang-ro' => MenuItem::make()->label('RO · Română')->url('/set-locale/ro?redirect=/admin')->icon(Heroicon::OutlinedLanguage),
-                'lang-ru' => MenuItem::make()->label('RU · Русский')->url('/set-locale/ru?redirect=/admin')->icon(Heroicon::OutlinedLanguage),
-                'lang-en' => MenuItem::make()->label('EN · English')->url('/set-locale/en?redirect=/admin')->icon(Heroicon::OutlinedLanguage),
                 MenuItem::make()
                     ->label('Vezi site-ul public')
                     ->url('/', shouldOpenInNewTab: true)
                     ->icon(Heroicon::OutlinedGlobeAlt),
             ])
+            // Pastilă segmentată de limbă (RO/RU/EN), inserată în meniul user după item-ul de profil.
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_PROFILE_AFTER,
+                fn (): string => View::make('filament.topbar.language-switcher')->render(),
+            )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
