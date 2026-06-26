@@ -81,4 +81,16 @@ class Student extends Model
     {
         return $this->hasMany(Absence::class);
     }
+
+    /** @return HasMany<AcademicRecord, $this> */
+    public function academicRecords(): HasMany
+    {
+        return $this->hasMany(AcademicRecord::class);
+    }
+
+    /** @return HasMany<TermAverage, $this> */
+    public function termAverages(): HasMany
+    {
+        return $this->hasMany(TermAverage::class);
+    }
 }

@@ -31,17 +31,18 @@ class UserResource extends Resource
     protected static ?string $pluralModelLabel = 'Utilizatori';
 
     /**
-     * Gestiunea conturilor e rezervată administrației (admin/director/director-adjunct).
-     * Ierarhia exactă de creare/editare e impusă în canCreate/canEdit/canDelete + UserForm.
+     * Gestiunea conturilor e rezervată celor care au roluri de atribuit: super-admin, director,
+     * administrator operațional (§3.3 „Conturi de familie"). Prim-vicedirectorul și administratorul
+     * tehnic NU gestionează conturi. Ierarhia exactă e impusă în canCreate/canEdit + UserForm.
      */
     public static function canAccess(): bool
     {
-        return auth()->user()?->isAdministrator() ?? false;
+        return auth()->user()?->canManageAccounts() ?? false;
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->isAdministrator() ?? false;
+        return auth()->user()?->canManageAccounts() ?? false;
     }
 
     public static function canEdit(Model $record): bool

@@ -3,8 +3,9 @@
 namespace App\Filament\Concerns;
 
 /**
- * Resursa e vizibilă/accesibilă DOAR administrației (admin/director/director-adjunct).
- * Profesorii/diriginții nu o văd deloc (ex. Profesori, Înmatriculări, Ani, Semestre).
+ * Resursa e vizibilă/accesibilă DOAR administrației academice (super-admin / director /
+ * prim-vicedirector / administrator operațional). Profesorii/diriginții și administratorul
+ * tehnic nu o văd deloc (ex. Profesori, cereri de înscriere).
  */
 trait AdministratorOnly
 {

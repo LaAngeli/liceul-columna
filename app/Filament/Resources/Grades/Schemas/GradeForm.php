@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources\Grades\Schemas;
 
+use App\Enums\EvaluationType;
 use App\Models\Enrollment;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Support\ContentTranslator;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
@@ -39,6 +41,12 @@ class GradeForm
                     ->relationship('term', 'name')
                     ->searchable()
                     ->preload()
+                    ->required(),
+                Select::make('evaluation_type')
+                    ->label('Tipul evaluării')
+                    ->options(EvaluationType::options())
+                    ->default(EvaluationType::Curenta->value)
+                    ->native(false)
                     ->required(),
                 DatePicker::make('graded_on')
                     ->label('Data')
@@ -98,7 +106,7 @@ class GradeForm
 
         $options = [];
         foreach ($query->get() as $subject) {
-            $options[$subject->id] = $subject->name;
+            $options[$subject->id] = ContentTranslator::subject($subject->name);
         }
 
         return $options;

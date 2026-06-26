@@ -1,10 +1,12 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Filament\Resources\Absences\AbsenceResource;
 use App\Filament\Resources\AcademicYears\AcademicYearResource;
 use App\Filament\Resources\Grades\GradeResource;
 use App\Filament\Resources\SchoolClasses\SchoolClassResource;
 use App\Filament\Resources\Students\StudentResource;
+use App\Models\Absence;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\Grade;
@@ -167,4 +169,57 @@ it('dirigintele vede TOATE notele clasei lui (orice disciplină)', function () {
     expect(GradeResource::getEloquentQuery()->pluck('id'))
         ->toContain($g1->id, $g2->id)
         ->not->toContain($gOther->id);
+});
+
+it('poate nota DOAR la (clasa, disciplina) pe care o predă', function () {
+    $year = AcademicYear::factory()->create();
+    $class = SchoolClass::factory()->for($year)->create();
+    $other = SchoolClass::factory()->for($year)->create();
+    $subjX = Subject::factory()->create();
+    $subjY = Subject::factory()->create();
+
+    $teacher = Teacher::factory()->create();
+    TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subjX->id,
+        'school_class_id' => $class->id,
+    ]);
+
+    expect($teacher->canGradeClassSubject($class->id, $subjX->id))->toBeTrue()
+        ->and($teacher->canGradeClassSubject($class->id, $subjY->id))->toBeFalse()
+        ->and($teacher->canGradeClassSubject($other->id, $subjX->id))->toBeFalse();
+});
+
+it('dirigintele poate înregistra absențe în clasa lui chiar fără să predea acolo', function () {
+    $year = AcademicYear::factory()->create();
+    $homeroom = SchoolClass::factory()->for($year)->create();
+    $subject = Subject::factory()->create();
+
+    $teacher = Teacher::factory()->create();
+    $homeroom->update(['homeroom_teacher_id' => $teacher->id]);
+
+    // poate înregistra absențe (diriginte), dar NU poate nota (nu predă disciplina)
+    expect($teacher->canRecordAbsence($homeroom->id, $subject->id))->toBeTrue()
+        ->and($teacher->canGradeClassSubject($homeroom->id, $subject->id))->toBeFalse();
+});
+
+it('dirigintele vede TOATE absențele clasei lui', function () {
+    $year = AcademicYear::factory()->create();
+    $homeroom = SchoolClass::factory()->for($year)->create();
+    $other = SchoolClass::factory()->for($year)->create();
+
+    $a1 = Absence::factory()->create(['school_class_id' => $homeroom->id]);
+    $a2 = Absence::factory()->create(['school_class_id' => $homeroom->id]);
+    $aOther = Absence::factory()->create(['school_class_id' => $other->id]);
+
+    $user = User::factory()->create();
+    $user->assignRole(UserRole::Diriginte->value);
+    $teacher = Teacher::factory()->create(['user_id' => $user->id]);
+    $homeroom->update(['homeroom_teacher_id' => $teacher->id]);
+
+    $this->actingAs($user);
+
+    expect(AbsenceResource::getEloquentQuery()->pluck('id'))
+        ->toContain($a1->id, $a2->id)
+        ->not->toContain($aOther->id);
 });

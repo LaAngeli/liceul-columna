@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Enrollments;
 
-use App\Filament\Concerns\AdministratorOnly;
+use App\Filament\Concerns\ConfiguresSchool;
 use App\Filament\Resources\Enrollments\Pages\CreateEnrollment;
 use App\Filament\Resources\Enrollments\Pages\EditEnrollment;
 use App\Filament\Resources\Enrollments\Pages\ListEnrollments;
@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class EnrollmentResource extends Resource
 {
-    use AdministratorOnly;
+    use ConfiguresSchool;
 
     protected static ?string $model = Enrollment::class;
 

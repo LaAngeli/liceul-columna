@@ -104,6 +104,31 @@ class Teacher extends Model
     }
 
     /**
+     * Are dreptul să pună/editeze NOTE la (clasă, disciplină)? Doar dacă predă efectiv
+     * acea disciplină la acea clasă (dirigintele VEDE tot, dar notează doar la disciplina lui).
+     */
+    public function canGradeClassSubject(int $schoolClassId, int $subjectId): bool
+    {
+        return $this->teachingAssignments()
+            ->where('school_class_id', $schoolClassId)
+            ->where('subject_id', $subjectId)
+            ->exists();
+    }
+
+    /**
+     * Are dreptul să înregistreze ABSENȚE pentru (clasă, disciplină)? Profesorul doar la
+     * disciplina lui; dirigintele pentru orice disciplină din clasa lui.
+     */
+    public function canRecordAbsence(int $schoolClassId, ?int $subjectId): bool
+    {
+        if (in_array($schoolClassId, $this->homeroomSchoolClassIds(), true)) {
+            return true;
+        }
+
+        return $subjectId !== null && $this->canGradeClassSubject($schoolClassId, $subjectId);
+    }
+
+    /**
      * Toate clasele vizibile profesorului/dirigintelui (predate + cele ca diriginte).
      *
      * @return list<int>

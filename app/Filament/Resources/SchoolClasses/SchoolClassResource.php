@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\SchoolClasses;
 
-use App\Filament\Concerns\ManagedByAdministrators;
+use App\Filament\Concerns\ManagedByConfigurators;
 use App\Filament\Resources\SchoolClasses\Pages\CreateSchoolClass;
 use App\Filament\Resources\SchoolClasses\Pages\EditSchoolClass;
 use App\Filament\Resources\SchoolClasses\Pages\ListSchoolClasses;
@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class SchoolClassResource extends Resource
 {
-    use ManagedByAdministrators;
+    use ManagedByConfigurators;
 
     protected static ?string $model = SchoolClass::class;
 

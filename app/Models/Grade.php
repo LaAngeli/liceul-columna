@@ -2,7 +2,11 @@
 
 namespace App\Models;
 
+use App\Enums\EvaluationType;
+use App\Observers\GradeObserver;
 use Database\Factories\GradeFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,9 +17,13 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * @property Carbon $graded_on
+ * @property EvaluationType $evaluation_type
  * @property numeric-string|null $value
  * @property string|null $calificativ
+ * @property Carbon|null $annulled_at
+ * @property string|null $annulment_reason
  */
+#[ObservedBy(GradeObserver::class)]
 class Grade extends Model implements Auditable
 {
     use AuditableTrait;
@@ -31,8 +39,12 @@ class Grade extends Model implements Auditable
         'teacher_id',
         'graded_on',
         'type',
+        'evaluation_type',
         'value',
         'calificativ',
+        'annulled_at',
+        'annulled_by_user_id',
+        'annulment_reason',
     ];
 
     protected function casts(): array
@@ -40,8 +52,28 @@ class Grade extends Model implements Auditable
         return [
             'graded_on' => 'date',
             'type' => 'integer',
+            'evaluation_type' => EvaluationType::class,
             'value' => 'decimal:2',
+            'annulled_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Nota anulată (void): rămâne în istoric, dar nu contează la medii și nu apare în cabinet.
+     */
+    public function isAnnulled(): bool
+    {
+        return $this->annulled_at !== null;
+    }
+
+    /**
+     * Doar notele active (neanulate).
+     *
+     * @param  Builder<Grade>  $query
+     */
+    public function scopeActive(Builder $query): void
+    {
+        $query->whereNull('annulled_at');
     }
 
     /** @return BelongsTo<Student, $this> */

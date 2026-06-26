@@ -1,0 +1,100 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\CorrectionStatus;
+use Database\Factories\GradeCorrectionFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+
+/**
+ * Solicitare de corecție a unei note: profesorul cere, administrația aprobă (§3.1).
+ *
+ * @property CorrectionStatus $status
+ * @property numeric-string|null $old_value
+ * @property numeric-string|null $new_value
+ * @property Carbon|null $reviewed_at
+ */
+class GradeCorrection extends Model
+{
+    /** @use HasFactory<GradeCorrectionFactory> */
+    use HasFactory;
+
+    protected $fillable = [
+        'grade_id',
+        'requested_by_user_id',
+        'old_value',
+        'new_value',
+        'old_calificativ',
+        'new_calificativ',
+        'reason',
+        'status',
+        'reviewed_by_user_id',
+        'reviewed_at',
+        'review_note',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'status' => CorrectionStatus::class,
+            'old_value' => 'decimal:2',
+            'new_value' => 'decimal:2',
+            'reviewed_at' => 'datetime',
+        ];
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === CorrectionStatus::Pending;
+    }
+
+    /**
+     * Aprobă: aplică noua valoare pe notă (declanșează recalcul medie prin observer) și
+     * consemnează cine/când. Fără modificare silențioasă — totul e arhivat aici.
+     */
+    public function approve(int $reviewerId, ?string $note = null): void
+    {
+        $this->grade->update([
+            'value' => $this->new_value,
+            'calificativ' => $this->new_calificativ,
+        ]);
+
+        $this->update([
+            'status' => CorrectionStatus::Approved,
+            'reviewed_by_user_id' => $reviewerId,
+            'reviewed_at' => now(),
+            'review_note' => $note,
+        ]);
+    }
+
+    public function reject(int $reviewerId, ?string $note = null): void
+    {
+        $this->update([
+            'status' => CorrectionStatus::Rejected,
+            'reviewed_by_user_id' => $reviewerId,
+            'reviewed_at' => now(),
+            'review_note' => $note,
+        ]);
+    }
+
+    /** @return BelongsTo<Grade, $this> */
+    public function grade(): BelongsTo
+    {
+        return $this->belongsTo(Grade::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function requestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by_user_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function reviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by_user_id');
+    }
+}

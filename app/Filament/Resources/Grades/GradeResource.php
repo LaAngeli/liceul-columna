@@ -31,6 +31,17 @@ class GradeResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Note';
 
+    /**
+     * Introduc note: profesorii/diriginții (scoped pe server) + autoritatea academică
+     * (super-admin/director/prim-vicedirector). Administratorul operațional/tehnic — nu (§3.2/§3.3).
+     */
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null && ($user->teacher !== null || $user->canAdministerCatalog());
+    }
+
     public static function form(Schema $schema): Schema
     {
         return GradeForm::configure($schema);

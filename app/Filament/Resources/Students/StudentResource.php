@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Students;
 
-use App\Filament\Concerns\ManagedByAdministrators;
+use App\Filament\Concerns\ManagedByConfigurators;
 use App\Filament\Resources\Students\Pages\CreateStudent;
 use App\Filament\Resources\Students\Pages\EditStudent;
 use App\Filament\Resources\Students\Pages\ListStudents;
@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class StudentResource extends Resource
 {
-    use ManagedByAdministrators;
+    use ManagedByConfigurators;
 
     protected static ?string $model = Student::class;
 

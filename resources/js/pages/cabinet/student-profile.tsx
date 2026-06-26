@@ -1,5 +1,7 @@
-import { Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
+import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
+import { messages as messageRoutes, motivation } from '@/routes/cabinet';
 
 interface StudentSummary {
     id: number;
@@ -23,11 +25,75 @@ interface SubjectGrades {
     items: GradeItem[];
 }
 
+interface TranscriptSubject {
+    subject: string;
+    sem1: string | null;
+    sem2: string | null;
+    annual: string | null;
+}
+
+interface TranscriptLevel {
+    grade_level: number;
+    subjects: TranscriptSubject[];
+}
+
+interface HomeworkItem {
+    id: number;
+    date: string;
+    subject: string;
+    topic: string | null;
+    required: string | null;
+    optional: string | null;
+    links: string[];
+}
+
+interface StudentStatus {
+    status: 'promovat' | 'corigent' | 'amanat' | null;
+    label: string | null;
+    failingSubjects: string[];
+}
+
+interface MotivationItem {
+    id: number;
+    reason: string;
+    period: string;
+    status: 'pending' | 'approved' | 'rejected';
+    statusLabel: string;
+}
+
+type Trend = 'up' | 'stable' | 'down' | null;
+
+interface DynamicsSubject {
+    subject: string;
+    points: { level: number; value: number }[];
+    trend: Trend;
+}
+
+interface Dynamics {
+    general: { level: number; average: number }[];
+    subjects: DynamicsSubject[];
+    current: {
+        average: number | null;
+        historyAverage: number | null;
+        previousYearSameTerm: number | null;
+        trend: Trend;
+        alert: boolean;
+    };
+}
+
 interface Props {
     student: StudentSummary;
     subjects: SubjectGrades[];
     absencesBySubject: { subject: string; count: number }[];
     absencesTotal: number;
+    absencesMotivated: number;
+    absencesUnmotivated: number;
+    transcript: TranscriptLevel[];
+    homework: HomeworkItem[];
+    status: StudentStatus;
+    dynamics: Dynamics;
+    motivations: MotivationItem[];
+    canRequestMotivation: boolean;
 }
 
 function gradeLabel(item: GradeItem): string {
@@ -37,7 +103,68 @@ function gradeLabel(item: GradeItem): string {
     return item.calificativ ?? '—';
 }
 
-export default function StudentProfile({ student, subjects, absencesBySubject, absencesTotal }: Props) {
+function isUrl(value: string): boolean {
+    return /^https?:\/\//i.test(value);
+}
+
+function motivationStatusClass(status: string): string {
+    if (status === 'approved') {
+        return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+    }
+    if (status === 'rejected') {
+        return 'bg-destructive/10 text-destructive';
+    }
+    return 'bg-amber-500/10 text-amber-600 dark:text-amber-400';
+}
+
+function trendSymbol(trend: Trend): { symbol: string; cls: string } | null {
+    if (trend === 'up') {
+        return { symbol: '▲', cls: 'text-emerald-600 dark:text-emerald-400' };
+    }
+    if (trend === 'down') {
+        return { symbol: '▼', cls: 'text-destructive' };
+    }
+    if (trend === 'stable') {
+        return { symbol: '▬', cls: 'text-muted-foreground' };
+    }
+    return null;
+}
+
+/** Construiește punctele unei polilinii SVG dintr-o serie de valori (scalată la min/max propriu). */
+function sparklinePoints(values: number[], width: number, height: number): string {
+    if (values.length === 0) {
+        return '';
+    }
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+    const step = values.length > 1 ? width / (values.length - 1) : 0;
+
+    return values
+        .map((v, i) => {
+            const x = i * step;
+            const y = height - ((v - min) / range) * height;
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        })
+        .join(' ');
+}
+
+export default function StudentProfile({
+    student,
+    subjects,
+    absencesBySubject,
+    absencesTotal,
+    absencesMotivated,
+    absencesUnmotivated,
+    transcript,
+    homework,
+    status,
+    dynamics,
+    motivations,
+    canRequestMotivation,
+}: Props) {
+    const t = useTranslations();
+
     return (
         <>
             <Head title={student.name} />
@@ -49,34 +176,55 @@ export default function StudentProfile({ student, subjects, absencesBySubject, a
                     </span>
                     <div>
                         <h1 className="text-xl font-semibold">{student.name}</h1>
-                        <p className="text-sm text-muted-foreground">{student.class ?? 'Clasă nealocată'}</p>
+                        <p className="text-sm text-muted-foreground">{student.class ?? t('cabinet.class_unassigned')}</p>
+                        {status.status === 'corigent' && (
+                            <span className="mt-1.5 inline-flex rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
+                                {t('cabinet.status_corigent')} — {status.failingSubjects.join(', ')}
+                            </span>
+                        )}
+                        {status.status === 'promovat' && (
+                            <span className="mt-1.5 inline-flex rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                {t('cabinet.status_promovat')}
+                            </span>
+                        )}
+                        {status.status === 'amanat' && (
+                            <span className="mt-1.5 inline-flex rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                {t('cabinet.status_amanat')}
+                            </span>
+                        )}
                     </div>
-                    <div className="ml-auto flex gap-6 text-center">
+                    <Link
+                        href={messageRoutes.url()}
+                        className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
+                    >
+                        {t('cabinet.messages_title')}
+                    </Link>
+                    <div className="flex gap-6 text-center">
                         <div>
                             <div className="text-2xl font-semibold text-primary">{student.average ?? '—'}</div>
-                            <p className="text-xs text-muted-foreground">Media generală</p>
+                            <p className="text-xs text-muted-foreground">{t('cabinet.average_general')}</p>
                         </div>
                         <div>
                             <div className="text-2xl font-semibold">{student.grades_count}</div>
-                            <p className="text-xs text-muted-foreground">Note</p>
+                            <p className="text-xs text-muted-foreground">{t('cabinet.grades')}</p>
                         </div>
                         <div>
                             <div className="text-2xl font-semibold">{absencesTotal}</div>
-                            <p className="text-xs text-muted-foreground">Absențe</p>
+                            <p className="text-xs text-muted-foreground">{t('cabinet.absences')}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Note pe discipline */}
                 <section>
-                    <h2 className="mb-3 text-lg font-semibold">Note pe discipline</h2>
+                    <h2 className="mb-3 text-lg font-semibold">{t('cabinet.grades_by_subject')}</h2>
                     <div className="overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 text-left text-muted-foreground">
                                 <tr>
-                                    <th className="px-4 py-2 font-medium">Disciplina</th>
-                                    <th className="px-4 py-2 font-medium">Note</th>
-                                    <th className="px-4 py-2 text-right font-medium">Media</th>
+                                    <th className="px-4 py-2 font-medium">{t('cabinet.subject')}</th>
+                                    <th className="px-4 py-2 font-medium">{t('cabinet.grades')}</th>
+                                    <th className="px-4 py-2 text-right font-medium">{t('cabinet.average')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -102,7 +250,7 @@ export default function StudentProfile({ student, subjects, absencesBySubject, a
                                 {subjects.length === 0 && (
                                     <tr>
                                         <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">
-                                            Nicio notă înregistrată.
+                                            {t('cabinet.no_grades')}
                                         </td>
                                     </tr>
                                 )}
@@ -112,9 +260,17 @@ export default function StudentProfile({ student, subjects, absencesBySubject, a
                 </section>
 
                 {/* Absențe */}
-                {absencesBySubject.length > 0 && (
+                {absencesTotal > 0 && (
                     <section>
-                        <h2 className="mb-3 text-lg font-semibold">Absențe pe discipline</h2>
+                        <div className="mb-3 flex flex-wrap items-center gap-3">
+                            <h2 className="text-lg font-semibold">{t('cabinet.absences_by_subject')}</h2>
+                            <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                {absencesMotivated} {t('cabinet.motivated')}
+                            </span>
+                            <span className="rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
+                                {absencesUnmotivated} {t('cabinet.unmotivated')}
+                            </span>
+                        </div>
                         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {absencesBySubject.map((a) => (
                                 <div
@@ -128,6 +284,311 @@ export default function StudentProfile({ student, subjects, absencesBySubject, a
                         </div>
                     </section>
                 )}
+
+                {/* Motivarea absențelor (familia depune, dirigintele validează) */}
+                {(canRequestMotivation || motivations.length > 0) && (
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.motivations_title')}</h2>
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            {canRequestMotivation && (
+                                <Form
+                                    {...motivation.form(student.id)}
+                                    resetOnSuccess
+                                    className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
+                                >
+                                    {({ processing, errors, recentlySuccessful }) => (
+                                        <div className="flex flex-col gap-3">
+                                            <p className="text-sm font-medium">{t('cabinet.motivation_new')}</p>
+                                            <div className="grid gap-1.5">
+                                                <label htmlFor="reason" className="text-xs text-muted-foreground">
+                                                    {t('cabinet.motivation_reason')}
+                                                </label>
+                                                <textarea
+                                                    id="reason"
+                                                    name="reason"
+                                                    required
+                                                    rows={3}
+                                                    placeholder={t('cabinet.motivation_reason_ph')}
+                                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                                />
+                                                {errors.reason && <p className="text-xs text-destructive">{errors.reason}</p>}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid gap-1.5">
+                                                    <label htmlFor="period_start" className="text-xs text-muted-foreground">
+                                                        {t('cabinet.motivation_from')}
+                                                    </label>
+                                                    <input
+                                                        id="period_start"
+                                                        name="period_start"
+                                                        type="date"
+                                                        required
+                                                        className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                                    />
+                                                    {errors.period_start && (
+                                                        <p className="text-xs text-destructive">{errors.period_start}</p>
+                                                    )}
+                                                </div>
+                                                <div className="grid gap-1.5">
+                                                    <label htmlFor="period_end" className="text-xs text-muted-foreground">
+                                                        {t('cabinet.motivation_to')}
+                                                    </label>
+                                                    <input
+                                                        id="period_end"
+                                                        name="period_end"
+                                                        type="date"
+                                                        required
+                                                        className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                                    />
+                                                    {errors.period_end && (
+                                                        <p className="text-xs text-destructive">{errors.period_end}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                disabled={processing}
+                                                className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                                            >
+                                                {processing ? t('cabinet.motivation_sending') : t('cabinet.motivation_submit')}
+                                            </button>
+                                            {recentlySuccessful && (
+                                                <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                                    {t('cabinet.motivation_sent')}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </Form>
+                            )}
+
+                            <div className="overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                                {motivations.length === 0 ? (
+                                    <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                                        {t('cabinet.motivation_none')}
+                                    </p>
+                                ) : (
+                                    <ul className="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
+                                        {motivations.map((m) => (
+                                            <li key={m.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-medium">{m.period}</p>
+                                                    <p className="truncate text-xs text-muted-foreground">{m.reason}</p>
+                                                </div>
+                                                <span
+                                                    className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${motivationStatusClass(m.status)}`}
+                                                >
+                                                    {t(`cabinet.motivation_status_${m.status}`, m.statusLabel)}
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {/* Foaie matricolă */}
+                {transcript.length > 0 && (
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.transcript')}</h2>
+                        <div className="flex flex-col gap-3">
+                            {transcript.map((level, idx) => (
+                                <details
+                                    key={level.grade_level}
+                                    open={idx === 0}
+                                    className="overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border"
+                                >
+                                    <summary className="cursor-pointer bg-muted/50 px-4 py-2 text-sm font-medium">
+                                        {t('cabinet.class')} {level.grade_level}
+                                    </summary>
+                                    <table className="w-full text-sm">
+                                        <thead className="text-left text-muted-foreground">
+                                            <tr className="border-t border-sidebar-border/70 dark:border-sidebar-border">
+                                                <th className="px-4 py-2 font-medium">{t('cabinet.subject')}</th>
+                                                <th className="px-4 py-2 text-center font-medium">{t('cabinet.sem1')}</th>
+                                                <th className="px-4 py-2 text-center font-medium">{t('cabinet.sem2')}</th>
+                                                <th className="px-4 py-2 text-center font-medium">{t('cabinet.annual')}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {level.subjects.map((s) => (
+                                                <tr key={s.subject} className="border-t border-sidebar-border/70 dark:border-sidebar-border">
+                                                    <td className="px-4 py-2 font-medium">{s.subject}</td>
+                                                    <td className="px-4 py-2 text-center">{s.sem1 ?? '—'}</td>
+                                                    <td className="px-4 py-2 text-center">{s.sem2 ?? '—'}</td>
+                                                    <td className="px-4 py-2 text-center font-semibold">{s.annual ?? '—'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </details>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* Dinamică & evoluție (spec §2.2/§2.3) — raportat la istoricul PROPRIU */}
+                {(dynamics.general.length > 0 || dynamics.current.average !== null) && (
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.dynamics_title')}</h2>
+
+                        {dynamics.current.alert && (
+                            <p className="mb-3 rounded-lg bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive">
+                                {t('cabinet.dynamics_alert')}
+                            </p>
+                        )}
+
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
+                                <div className="flex flex-wrap items-end gap-5">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">{t('cabinet.dynamics_current')}</p>
+                                        <p className="text-2xl font-semibold text-primary">
+                                            {dynamics.current.average ?? '—'}
+                                            {(() => {
+                                                const tr = trendSymbol(dynamics.current.trend);
+                                                return tr ? <span className={`ml-1 text-base ${tr.cls}`}>{tr.symbol}</span> : null;
+                                            })()}
+                                        </p>
+                                    </div>
+                                    {dynamics.current.historyAverage !== null && (
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">{t('cabinet.dynamics_history')}</p>
+                                            <p className="text-lg font-medium">{dynamics.current.historyAverage}</p>
+                                        </div>
+                                    )}
+                                    {dynamics.current.previousYearSameTerm !== null && (
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">{t('cabinet.dynamics_vs_last_year')}</p>
+                                            <p className="text-lg font-medium">{dynamics.current.previousYearSameTerm}</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {dynamics.general.length > 1 && (
+                                    <div className="mt-4">
+                                        <p className="mb-1 text-xs text-muted-foreground">{t('cabinet.dynamics_general')}</p>
+                                        <svg
+                                            viewBox="0 0 200 48"
+                                            className="h-12 w-full text-primary"
+                                            preserveAspectRatio="none"
+                                            aria-hidden="true"
+                                        >
+                                            <polyline
+                                                points={sparklinePoints(
+                                                    [
+                                                        ...dynamics.general.map((g) => g.average),
+                                                        ...(dynamics.current.average !== null ? [dynamics.current.average] : []),
+                                                    ],
+                                                    200,
+                                                    44,
+                                                )}
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                vectorEffect="non-scaling-stroke"
+                                            />
+                                        </svg>
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {dynamics.general.map((g) => (
+                                                <span key={g.level} className="rounded-md bg-muted px-2 py-0.5 text-xs">
+                                                    {t('cabinet.class')} {g.level}:{' '}
+                                                    <span className="font-semibold">{g.average}</span>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {dynamics.subjects.length > 0 && (
+                                <div className="overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                                    <p className="border-b border-sidebar-border/70 bg-muted/50 px-4 py-2 text-sm font-medium dark:border-sidebar-border">
+                                        {t('cabinet.dynamics_by_subject')}
+                                    </p>
+                                    <ul className="max-h-72 divide-y divide-sidebar-border/70 overflow-y-auto dark:divide-sidebar-border">
+                                        {dynamics.subjects.map((s) => {
+                                            const tr = trendSymbol(s.trend);
+                                            const last = s.points[s.points.length - 1];
+                                            return (
+                                                <li key={s.subject} className="flex items-center justify-between gap-3 px-4 py-2">
+                                                    <span className="truncate text-sm">{s.subject}</span>
+                                                    <span className="flex items-center gap-2">
+                                                        <span className="text-sm font-semibold">{last ? last.value : '—'}</span>
+                                                        {tr && (
+                                                            <span
+                                                                className={`text-xs ${tr.cls}`}
+                                                                title={t(`cabinet.dynamics_trend_${s.trend}`)}
+                                                            >
+                                                                {tr.symbol}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    </section>
+                )}
+
+                {/* Teme */}
+                {homework.length > 0 && (
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.homework')}</h2>
+                        <div className="flex flex-col gap-3">
+                            {homework.map((h) => (
+                                <article
+                                    key={h.id}
+                                    className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
+                                >
+                                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{h.subject}</span>
+                                        <span className="text-xs text-muted-foreground">{h.date}</span>
+                                    </div>
+                                    {h.topic && <p className="font-medium">{h.topic}</p>}
+                                    {h.required && (
+                                        <p className="mt-1 text-sm">
+                                            <span className="text-muted-foreground">{t('cabinet.required')} </span>
+                                            {h.required}
+                                        </p>
+                                    )}
+                                    {h.optional && (
+                                        <p className="mt-1 text-sm">
+                                            <span className="text-muted-foreground">{t('cabinet.optional')} </span>
+                                            {h.optional}
+                                        </p>
+                                    )}
+                                    {h.links.length > 0 && (
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                            {h.links.map((link, i) =>
+                                                isUrl(link) ? (
+                                                    <a
+                                                        key={i}
+                                                        href={link}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="rounded-md bg-muted px-2 py-0.5 text-xs text-primary underline-offset-2 hover:underline"
+                                                    >
+                                                        {t('cabinet.link')} {i + 1}
+                                                    </a>
+                                                ) : (
+                                                    <span key={i} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                                                        {link}
+                                                    </span>
+                                                ),
+                                            )}
+                                        </div>
+                                    )}
+                                </article>
+                            ))}
+                        </div>
+                    </section>
+                )}
             </div>
         </>
     );
@@ -135,7 +596,7 @@ export default function StudentProfile({ student, subjects, absencesBySubject, a
 
 StudentProfile.layout = {
     breadcrumbs: [
-        { title: 'Cabinet', href: dashboard() },
-        { title: 'Profil elev', href: '#' },
+        { title: 'action.cabinet', href: dashboard() },
+        { title: 'cabinet.profile', href: '#' },
     ],
 };

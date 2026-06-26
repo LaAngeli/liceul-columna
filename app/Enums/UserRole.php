@@ -2,11 +2,23 @@
 
 namespace App\Enums;
 
+/**
+ * Cele 9 roluri ale platformei (spec §3.2/§3.3 + Super Administrator break-glass).
+ *
+ * Ierarhia de încredere: Super Administrator (tehnic, atotputernic) → Director →
+ * Prim-vicedirector → Administrator operațional (config + atribuțiile vicedirectorului,
+ * comasate) → Administrator tehnic (infra) → Diriginte → Profesor → Părinte / Elev.
+ *
+ * DEVIERE confirmată: UN singur rol per utilizator (nu cumul). „Administrator operațional"
+ * absoarbe atribuțiile de vicedirector, fiindcă nu se poate cumula rolul separat.
+ */
 enum UserRole: string
 {
     case Admin = 'admin';
     case Director = 'director';
-    case DirectorAdjunct = 'director-adjunct';
+    case PrimVicedirector = 'prim-vicedirector';
+    case AdministratorOperational = 'administrator-operational';
+    case AdministratorTehnic = 'administrator-tehnic';
     case Diriginte = 'diriginte';
     case Profesor = 'profesor';
     case Elev = 'elev';
@@ -18,9 +30,11 @@ enum UserRole: string
     public function label(): string
     {
         return match ($this) {
-            self::Admin => 'Administrator',
+            self::Admin => 'Super Administrator',
             self::Director => 'Director',
-            self::DirectorAdjunct => 'Director adjunct',
+            self::PrimVicedirector => 'Prim-vicedirector',
+            self::AdministratorOperational => 'Administrator operațional',
+            self::AdministratorTehnic => 'Administrator tehnic',
             self::Diriginte => 'Diriginte',
             self::Profesor => 'Profesor',
             self::Elev => 'Elev',
@@ -36,7 +50,15 @@ enum UserRole: string
      */
     public static function panelRoles(): array
     {
-        return [self::Admin, self::Director, self::DirectorAdjunct, self::Diriginte, self::Profesor];
+        return [
+            self::Admin,
+            self::Director,
+            self::PrimVicedirector,
+            self::AdministratorOperational,
+            self::AdministratorTehnic,
+            self::Diriginte,
+            self::Profesor,
+        ];
     }
 
     /**
@@ -50,8 +72,9 @@ enum UserRole: string
     }
 
     /**
-     * Rolurile de „administrație" — văd și gestionează TOT (fără scoping).
-     * Profesorii/diriginții (restul personalului) sunt limitați la clasele lor.
+     * Rolurile de „administrație academică" — văd TOT catalogul fără scoping (§3.3, coloanele
+     * Dir/VD/AO la VIZUALIZARE). NU include Administratorul tehnic (infra, fără date academice)
+     * și nici implică drept de SCRIERE (vezi capabilitățile din User pentru editare/aprobare).
      *
      * @return list<string>
      */
@@ -59,7 +82,7 @@ enum UserRole: string
     {
         return array_map(
             static fn (self $role): string => $role->value,
-            [self::Admin, self::Director, self::DirectorAdjunct],
+            [self::Admin, self::Director, self::PrimVicedirector, self::AdministratorOperational],
         );
     }
 

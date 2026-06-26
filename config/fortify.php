@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\SetUserLocale;
 use Laravel\Fortify\Features;
 
 return [
@@ -101,7 +102,7 @@ return [
     |
     */
 
-    'middleware' => ['web'],
+    'middleware' => ['web', SetUserLocale::class],
 
     /*
     |--------------------------------------------------------------------------
@@ -170,9 +171,6 @@ return [
             'confirm' => true,
             'confirmPassword' => true,
             // 'window' => 0
-        ]),
-        Features::passkeys([
-            'confirmPassword' => true,
         ]),
     ],
 

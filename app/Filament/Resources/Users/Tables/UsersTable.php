@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Enums\UserRole;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class UsersTable
@@ -15,28 +17,41 @@ class UsersTable
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->label('Nume')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('username')
+                    ->label('Utilizator')
+                    ->placeholder('—')
                     ->searchable(),
                 TextColumn::make('email')
-                    ->label('Email address')
+                    ->label('Email')
+                    ->placeholder('—')
                     ->searchable(),
-                TextColumn::make('email_verified_at')
-                    ->dateTime()
-                    ->sortable(),
-                TextColumn::make('two_factor_confirmed_at')
-                    ->dateTime()
-                    ->sortable(),
+                TextColumn::make('roles.name')
+                    ->label('Rol')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => UserRole::tryFrom($state)?->label() ?? $state),
+                TextColumn::make('must_change_password')
+                    ->label('Parolă')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'De schimbat' : 'Setată')
+                    ->color(fn (bool $state): string => $state ? 'warning' : 'success'),
                 TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
+                    ->label('Creat')
+                    ->dateTime('d.m.Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                SelectFilter::make('roles')
+                    ->label('Rol')
+                    ->relationship('roles', 'name')
+                    ->getOptionLabelFromRecordUsing(
+                        fn ($record): string => UserRole::tryFrom($record->name)?->label() ?? $record->name,
+                    ),
             ])
+            ->defaultSort('name')
             ->recordActions([
                 EditAction::make(),
             ])

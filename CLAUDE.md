@@ -2,7 +2,7 @@
 
 > Citește acest bloc ÎNTÂI. Descrie ce e proiectul, starea curentă și cum se lucrează.
 > Pentru reguli tehnice Laravel/pachete vezi blocul `<laravel-boost-guidelines>` de mai jos
-> (auto-generat de Boost — nu-l edita manual). Stare actualizată: 2026-06-25.
+> (auto-generat de Boost — nu-l edita manual). Stare actualizată: 2026-06-26.
 
 ## 1. Ce construim
 Platformă web pentru **IPL „Liceul Columna"** (Chișinău, liceu privat). Două părți:
@@ -21,6 +21,9 @@ logați (service layer, ex. Prism PHP; aceleași endpoints cu permisiuni scoped)
 - Windows + Laragon (CLI/PHP/MySQL) + **Herd** (servește site-ul). PHP 8.3.30: `C:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe`.
 - MySQL (3306): user `root` / parolă `root`, baza `liceul_columna`.
 - Limbă: doar RO (`APP_LOCALE=ro`, `APP_FALLBACK_LOCALE=ro`, `APP_FAKER_LOCALE=ro_MD`).
+  Traducerile mesajelor de validare/auth: `lang/ro/{validation,auth,passwords,pagination}.php` + `lang/ro.json`
+  (string-uri `__()`). Acoperă ȘI Filament (folosește validatorul Laravel). Mesaje custom în `validation.custom`,
+  denumiri prietenoase de câmpuri în `validation.attributes`. Fără ele, formularele arătau chei brute (`validation.unique`).
 - **Adresă locală canonică: `https://liceul-columna.test`** (Herd, https; `APP_URL` aliniat). NU folosi `php artisan serve`/`localhost:8000` — două domenii înseamnă sesiuni + temă/sidebar (localStorage) separate, deși e același cod/DB → pare „alt panou". Hot-reload: `npm run dev` (Vite servește către `.test:5173`, vezi `public/hot`).
 - Comenzi uzuale: `php artisan ...`, `php artisan test --compact`, `vendor/bin/pint --dirty --format agent`,
   `vendor/bin/phpstan analyse`.
@@ -32,14 +35,106 @@ logați (service layer, ex. Prism PHP; aceleași endpoints cu permisiuni scoped)
 - ✅ Proiect creat, blocaj SSL rezolvat, limbă RO, MySQL migrat. App live pe `:8000`.
 - ✅ Pachete instalate: Filament v4, spatie/laravel-permission ^8, maatwebsite/excel, owen-it/laravel-auditing,
   spatie/laravel-backup, laravel/pulse, laravel/telescope, larastan (phpstan level 7).
-- ✅ **RBAC** (fără filament-shield — incompatibil, vezi §7): enum `App\Enums\UserRole`
-  (admin/director/profesor/diriginte/elev/parinte), `RoleSeeder`, `User implements FilamentUser` cu
-  `canAccessPanel()` = doar personalul. Panou la `/admin`. User dev: `admin@liceul-columna.test` / `password`.
+- ✅ **Autentificare passkey ELIMINATĂ** (nu se folosește) — `Features::passkeys` scos din Fortify, tabela
+  `passkeys` ștearsă, UI/componente curățate. Pagina de login rebrandată RO cu logo-ul Columna
+  (`public/images/logo/columna-navy.png` / `columna-white.png` pe dark) + layout în card.
+- ✅ **RBAC** (fără filament-shield — incompatibil pe versiuni, vezi §7; facem RBAC direct pe spatie): enum
+  `App\Enums\UserRole` cu **9 roluri** (spec §3.2/§3.3 + super-admin break-glass), `RoleSeeder`, `User implements
+  FilamentUser` cu `canAccessPanel()` = doar personalul. Panou la `/admin`. User dev: `admin@liceul-columna.test`/`password`.
+- ✅ **Model de roluri (9, UN singur rol per utilizator — `UserForm` selecție unică, aplicat cu `syncRoles`):**
+  - `admin` = **Super Administrator** (break-glass, atotputernic — contul IT), creat doar manual (`app:create-admin`).
+  - `director`, `prim-vicedirector` (← `director-adjunct`) = conducerea academică. Din import `func=4` → **director**.
+  - `administrator-operational` = **config școală + atribuțiile vicedirectorului comasate** (deschide an, clase,
+    alocări, conturi familie, publică, arhiva corecțiilor); **NU editează note** și **NU aprobă corecții** (○).
+  - `administrator-tehnic` = **infra/dev**, fără acces la date academice (exclus din `isAdministrator()`; cabinet 403).
+  - `diriginte`, `profesor`, `elev`, `parinte` = neschimbate.
+  - **Matricea §3.3 = capabilități pe `User`** (sursă unică pentru celulele binare ●/—; scoping-ul ◐ rămâne în
+    policies/scopes/`Enforces*`): `canConfigureSchool` (super/dir/AO), `canManageFamilyAccounts`, `canManageAccounts`,
+    `canPublishContent`, `canChangeAveragingFormula` (super/AO), `canApproveGradeCorrections`/`canAdministerCatalog`/
+    `canValidateSemester` (super/dir/prim-vicedir — **fără AO**), `canViewCorrectionArchive` (=`isAdministrator`),
+    `canViewAuditLog` (+AT), `canManageInfrastructure` (super/AT). Identitate: `isSuperAdmin`/`isTechnicalAdmin`/
+    `isOperationalAdmin`/`isSystemAdministrator`/`isDirector`/`isManagement`/`isAdministrator`.
+  - **VIZUALIZARE vs SCRIERE separate:** `isAdministrator()` (super/dir/prim-vicedir/AO) = vede TOT catalogul, dar
+    scrierea de note/absențe trece prin `canAdministerCatalog()` (exclude AO/AT) — `EnforcesGradeScope`/
+    `EnforcesAbsenceScope` + `Grade/AbsenceResource::canCreate`. Config-ul (Ani/Semestre/Înmatriculări via
+    `ConfiguresSchool`; Clase/Discipline/Elevi via `ManagedByConfigurators`) → `canConfigureSchool()`.
+  - **Ierarhie creare conturi pe SERVER** (`EnforcesManageableRole` + `User::manageableRoleValues`): super→toți;
+    director→fără super-admin+administrator-tehnic; AO→profesor/diriginte/elev/părinte; prim-vicedir+AT→niciunul.
+    `UserResource` gated pe `canManageAccounts()`. „Creați și creați altul" dezactivat; după salvare → revine la listă.
+  - **Dashboard per rol** (`canView`): `AdminOverview` (super-admin + administrator-tehnic — stare sistem, doar
+    agregate); `DirectorOverview` (director/prim-vicedir/AO — imaginea școlii); `TeacherOverview` (profesor/diriginte —
+    clasele/notele mele). `ClassesNeedingHomeroom` (administrația academică): clase active fără diriginte + numire pe loc.
+  - ⚠️ `admin`=Super Administrator e o **deviere conștientă** de la spec (ca single-rol): spec cere AT/AO strict
+    separate, noi păstrăm super-adminul break-glass deasupra. Migrare: `2026_06_26_150000_restructure_roles_to_spec`.
 - ✅ **Schema domeniu (catalog de bază)** mapată din DB-ul legacy, denumiri engleză + etichete RO:
   `academic_years`, `terms`, `subjects`, `teachers`, `school_classes`, `students`, `enrollments`,
   `teaching_assignments`, `grades`, `absences`, `term_averages`, `academic_records`. Soft deletes peste tot;
   evaluările sunt Auditable. Enum-uri `Sex`/`GradingType`/`SecondLanguage`. Factory-uri + teste.
 - ✅ Analiză site public + fișiere-șablon descărcări în `public/downloads/` (vezi `ANALIZA-SITE-VECHI.md`).
+- ✅ **Medii calculate corect (spec §2.4):** tipuri de notă (`EvaluationType`: curentă/ESI/teză), motor
+  `App\Actions\ComputeTermAverage` pe cicluri (`SchoolCycle` din treaptă), **sutimi FĂRĂ rotunjire** (trunchiere);
+  teza ponderată 50% (MS=(MC+teză)/2). `GradeObserver` recalculează la fiecare notă din panou;
+  `php artisan app:compute-averages` populează în masă `term_averages` (RULEAZĂ după `app:import-legacy`, care
+  inserează note prin query builder, fără observer). Cabinetul afișează MS oficială, nu media aritmetică brută.
+- ✅ **Note: fără DELETE (spec §1/§3.1).** Anulare cu motiv (`annulled_at` + `annulment_reason`, acțiunea „Anulează"
+  din panou) — nota rămâne în istoric, dar NU contează la medii (`Grade::scopeActive`) și nu apare în cabinet.
+  Corecție de VALOARE doar prin aprobare: profesorul „Solicită corecție" → `GradeCorrection` (pending) → administrația
+  aprobă/respinge în resursa „Corecții note" (badge cu nr. în așteptare). Editarea directă a valorii doar pentru
+  administrație. Arhiva corecțiilor e vizibilă administrației, NU pe pagina copilului.
+- 🟡 **Motivare absențe (spec §2.1) — flux complet (UI+backend):** `AbsenceMotivation` + `RequestStatus` (generic
+  pending/approved/rejected). **Părintele/elevul depune din cabinet** — formular în `student-profile.tsx`
+  (`<Form>` Inertia + i18n RO/RU/EN, secțiunea „Motivarea absențelor", listă cu status colorat); doar familia vede
+  formularul (`canRequestMotivation` din controller; `CabinetController::isFamilyOf`), personalul vede pagina dar nu
+  formularul (ar primi 403). Ruta `POST cabinet/elev/{student}/motivare`. Dirigintele validează în resursa „Motivări
+  absențe" (scoped pe clasa lui, badge) → `approve()` marchează MOTIVATE absențele din perioadă.
+  ⏳ Rămas (follow-up): justificativ atașabil (stocare privată PII, vezi #40); alertă risc amânare (1 notă + 50%
+  absențe — necesită nr. lecții din orar #39); termen de validare.
+- ✅ **Dinamică multi-an (spec §2.2/§2.3, #38):** `App\Actions\ComputeStudentDynamics` — evoluția mediei generale și pe
+  discipline din **foaia matricolă** (academic_records, mediile anuale = istoricul real), tendință (creștere/stabil/
+  scădere), media curentă (term_averages) vs istoricul PROPRIU + comparație „sem. curent vs anul trecut" + alertă la
+  scădere. Afișat în cabinet (sparkline SVG inline, FĂRĂ lib de chart). Teste: `StudentDynamicsTest`.
+- 🟡 **Comunicare ierarhică (spec §4, #35):** `Message` + `MessageType` (direct/audiență) + `App\Actions\SendMessage` —
+  filtrare pe **SERVER**: familia scrie doar profesorului/dirigintelui copilului; conducerea NU direct → „Solicitare
+  audiență" rutată spre **prim-vicedirector** (în lipsa vicedirectorilor de domeniu din spec); răspunsul în fir
+  (`reply()`) NU re-filtrează (canalul e deja deschis). Cabinet: `cabinet/mesaje` (`MessagesController`, inbox + compose
+  + fir, i18n RO/RU/EN). Panou: resursa **„Mesaje"** (inbox personal scoped + „Răspunde"). Teste: `MessagingTest`.
+  ⏳ Follow-up: mesaje comportamentale filtrate (prof→prim-vicedir→părinte), anunțuri broadcast cu confirmare de citire,
+  vicedirectori de domeniu, confirmare statut corigent/amânat.
+- ✅ **Date de test (`DemoTestDataSeeder`):** corecții + motivări + mesaje demo (marcate `[DEMO]` în motiv/corp →
+  curățabile) + **conturi de rol demo** pentru #28: `vicedirector@`/`operational@`/`tehnic@columna.test` (`password`).
+  Rulează DUPĂ `DemoAccountsSeeder`: `php artisan db:seed --class=DemoTestDataSeeder`. Idempotent.
+- ✅ **Status elev (spec §2.5):** `StudentStatus` (promovat/corigent/amânat) + `App\Actions\DetermineStudentStatus`
+  (corigent dacă o medie < 5, cu disciplinele restante; din `term_averages`, semestrul curent). Afișat în cabinet
+  (badge) + indicator „Corigenți" în DirectorOverview (școală) și TeacherOverview (clasele mele). ⏳ De finalizat
+  ulterior (depinde de roluri #28): statut OFICIAL validat (Consiliul prof. + ordin director), „amânat" manual,
+  calendar de lichidare a corigenței.
+- ✅ **Registru – interfețe Filament cu scoping** (grup „Catalog"): Note + Absențe (profesorul doar
+  (clasa,disciplina) lui, dirigintele toată clasa; validare pe server la salvare). **Foaie matricolă**
+  (`academic_records`, read-only — media istorică pe treaptă 1-12 + perioadă Sem I/II/anuală, enum
+  `AcademicRecordPeriod`) și **Teme** (`homework_assignments`, editabile de autor/admin).
+- ✅ **Import legacy complet:** note (52.228), absențe (13.950), foaie matricolă (43.633), teme (6.869)
+  prin `php artisan app:import-legacy --fresh`. ⚠️ Tabelul legacy `orar` e GOL (0 rânduri) — fără date de migrat.
+  Conturile de login legacy (`bdn_users`) NU se importă (parole în clar — vezi §6).
+  ⚠️ După orice `--fresh`, conturile demo se recreează cu `php artisan db:seed --class=DemoAccountsSeeder`.
+- ✅ **Conturi demo/test marcate `[DEMO]`** (prefix obligatoriu în `name`): admin@liceul-columna.test,
+  elev@/parinte@/profesor@columna.test — toate cu parola `password`. Evidență + curățare:
+  `php artisan app:demo-accounts` (le listează), `--remove` (le șterge curat — golește `user_id` pe fișele
+  reale de elev/profesor, care RĂMÂN). Adminul real de producție se face cu `app:create-admin` (fără marcaj
+  → nu e atins de `--remove`).
+- ✅ **Panouri cu conținut real:** dashboard staff Filament (`/admin`) cu widget-uri per rol (`AdminOverview` =
+  totaluri școală pentru administrație; `TeacherOverview` = clasele/elevii/notele mele pentru profesor/diriginte).
+  Cabinet elev/părinte (`/dashboard` → `cabinet/student-profile`) afișează note pe discipline, absențe
+  (motivate/nemotivate), foaia matricolă (transcript pe trepte) și temele clasei.
+- ✅ **Migrare conturi de login (`bdn_users` → users):** `php artisan app:import-users` creează userii reali
+  (594: 553 elevi, 17 profesori, 22 diriginți, 2 admini — `func` 1/2/3/4 → elev/profesor/diriginte/admin),
+  legați prin nume de fișa de elev/profesor. Parola veche (în clar în legacy) e **re-hash-uită bcrypt** la
+  import — nicio parolă în clar în baza nouă. **Autentificare hibridă**: `login` vechi devine `username`,
+  userii intră cu **username SAU email** (Fortify::authenticateUsing în `FortifyServiceProvider`). Toți au
+  `must_change_password=true` → `EnsurePasswordChanged` îi blochează pe `/schimbare-parola` (cabinet + Filament)
+  până schimbă parola. Email-ul e opțional (gol la migrați); `email_verified_at` setat (conturi de încredere).
+  ⚠️ Cutover complet într-o comandă: `app:import-legacy --fresh --with-users` (date + conturi, prin
+  `App\Actions\ImportLegacyUsers`). Plain `--fresh` rămâne doar date (reset rapid de dev); `app:import-users`
+  e și de sine stătătoare. Opțional pentru testare: `db:seed --class=DemoAccountsSeeder`.
 
 ## 4. Decizii de arhitectură
 - **API-first la nucleu:** logica de business în clase **Action / Service**, NU în controllere.
@@ -66,7 +161,8 @@ logați (service layer, ex. Prism PHP; aceleași endpoints cu permisiuni scoped)
    întâi: sensul `st_n` (1-6), care din `name_1/name_2` e nume/prenume, maparea `func` (1-6)→roluri,
    cum se leagă părinții de elevi.
 2. **Resurse Filament** (CRUD elevi/note/clase) + policies cu scoping.
-3. **Module legacy rămase:** orar (normalizat), teme academice, comisii, modul cantină.
+3. **Module legacy rămase:** comisii (`bdn_comisii`, 5 rânduri), modul cantină (`bd_*`). Temele = GATA.
+   Orarul (`orar`) e gol în legacy → schema + interfața se construiesc doar când apar date reale.
 4. **Site public** (Inertia/React) — toate paginile din `ANALIZA-SITE-VECHI.md`; înlocuire șabloane `public/downloads/`.
 5. **Faza B infra:** `laravel/sail` (Docker) → Redis → `laravel/horizon` + `.env` `QUEUE/CACHE/SESSION=redis`;
    `spatie/laravel-pdf` (Node+Chromium).
@@ -81,6 +177,7 @@ Toate comenzile se rulează din rădăcina proiectului. `php` = calea Laragon di
 |---|---|
 | **Frontend** (`resources/js/**`, `.tsx`, `.css`, Tailwind) | Pe Herd, simplu: `npm run build` (asset-uri statice, fără server). Pentru hot-reload: `npm run dev` în paralel. ⚠️ **Pagină albă pe Herd** = a rămas `public/hot` dintr-un `npm run dev` oprit → șterge `public/hot` + `npm run build`. |
 | **Cod PHP** (model, controller, Action, policy, enum) | `vendor/bin/pint --dirty --format agent` → `vendor/bin/phpstan analyse` → `php artisan test --compact` |
+| ⚠️ **„Undefined method/class" pe Herd, dar CLI (`php artisan tinker`) vede codul OK** | OPcache stale în PHP-FPM (fișierul a fost salvat câteva secunde într-o stare incompletă și FPM a cache-uit-o) → `php artisan optimize:clear` (sau repornește Herd). Diagnostic: dacă `method_exists(...)`/`class_exists(...)` din tinker dă `true` dar web-ul dă „undefined", e cache, nu bug. |
 | **Migrare nouă** | `php artisan migrate` (testele folosesc RefreshDatabase automat) |
 | **Model nou** | `php artisan make:model Nume -mf` (model + migrare + factory); adaugă relații/cast-uri + un test |
 | **`.env` sau `config/**`** | `php artisan config:clear` (Herd preia automat; în prod: `php artisan config:cache`) |
@@ -99,6 +196,38 @@ Toate comenzile se rulează din rădăcina proiectului. `php` = calea Laragon di
 **Deploy producție (rezumat):** `composer install --no-dev --optimize-autoloader` · `php artisan migrate --force`
 · `npm run build` · `php artisan config:cache route:cache view:cache event:cache` · `php artisan filament:optimize`
 · `php artisan queue:restart`.
+
+## 9. Multilingv (i18n RO/RU/EN) — OBLIGATORIU
+
+> Platforma e **complet multilingvă RO (default) / RU / EN**, cu **fallback automat la RO**. Aceste reguli se aplică
+> AUTOMAT ori de câte ori adaugi/modifici conținut afișat utilizatorului — în site public, cabinet (elev/părinte),
+> fluxul de autentificare ȘI panoul staff Filament. Detalii de arhitectură: memoria `multilingual-i18n`.
+
+**Reguli de bază (mereu):**
+- **Niciun string hardcodat** afișat utilizatorului. Frontend (React/Inertia): `t('cheie')` din `@/lib/i18n` (sau `<T>` în
+  butoane — ghost-sizing, ca să nu-și schimbe lățimea la traducere). Backend / Filament / validări: prin `lang/`.
+- Linkurile interne din site-ul public → `<LocaleLink>` (păstrează prefixul de limbă), NU `<Link>` brut.
+- Rute publice noi → în closure-ul `$publicRoutes` din `routes/web.php` (montat la root + fiecare `Locale::prefixed()`).
+  În zonele fără prefix (auth/cabinet/Filament) limba vine din cookie/`user.locale` via `SetUserLocale` — inclusiv pe
+  rutele Fortify (`config/fortify.php`, care NU moștenesc middleware-ul din grupurile web.php).
+
+**Conținut NOU traductibil → tradu-l RO/RU/EN pe loc:**
+
+| Ce adaugi | Cum traduci |
+|---|---|
+| String UI nou | cheie în `lang/{ro,ru,en}/site.php` + `t('grup.cheie')` în componentă |
+| Pagină/secțiune nouă în `App\Support\PublicPageContent` | `php artisan app:content-strings {ru\|en} --json` (listează ce lipsește; cheile coincid exact) → tradu → adaugă în `lang/{ru,en}/content.php` (cheie = șirul RO EXACT) |
+| Disciplină nouă în tabelul `subjects` | adaugă în `lang/{ru,en}/subjects.php` (cheie = nume RO exact) |
+| Articol(e) `Post` nou(ă) | tradu titlu + rezumat + **corp** RU/EN (HTML PĂSTRAT; verifică tag-count `<img>/<li>/<strong>`) → `php artisan app:import-post-translations <file.json>` (upsert pe (post_id,locale); `content` nullable → fallback RO) |
+
+**Import conținut din WordPress → curățare OBLIGATORIE:** după orice import de articole (`columna:import-posts`) sau alt
+conținut WP, rulează `php artisan app:strip-post-shortcodes` — scoate shortcode-urile rămase brute (`[vc_*]`, `[gallery]`,
+`[caption]`, comentarii Gutenberg `<!-- wp:… -->`) din `posts` ȘI `post_translations` (content + excerpt) și re-împachetează
+paragrafele de text simplu în `<p>`. Idempotentă; ruleaz-o până raportează „Niciun articol cu shortcode-uri".
+
+**Verificare i18n (înainte de „gata"):** `npm run build`; deschide `/`, `/ru/<pagină>`, `/en/<pagină>` — conținutul se
+schimbă cu limba, niciun text rămas în altă limbă, niciun shortcode brut afișat. Teste:
+`tests/Feature/{LocalizationTest,ContentTranslationTest,StripPostShortcodesTest}.php`.
 
 <laravel-boost-guidelines>
 === foundation rules ===

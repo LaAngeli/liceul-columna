@@ -2,11 +2,10 @@
 
 namespace Database\Factories;
 
+use App\Enums\AcademicRecordPeriod;
 use App\Models\AcademicRecord;
-use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
-use App\Models\Term;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -21,9 +20,9 @@ class AcademicRecordFactory extends Factory
         return [
             'student_id' => Student::factory(),
             'subject_id' => Subject::factory(),
-            'school_class_id' => SchoolClass::factory(),
-            'term_id' => Term::factory(),
-            'value' => fake()->numberBetween(1, 10),
+            'grade_level' => fake()->numberBetween(1, 12),
+            'period' => fake()->randomElement(AcademicRecordPeriod::cases()),
+            'value' => fake()->numberBetween(5, 10),
             'calificativ' => null,
         ];
     }

@@ -25,6 +25,12 @@ it('adminul poate deschide paginile principale ale panoului', function (string $
     '/admin/school-classes',
     '/admin/enrollments',
     '/admin/grades',
+    '/admin/absences',
+    '/admin/academic-records',
+    '/admin/homework-assignments',
+    '/admin/grade-corrections',
+    '/admin/absence-motivations',
+    '/admin/messages',
     '/admin/users',
 ]);
 

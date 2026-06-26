@@ -1,0 +1,252 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Actions\SendMessage;
+use App\Enums\CorrectionStatus;
+use App\Enums\RequestStatus;
+use App\Enums\UserRole;
+use App\Models\AbsenceMotivation;
+use App\Models\Grade;
+use App\Models\GradeCorrection;
+use App\Models\Message;
+use App\Models\Student;
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+
+/**
+ * Date de TEST (random) pentru secțiunile noi/goale ale catalogului: corecții de notă și
+ * cereri de motivare. Construite peste date reale (note/elevi importați), legate de conturile
+ * demo, ca să se poată testa atât cabinetul, cât și panourile.
+ *
+ * Toate sunt marcate „[DEMO]" în motiv → ștergere curată:
+ *   GradeCorrection::where('reason','like','[DEMO]%')->delete();
+ *   AbsenceMotivation::where('reason','like','[DEMO]%')->delete();
+ *
+ * Idempotent: șterge întâi orice [DEMO] existent, apoi regenerează.
+ * Necesită: `app:import-legacy` (date) + `db:seed --class=DemoAccountsSeeder` (conturi).
+ */
+class DemoTestDataSeeder extends Seeder
+{
+    private const MARKER = '[DEMO]';
+
+    public function run(): void
+    {
+        if (Student::query()->count() === 0) {
+            $this->command->warn('Nu există date de catalog — rulează `app:import-legacy` întâi.');
+
+            return;
+        }
+
+        GradeCorrection::query()->where('reason', 'like', self::MARKER.'%')->delete();
+        AbsenceMotivation::query()->where('reason', 'like', self::MARKER.'%')->delete();
+        Message::query()->where('body', 'like', self::MARKER.'%')->forceDelete();
+
+        $this->seedRoleAccounts();
+        $this->seedCorrections();
+        $this->seedMotivations();
+        $this->seedMessages();
+    }
+
+    /**
+     * Conturi demo pentru rolurile noi (#28), ca să se poată testa panoul + rutarea audienței.
+     * Marcate „[DEMO]" → curățabile cu `app:demo-accounts --remove`. Parola: `password`.
+     */
+    private function seedRoleAccounts(): void
+    {
+        $accounts = [
+            'vicedirector@columna.test' => [UserRole::PrimVicedirector, 'Prim-vicedirector'],
+            'operational@columna.test' => [UserRole::AdministratorOperational, 'Administrator operațional'],
+            'tehnic@columna.test' => [UserRole::AdministratorTehnic, 'Administrator tehnic'],
+        ];
+
+        foreach ($accounts as $email => [$role, $label]) {
+            $user = User::updateOrCreate(
+                ['email' => $email],
+                ['name' => self::MARKER.' '.$label, 'password' => 'password'],
+            );
+            $user->forceFill(['email_verified_at' => now()])->save();
+            $user->syncRoles([$role->value]);
+        }
+
+        $this->command->info('Conturi de rol demo: vicedirector@/operational@/tehnic@columna.test / password.');
+    }
+
+    /**
+     * Conversații demo: familie ↔ diriginte (cu răspuns) + o solicitare de audiență spre conducere.
+     */
+    private function seedMessages(): void
+    {
+        $parent = User::query()->where('email', 'parinte@columna.test')->first();
+        $profUser = User::query()->where('email', 'profesor@columna.test')->first();
+
+        if ($parent === null || $profUser === null) {
+            return;
+        }
+
+        $send = app(SendMessage::class);
+
+        // Leagă părintele demo de un elev din clasa dirigintelui demo, ca să poată comunica direct.
+        $homeroom = $profUser->teacher?->homeroomClasses()->first();
+        if ($homeroom !== null) {
+            $classStudent = Student::query()
+                ->whereHas('enrollments', fn ($q) => $q->where('school_class_id', $homeroom->id))
+                ->first();
+
+            if ($classStudent !== null) {
+                $parent->students()->syncWithoutDetaching([$classStudent->id]);
+
+                $thread = $send->direct(
+                    $parent,
+                    $profUser,
+                    self::MARKER.' Bună ziua, aș dori detalii despre evaluarea de săptămâna viitoare.',
+                    'Evaluare',
+                    $classStudent,
+                );
+                $send->reply($profUser, $thread, self::MARKER.' Bună ziua! Evaluarea acoperă capitolele 3–4. Cu stimă.');
+            }
+        }
+
+        // Solicitare de audiență → rutată automat spre prim-vicedirector (creat mai sus).
+        $child = $parent->students()->first();
+        if ($child !== null) {
+            $send->audience(
+                $parent,
+                $child,
+                self::MARKER.' Solicitare audiență',
+                self::MARKER.' Aș dori o întâlnire pentru a discuta progresul copilului.',
+            );
+        }
+
+        $this->command->info('Conversații demo: mesaj direct (cu răspuns) + solicitare audiență.');
+    }
+
+    /**
+     * Corecții de notă peste note reale, solicitate de profesorul demo; câteva aprobate/respinse
+     * de admin, restul în așteptare (ca administrația să testeze fluxul de aprobare).
+     */
+    private function seedCorrections(): void
+    {
+        $requester = User::query()->where('email', 'profesor@columna.test')->first();
+        $reviewer = User::query()->where('email', 'admin@liceul-columna.test')->first();
+
+        if ($requester === null) {
+            $this->command->warn('Fără cont de profesor demo — sar peste corecții (rulează DemoAccountsSeeder).');
+
+            return;
+        }
+
+        $grades = Grade::query()
+            ->whereNotNull('value')
+            ->whereNull('annulled_at')
+            ->inRandomOrder()
+            ->limit(10)
+            ->get();
+
+        $i = 0;
+        foreach ($grades as $grade) {
+            $i++;
+            $newValue = max(1, min(10, (int) $grade->value + ($i % 2 === 0 ? 1 : -1)));
+
+            $correction = GradeCorrection::create([
+                'grade_id' => $grade->id,
+                'requested_by_user_id' => $requester->id,
+                'old_value' => $grade->value,
+                'new_value' => $newValue,
+                'reason' => self::MARKER.' Eroare de transcriere a notei.',
+                'status' => CorrectionStatus::Pending,
+            ]);
+
+            if ($reviewer !== null && $i <= 2) {
+                $correction->approve($reviewer->id, self::MARKER.' Corect, aprobat.');
+            } elseif ($reviewer !== null && $i <= 4) {
+                $correction->reject($reviewer->id, self::MARKER.' Nejustificat.');
+            }
+        }
+
+        $this->command->info("Corecții note demo: {$grades->count()} (2 aprobate, 2 respinse, restul în așteptare).");
+    }
+
+    /**
+     * Cereri de motivare pentru copiii contului-părinte demo, elevul demo și elevii clasei
+     * dirigintelui demo (ca panoul „Motivări absențe" să aibă ce valida).
+     */
+    private function seedMotivations(): void
+    {
+        $parent = User::query()->where('email', 'parinte@columna.test')->first();
+        $studentUser = User::query()->where('email', 'elev@columna.test')->first();
+        $profUser = User::query()->where('email', 'profesor@columna.test')->first();
+
+        /** @var Collection<int, Student> $targets */
+        $targets = collect();
+
+        if ($parent !== null) {
+            $targets = $targets->merge($parent->students()->get());
+        }
+
+        if ($studentUser !== null) {
+            $own = Student::query()->where('user_id', $studentUser->id)->first();
+            if ($own !== null) {
+                $targets->push($own);
+            }
+        }
+
+        $homeroomClass = $profUser?->teacher?->homeroomClasses()->first();
+        if ($homeroomClass !== null) {
+            $classStudents = Student::query()
+                ->whereHas('enrollments', fn ($q) => $q->where('school_class_id', $homeroomClass->id))
+                ->limit(6)
+                ->get();
+            $targets = $targets->merge($classStudents);
+        }
+
+        $targets = $targets->unique('id')->values();
+
+        if ($targets->isEmpty()) {
+            $this->command->warn('Fără elevi-țintă pentru motivări demo (rulează DemoAccountsSeeder).');
+
+            return;
+        }
+
+        $requester = $parent ?? $studentUser ?? User::query()->first();
+        $reviewer = $profUser ?? User::query()->where('email', 'admin@liceul-columna.test')->first();
+
+        if ($requester === null) {
+            return;
+        }
+
+        $reasons = [
+            'Consultație medicală programată.',
+            'Stare gripală, certificat anexat.',
+            'Participare la concurs/olimpiadă.',
+            'Probleme de familie.',
+        ];
+
+        $i = 0;
+        foreach ($targets as $student) {
+            $start = Carbon::now()->subDays(($i * 5) % 60 + 3);
+            $end = $start->copy()->addDays($i % 3);
+
+            $motivation = AbsenceMotivation::create([
+                'student_id' => $student->id,
+                'requested_by_user_id' => $requester->id,
+                'reason' => self::MARKER.' '.$reasons[$i % count($reasons)],
+                'period_start' => $start->toDateString(),
+                'period_end' => $end->toDateString(),
+                'status' => RequestStatus::Pending,
+            ]);
+
+            if ($reviewer !== null && $i % 4 === 0) {
+                $motivation->approve($reviewer->id, self::MARKER.' Justificat.');
+            } elseif ($reviewer !== null && $i % 4 === 1) {
+                $motivation->reject($reviewer->id, self::MARKER.' Lipsă document.');
+            }
+
+            $i++;
+        }
+
+        $this->command->info("Cereri de motivare demo: {$targets->count()} (statusuri mixte).");
+    }
+}

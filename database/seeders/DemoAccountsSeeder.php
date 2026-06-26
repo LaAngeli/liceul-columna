@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Console\Commands\DemoAccounts;
 use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -27,7 +28,7 @@ class DemoAccountsSeeder extends Seeder
         if ($teacher) {
             $prof = User::updateOrCreate(
                 ['email' => 'profesor@columna.test'],
-                ['name' => $teacher->full_name, 'password' => 'password'],
+                ['name' => DemoAccounts::MARKER.' '.$teacher->full_name, 'password' => 'password'],
             );
             $prof->forceFill(['email_verified_at' => now()])->save();
             $prof->syncRoles([UserRole::Profesor->value]);
@@ -52,7 +53,7 @@ class DemoAccountsSeeder extends Seeder
         $student = $students[0];
         $elev = User::updateOrCreate(
             ['email' => 'elev@columna.test'],
-            ['name' => $student->full_name, 'password' => 'password'],
+            ['name' => DemoAccounts::MARKER.' '.$student->full_name, 'password' => 'password'],
         );
         $elev->forceFill(['email_verified_at' => now()])->save();
         $elev->syncRoles([UserRole::Elev->value]);
@@ -61,7 +62,7 @@ class DemoAccountsSeeder extends Seeder
         // Cont de părinte cu doi copii
         $parent = User::updateOrCreate(
             ['email' => 'parinte@columna.test'],
-            ['name' => 'Părinte Demo', 'password' => 'password'],
+            ['name' => DemoAccounts::MARKER.' Părinte', 'password' => 'password'],
         );
         $parent->forceFill(['email_verified_at' => now()])->save();
         $parent->syncRoles([UserRole::Parinte->value]);

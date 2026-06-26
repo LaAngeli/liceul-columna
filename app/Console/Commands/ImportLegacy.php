@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\ImportLegacyUsers;
 use Illuminate\Console\Command;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +13,7 @@ class ImportLegacy extends Command
 {
     protected $signature = 'app:import-legacy
         {--fresh : Rulează migrate:fresh --seed înainte de import}
+        {--with-users : Creează și conturile de login (bdn_users) la final — cutover complet}
         {--year=2025–2026 : Denumirea anului școlar creat}';
 
     protected $description = 'Importă datele din baza veche (conexiunea legacy) în schema nouă.';
@@ -212,8 +215,14 @@ class ImportLegacy extends Command
         $this->bulk('grades', $grades);
         $this->bulk('absences', $absences);
 
-        $this->info('8/9 Gata inserările.');
-        $this->info('9/9 Rezumat:');
+        $this->info('8/11 Foaie matricolă (medii istorice)…');
+        $dosarSkipped = $this->importAcademicRecords($legacy, $now);
+
+        $this->info('9/11 Teme academice…');
+        $this->importHomework($legacy, $now);
+
+        $this->info('10/11 Gata inserările.');
+        $this->info('11/11 Rezumat:');
         $this->table(['Entitate', 'Rânduri'], [
             ['Discipline', count($this->subjectMap)],
             ['Profesori', count($this->teacherMap)],
@@ -223,10 +232,119 @@ class ImportLegacy extends Command
             ['Repartizări', DB::table('teaching_assignments')->count()],
             ['Note', DB::table('grades')->count()],
             ['Absențe', DB::table('absences')->count()],
+            ['Foaie matricolă', DB::table('academic_records')->count()],
+            ['Teme', DB::table('homework_assignments')->count()],
             ['Rânduri sărite (note)', $skipped],
+            ['Rânduri sărite (matricolă)', $dosarSkipped],
         ]);
 
+        if ($this->option('with-users')) {
+            $this->info('Conturi de login (bdn_users → users)…');
+            $userStats = app(ImportLegacyUsers::class)->execute();
+            $this->table(['Conturi', 'Valoare'], ImportLegacyUsers::summaryRows($userStats));
+            $this->warn('Conturi migrate cu `must_change_password=true` — schimbă parola la prima logare.');
+        }
+
         return self::SUCCESS;
+    }
+
+    /**
+     * Foaie matricolă: bdn_dosar → academic_records (media pe treaptă + perioadă).
+     * Disciplinele dosarului folosesc aceleași id-uri ca lista curentă (bdn_disc).
+     */
+    private function importAcademicRecords(Connection $legacy, Carbon $now): int
+    {
+        $rows = [];
+        $skipped = 0;
+
+        foreach ($legacy->table('bdn_dosar')->orderBy('id')->cursor() as $d) {
+            $studentId = $this->studentMap[(int) $d->id_el] ?? null;
+            $subjectId = $this->subjectMap[(int) $d->id_d] ?? null;
+            $period = (int) $d->sem;
+
+            if (! $studentId || ! $subjectId || ! in_array($period, [1, 2, 3], true)) {
+                $skipped++;
+
+                continue;
+            }
+
+            $nota = (float) $d->nota;
+            $calif = trim((string) $d->calif);
+
+            if ($nota > 0) {
+                $value = round($nota, 2);
+                $calif = null;
+            } elseif ($calif !== '') {
+                $value = null;
+                $calif = mb_substr($calif, 0, 10);
+            } else {
+                $skipped++;
+
+                continue;
+            }
+
+            $rows[] = [
+                'student_id' => $studentId,
+                'subject_id' => $subjectId,
+                'grade_level' => (int) $d->cl,
+                'period' => $period,
+                'value' => $value,
+                'calificativ' => $calif,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            if (count($rows) >= 2000) {
+                $this->bulk('academic_records', $rows);
+                $rows = [];
+            }
+        }
+
+        $this->bulk('academic_records', $rows);
+
+        return $skipped;
+    }
+
+    /**
+     * Teme academice: bdn_teme_ac → homework_assignments. Autorul rămâne text
+     * (legacy nu îl leagă de o fișă de profesor); id_disc se mapează la disciplină.
+     */
+    private function importHomework(Connection $legacy, Carbon $now): void
+    {
+        $rows = [];
+
+        foreach ($legacy->table('bdn_teme_ac')->orderBy('id')->cursor() as $t) {
+            $links = array_values(array_filter([
+                trim((string) $t->link1),
+                trim((string) $t->link2),
+                trim((string) $t->link3),
+            ], static fn (string $l): bool => $l !== ''));
+
+            $subjectName = trim((string) $t->name_discipl);
+
+            $rows[] = [
+                'subject_id' => $this->subjectMap[(int) $t->id_disc] ?? null,
+                'teacher_id' => null,
+                'subject_name' => $subjectName !== '' ? $subjectName : '—',
+                'author_name' => trim((string) $t->autor) ?: null,
+                'grade_level' => (int) $t->class_rang,
+                'section' => trim((string) $t->prim_cl) ?: null,
+                'assigned_on' => $t->date_dat,
+                'topic' => trim((string) $t->subiect) ?: null,
+                'required_task' => trim((string) $t->s_o) ?: null,
+                'optional_task' => trim((string) $t->s_s) ?: null,
+                'links' => $links !== [] ? json_encode($links) : null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            if (count($rows) >= 2000) {
+                $this->bulk('homework_assignments', $rows);
+                $rows = [];
+            }
+        }
+
+        $this->bulk('homework_assignments', $rows);
     }
 
     /**

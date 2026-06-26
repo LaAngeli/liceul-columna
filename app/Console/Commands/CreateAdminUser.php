@@ -15,7 +15,7 @@ class CreateAdminUser extends Command
         {--name=Administrator : Numele afișat}
         {--password= : Parola (dacă lipsește, se generează una)}';
 
-    protected $description = 'Creează sau promovează un utilizator cu rolul de admin (acces la panou).';
+    protected $description = 'Creează sau promovează un Super Administrator (rolul `admin` — acces total la panou).';
 
     public function handle(): int
     {
@@ -37,7 +37,7 @@ class CreateAdminUser extends Command
 
         $user->assignRole(UserRole::Admin->value);
 
-        $this->info("Administrator pregătit: {$user->email}");
+        $this->info("Super Administrator pregătit: {$user->email}");
         if ($generated) {
             $this->warn("Parolă generată (schimb-o după prima logare): {$password}");
         }

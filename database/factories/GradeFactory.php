@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\EvaluationType;
 use App\Models\Grade;
 use App\Models\SchoolClass;
 use App\Models\Student;
@@ -27,8 +28,27 @@ class GradeFactory extends Factory
             'teacher_id' => Teacher::factory(),
             'graded_on' => fake()->dateTimeBetween('-3 months')->format('Y-m-d'),
             'type' => fake()->numberBetween(1, 6),
+            'evaluation_type' => EvaluationType::Curenta,
             'value' => fake()->numberBetween(1, 10),
             'calificativ' => null,
         ];
+    }
+
+    public function teza(): static
+    {
+        return $this->state(fn (): array => ['evaluation_type' => EvaluationType::Teza]);
+    }
+
+    public function esi(): static
+    {
+        return $this->state(fn (): array => ['evaluation_type' => EvaluationType::Esi]);
+    }
+
+    public function annulled(): static
+    {
+        return $this->state(fn (): array => [
+            'annulled_at' => now(),
+            'annulment_reason' => 'Notă greșită (test)',
+        ]);
     }
 }

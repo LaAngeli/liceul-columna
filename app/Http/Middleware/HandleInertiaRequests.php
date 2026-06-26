@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\UserRole;
+use App\Support\Locale;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -44,6 +45,15 @@ class HandleInertiaRequests extends Middleware
                 'canAccessAdmin' => $request->user()?->hasAnyRole(UserRole::panelRoleValues()) ?? false,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            // Lazy: share() rulează înaintea middleware-ului de limbă, deci rezolvăm
+            // limba la randare (după ce locale-ul a fost setat).
+            'locale' => fn (): string => app()->getLocale(),
+            'locales' => Locale::supported(),
+            // Toate limbile, ca interfața să poată rezerva lățimea celei mai lungi
+            // variante (butoanele nu-și schimbă dimensiunea la traducere).
+            'messages' => fn (): array => collect(array_keys(Locale::supported()))
+                ->mapWithKeys(fn (string $code): array => [$code => trans('site', [], $code)])
+                ->all(),
         ];
     }
 }

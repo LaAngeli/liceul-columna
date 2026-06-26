@@ -10,14 +10,14 @@ class StudentPolicy
 {
     /**
      * Cine poate vedea profilul unui elev:
-     * - personalul școlii (admin/director/director-adjunct/diriginte/profesor) — deocamdată toți;
-     *   scoping-ul fin (profesorul doar clasele lui) se adaugă ulterior;
+     * - personalul academic (tot personalul cu acces la panou, mai puțin administratorul tehnic,
+     *   care nu consultă date academice în uz normal — §3.2); scoping-ul fin se adaugă ulterior;
      * - elevul însuși (contul legat);
      * - un părinte/tutore atribuit elevului.
      */
     public function view(User $user, Student $student): bool
     {
-        if ($user->hasAnyRole(UserRole::panelRoleValues())) {
+        if ($user->hasAnyRole(UserRole::panelRoleValues()) && ! $user->isTechnicalAdmin()) {
             return true;
         }
 
