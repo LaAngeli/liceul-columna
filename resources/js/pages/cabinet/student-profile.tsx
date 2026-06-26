@@ -1,7 +1,9 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 import { messages as messageRoutes, motivation } from '@/routes/cabinet';
+import { store as requestRoute } from '@/routes/cabinet/requests';
 
 interface StudentSummary {
     id: number;
@@ -61,6 +63,15 @@ interface MotivationItem {
     statusLabel: string;
 }
 
+interface DocumentRequestItem {
+    id: number;
+    type: string;
+    date: string | null;
+    status: 'pending' | 'approved' | 'rejected';
+    statusLabel: string;
+    pdfUrl: string | null;
+}
+
 type Trend = 'up' | 'stable' | 'down' | null;
 
 interface DynamicsSubject {
@@ -93,6 +104,8 @@ interface Props {
     status: StudentStatus;
     dynamics: Dynamics;
     motivations: MotivationItem[];
+    documentRequests: DocumentRequestItem[];
+    requestTypes: Record<string, string>;
     canRequestMotivation: boolean;
 }
 
@@ -161,9 +174,12 @@ export default function StudentProfile({
     status,
     dynamics,
     motivations,
+    documentRequests,
+    requestTypes,
     canRequestMotivation,
 }: Props) {
     const t = useTranslations();
+    const [requestType, setRequestType] = useState('');
 
     return (
         <>
@@ -218,6 +234,10 @@ export default function StudentProfile({
                 {/* Note pe discipline */}
                 <section>
                     <h2 className="mb-3 text-lg font-semibold">{t('cabinet.grades_by_subject')}</h2>
+                    <details className="mb-3 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-xs dark:border-sidebar-border">
+                        <summary className="cursor-pointer font-medium text-muted-foreground">ℹ️ {t('cabinet.info_procedure')}</summary>
+                        <p className="mt-1.5 text-muted-foreground">{t('cabinet.extract_grades')}</p>
+                    </details>
                     <div className="overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 text-left text-muted-foreground">
@@ -271,6 +291,10 @@ export default function StudentProfile({
                                 {absencesUnmotivated} {t('cabinet.unmotivated')}
                             </span>
                         </div>
+                        <details className="mb-3 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-xs dark:border-sidebar-border">
+                            <summary className="cursor-pointer font-medium text-muted-foreground">ℹ️ {t('cabinet.info_procedure')}</summary>
+                            <p className="mt-1.5 text-muted-foreground">{t('cabinet.extract_absences')}</p>
+                        </details>
                         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {absencesBySubject.map((a) => (
                                 <div
@@ -380,6 +404,145 @@ export default function StudentProfile({
                                                 >
                                                     {t(`cabinet.motivation_status_${m.status}`, m.statusLabel)}
                                                 </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {/* Cereri tipice (familia depune → PDF → secretariat, §4.3) */}
+                {(canRequestMotivation || documentRequests.length > 0) && (
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.requests_title')}</h2>
+                        <details className="mb-3 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-xs dark:border-sidebar-border">
+                            <summary className="cursor-pointer font-medium text-muted-foreground">ℹ️ {t('cabinet.info_procedure')}</summary>
+                            <p className="mt-1.5 text-muted-foreground">{t('cabinet.extract_requests')}</p>
+                        </details>
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            {canRequestMotivation && (
+                                <Form
+                                    {...requestRoute.form(student.id)}
+                                    resetOnSuccess
+                                    onSuccess={() => setRequestType('')}
+                                    className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
+                                >
+                                    {({ processing, errors, recentlySuccessful }) => (
+                                        <div className="flex flex-col gap-3">
+                                            <p className="text-sm font-medium">{t('cabinet.requests_new')}</p>
+                                            <div className="grid gap-1.5">
+                                                <label htmlFor="req_type" className="text-xs text-muted-foreground">
+                                                    {t('cabinet.requests_type')}
+                                                </label>
+                                                <select
+                                                    id="req_type"
+                                                    name="type"
+                                                    required
+                                                    value={requestType}
+                                                    onChange={(e) => setRequestType(e.target.value)}
+                                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                                                >
+                                                    <option value="">—</option>
+                                                    {Object.entries(requestTypes).map(([value, label]) => (
+                                                        <option key={value} value={value}>
+                                                            {label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {errors.type && <p className="text-xs text-destructive">{errors.type}</p>}
+                                            </div>
+
+                                            {requestType === 'invoire' && (
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="grid gap-1.5">
+                                                        <label htmlFor="req_start" className="text-xs text-muted-foreground">
+                                                            {t('cabinet.motivation_from')}
+                                                        </label>
+                                                        <input
+                                                            id="req_start"
+                                                            name="period_start"
+                                                            type="date"
+                                                            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                        />
+                                                    </div>
+                                                    <div className="grid gap-1.5">
+                                                        <label htmlFor="req_end" className="text-xs text-muted-foreground">
+                                                            {t('cabinet.motivation_to')}
+                                                        </label>
+                                                        <input
+                                                            id="req_end"
+                                                            name="period_end"
+                                                            type="date"
+                                                            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="grid gap-1.5">
+                                                <label htmlFor="req_details" className="text-xs text-muted-foreground">
+                                                    {t('cabinet.requests_details')}
+                                                </label>
+                                                <textarea
+                                                    id="req_details"
+                                                    name="details"
+                                                    rows={3}
+                                                    placeholder={t('cabinet.requests_details_ph')}
+                                                    maxLength={1500}
+                                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                />
+                                                {errors.details && <p className="text-xs text-destructive">{errors.details}</p>}
+                                            </div>
+
+                                            <button
+                                                type="submit"
+                                                disabled={processing || requestType === ''}
+                                                className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                                            >
+                                                {processing ? t('cabinet.motivation_sending') : t('cabinet.requests_submit')}
+                                            </button>
+                                            {recentlySuccessful && (
+                                                <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                                    {t('cabinet.requests_sent')}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </Form>
+                            )}
+
+                            <div className="overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                                {documentRequests.length === 0 ? (
+                                    <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                                        {t('cabinet.requests_none')}
+                                    </p>
+                                ) : (
+                                    <ul className="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
+                                        {documentRequests.map((r) => (
+                                            <li key={r.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-medium">{r.type}</p>
+                                                    <p className="text-xs text-muted-foreground">{r.date}</p>
+                                                </div>
+                                                <div className="flex shrink-0 items-center gap-2">
+                                                    <span
+                                                        className={`rounded-md px-2 py-0.5 text-xs font-semibold ${motivationStatusClass(r.status)}`}
+                                                    >
+                                                        {t(`cabinet.motivation_status_${r.status}`, r.statusLabel)}
+                                                    </span>
+                                                    {r.pdfUrl && (
+                                                        <a
+                                                            href={r.pdfUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-primary hover:underline"
+                                                        >
+                                                            PDF
+                                                        </a>
+                                                    )}
+                                                </div>
                                             </li>
                                         ))}
                                     </ul>

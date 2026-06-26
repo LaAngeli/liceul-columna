@@ -32,6 +32,7 @@ it('adminul poate deschide paginile principale ale panoului', function (string $
     '/admin/absence-motivations',
     '/admin/messages',
     '/admin/schedules',
+    '/admin/document-requests',
     '/admin/users',
 ]);
 

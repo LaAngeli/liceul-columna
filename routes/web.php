@@ -135,6 +135,10 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     Route::post('cabinet/mesaje', [MessagesController::class, 'send'])->name('cabinet.messages.send');
     Route::post('cabinet/mesaje/{message}/raspunde', [MessagesController::class, 'reply'])->name('cabinet.messages.reply');
     Route::post('cabinet/mesaje/{message}/citit', [MessagesController::class, 'markRead'])->name('cabinet.messages.read');
+
+    // Cereri tipice (spec §4.3): depunere (→ PDF, secretariat) + descărcare PDF privat.
+    Route::post('cabinet/elev/{student}/cereri', [CabinetController::class, 'requestDocument'])->name('cabinet.requests.store');
+    Route::get('cabinet/cereri/{documentRequest}/pdf', [CabinetController::class, 'downloadRequest'])->name('cabinet.requests.pdf');
 });
 
 // Schimbarea obligatorie a parolei (userii migrați) — doar `auth`.

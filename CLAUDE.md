@@ -112,6 +112,13 @@ logați (service layer, ex. Prism PHP; aceleași endpoints cu permisiuni scoped)
   read-only, doar `is_public`, whitelist de câmpuri (label/headers/rows, niciodată coloane interne), cache invalidat la
   salvare; fără PII (date la nivel de CLASĂ). Migrare statică→DB: `php artisan app:import-schedules` (din `OrareSchedules`).
   ⏳ Separat: orarul STRUCTURAT per-elev (zi/lecție/profesor/sală navigabil + alerta de amânare, §2.1 cabinet) — model distinct.
+- ✅ **Cereri tipice → PDF (spec §4.3, #36):** `DocumentRequest` + `DocumentRequestType` (învoire/adeverință/transfer/
+  contestație/programare ședință; motivarea are fluxul ei). Familia depune din cabinet (secțiunea „Cereri tipice",
+  `student-profile.tsx`, family-gated) → `App\Actions\GenerateRequestPdf` (**mpdf, pur PHP** — NU spatie/Chromium)
+  randează un Blade → **PDF stocat PRIVAT** (`Storage::disk('local')`, conține PII de minor). Descărcare prin rută
+  autentificată (familie SAU administrație, niciodată URL public). Secretariatul vede/procesează în resursa Filament
+  „Cereri" (badge în așteptare). **Extrase contextuale** (§4.4): `<details>` cu fragmente de procedură lângă
+  note/absențe/cereri (i18n RO/RU/EN). ⚠️ `mpdf` ales în loc de `spatie/laravel-pdf` ca să evităm Node/Chromium + Faza B.
 - ✅ **Status elev (spec §2.5):** `StudentStatus` (promovat/corigent/amânat) + `App\Actions\DetermineStudentStatus`
   (corigent dacă o medie < 5, cu disciplinele restante; din `term_averages`, semestrul curent). Afișat în cabinet
   (badge) + indicator „Corigenți" în DirectorOverview (școală) și TeacherOverview (clasele mele). ⏳ De finalizat

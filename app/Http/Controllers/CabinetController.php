@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Actions\ComputeStudentDynamics;
 use App\Actions\DetermineStudentStatus;
+use App\Actions\GenerateRequestPdf;
 use App\Enums\AcademicRecordPeriod;
+use App\Enums\DocumentRequestType;
 use App\Enums\UserRole;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
 use App\Models\AcademicRecord;
+use App\Models\DocumentRequest;
 use App\Models\Grade;
 use App\Models\HomeworkAssignment;
 use App\Models\Student;
@@ -21,8 +24,11 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\Enum;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CabinetController extends Controller
 {
@@ -75,8 +81,10 @@ class CabinetController extends Controller
             'status' => $this->currentStatus($student),
             'dynamics' => app(ComputeStudentDynamics::class)->for($student),
             'motivations' => $this->motivations($student),
-            // Doar familia (tutore/elev) poate depune cereri de motivare — personalul vede pagina,
-            // dar nu și formularul (ar primi 403 la trimitere).
+            'documentRequests' => $this->documentRequests($student),
+            'requestTypes' => DocumentRequestType::options(),
+            // Doar familia (tutore/elev) poate depune cereri de motivare/tipice — personalul vede
+            // pagina, dar nu și formularele (ar primi 403 la trimitere).
             'canRequestMotivation' => $viewer instanceof User && $this->isFamilyOf($viewer, $student),
         ]);
     }
@@ -108,6 +116,63 @@ class CabinetController extends Controller
     }
 
     /**
+     * Depunerea unei cereri tipice (§4.3): se generează PDF (stocat PRIVAT) și se transmite
+     * secretariatului. Doar familia poate depune.
+     */
+    public function requestDocument(Request $request, Student $student): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User && $this->isFamilyOf($user, $student), 403);
+
+        $data = $request->validate([
+            'type' => ['required', new Enum(DocumentRequestType::class)],
+            'details' => ['nullable', 'string', 'max:1500'],
+            'period_start' => ['nullable', 'date'],
+            'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
+        ]);
+
+        $payload = ['details' => $data['details'] ?? ''];
+        if (! empty($data['period_start'])) {
+            $payload['period_start'] = $data['period_start'];
+            $payload['period_end'] = $data['period_end'] ?? $data['period_start'];
+        }
+
+        $documentRequest = DocumentRequest::create([
+            'type' => $data['type'],
+            'student_id' => $student->id,
+            'requested_by_user_id' => $user->id,
+            'payload' => $payload,
+        ]);
+
+        app(GenerateRequestPdf::class)->generate($documentRequest);
+
+        return back()->with('success', 'Cererea a fost generată și transmisă secretariatului.');
+    }
+
+    /**
+     * Descărcarea PDF-ului unei cereri — fișier PRIVAT (PII de minor): doar familia elevului sau
+     * administrația. Niciodată URL public.
+     */
+    public function downloadRequest(Request $request, DocumentRequest $documentRequest): StreamedResponse
+    {
+        $user = $request->user();
+        abort_unless(
+            $user instanceof User
+                && ($this->isFamilyOf($user, $documentRequest->student) || $user->isAdministrator()),
+            403,
+        );
+        abort_unless(
+            $documentRequest->pdf_path !== null && Storage::disk('local')->exists($documentRequest->pdf_path),
+            404,
+        );
+
+        return Storage::disk('local')->download(
+            $documentRequest->pdf_path,
+            'cerere-'.$documentRequest->type->value.'.pdf',
+        );
+    }
+
+    /**
      * Doar familia (tutorele atribuit sau elevul însuși) poate depune/vedea formularul de motivare.
      */
     private function isFamilyOf(User $user, Student $student): bool
@@ -133,6 +198,29 @@ class CabinetController extends Controller
                 'period' => $motivation->period_start->format('d.m.Y').' – '.$motivation->period_end->format('d.m.Y'),
                 'status' => $motivation->status->value,
                 'statusLabel' => $motivation->status->label(),
+            ])
+            ->all();
+    }
+
+    /**
+     * Cererile tipice ale elevului (cele mai recente), pentru afișare + descărcare PDF în cabinet.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function documentRequests(Student $student): array
+    {
+        return DocumentRequest::query()
+            ->where('student_id', $student->id)
+            ->latest()
+            ->limit(15)
+            ->get()
+            ->map(fn (DocumentRequest $request): array => [
+                'id' => $request->id,
+                'type' => $request->type->label(),
+                'date' => $request->created_at?->format('d.m.Y'),
+                'status' => $request->status->value,
+                'statusLabel' => $request->status->label(),
+                'pdfUrl' => $request->pdf_path !== null ? route('cabinet.requests.pdf', $request) : null,
             ])
             ->all();
     }

@@ -8,8 +8,8 @@ export function SiteFooter() {
 
     return (
         <footer className="mt-16 border-t border-border bg-muted/30">
-            <div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 md:grid-cols-2 lg:grid-cols-5">
-                <div className="lg:col-span-1">
+            <div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 md:grid-cols-2">
+                <div>
                     <div className="flex items-center gap-2.5">
                         <img src="/images/logo/columna-navy.png" alt="Liceul Columna" className="h-12 w-auto dark:hidden" />
                         <img src="/images/logo/columna-white.png" alt="Liceul Columna" className="hidden h-12 w-auto dark:block" />
@@ -29,20 +29,22 @@ export function SiteFooter() {
                     </ul>
                 </div>
 
-                {footerNav.map((column) => (
-                    <div key={column.title}>
-                        <h3 className="text-sm font-semibold">{t(column.tKey, column.title)}</h3>
-                        <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                            {column.links.map((link) => (
-                                <li key={link.href}>
-                                    <LocaleLink href={link.href} className="hover:text-foreground">
-                                        {link.tKey ? t(link.tKey, link.title) : link.title}
-                                    </LocaleLink>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                ))}
+                <div className="grid grid-cols-2 gap-8">
+                    {footerNav.map((column) => (
+                        <div key={column.title}>
+                            <h3 className="text-sm font-semibold">{t(column.tKey, column.title)}</h3>
+                            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                                {column.links.map((link) => (
+                                    <li key={link.href}>
+                                        <LocaleLink href={link.href} className="hover:text-foreground">
+                                            {link.tKey ? t(link.tKey, link.title) : link.title}
+                                        </LocaleLink>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             <div className="border-t border-border">

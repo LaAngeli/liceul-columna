@@ -16,6 +16,7 @@
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
         "maatwebsite/excel": "^3.1",
+        "mpdf/mpdf": "^8.3",
         "owen-it/laravel-auditing": "^14.0",
         "spatie/laravel-backup": "^10.3",
         "spatie/laravel-permission": "^8.0"

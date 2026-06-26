@@ -1,24 +1,10 @@
 import { Head } from '@inertiajs/react';
-import { ArrowRight, BookOpen, CalendarDays, GraduationCap, Images, Newspaper, Users } from 'lucide-react';
+import { ArrowRight, Award, BookOpen, GraduationCap, HandHeart, Heart, Languages, Mail, Newspaper, Phone, Users } from 'lucide-react';
 import { LocaleLink } from '@/components/locale-link';
 import { Button } from '@/components/ui/button';
+import { useInitials } from '@/hooks/use-initials';
 import { useTranslations } from '@/lib/i18n';
 import { siteContact } from '@/lib/public-navigation';
-
-const quickLinks = [
-    { titleKey: 'nav.admission', title: 'Admitere', descKey: 'quick.admission_desc', description: 'Pașii de înscriere și contactul', href: '/admitere', icon: GraduationCap },
-    { titleKey: 'calendar.lessons', title: 'Orarul lecțiilor', descKey: 'quick.schedule_desc', description: 'Orarul pe clase', href: '/orarul-lectiilor', icon: CalendarDays },
-    { titleKey: 'utility.library', title: 'Biblioteca online', descKey: 'quick.library_desc', description: 'Cărți, curricula, ghiduri', href: '/biblioteca-online', icon: BookOpen },
-    { titleKey: 'nav.staff', title: 'Personal', descKey: 'quick.staff_desc', description: 'Echipa didactică', href: '/personal', icon: Users },
-    { titleKey: 'nav.news', title: 'Actualități', descKey: 'quick.news_desc', description: 'Evenimente și anunțuri', href: '/actualitati-si-evenimente', icon: Newspaper },
-    { titleKey: 'nav.gallery', title: 'Galerie', descKey: 'quick.gallery_desc', description: 'Momente din viața liceului', href: '/galerie', icon: Images },
-];
-
-const schools = [
-    { titleKey: 'structure.primary', title: 'Școala primară', href: '/scoala-primara' },
-    { titleKey: 'structure.gymnasium', title: 'Școala gimnazială', href: '/scoala-gimnaziala' },
-    { titleKey: 'structure.lyceum', title: 'Școala liceală', href: '/scoala-liceala' },
-];
 
 interface NewsCard {
     title: string;
@@ -28,8 +14,35 @@ interface NewsCard {
     date: string | null;
 }
 
-export default function Home({ latestNews }: { latestNews: NewsCard[] }) {
+interface LeadershipMember {
+    name: string;
+    role: string;
+    slug: string | null;
+    photo: string | null;
+}
+
+const institutionCards = [
+    { titleKey: 'about.letter', title: 'Scrisoarea Directorului', href: '/scrisoarea-directorului', icon: BookOpen },
+    { titleKey: 'about.philosophy', title: 'Filosofia Liceului', href: '/filosofia-liceului', icon: Heart },
+];
+
+const featuredCards = [
+    { titleKey: 'home.featured_news', title: 'Actualități și evenimente', descKey: 'home.featured_news_desc', description: 'Evenimente, anunțuri și momente din viața liceului', href: '/actualitati-si-evenimente', icon: Newspaper },
+    { titleKey: 'home.featured_admission', title: 'Admitere', descKey: 'home.featured_admission_desc', description: 'Pași și informații despre înmatriculare', href: '/admitere', icon: GraduationCap },
+    { titleKey: 'home.featured_cambridge', title: 'Cambridge English Exam', descKey: 'home.featured_cambridge_desc', description: 'Cursuri de pregătire și certificare internațională', href: '/cambridge-english-exam', icon: Award },
+    { titleKey: 'home.featured_sponsorship', title: 'Sponsorizare', descKey: 'home.featured_sponsorship_desc', description: 'Mecanismul 2% și posibilități de a sprijini liceul', href: '/sponsorizare', icon: HandHeart },
+];
+
+const stats = [
+    { value: '27', labelKey: 'home.stat_experience', label: 'ani de experiență' },
+    { value: '55', labelKey: 'home.stat_teachers', label: 'cadre didactice' },
+    { value: '100', labelKey: 'home.stat_university', label: '% elevi admiși la universitate' },
+    { value: '5', labelKey: 'home.stat_languages', label: 'limbi străine studiate' },
+];
+
+export default function Home({ latestNews, leadership }: { latestNews: NewsCard[]; leadership: LeadershipMember[] }) {
     const t = useTranslations();
+    const getInitials = useInitials();
 
     return (
         <>
@@ -42,7 +55,7 @@ export default function Home({ latestNews }: { latestNews: NewsCard[] }) {
                         {t('home.badge', 'IPL „Liceul Columna” · Chișinău')}
                     </span>
                     <h1 className="mx-auto mt-6 max-w-3xl font-serif text-4xl font-bold tracking-tight sm:text-5xl">
-                        {t('home.tagline', siteContact.tagline)}
+                        {t('home.hero_title', 'Succesul copilului începe aici')}
                     </h1>
                     <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
                         {t('home.subtitle', 'Educație de calitate de la clasele primare până la liceu, într-un mediu sigur și inspirat.')}
@@ -60,45 +73,55 @@ export default function Home({ latestNews }: { latestNews: NewsCard[] }) {
                 </div>
             </section>
 
-            {/* Cele trei trepte */}
+            {/* Instituția Privată Liceul „Columna" */}
             <section className="mx-auto max-w-7xl px-6 py-14">
-                <div className="grid gap-4 sm:grid-cols-3">
-                    {schools.map((school) => (
-                        <LocaleLink
-                            key={school.href}
-                            href={school.href}
-                            className="group rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary"
-                        >
-                            <GraduationCap className="size-7 text-primary" />
-                            <h2 className="mt-4 text-lg font-semibold">{t(school.titleKey, school.title)}</h2>
-                            <span className="mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground group-hover:text-foreground">
-                                {t('action.details', 'Detalii')} <ArrowRight className="size-3.5" />
-                            </span>
-                        </LocaleLink>
-                    ))}
+                <h2 className="text-center font-serif text-2xl font-bold tracking-tight sm:text-3xl">
+                    {t('home.institution_title', 'Instituția Privată Liceul „Columna”')}
+                </h2>
+                <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                    {institutionCards.map((card) => {
+                        const Icon = card.icon;
+                        return (
+                            <LocaleLink
+                                key={card.href}
+                                href={card.href}
+                                className="group flex items-start gap-4 rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary"
+                            >
+                                <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                                    <Icon className="size-6" />
+                                </span>
+                                <div>
+                                    <h3 className="font-serif text-lg font-semibold">{t(card.titleKey, card.title)}</h3>
+                                    <span className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary">
+                                        {t('action.details', 'Detalii')} <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                                    </span>
+                                </div>
+                            </LocaleLink>
+                        );
+                    })}
                 </div>
             </section>
 
-            {/* Acces rapid */}
+            {/* Featured 4 carduri */}
             <section className="border-t border-border bg-muted/30">
                 <div className="mx-auto max-w-7xl px-6 py-14">
-                    <h2 className="font-serif text-2xl font-bold tracking-tight">{t('home.quick_access', 'Acces rapid')}</h2>
-                    <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {quickLinks.map((link) => {
-                            const Icon = link.icon;
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {featuredCards.map((card) => {
+                            const Icon = card.icon;
                             return (
                                 <LocaleLink
-                                    key={link.href}
-                                    href={link.href}
-                                    className="group flex items-start gap-4 rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary"
+                                    key={card.href}
+                                    href={card.href}
+                                    className="group flex flex-col rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary"
                                 >
-                                    <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                                    <span className="flex size-10 items-center justify-center rounded-md bg-primary/10 text-primary">
                                         <Icon className="size-5" />
                                     </span>
-                                    <div>
-                                        <h3 className="font-semibold">{t(link.titleKey, link.title)}</h3>
-                                        <p className="mt-1 text-sm text-muted-foreground">{t(link.descKey, link.description)}</p>
-                                    </div>
+                                    <h3 className="mt-4 font-semibold">{t(card.titleKey, card.title)}</h3>
+                                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{t(card.descKey, card.description)}</p>
+                                    <span className="mt-3 inline-flex items-center gap-1 text-sm text-primary">
+                                        {t('action.details', 'Detalii')} <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                                    </span>
                                 </LocaleLink>
                             );
                         })}
@@ -141,6 +164,112 @@ export default function Home({ latestNews }: { latestNews: NewsCard[] }) {
                     </div>
                 </section>
             )}
+
+            {/* De ce Liceul „Columna" + statistici */}
+            <section className="border-t border-border bg-primary text-primary-foreground">
+                <div className="mx-auto max-w-7xl px-6 py-16">
+                    <h2 className="text-center font-serif text-2xl font-bold tracking-tight sm:text-3xl">
+                        {t('home.why_title', 'De ce Liceul „Columna”')}
+                    </h2>
+                    <p className="mx-auto mt-3 max-w-3xl text-center text-primary-foreground/85">
+                        {t('home.why_lead', 'Deoarece educăm elevii în spiritul valorilor naționale și general-umane')}
+                    </p>
+                    <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                        {stats.map((stat) => (
+                            <div key={stat.labelKey} className="text-center">
+                                <div className="font-serif text-4xl font-bold sm:text-5xl">{stat.value}</div>
+                                <p className="mt-2 text-sm text-primary-foreground/85">{t(stat.labelKey, stat.label)}</p>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="mt-8 flex items-center justify-center gap-2 text-sm text-primary-foreground/80">
+                        <Languages className="size-4 shrink-0" />
+                        {t('home.languages_list', 'Româna, Engleza, Germana, Franceza, Rusa')}
+                    </p>
+                </div>
+            </section>
+
+            {/* Personal — conducerea */}
+            {leadership.length > 0 && (
+                <section className="mx-auto max-w-7xl px-6 py-14">
+                    <h2 className="font-serif text-2xl font-bold tracking-tight">{t('home.staff_title', 'Personal')}</h2>
+                    <p className="mt-3 max-w-3xl text-muted-foreground">{t('home.staff_intro', 'Profesorii noștri…')}</p>
+                    <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                        {leadership.map((member) => {
+                            const inner = (
+                                <>
+                                    {member.photo ? (
+                                        <img src={member.photo} alt={member.name} loading="lazy" className="size-16 rounded-full object-cover" />
+                                    ) : (
+                                        <span className="flex size-16 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
+                                            {getInitials(member.name)}
+                                        </span>
+                                    )}
+                                    <div className="mt-3">
+                                        <p className="font-medium leading-tight">{member.name}</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">{member.role}</p>
+                                    </div>
+                                </>
+                            );
+                            return member.slug ? (
+                                <LocaleLink
+                                    key={member.name}
+                                    href={`/${member.slug}`}
+                                    className="group flex flex-col items-center rounded-lg border border-border bg-card p-4 text-center transition-colors hover:border-primary"
+                                >
+                                    {inner}
+                                </LocaleLink>
+                            ) : (
+                                <div
+                                    key={member.name}
+                                    className="flex flex-col items-center rounded-lg border border-border bg-card p-4 text-center"
+                                >
+                                    {inner}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-8 text-center">
+                        <Button asChild variant="outline">
+                            <LocaleLink href="/personal">
+                                {t('home.staff_see_all', 'Vezi toată echipa')} <ArrowRight className="size-4" />
+                            </LocaleLink>
+                        </Button>
+                    </div>
+                </section>
+            )}
+
+            {/* Contactează-ne */}
+            <section className="border-t border-border bg-muted/40">
+                <div className="mx-auto max-w-7xl px-6 py-16 text-center">
+                    <h2 className="font-serif text-2xl font-bold tracking-tight sm:text-3xl">
+                        {t('home.contact_title', 'Contactează-ne')}
+                    </h2>
+                    <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+                        {t('home.contact_subtitle', 'Suntem convinși…')}
+                    </p>
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-sm">
+                        <a href={`tel:${siteContact.phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-2 hover:text-primary">
+                            <Phone className="size-4" /> {siteContact.phone}
+                        </a>
+                        <a href={`mailto:${siteContact.email}`} className="inline-flex items-center gap-2 hover:text-primary">
+                            <Mail className="size-4" /> {siteContact.email}
+                        </a>
+                    </div>
+                    <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                        <Button asChild size="lg">
+                            <LocaleLink href="/contacte">
+                                {t('home.contact_cta', 'Scrie-ne')} <ArrowRight className="size-4" />
+                            </LocaleLink>
+                        </Button>
+                        <Button asChild size="lg" variant="outline">
+                            <LocaleLink href="/personal">
+                                <Users className="size-4" /> {t('home.staff_see_all', 'Vezi toată echipa')}
+                            </LocaleLink>
+                        </Button>
+                    </div>
+                </div>
+            </section>
         </>
     );
 }
