@@ -31,6 +31,7 @@ it('adminul poate deschide paginile principale ale panoului', function (string $
     '/admin/grade-corrections',
     '/admin/absence-motivations',
     '/admin/messages',
+    '/admin/schedules',
     '/admin/users',
 ]);
 

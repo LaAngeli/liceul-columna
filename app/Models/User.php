@@ -184,6 +184,15 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Inserarea/întreținerea ORARELOR publicabile (cele 9 secțiuni Calendar) — obligație a
+     * administratorului operațional (§3.2 AO: „publică orarul"); super-adminul are acces break-glass.
+     */
+    public function canManageSchedules(): bool
+    {
+        return $this->hasAnyRole([UserRole::Admin->value, UserRole::AdministratorOperational->value]);
+    }
+
+    /**
      * Aprobă corecțiile de notă solicitate de profesor/diriginte: prim-vicedirectorul, iar
      * excepțional directorul (§3.1 / ⑧). Administratorul operațional doar VEDE arhiva (○).
      */

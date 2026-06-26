@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { ChevronDown, Mail, Menu, Phone, X } from 'lucide-react';
+import { ChevronDown, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { LocaleLink } from '@/components/locale-link';
 import { LanguageSwitcher } from '@/components/public/language-switcher';
@@ -7,7 +7,7 @@ import { T } from '@/components/t';
 import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { mainNav, siteContact, utilityNav } from '@/lib/public-navigation';
+import { mainNav, utilityNav } from '@/lib/public-navigation';
 import { dashboard, login } from '@/routes';
 
 function useIsActive() {
@@ -35,15 +35,7 @@ export function SiteHeader() {
         <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             {/* Bara utilitară */}
             <div className="hidden border-b border-border/60 bg-muted/40 text-xs text-muted-foreground lg:block">
-                <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-1.5">
-                    <div className="flex items-center gap-4">
-                        <a href={`tel:${siteContact.phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-1.5 hover:text-foreground">
-                            <Phone className="size-3.5" /> {siteContact.phone}
-                        </a>
-                        <a href={`mailto:${siteContact.email}`} className="inline-flex items-center gap-1.5 hover:text-foreground">
-                            <Mail className="size-3.5" /> {siteContact.email}
-                        </a>
-                    </div>
+                <div className="mx-auto flex max-w-7xl items-center justify-center gap-4 px-6 py-1.5">
                     <nav className="flex items-center gap-3">
                         {utilityNav.map((item) => (
                             <LocaleLink key={item.href} href={item.href} className={cn('hover:text-foreground', isActive(item.href) && 'font-medium text-foreground')}>

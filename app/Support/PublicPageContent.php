@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\Schedule;
+
 /**
  * Sursă unică de conținut pentru paginile publice (migrare columna.org.md → columna.md).
  *
@@ -516,7 +518,9 @@ final class PublicPageContent
     }
 
     /**
-     * Secțiunile unei pagini de orar: lead + tabelele reale din OrareSchedules.
+     * Secțiunile unei pagini de orar: lead + tabelele PUBLICE din `schedules` (sursa unică,
+     * editabilă din panou). Citire read-only, filtrată pe `is_public`, cu whitelist de câmpuri
+     * și cache — vezi {@see Schedule::publicTablesFor()}.
      *
      * @return list<array<string, mixed>>
      */
@@ -524,7 +528,7 @@ final class PublicPageContent
     {
         $sections = [['type' => 'lead', 'text' => $lead]];
 
-        foreach (OrareSchedules::for($name) as $table) {
+        foreach (Schedule::publicTablesFor($name) as $table) {
             $sections[] = [
                 'type' => 'table',
                 'label' => $table['label'],

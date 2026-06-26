@@ -103,6 +103,15 @@ logați (service layer, ex. Prism PHP; aceleași endpoints cu permisiuni scoped)
 - ✅ **Date de test (`DemoTestDataSeeder`):** corecții + motivări + mesaje demo (marcate `[DEMO]` în motiv/corp →
   curățabile) + **conturi de rol demo** pentru #28: `vicedirector@`/`operational@`/`tehnic@columna.test` (`password`).
   Rulează DUPĂ `DemoAccountsSeeder`: `php artisan db:seed --class=DemoTestDataSeeder`. Idempotent.
+- ✅ **Orare publicabile (spec §2.1, #39):** UN model generic `Schedule` (`ScheduleType` = cele 9 secțiuni Calendar:
+  lecții/sunete/examene/ESS/pretestări/pregătire/CPAE/recuperări/ședințe părinți) cu `headers`/`rows` JSON + `is_public`.
+  **Sursă UNICĂ:** editat în panou (resursa „Orare", grup Configurare) → reflectat pe site (paginile Calendar, prin
+  `Schedule::publicTablesFor()`). **OBLIGAȚIA inserării = administratorul operațional** (`canManageSchedules` = AO +
+  super-admin break-glass; §3.2 AO „publică orarul"); widget acționabil `SchedulesToComplete` îi listează AO-ului
+  tipurile de orar fără date, cu link la adăugare. **Securitate — citire publică ≠ pericol** (tipar CMS): cale
+  read-only, doar `is_public`, whitelist de câmpuri (label/headers/rows, niciodată coloane interne), cache invalidat la
+  salvare; fără PII (date la nivel de CLASĂ). Migrare statică→DB: `php artisan app:import-schedules` (din `OrareSchedules`).
+  ⏳ Separat: orarul STRUCTURAT per-elev (zi/lecție/profesor/sală navigabil + alerta de amânare, §2.1 cabinet) — model distinct.
 - ✅ **Status elev (spec §2.5):** `StudentStatus` (promovat/corigent/amânat) + `App\Actions\DetermineStudentStatus`
   (corigent dacă o medie < 5, cu disciplinele restante; din `term_averages`, semestrul curent). Afișat în cabinet
   (badge) + indicator „Corigenți" în DirectorOverview (școală) și TeacherOverview (clasele mele). ⏳ De finalizat
@@ -228,6 +237,19 @@ paragrafele de text simplu în `<p>`. Idempotentă; ruleaz-o până raportează 
 **Verificare i18n (înainte de „gata"):** `npm run build`; deschide `/`, `/ru/<pagină>`, `/en/<pagină>` — conținutul se
 schimbă cu limba, niciun text rămas în altă limbă, niciun shortcode brut afișat. Teste:
 `tests/Feature/{LocalizationTest,ContentTranslationTest,StripPostShortcodesTest}.php`.
+
+## 10. SEO
+
+> Pentru ORICE sarcină de SEO — audit, cercetare de cuvinte-cheie, analiză on-page, conținut / content-gaps, verificări
+> tehnice sau comparație cu competitorii — folosește skill-ul **`seo-audit`** (`/seo-audit`). E unealta implicită pentru SEO.
+
+**Context SEO specific proiectului** (de care ține cont orice lucrare SEO aici):
+- **Site multilingv RO/RU/EN cu prefix URL** (RO la root, `/ru`, `/en`) → necesită `hreflang` (RO/RU/EN + `x-default`)
+  și `canonical` per limbă; un sitemap care acoperă toate cele trei variante.
+- **Migrare WordPress `columna.org.md` → `columna.md`**, cu **păstrarea TUTUROR URL-urilor vechi** → la mutarea domeniului,
+  redirect-uri 301 din URL-urile vechi; evită conținut duplicat.
+- Meta `title`/`description` per pagină (acum doar `<Head title>` în paginile Inertia — `description`/OG/twitter de adăugat
+  când se lucrează SEO); imaginile din articole/galerii încă țintesc `columna.org.md` (de re-pointat la migrare).
 
 <laravel-boost-guidelines>
 === foundation rules ===

@@ -48,7 +48,17 @@ export function SiteFooter() {
             <div className="border-t border-border">
                 <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-6 py-4 text-xs text-muted-foreground sm:flex-row">
                     <p>© {new Date().getFullYear()} IPL „Liceul Columna”. {t('footer.rights', 'Toate drepturile rezervate.')}</p>
-                    <p>{t('footer.location', 'Chișinău, Republica Moldova')}</p>
+                    <p>
+                        Created by{' '}
+                        <a
+                            href="https://advista.marketing/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium transition-colors hover:text-[rgb(228,81,55)]"
+                        >
+                            AdVista
+                        </a>
+                    </p>
                 </div>
             </div>
         </footer>
