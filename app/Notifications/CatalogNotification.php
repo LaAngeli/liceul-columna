@@ -28,6 +28,7 @@ class CatalogNotification extends Notification implements ShouldQueue
 
     /**
      * @param  array<string, string>  $params  Valorile placeholderelor din șablon (`:student`...).
+     * @param  array<string, mixed>  $meta  Date suplimentare puse în payload (ex. `announcement_id`).
      */
     public function __construct(
         public NotificationType $type,
@@ -35,6 +36,7 @@ class CatalogNotification extends Notification implements ShouldQueue
         public ?string $url = null,
         public ?string $customTitle = null,
         public ?string $customBody = null,
+        public array $meta = [],
     ) {}
 
     /**
@@ -98,13 +100,13 @@ class CatalogNotification extends Notification implements ShouldQueue
     {
         $rendered = $this->rendered($notifiable);
 
-        return [
+        return array_merge([
             'type' => $this->type->value,
             'title' => $rendered['title'],
             'body' => $rendered['body'],
             'url' => $this->url,
             'icon' => $this->type->icon(),
-        ];
+        ], $this->meta);
     }
 
     public function toMail(User $notifiable): MailMessage
