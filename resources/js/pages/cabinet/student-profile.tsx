@@ -53,6 +53,8 @@ interface StudentStatus {
     status: 'promovat' | 'corigent' | 'amanat' | null;
     label: string | null;
     failingSubjects: string[];
+    official: boolean;
+    orderReference: string | null;
 }
 
 interface StatusAck {
@@ -238,6 +240,14 @@ export default function StudentProfile({
                         {status.status === 'amanat' && (
                             <span className="mt-1.5 inline-flex rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
                                 {t('cabinet.status_amanat')}
+                            </span>
+                        )}
+                        {status.official && (
+                            <span
+                                className="mt-1.5 ml-1.5 inline-flex items-center gap-1 rounded-md bg-sky-500/10 px-2 py-0.5 text-xs font-semibold text-sky-700 dark:text-sky-400"
+                                title={status.orderReference ?? undefined}
+                            >
+                                ✓ {t('cabinet.status_official')}
                             </span>
                         )}
                     </div>

@@ -17,6 +17,7 @@ use App\Models\AcademicRecord;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
 use App\Models\HomeworkAssignment;
+use App\Models\SemesterValidation;
 use App\Models\StatusAcknowledgement;
 use App\Models\Student;
 use App\Models\Term;
@@ -325,18 +326,37 @@ class CabinetController extends Controller
         $currentTermId = Term::query()->where('is_current', true)->value('id');
 
         if ($currentTermId === null) {
-            return ['status' => null, 'label' => null, 'failingSubjects' => []];
+            return ['status' => null, 'label' => null, 'failingSubjects' => [], 'official' => false, 'orderReference' => null];
         }
 
         $result = app(DetermineStudentStatus::class)->forTerm($student->id, (int) $currentTermId);
+        $failing = array_map(
+            fn (string $subject): string => ContentTranslator::subject($subject),
+            $result['failingSubjects'],
+        );
+
+        // Statutul OFICIAL validat de conducere (Consiliul prof. + ordin) primează (spec §2.5 / #33).
+        $validated = SemesterValidation::query()
+            ->where('student_id', $student->id)
+            ->where('term_id', $currentTermId)
+            ->first();
+
+        if ($validated !== null) {
+            return [
+                'status' => $validated->status->value,
+                'label' => $validated->status->label(),
+                'failingSubjects' => $failing,
+                'official' => true,
+                'orderReference' => $validated->order_reference,
+            ];
+        }
 
         return [
             'status' => $result['status']?->value,
             'label' => $result['status']?->label(),
-            'failingSubjects' => array_map(
-                fn (string $subject): string => ContentTranslator::subject($subject),
-                $result['failingSubjects'],
-            ),
+            'failingSubjects' => $failing,
+            'official' => false,
+            'orderReference' => null,
         ];
     }
 

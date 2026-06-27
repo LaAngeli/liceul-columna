@@ -260,6 +260,7 @@ return [
         'status_ack_text' => 'Confirmă că ai luat cunoștință de situația școlară a elevului (corigent/amânat). Confirmarea se înregistrează cu dată.',
         'status_ack_confirm' => 'Confirm că am luat cunoștință',
         'status_ack_done' => 'Confirmat la',
+        'status_official' => 'Validat oficial',
         'dynamics_title' => 'Dinamică și evoluție',
         'dynamics_current' => 'Media curentă',
         'dynamics_history' => 'Media ta istorică',

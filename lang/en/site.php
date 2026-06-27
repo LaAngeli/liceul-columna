@@ -260,6 +260,7 @@ return [
         'status_ack_text' => 'Confirm that you have been informed of the student’s academic standing (retake/deferred). The confirmation is recorded with a date.',
         'status_ack_confirm' => 'I confirm I have been informed',
         'status_ack_done' => 'Confirmed on',
+        'status_official' => 'Officially validated',
         'dynamics_title' => 'Trends & progress',
         'dynamics_current' => 'Current average',
         'dynamics_history' => 'Your historical average',
