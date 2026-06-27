@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Actions\LogStudentAccess;
 use App\Enums\SecondLanguage;
 use App\Enums\Sex;
 use Database\Factories\StudentFactory;
@@ -13,9 +14,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class Student extends Model
+/**
+ * Datele personale ale elevului sunt auditate (Legea 133 §7): modificările prin owen-it, iar
+ * ACCESUL (vizualizare/export de către personal) prin evenimente custom — vezi
+ * {@see LogStudentAccess}.
+ */
+class Student extends Model implements Auditable
 {
+    use AuditableTrait;
+
     /** @use HasFactory<StudentFactory> */
     use HasFactory, SoftDeletes;
 

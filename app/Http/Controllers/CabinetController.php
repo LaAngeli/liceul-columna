@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\ComputeStudentDynamics;
 use App\Actions\DetermineStudentStatus;
 use App\Actions\GenerateRequestPdf;
+use App\Actions\LogStudentAccess;
 use App\Enums\AcademicRecordPeriod;
 use App\Enums\DocumentRequestType;
 use App\Enums\UserRole;
@@ -61,13 +62,19 @@ class CabinetController extends Controller
     /**
      * Profilul unui elev: note, absențe, foaie matricolă și teme. Acces via StudentPolicy.
      */
-    public function student(Student $student): Response
+    public function student(Student $student, LogStudentAccess $accessLog): Response
     {
         Gate::authorize('view', $student);
 
         $student->load(['grades.subject', 'grades.term', 'absences.subject', 'academicRecords.subject']);
 
         $viewer = auth()->user();
+
+        // Jurnalizarea accesului (L133 §7): personalul care vizualizează dosarul unui elev care NU
+        // e copilul lui. Familia care-și vede propriul copil nu intră în jurnal (e dreptul ei).
+        if ($viewer instanceof User && ! $this->isFamilyOf($viewer, $student)) {
+            $accessLog->record($student, 'viewed', 'Vizualizare profil elev în cabinet');
+        }
 
         return Inertia::render('cabinet/student-profile', [
             'student' => $this->summary($student),
@@ -153,7 +160,7 @@ class CabinetController extends Controller
      * Descărcarea PDF-ului unei cereri — fișier PRIVAT (PII de minor): doar familia elevului sau
      * administrația. Niciodată URL public.
      */
-    public function downloadRequest(Request $request, DocumentRequest $documentRequest): StreamedResponse
+    public function downloadRequest(Request $request, DocumentRequest $documentRequest, LogStudentAccess $accessLog): StreamedResponse
     {
         $user = $request->user();
         abort_unless(
@@ -165,6 +172,9 @@ class CabinetController extends Controller
             $documentRequest->pdf_path !== null && Storage::disk('local')->exists($documentRequest->pdf_path),
             404,
         );
+
+        // Export de PII de minor (PDF) → jurnalizat indiferent de cine (L133 §7).
+        $accessLog->record($documentRequest->student, 'exported', 'Descărcare PDF cerere tipică');
 
         return Storage::disk('local')->download(
             $documentRequest->pdf_path,
