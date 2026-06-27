@@ -254,6 +254,8 @@ return [
         'motivation_status_pending' => 'În așteptare',
         'motivation_status_approved' => 'Aprobată',
         'motivation_status_rejected' => 'Respinsă',
+        'motivation_document' => 'Justificativ (opțional — PDF/imagine, max 5MB)',
+        'motivation_document_view' => 'Vezi justificativul',
         'dynamics_title' => 'Dinamică și evoluție',
         'dynamics_current' => 'Media curentă',
         'dynamics_history' => 'Media ta istorică',

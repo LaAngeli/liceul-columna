@@ -25,6 +25,7 @@ use App\Support\Timetable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -115,7 +116,15 @@ class CabinetController extends Controller
             'reason' => ['required', 'string', 'max:1000'],
             'period_start' => ['required', 'date'],
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
+            'document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ]);
+
+        // Justificativul (adeverință etc.) e PII de minor → stocare PRIVATĂ, niciodată public.
+        $documentPath = null;
+        $file = $request->file('document');
+        if ($file instanceof UploadedFile) {
+            $documentPath = $file->store('motivations', 'local') ?: null;
+        }
 
         AbsenceMotivation::create([
             'student_id' => $student->id,
@@ -123,6 +132,7 @@ class CabinetController extends Controller
             'reason' => $data['reason'],
             'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
+            'document_path' => $documentPath,
         ]);
 
         return back()->with('success', 'Cererea de motivare a fost trimisă dirigintelui.');
@@ -189,6 +199,32 @@ class CabinetController extends Controller
     }
 
     /**
+     * Descărcarea justificativului unei cereri de motivare — fișier PRIVAT (PII de minor): familia
+     * elevului, dirigintele clasei sau administrația. Niciodată URL public. Accesul se jurnalizează.
+     */
+    public function downloadMotivationDocument(Request $request, AbsenceMotivation $absenceMotivation, LogStudentAccess $accessLog): StreamedResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $student = $absenceMotivation->student;
+        abort_unless(
+            $this->isFamilyOf($user, $student)
+                || $user->isAdministrator()
+                || ($student->homeroomUser()?->is($user) ?? false),
+            403,
+        );
+        abort_unless(
+            $absenceMotivation->document_path !== null && Storage::disk('local')->exists($absenceMotivation->document_path),
+            404,
+        );
+
+        $accessLog->record($student, 'exported', 'Descărcare justificativ motivare');
+
+        return Storage::disk('local')->download($absenceMotivation->document_path);
+    }
+
+    /**
      * Doar familia (tutorele atribuit sau elevul însuși) poate depune/vedea formularul de motivare.
      */
     private function isFamilyOf(User $user, Student $student): bool
@@ -214,6 +250,9 @@ class CabinetController extends Controller
                 'period' => $motivation->period_start->format('d.m.Y').' – '.$motivation->period_end->format('d.m.Y'),
                 'status' => $motivation->status->value,
                 'statusLabel' => $motivation->status->label(),
+                'documentUrl' => $motivation->document_path !== null
+                    ? route('cabinet.motivation.document', ['absenceMotivation' => $motivation->id], false)
+                    : null,
             ])
             ->all();
     }

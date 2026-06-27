@@ -254,6 +254,8 @@ return [
         'motivation_status_pending' => 'На рассмотрении',
         'motivation_status_approved' => 'Одобрена',
         'motivation_status_rejected' => 'Отклонена',
+        'motivation_document' => 'Подтверждающий документ (необязательно — PDF/изображение, до 5 МБ)',
+        'motivation_document_view' => 'Открыть документ',
         'dynamics_title' => 'Динамика и развитие',
         'dynamics_current' => 'Текущий средний балл',
         'dynamics_history' => 'Ваш исторический средний',

@@ -50,6 +50,12 @@ class AbsenceMotivationsTable
                     ->options(RequestStatus::class),
             ])
             ->recordActions([
+                Action::make('document')
+                    ->label('Justificativ')
+                    ->icon('heroicon-o-paper-clip')
+                    ->color('gray')
+                    ->visible(fn (AbsenceMotivation $record): bool => $record->document_path !== null)
+                    ->url(fn (AbsenceMotivation $record): string => route('cabinet.motivation.document', $record), shouldOpenInNewTab: true),
                 Action::make('approve')
                     ->label('Validează')
                     ->icon('heroicon-o-check')

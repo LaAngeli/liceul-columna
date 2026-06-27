@@ -254,6 +254,8 @@ return [
         'motivation_status_pending' => 'Pending',
         'motivation_status_approved' => 'Approved',
         'motivation_status_rejected' => 'Rejected',
+        'motivation_document' => 'Supporting document (optional — PDF/image, max 5MB)',
+        'motivation_document_view' => 'View document',
         'dynamics_title' => 'Trends & progress',
         'dynamics_current' => 'Current average',
         'dynamics_history' => 'Your historical average',

@@ -61,6 +61,7 @@ interface MotivationItem {
     period: string;
     status: 'pending' | 'approved' | 'rejected';
     statusLabel: string;
+    documentUrl: string | null;
 }
 
 interface DocumentRequestItem {
@@ -464,6 +465,19 @@ export default function StudentProfile({
                                                     )}
                                                 </div>
                                             </div>
+                                            <div className="grid gap-1.5">
+                                                <label htmlFor="document" className="text-xs text-muted-foreground">
+                                                    {t('cabinet.motivation_document')}
+                                                </label>
+                                                <input
+                                                    id="document"
+                                                    name="document"
+                                                    type="file"
+                                                    accept=".pdf,.jpg,.jpeg,.png"
+                                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
+                                                />
+                                                {errors.document && <p className="text-xs text-destructive">{errors.document}</p>}
+                                            </div>
                                             <button
                                                 type="submit"
                                                 disabled={processing}
@@ -493,6 +507,16 @@ export default function StudentProfile({
                                                 <div className="min-w-0">
                                                     <p className="text-sm font-medium">{m.period}</p>
                                                     <p className="truncate text-xs text-muted-foreground">{m.reason}</p>
+                                                    {m.documentUrl && (
+                                                        <a
+                                                            href={m.documentUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                                        >
+                                                            📎 {t('cabinet.motivation_document_view')}
+                                                        </a>
+                                                    )}
                                                 </div>
                                                 <span
                                                     className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${motivationStatusClass(m.status)}`}

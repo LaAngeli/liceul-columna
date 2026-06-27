@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property RequestStatus $status
  * @property Carbon $period_start
  * @property Carbon $period_end
+ * @property string|null $document_path
  * @property Carbon|null $reviewed_at
  */
 #[ObservedBy(AbsenceMotivationObserver::class)]
