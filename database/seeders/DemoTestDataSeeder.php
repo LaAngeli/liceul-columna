@@ -9,8 +9,10 @@ use App\Enums\UserRole;
 use App\Models\AbsenceMotivation;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
+use App\Models\Lesson;
 use App\Models\Message;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -48,6 +50,54 @@ class DemoTestDataSeeder extends Seeder
         $this->seedCorrections();
         $this->seedMotivations();
         $this->seedMessages();
+        $this->seedLessons();
+    }
+
+    /**
+     * Orar structurat demo pentru clasa dirigintelui demo, ca grila din cabinet + alerta de amânare
+     * să aibă ce afișa. Idempotent: regenerează orarul clasei.
+     */
+    private function seedLessons(): void
+    {
+        $profUser = User::query()->where('email', 'profesor@columna.test')->first();
+
+        if ($profUser === null) {
+            return;
+        }
+
+        $class = $profUser->teacher?->homeroomClasses()->first();
+
+        if ($class === null) {
+            return;
+        }
+
+        Lesson::query()->where('school_class_id', $class->id)->forceDelete();
+
+        $subjectIds = Subject::query()->inRandomOrder()->limit(6)->pluck('id')->all();
+
+        if ($subjectIds === []) {
+            return;
+        }
+
+        $teacherId = $profUser->teacher->id;
+
+        $created = 0;
+        foreach (range(1, 5) as $day) { // luni–vineri
+            foreach (range(1, 4 + ($day % 2)) as $number) { // 4–5 lecții/zi
+                Lesson::create([
+                    'academic_year_id' => $class->academic_year_id,
+                    'school_class_id' => $class->id,
+                    'subject_id' => $subjectIds[($day + $number) % count($subjectIds)],
+                    'teacher_id' => $teacherId,
+                    'day_of_week' => $day,
+                    'lesson_number' => $number,
+                    'room' => (string) (10 + $number),
+                ]);
+                $created++;
+            }
+        }
+
+        $this->command->info("Orar structurat demo: {$created} lecții pentru clasa dirigintelui.");
     }
 
     /**
