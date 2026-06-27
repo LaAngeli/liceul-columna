@@ -305,6 +305,12 @@ return [
         'notif_email_account' => 'Email (from account)',
         'notif_language' => 'Notification language',
         'notif_language_hint' => 'The language your notifications will be SENT in (independent of the interface language).',
+        'timetable_title' => 'Class timetable',
+        'timetable_lesson' => 'Lesson',
+        'timetable_room' => 'Room',
+        'deferral_title' => 'Deferral risk',
+        'deferral_hint' => 'In these subjects you have too few grades and too many absences — there is a risk of deferral (non-assessment). Make up the absences and request assessments.',
+        'deferral_lessons' => 'absences out of scheduled lessons',
     ],
 
     'auth' => [

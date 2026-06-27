@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\ComputeDeferralRisk;
 use App\Actions\ComputeStudentDynamics;
 use App\Actions\DetermineStudentStatus;
 use App\Actions\GenerateRequestPdf;
@@ -20,6 +21,7 @@ use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
 use App\Support\ContentTranslator;
+use App\Support\Timetable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -76,6 +78,8 @@ class CabinetController extends Controller
             $accessLog->record($student, 'viewed', 'Vizualizare profil elev în cabinet');
         }
 
+        $class = $student->currentSchoolClass();
+
         return Inertia::render('cabinet/student-profile', [
             'student' => $this->summary($student),
             'subjects' => $this->gradesBySubject($student),
@@ -87,6 +91,8 @@ class CabinetController extends Controller
             'homework' => $this->homeworkForStudent($student),
             'status' => $this->currentStatus($student),
             'dynamics' => app(ComputeStudentDynamics::class)->for($student),
+            'timetable' => $class !== null ? app(Timetable::class)->forClass($class) : null,
+            'deferralRisk' => app(ComputeDeferralRisk::class)->for($student),
             'motivations' => $this->motivations($student),
             'documentRequests' => $this->documentRequests($student),
             'requestTypes' => DocumentRequestType::options(),

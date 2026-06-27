@@ -97,6 +97,19 @@ class Student extends Model implements Auditable
     }
 
     /**
+     * Clasa curentă a elevului (din cea mai recentă înrolare) — sursa orarului structurat și a
+     * alertei de risc de amânare (spec §2.1).
+     */
+    public function currentSchoolClass(): ?SchoolClass
+    {
+        return $this->enrollments()
+            ->with('schoolClass')
+            ->latest('academic_year_id')
+            ->first()
+            ?->schoolClass;
+    }
+
+    /**
      * Părinții/tutorii care au acces la acest elev.
      *
      * @return BelongsToMany<User, $this>

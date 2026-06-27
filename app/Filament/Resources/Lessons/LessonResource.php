@@ -1,0 +1,88 @@
+<?php
+
+namespace App\Filament\Resources\Lessons;
+
+use App\Filament\Resources\Lessons\Pages\CreateLesson;
+use App\Filament\Resources\Lessons\Pages\EditLesson;
+use App\Filament\Resources\Lessons\Pages\ListLessons;
+use App\Filament\Resources\Lessons\Schemas\LessonForm;
+use App\Filament\Resources\Lessons\Tables\LessonsTable;
+use App\Models\Lesson;
+use BackedEnum;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+
+/**
+ * Orarul STRUCTURAT al claselor (spec §2.1) — sloturi zi/lecție/disciplină/profesor/sală. Distinct de
+ * orarele publicabile #39. Inserarea revine administratorului operațional (`canManageSchedules`;
+ * super-adminul are acces break-glass). Elevii moștenesc orarul clasei lor în cabinet.
+ */
+class LessonResource extends Resource
+{
+    protected static ?string $model = Lesson::class;
+
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Configurare';
+
+    protected static ?string $navigationLabel = 'Orar structurat';
+
+    protected static ?string $modelLabel = 'lecție';
+
+    protected static ?string $pluralModelLabel = 'Orar structurat';
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSchedules() ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->canManageSchedules() ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->canManageSchedules() ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->canManageSchedules() ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return auth()->user()?->canManageSchedules() ?? false;
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return LessonForm::configure($schema);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return LessonsTable::configure($table);
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => ListLessons::route('/'),
+            'create' => CreateLesson::route('/create'),
+            'edit' => EditLesson::route('/{record}/edit'),
+        ];
+    }
+
+    public static function getRecordRouteBindingEloquentQuery(): Builder
+    {
+        return parent::getRecordRouteBindingEloquentQuery()
+            ->withoutGlobalScopes([SoftDeletingScope::class]);
+    }
+}

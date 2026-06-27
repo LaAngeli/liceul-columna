@@ -305,6 +305,12 @@ return [
         'notif_email_account' => 'E-mail (din cont)',
         'notif_language' => 'Limba notificărilor',
         'notif_language_hint' => 'Limba în care îți vor fi EXPEDIATE notificările (independent de limba interfeței).',
+        'timetable_title' => 'Orarul clasei',
+        'timetable_lesson' => 'Lecția',
+        'timetable_room' => 'Sala',
+        'deferral_title' => 'Risc de amânare',
+        'deferral_hint' => 'La aceste discipline ai prea puține note și prea multe absențe — există risc de amânare (neîncheierea situației). Recuperează absențele și solicită evaluări.',
+        'deferral_lessons' => 'absențe din lecțiile programate',
     ],
 
     'auth' => [

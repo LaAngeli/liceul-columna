@@ -92,6 +92,24 @@ interface Dynamics {
     };
 }
 
+interface TimetableCell {
+    subject: string;
+    teacher: string | null;
+    room: string | null;
+}
+
+interface TimetableData {
+    days: { value: number; label: string; short: string }[];
+    maxLesson: number;
+    grid: Record<string, TimetableCell>;
+}
+
+interface DeferralRisk {
+    subject: string;
+    absences: number;
+    scheduled: number;
+}
+
 interface Props {
     student: StudentSummary;
     subjects: SubjectGrades[];
@@ -103,6 +121,8 @@ interface Props {
     homework: HomeworkItem[];
     status: StudentStatus;
     dynamics: Dynamics;
+    timetable: TimetableData | null;
+    deferralRisk: DeferralRisk[];
     motivations: MotivationItem[];
     documentRequests: DocumentRequestItem[];
     requestTypes: Record<string, string>;
@@ -173,6 +193,8 @@ export default function StudentProfile({
     homework,
     status,
     dynamics,
+    timetable,
+    deferralRisk,
     motivations,
     documentRequests,
     requestTypes,
@@ -311,6 +333,73 @@ export default function StudentProfile({
                                     <span className="ml-2 rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">{a.count}</span>
                                 </div>
                             ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* Risc de amânare (≤1 notă + >50% absențe din lecțiile programate) */}
+                {deferralRisk.length > 0 && (
+                    <section className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+                        <h2 className="mb-2 text-lg font-semibold text-amber-700 dark:text-amber-400">⚠️ {t('cabinet.deferral_title')}</h2>
+                        <p className="mb-3 text-sm text-amber-800/90 dark:text-amber-300/90">{t('cabinet.deferral_hint')}</p>
+                        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            {deferralRisk.map((r) => (
+                                <li key={r.subject} className="rounded-lg border border-amber-500/40 bg-card px-4 py-2 text-sm">
+                                    <span className="font-medium">{r.subject}</span>
+                                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                                        {r.absences} / {r.scheduled} {t('cabinet.deferral_lessons')}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                )}
+
+                {/* Orar structurat al clasei (navigabil) */}
+                {timetable && (
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.timetable_title')}</h2>
+                        <div className="overflow-x-auto rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                            <table className="w-full text-sm">
+                                <thead className="bg-muted/50 text-left text-muted-foreground">
+                                    <tr>
+                                        <th className="px-3 py-2 font-medium">{t('cabinet.timetable_lesson')}</th>
+                                        {timetable.days.map((d) => (
+                                            <th key={d.value} className="px-3 py-2 text-center font-medium" title={d.label}>
+                                                <span className="hidden sm:inline">{d.label}</span>
+                                                <span className="sm:hidden">{d.short}</span>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Array.from({ length: timetable.maxLesson }, (_, i) => i + 1).map((num) => (
+                                        <tr key={num} className="border-t border-sidebar-border/70 dark:border-sidebar-border">
+                                            <td className="px-3 py-2 font-semibold text-muted-foreground">{num}</td>
+                                            {timetable.days.map((d) => {
+                                                const cell = timetable.grid[`${d.value}-${num}`];
+                                                return (
+                                                    <td key={d.value} className="px-3 py-2 text-center align-top">
+                                                        {cell ? (
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium">{cell.subject}</span>
+                                                                {cell.teacher && <span className="text-xs text-muted-foreground">{cell.teacher}</span>}
+                                                                {cell.room && (
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        {t('cabinet.timetable_room')} {cell.room}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-muted-foreground/40">—</span>
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </section>
                 )}

@@ -1,0 +1,97 @@
+<?php
+
+use App\Actions\ComputeDeferralRisk;
+use App\Enums\UserRole;
+use App\Enums\Weekday;
+use App\Models\Absence;
+use App\Models\AcademicYear;
+use App\Models\Enrollment;
+use App\Models\Lesson;
+use App\Models\SchoolClass;
+use App\Models\Student;
+use App\Models\Subject;
+use App\Models\Term;
+use App\Models\User;
+use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Permission\Models\Role;
+
+beforeEach(function () {
+    foreach (UserRole::cases() as $role) {
+        Role::findOrCreate($role->value, 'web');
+    }
+});
+
+it('resursa „Orar structurat" e gestionată de administratorul operațional, nu de profesor', function () {
+    $ao = User::factory()->create();
+    $ao->assignRole(UserRole::AdministratorOperational->value);
+    $profesor = User::factory()->create();
+    $profesor->assignRole(UserRole::Profesor->value);
+
+    $this->actingAs($ao)->get('/admin/lessons')->assertOk();
+    $this->actingAs($profesor)->get('/admin/lessons')->assertForbidden();
+});
+
+it('cabinetul afișează orarul structurat al clasei elevului', function () {
+    $year = AcademicYear::factory()->create();
+    $class = SchoolClass::factory()->for($year)->create();
+    $subject = Subject::factory()->create(['name' => 'Matematică']);
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($year)->create();
+
+    Lesson::factory()->create([
+        'academic_year_id' => $year->id,
+        'school_class_id' => $class->id,
+        'subject_id' => $subject->id,
+        'day_of_week' => Weekday::Monday,
+        'lesson_number' => 1,
+    ]);
+
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+
+    $this->actingAs($parent)
+        ->get("/cabinet/elev/{$student->id}")
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('timetable.days')
+            ->has('timetable.grid'));
+});
+
+it('riscul de amânare apare la disciplina cu ≤1 notă și >50% absențe din lecțiile programate', function () {
+    $year = AcademicYear::factory()->create();
+    $class = SchoolClass::factory()->for($year)->create();
+    $term = Term::factory()->for($year)->create([
+        'is_current' => true,
+        'starts_on' => now(),
+        'ends_on' => now()->addWeeks(10), // 10 săptămâni
+    ]);
+    $subject = Subject::factory()->create();
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($year)->create();
+
+    // 2 lecții/săptămână → 2 × 10 = 20 lecții programate.
+    foreach ([Weekday::Monday, Weekday::Tuesday] as $day) {
+        Lesson::factory()->create([
+            'academic_year_id' => $year->id,
+            'school_class_id' => $class->id,
+            'subject_id' => $subject->id,
+            'day_of_week' => $day,
+            'lesson_number' => 1,
+        ]);
+    }
+
+    // 11 absențe (> 50% din 20), 0 note → risc.
+    Absence::factory()->count(11)->create([
+        'student_id' => $student->id,
+        'subject_id' => $subject->id,
+        'school_class_id' => $class->id,
+        'term_id' => $term->id,
+        'is_motivated' => false,
+    ]);
+
+    $risks = app(ComputeDeferralRisk::class)->for($student);
+
+    expect($risks)->toHaveCount(1)
+        ->and($risks[0]['scheduled'])->toBe(20)
+        ->and($risks[0]['absences'])->toBe(11);
+});
