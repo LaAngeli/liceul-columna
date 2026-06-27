@@ -9,17 +9,21 @@ interface Props {
     types: Record<string, string>;
     channels: Record<string, string>;
     email: string | null;
+    locale: string;
+    locales: Record<string, string>;
 }
 
 const CONTACT_CHANNELS = ['telegram', 'viber', 'messenger', 'whatsapp'] as const;
 
-export default function NotificationSettingsPage({ contacts, preferences, types, channels, email }: Props) {
+export default function NotificationSettingsPage({ contacts, preferences, types, channels, email, locale, locales }: Props) {
     const t = useTranslations();
 
     const form = useForm<{
+        notification_locale: string;
         contacts: Record<string, string>;
         preferences: Record<string, string[]>;
     }>({
+        notification_locale: locale,
         contacts: {
             telegram: contacts.telegram ?? '',
             viber: contacts.viber ?? '',
@@ -49,6 +53,23 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
             <Head title={t('cabinet.notif_settings')} />
             <form onSubmit={submit} className="flex flex-col gap-6 p-4">
                 <h1 className="text-xl font-semibold">{t('cabinet.notif_settings')}</h1>
+
+                {/* Limba notificărilor */}
+                <section className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
+                    <p className="text-sm font-medium">{t('cabinet.notif_language')}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{t('cabinet.notif_language_hint')}</p>
+                    <select
+                        value={form.data.notification_locale}
+                        onChange={(e) => form.setData('notification_locale', e.target.value)}
+                        className="mt-3 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm sm:w-auto"
+                    >
+                        {Object.entries(locales).map(([value, label]) => (
+                            <option key={value} value={value}>
+                                {label}
+                            </option>
+                        ))}
+                    </select>
+                </section>
 
                 {/* Contacte */}
                 <section className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">

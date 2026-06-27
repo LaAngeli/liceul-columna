@@ -72,6 +72,21 @@ class Student extends Model
     }
 
     /**
+     * Contul dirigintelui clasei curente a elevului (pentru notificările „de nișă" — ex. o cerere
+     * de motivare nouă, spec §5). Null dacă elevul nu e înrolat sau clasa nu are diriginte cu cont.
+     */
+    public function homeroomUser(): ?User
+    {
+        return $this->enrollments()
+            ->with('schoolClass.homeroomTeacher.user')
+            ->latest('academic_year_id')
+            ->first()
+            ?->schoolClass
+            ?->homeroomTeacher
+            ?->user;
+    }
+
+    /**
      * Părinții/tutorii care au acces la acest elev.
      *
      * @return BelongsToMany<User, $this>

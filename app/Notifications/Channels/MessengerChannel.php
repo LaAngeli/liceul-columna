@@ -31,7 +31,7 @@ class MessengerChannel
                 'recipient' => ['id' => $psid],
                 'messaging_type' => 'MESSAGE_TAG',
                 'tag' => 'ACCOUNT_UPDATE',
-                'message' => ['text' => $notification->toSocialText()],
+                'message' => ['text' => $notification->toSocialText($notifiable)],
             ]);
         } catch (Throwable $e) {
             Log::warning('Notificare Messenger eșuată: '.$e->getMessage());

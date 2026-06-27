@@ -221,3 +221,17 @@
     color: var(--muted-foreground);
     margin-block: 1rem;
 }
+
+/* Emblema animată de pe paginile de autentificare. Sursa e temă-dependentă prin selectorul .dark,
+   așa că browserul descarcă DOAR fișierul temei active (light = navy, dark = alb) — nu ambele.
+   WebP animat transparent (mult mai ușor decât GIF-ul); GIF-urile originale rămân în
+   public/gifs/logo/ ca rezervă. */
+.auth-emblem {
+    background-image: url('/gifs/logo/columna_blue_horizontal.webp');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+.dark .auth-emblem {
+    background-image: url('/gifs/logo/columna_white_horizontal_clean_download.webp');
+}

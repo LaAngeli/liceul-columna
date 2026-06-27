@@ -15,22 +15,24 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { useTranslations } from '@/lib/i18n';
 
 export default function DeleteUser() {
     const passwordInput = useRef<HTMLInputElement>(null);
+    const t = useTranslations();
 
     return (
         <div className="space-y-6">
             <Heading
                 variant="small"
-                title="Delete account"
-                description="Delete your account and all of its resources"
+                title={t('settings.delete_title', 'Șterge contul')}
+                description={t('settings.delete_desc', 'Șterge contul și toate datele asociate')}
             />
             <div className="space-y-4 rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-200/10 dark:bg-red-700/10">
                 <div className="relative space-y-0.5 text-red-600 dark:text-red-100">
-                    <p className="font-medium">Warning</p>
+                    <p className="font-medium">{t('settings.delete_warning', 'Avertisment')}</p>
                     <p className="text-sm">
-                        Please proceed with caution, this cannot be undone.
+                        {t('settings.delete_warning_desc', 'Procedează cu atenție — această acțiune nu poate fi anulată.')}
                     </p>
                 </div>
 
@@ -40,18 +42,15 @@ export default function DeleteUser() {
                             variant="destructive"
                             data-test="delete-user-button"
                         >
-                            Delete account
+                            {t('settings.delete_title', 'Șterge contul')}
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogTitle>
-                            Are you sure you want to delete your account?
+                            {t('settings.delete_confirm_title', 'Sigur vrei să-ți ștergi contul?')}
                         </DialogTitle>
                         <DialogDescription>
-                            Once your account is deleted, all of its resources
-                            and data will also be permanently deleted. Please
-                            enter your password to confirm you would like to
-                            permanently delete your account.
+                            {t('settings.delete_confirm_desc', 'După ștergere, toate resursele și datele contului vor fi șterse definitiv. Introdu parola pentru a confirma ștergerea definitivă.')}
                         </DialogDescription>
 
                         <Form
@@ -70,14 +69,14 @@ export default function DeleteUser() {
                                             htmlFor="password"
                                             className="sr-only"
                                         >
-                                            Password
+                                            {t('auth.password', 'Parola')}
                                         </Label>
 
                                         <PasswordInput
                                             id="password"
                                             name="password"
                                             ref={passwordInput}
-                                            placeholder="Password"
+                                            placeholder={t('auth.password', 'Parola')}
                                             autoComplete="current-password"
                                         />
 
@@ -92,7 +91,7 @@ export default function DeleteUser() {
                                                     resetAndClearErrors()
                                                 }
                                             >
-                                                Cancel
+                                                {t('settings.cancel', 'Anulează')}
                                             </Button>
                                         </DialogClose>
 
@@ -105,7 +104,7 @@ export default function DeleteUser() {
                                                 type="submit"
                                                 data-test="confirm-delete-user-button"
                                             >
-                                                Delete account
+                                                {t('settings.delete_title', 'Șterge contul')}
                                             </button>
                                         </Button>
                                     </DialogFooter>

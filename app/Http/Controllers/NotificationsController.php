@@ -55,10 +55,14 @@ class NotificationsController extends Controller
 
         return Inertia::render('cabinet/notification-settings', [
             'contacts' => $user->notification_contacts ?? [],
-            'preferences' => $user->notification_preferences ?? [],
-            'types' => NotificationType::options(),
+            // Matricea efectivă (cu implicitul „cabinet" pre-bifat), nu preferințele brute.
+            'preferences' => $user->effectiveNotificationMatrix(),
+            // Doar tipurile relevante pentru rolul utilizatorului (spec §5: „pe nișa lui").
+            'types' => NotificationType::labelsFor($user->availableNotificationTypes()),
             'channels' => NotificationChannel::options(),
             'email' => $user->email,
+            'locale' => $user->notification_locale ?? $user->locale ?? 'ro',
+            'locales' => self::notificationLocales(),
         ]);
     }
 
@@ -70,6 +74,7 @@ class NotificationsController extends Controller
         );
 
         $data = $request->validate([
+            'notification_locale' => ['nullable', 'string', Rule::in(array_keys(self::notificationLocales()))],
             'contacts' => ['nullable', 'array'],
             'contacts.telegram' => ['nullable', 'string', 'max:120'],
             'contacts.viber' => ['nullable', 'string', 'max:120'],
@@ -81,10 +86,25 @@ class NotificationsController extends Controller
         ]);
 
         $request->user()->update([
+            'notification_locale' => $data['notification_locale'] ?? null,
             'notification_contacts' => array_filter($data['contacts'] ?? []),
             'notification_preferences' => $data['preferences'] ?? [],
         ]);
 
         return back()->with('success', 'Preferințele de notificare au fost salvate.');
+    }
+
+    /**
+     * Limbile în care se pot livra notificările — etichetate în limba proprie (selector de limbă).
+     *
+     * @return array<string, string>
+     */
+    private static function notificationLocales(): array
+    {
+        return [
+            'ro' => 'Română',
+            'ru' => 'Русский',
+            'en' => 'English',
+        ];
     }
 }

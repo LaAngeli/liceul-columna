@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\EditProfile;
 use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\SetUserLocale;
 use Filament\Http\Middleware\Authenticate;
@@ -9,6 +10,7 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\MenuItem;
+use Filament\Navigation\NavigationItem;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -34,8 +36,33 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             // Fără login separat: oaspeții pe /admin sunt trimiși la autentificarea unică (/login).
             ->brandName('Liceul Columna · Administrare')
+            // Pagina Profil (nume/email/parolă/2FA), în layout cu sidebar (isSimple: false).
+            ->profile(EditProfile::class, isSimple: false)
+            // Clopoțelul de notificări din panou (spec §5): personalul își primește notificările „de
+            // nișă" (database) chiar în dashboard, ca structură proprie de recepție.
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
             ->colors([
                 'primary' => Color::Amber,
+            ])
+            // Ordinea grupurilor din sidebar; „Setări" la final (oglindește cabinetul elev/părinte).
+            ->navigationGroups([
+                'Catalog',
+                'Configurare',
+                'Comunicare',
+                'Admitere',
+                'Administrare',
+                'Setări',
+            ])
+            // Pagina de profil Filament e legată de meniul user, nu de sidebar (`->profile()` nu o
+            // adaugă în navigație). Adăugăm manual linkul „Setări → Profil" către `getProfileUrl()`.
+            ->navigationItems([
+                NavigationItem::make('Profil')
+                    ->group('Setări')
+                    ->icon(Heroicon::OutlinedUserCircle)
+                    ->url(fn (): ?string => filament()->getProfileUrl())
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.auth.profile'))
+                    ->sort(1),
             ])
             ->userMenuItems([
                 MenuItem::make()

@@ -20,14 +20,7 @@ enum NotificationChannel: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Cabinet => 'Cabinet (în aplicație)',
-            self::Email => 'E-mail',
-            self::Telegram => 'Telegram',
-            self::Viber => 'Viber',
-            self::Messenger => 'Messenger',
-            self::Whatsapp => 'WhatsApp',
-        };
+        return (string) trans('notifications.channels.'.$this->value);
     }
 
     public function getLabel(): string

@@ -6,6 +6,7 @@ import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
 import { Button } from '@/components/ui/button';
 import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
+import { useTranslations } from '@/lib/i18n';
 import { disable, enable } from '@/routes/two-factor';
 
 export type Props = {
@@ -15,6 +16,7 @@ export type Props = {
 };
 
 export default function ManageTwoFactor(props: Props) {
+    const t = useTranslations();
     const requiresConfirmation = props.requiresConfirmation ?? false;
     const twoFactorEnabled = props.twoFactorEnabled ?? false;
 
@@ -48,15 +50,13 @@ export default function ManageTwoFactor(props: Props) {
         <div className="space-y-6">
             <Heading
                 variant="small"
-                title="Two-factor authentication"
-                description="Manage your two-factor authentication settings"
+                title={t('settings.twofa_title', 'Autentificare în doi pași')}
+                description={t('settings.twofa_desc', 'Gestionează setările de autentificare în doi pași')}
             />
             {twoFactorEnabled ? (
                 <div className="flex flex-col items-start justify-start space-y-4">
                     <p className="text-sm text-muted-foreground">
-                        You will be prompted for a secure, random pin during
-                        login, which you can retrieve from the TOTP-supported
-                        application on your phone.
+                        {t('settings.twofa_on_desc', 'La autentificare ți se va cere un cod PIN securizat și aleatoriu, pe care îl poți obține din aplicația TOTP de pe telefon.')}
                     </p>
 
                     <div className="relative inline">
@@ -67,7 +67,7 @@ export default function ManageTwoFactor(props: Props) {
                                     type="submit"
                                     disabled={processing}
                                 >
-                                    Disable 2FA
+                                    {t('settings.twofa_disable', 'Dezactivează 2FA')}
                                 </Button>
                             )}
                         </Form>
@@ -82,17 +82,14 @@ export default function ManageTwoFactor(props: Props) {
             ) : (
                 <div className="flex flex-col items-start justify-start space-y-4">
                     <p className="text-sm text-muted-foreground">
-                        When you enable two-factor authentication, you will be
-                        prompted for a secure pin during login. This pin can be
-                        retrieved from a TOTP-supported application on your
-                        phone.
+                        {t('settings.twofa_off_desc', 'Când activezi autentificarea în doi pași, ți se va cere un cod PIN securizat la autentificare, obținut dintr-o aplicație TOTP de pe telefon.')}
                     </p>
 
                     <div>
                         {hasSetupData ? (
                             <Button onClick={() => setShowSetupModal(true)}>
                                 <ShieldCheck />
-                                Continue setup
+                                {t('settings.twofa_continue', 'Continuă configurarea')}
                             </Button>
                         ) : (
                             <Form
@@ -101,7 +98,7 @@ export default function ManageTwoFactor(props: Props) {
                             >
                                 {({ processing }) => (
                                     <Button type="submit" disabled={processing}>
-                                        Enable 2FA
+                                        {t('settings.twofa_enable', 'Activează 2FA')}
                                     </Button>
                                 )}
                             </Form>

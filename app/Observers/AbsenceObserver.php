@@ -22,12 +22,9 @@ class AbsenceObserver
             return;
         }
 
-        $subject = $absence->subject?->name;
-
         $this->notifier->send($student, new CatalogNotification(
             NotificationType::NewAbsence,
-            'Absență nouă · '.$student->full_name,
-            'A fost înregistrată o absență'.($subject !== null ? ' la '.$subject : '').'.',
+            ['student' => $student->full_name],
             route('cabinet.student', ['student' => $student->id], false),
         ));
     }

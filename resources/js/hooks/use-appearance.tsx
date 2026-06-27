@@ -34,7 +34,19 @@ const getStoredAppearance = (): Appearance => {
         return 'system';
     }
 
-    return (localStorage.getItem('appearance') as Appearance) || 'system';
+    // `theme` = cheia partajată cu panoul Filament (same-origin) → sursă unică de adevăr.
+    // `appearance` = cheia veche a starter kit-ului (fallback / compatibilitate).
+    return (localStorage.getItem('theme') as Appearance) || (localStorage.getItem('appearance') as Appearance) || 'system';
+};
+
+const persistAppearance = (mode: Appearance): void => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    localStorage.setItem('theme', mode); // sincron cu panoul Filament
+    localStorage.setItem('appearance', mode);
+    setCookie('appearance', mode);
 };
 
 const isDarkMode = (appearance: Appearance): boolean => {
@@ -75,16 +87,22 @@ export function initializeTheme(): void {
         return;
     }
 
-    if (!localStorage.getItem('appearance')) {
-        localStorage.setItem('appearance', 'system');
-        setCookie('appearance', 'system');
-    }
-
     currentAppearance = getStoredAppearance();
+    // Aliniază ambele chei (theme + appearance) la valoarea stocată (preia alegerea din panou).
+    persistAppearance(currentAppearance);
     applyTheme(currentAppearance);
 
-    // Set up system theme change listener
+    // Schimbarea temei sistemului
     mediaQuery()?.addEventListener('change', handleSystemThemeChange);
+
+    // Sincronizare live cu alte tab-uri / panoul Filament (eveniment storage, same-origin).
+    window.addEventListener('storage', (event: StorageEvent) => {
+        if (event.key === 'theme' || event.key === 'appearance') {
+            currentAppearance = getStoredAppearance();
+            applyTheme(currentAppearance);
+            notify();
+        }
+    });
 }
 
 export function useAppearance(): UseAppearanceReturn {
@@ -101,11 +119,8 @@ export function useAppearance(): UseAppearanceReturn {
     const updateAppearance = (mode: Appearance): void => {
         currentAppearance = mode;
 
-        // Store in localStorage for client-side persistence...
-        localStorage.setItem('appearance', mode);
-
-        // Store in cookie for SSR...
-        setCookie('appearance', mode);
+        // Persistă în ambele chei (theme = partajat cu Filament) + cookie pentru SSR.
+        persistAppearance(mode);
 
         applyTheme(mode);
         notify();

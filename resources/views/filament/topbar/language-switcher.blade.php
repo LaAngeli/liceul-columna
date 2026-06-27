@@ -4,7 +4,8 @@
     $locales = array_keys(Locale::supported());
     $current = app()->getLocale();
     $activeIndex = max(0, array_search($current, $locales, true));
-    $redirect = request()->fullUrl();
+    // Cale RELATIVĂ (LocaleController acceptă doar redirect care începe cu „/") → rămâi pe pagina curentă din panou.
+    $redirect = request()->getRequestUri();
     $redirectQuery = '?redirect=' . urlencode($redirect);
 @endphp
 
@@ -65,8 +66,9 @@
         left: 2px;
         width: 2.5rem;
         border-radius: 9999px;
-        background-color: rgb(var(--primary-500));
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        /* Amber (culoarea primară a panoului) — fix, vizibil în light ȘI dark. */
+        background-color: #f59e0b;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
         transition: transform 300ms cubic-bezier(0, 0, 0.2, 1);
     }
 

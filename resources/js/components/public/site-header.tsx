@@ -3,6 +3,7 @@ import { ChevronDown, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { LocaleLink } from '@/components/locale-link';
 import { LanguageSwitcher } from '@/components/public/language-switcher';
+import { ThemeToggle } from '@/components/public/theme-toggle';
 import { T } from '@/components/t';
 import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/lib/i18n';
@@ -101,6 +102,7 @@ export function SiteHeader() {
                     <div className="hidden xl:block">
                         <LanguageSwitcher />
                     </div>
+                    <ThemeToggle className="hidden xl:block" />
                     {!auth?.user ? (
                         <Button asChild size="sm" className="hidden sm:inline-flex">
                             <Link href={login()}>
@@ -171,6 +173,10 @@ export function SiteHeader() {
                         <div className="mt-3 flex items-center justify-between gap-3 border-t border-border px-3 pt-4">
                             <span className="text-sm font-medium text-muted-foreground">{t('language', 'Limbă')}</span>
                             <LanguageSwitcher />
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-3 px-3">
+                            <span className="text-sm font-medium text-muted-foreground">{t('theme.label', 'Temă')}</span>
+                            <ThemeToggle variant="tabs" />
                         </div>
                     </nav>
                 </div>

@@ -30,8 +30,10 @@ class GradeObserver
 
         $this->notifier->send($student, new CatalogNotification(
             NotificationType::NewGrade,
-            'Notă nouă · '.$student->full_name,
-            'A fost înregistrată o notă la '.$grade->subject->name.'.',
+            [
+                'student' => $student->full_name,
+                'subject' => $grade->subject->name,
+            ],
             route('cabinet.student', ['student' => $student->id], false),
         ));
     }

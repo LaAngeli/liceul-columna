@@ -20,12 +20,9 @@ class MessageObserver
             return;
         }
 
-        $subject = (string) $message->subject;
-
         $recipient->notify(new CatalogNotification(
             NotificationType::NewMessage,
-            'Mesaj nou de la '.($message->sender->name ?? 'expeditor'),
-            $subject !== '' ? $subject : 'Ai primit un mesaj nou.',
+            ['sender' => $message->sender->name ?? 'expeditor'],
             route('cabinet.messages', [], false),
         ));
     }

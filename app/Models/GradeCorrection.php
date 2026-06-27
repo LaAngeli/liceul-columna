@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Enums\CorrectionStatus;
+use App\Observers\GradeCorrectionObserver;
 use Database\Factories\GradeCorrectionFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property numeric-string|null $new_value
  * @property Carbon|null $reviewed_at
  */
+#[ObservedBy(GradeCorrectionObserver::class)]
 class GradeCorrection extends Model
 {
     /** @use HasFactory<GradeCorrectionFactory> */

@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\DocumentRequestType;
 use App\Enums\RequestStatus;
+use App\Observers\DocumentRequestObserver;
 use Database\Factories\DocumentRequestFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed> $payload
  * @property Carbon|null $reviewed_at
  */
+#[ObservedBy(DocumentRequestObserver::class)]
 class DocumentRequest extends Model
 {
     /** @use HasFactory<DocumentRequestFactory> */

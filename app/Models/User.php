@@ -33,12 +33,13 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
  * @property string|null $locale
+ * @property string|null $notification_locale
  * @property array<string, string>|null $notification_contacts
  * @property array<string, list<string>>|null $notification_preferences
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'username', 'email', 'password', 'must_change_password', 'locale', 'notification_contacts', 'notification_preferences'])]
+#[Fillable(['name', 'username', 'email', 'password', 'must_change_password', 'locale', 'notification_locale', 'notification_contacts', 'notification_preferences'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
@@ -268,8 +269,74 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Limba în care utilizatorul PRIMEȘTE notificările (spec §5): preferința explicită din Setări,
+     * altfel limba de interfață, altfel RO. Folosită de {@see CatalogNotification} la randarea
+     * șabloanelor predefinite — fără traducere în timp real.
+     */
+    public function notificationLocale(): string
+    {
+        $supported = ['ro', 'ru', 'en'];
+
+        foreach ([$this->notification_locale, $this->locale] as $candidate) {
+            if (is_string($candidate) && in_array($candidate, $supported, true)) {
+                return $candidate;
+            }
+        }
+
+        return 'ro';
+    }
+
+    /**
+     * Tipurile de notificări RELEVANTE pentru rolurile acestui cont — „director pe nișa lui,
+     * vicedirector pe a lui" (spec §5). Conduce matricea din Setări + e filtrul implicit de
+     * rutare. Reuniune pe roluri; vezi {@see NotificationType::forRole()}.
+     *
+     * @return list<NotificationType>
+     */
+    public function availableNotificationTypes(): array
+    {
+        $types = [];
+
+        foreach ($this->getRoleNames() as $roleName) {
+            $role = UserRole::tryFrom((string) $roleName);
+
+            if ($role === null) {
+                continue;
+            }
+
+            foreach (NotificationType::forRole($role) as $type) {
+                $types[$type->value] = $type;
+            }
+        }
+
+        return array_values($types);
+    }
+
+    /**
+     * Matricea EFECTIVĂ tip→canale, pentru a PRE-COMPLETA fereastra de Setări: preferința salvată
+     * sau, în lipsa ei, implicit „cabinet" (in-app). Astfel utilizatorul vede starea reală, iar o
+     * salvare nu îi golește din greșeală notificările. Doar tipurile relevante rolului (§5).
+     *
+     * @return array<string, list<string>>
+     */
+    public function effectiveNotificationMatrix(): array
+    {
+        $preferences = $this->notification_preferences ?? [];
+        $matrix = [];
+
+        foreach ($this->availableNotificationTypes() as $type) {
+            $saved = $preferences[$type->value] ?? null;
+            $matrix[$type->value] = is_array($saved)
+                ? array_map(static fn ($value): string => (string) $value, $saved)
+                : [NotificationChannel::Cabinet->value];
+        }
+
+        return $matrix;
+    }
+
+    /**
      * Canalele pe care utilizatorul vrea să primească un tip de notificare (§5). Implicit: doar
-     * „cabinet" (in-app). Familia personalizează matricea în Setări → Notificări.
+     * „cabinet" (in-app). Utilizatorul personalizează matricea în Setări → Notificări.
      *
      * @return list<NotificationChannel>
      */

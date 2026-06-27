@@ -15,16 +15,12 @@ export default function AuthSimpleLayout({
             <div className="w-full max-w-sm">
                 <div className="flex flex-col gap-7">
                     <div className="flex flex-col items-center gap-4">
-                        <Link href={home()} aria-label="Liceul Columna">
-                            <img
-                                src="/images/logo/columna-navy.png"
-                                alt="Liceul Columna"
-                                className="h-24 w-24 dark:hidden"
-                            />
-                            <img
-                                src="/images/logo/columna-white.png"
-                                alt="Liceul Columna"
-                                className="hidden h-24 w-24 dark:block"
+                        <Link href={home()} aria-label="Liceul Columna" className="block">
+                            {/* Emblemă animată (WebP transparent), sursă temă-dependentă din CSS
+                                (`.auth-emblem`): se descarcă DOAR fișierul temei active, nu ambele. */}
+                            <span
+                                className="auth-emblem block h-28 w-28 sm:h-32 sm:w-32"
+                                aria-hidden="true"
                             />
                         </Link>
 

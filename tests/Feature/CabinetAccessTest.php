@@ -235,6 +235,24 @@ it('o cerere depusă apare în lista de motivări din cabinet', function () {
             ->where('motivations.0.reason', 'Consultație medicală'));
 });
 
+it('panoul staff are pagina Profil (secțiunea Setări) accesibilă', function () {
+    $staff = User::factory()->create();
+    $staff->assignRole(UserRole::Profesor->value);
+
+    $this->actingAs($staff)->get('/admin/profile')->assertOk();
+});
+
+it('sidebar-ul panoului staff afișează grupul „Setări" cu linkul Profil', function (UserRole $role) {
+    $staff = User::factory()->create();
+    $staff->assignRole($role->value);
+
+    $this->actingAs($staff)
+        ->get('/admin')
+        ->assertOk()
+        ->assertSee('Setări')
+        ->assertSee('admin/profile');
+})->with([UserRole::Director, UserRole::Profesor, UserRole::Diriginte]);
+
 it('răspunsul de login și cel de 2FA folosesc implementările proiectului', function () {
     expect(app(LoginResponse::class))
         ->toBeInstanceOf(App\Http\Responses\LoginResponse::class)

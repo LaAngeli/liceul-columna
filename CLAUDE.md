@@ -201,7 +201,7 @@ Toate comenzile se rulează din rădăcina proiectului. `php` = calea Laragon di
 
 | Ai modificat / adăugat | Rulează |
 |---|---|
-| **Frontend** (`resources/js/**`, `.tsx`, `.css`, Tailwind) | Pe Herd, simplu: `npm run build` (asset-uri statice, fără server). Pentru hot-reload: `npm run dev` în paralel. ⚠️ **Pagină albă pe Herd** = a rămas `public/hot` dintr-un `npm run dev` oprit → șterge `public/hot` + `npm run build`. |
+| **Frontend** (`resources/js/**`, `.tsx`, `.css`, Tailwind) | Pe Herd, simplu: `npm run build` → **apoi mereu `php artisan optimize:clear`** (golește cache-urile/OPcache ca să se vadă imediat modificările pe Herd). Pentru hot-reload: `npm run dev` în paralel. ⚠️ **Pagină albă pe Herd** = a rămas `public/hot` dintr-un `npm run dev` oprit → șterge `public/hot` + `npm run build`. |
 | **Cod PHP** (model, controller, Action, policy, enum) | `vendor/bin/pint --dirty --format agent` → `vendor/bin/phpstan analyse` → `php artisan test --compact` |
 | ⚠️ **„Undefined method/class" pe Herd, dar CLI (`php artisan tinker`) vede codul OK** | OPcache stale în PHP-FPM (fișierul a fost salvat câteva secunde într-o stare incompletă și FPM a cache-uit-o) → `php artisan optimize:clear` (sau repornește Herd). Diagnostic: dacă `method_exists(...)`/`class_exists(...)` din tinker dă `true` dar web-ul dă „undefined", e cache, nu bug. |
 | **Migrare nouă** | `php artisan migrate` (testele folosesc RefreshDatabase automat) |

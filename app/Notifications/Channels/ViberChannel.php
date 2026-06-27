@@ -30,7 +30,7 @@ class ViberChannel
                     'receiver' => $receiver,
                     'sender' => ['name' => (string) config('services.viber.sender', 'Liceul Columna')],
                     'type' => 'text',
-                    'text' => $notification->toSocialText(),
+                    'text' => $notification->toSocialText($notifiable),
                 ]);
         } catch (Throwable $e) {
             Log::warning('Notificare Viber eșuată: '.$e->getMessage());

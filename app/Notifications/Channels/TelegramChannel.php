@@ -27,7 +27,7 @@ class TelegramChannel
         try {
             Http::asJson()->post("https://api.telegram.org/bot{$token}/sendMessage", [
                 'chat_id' => $chatId,
-                'text' => $notification->toSocialText(),
+                'text' => $notification->toSocialText($notifiable),
             ]);
         } catch (Throwable $e) {
             Log::warning('Notificare Telegram eșuată: '.$e->getMessage());

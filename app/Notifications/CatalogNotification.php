@@ -14,19 +14,27 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * Notificare unică, parametrizată pe tip (spec §5). `via()` citește preferințele utilizatorului
- * pentru acel tip și livrează DOAR pe canalele alese + setate. Pe queue (sincron în dev, async cu
- * Horizon în Faza B). Canalele sociale neconfigurate / fără contact sunt sărite elegant.
+ * Notificare unică, parametrizată pe tip (spec §5). Textul NU e fixat la creare: e randat din
+ * șabloanele predefinite `lang/{ro,ru,en}/notifications.php`, în limba ALEASĂ de fiecare
+ * destinatar ({@see User::notificationLocale()}) — fără traducere în timp real. `via()` citește
+ * preferințele de canal pentru acel tip și livrează doar pe canalele alese + configurate.
+ *
+ * Pentru anunțuri (text liber, scris de conducere) se pot trece `customTitle`/`customBody`, care
+ * ocolesc șablonul. Pe queue (sincron în dev, async cu Horizon în Faza B).
  */
 class CatalogNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    /**
+     * @param  array<string, string>  $params  Valorile placeholderelor din șablon (`:student`...).
+     */
     public function __construct(
         public NotificationType $type,
-        public string $title,
-        public string $body = '',
+        public array $params = [],
         public ?string $url = null,
+        public ?string $customTitle = null,
+        public ?string $customBody = null,
     ) {}
 
     /**
@@ -61,39 +69,70 @@ class CatalogNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * Canalul „database" (inboxul din cabinet).
+     * Randează titlul + corpul în limba de notificare a destinatarului (sau textul liber, dacă a
+     * fost dat la creare).
+     *
+     * @return array{title: string, body: string}
+     */
+    protected function rendered(User $notifiable): array
+    {
+        if ($this->customTitle !== null) {
+            return ['title' => $this->customTitle, 'body' => $this->customBody ?? ''];
+        }
+
+        $locale = $notifiable->notificationLocale();
+
+        return [
+            'title' => (string) trans("notifications.{$this->type->value}.title", $this->params, $locale),
+            'body' => (string) trans("notifications.{$this->type->value}.body", $this->params, $locale),
+        ];
+    }
+
+    /**
+     * Canalul „database": inboxul din cabinet (familie) ȘI clopoțelul Filament (personal). Filament
+     * citește title/body/icon; cabinetul citește type/title/body/url — formatul le acoperă pe ambele.
      *
      * @return array<string, mixed>
      */
     public function toArray(User $notifiable): array
     {
+        $rendered = $this->rendered($notifiable);
+
         return [
             'type' => $this->type->value,
-            'title' => $this->title,
-            'body' => $this->body,
+            'title' => $rendered['title'],
+            'body' => $rendered['body'],
             'url' => $this->url,
+            'icon' => $this->type->icon(),
         ];
     }
 
     public function toMail(User $notifiable): MailMessage
     {
+        $rendered = $this->rendered($notifiable);
+
         $mail = (new MailMessage)
-            ->subject($this->title)
+            ->subject($rendered['title'])
             ->greeting('Liceul Columna')
-            ->line($this->body);
+            ->line($rendered['body']);
 
         if ($this->url !== null) {
-            $mail->action('Deschide în cabinet', url($this->url));
+            $label = (string) trans('notifications.open', [], $notifiable->notificationLocale());
+            $mail->action($label, url($this->url));
         }
 
         return $mail;
     }
 
     /**
-     * Textul folosit de canalele sociale (Telegram/Viber/Messenger).
+     * Textul pentru canalele sociale (Telegram/Viber/Messenger), în limba destinatarului.
      */
-    public function toSocialText(): string
+    public function toSocialText(User $notifiable): string
     {
-        return $this->body === '' ? $this->title : $this->title."\n".$this->body;
+        $rendered = $this->rendered($notifiable);
+
+        return $rendered['body'] === ''
+            ? $rendered['title']
+            : $rendered['title']."\n".$rendered['body'];
     }
 }
