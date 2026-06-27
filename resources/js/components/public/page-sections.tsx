@@ -170,7 +170,7 @@ function SectionBlock({ section }: { section: PageSection }) {
                                 </div>
                             </div>
                             {item.href ? (
-                                <Button asChild size="sm" variant="outline">
+                                <Button asChild size="sm" variant="outline" className="min-h-11 sm:min-h-0">
                                     <a href={item.href} download>
                                         <Download className="size-4" /> {t('section.download', 'Descarcă')}
                                     </a>
@@ -231,7 +231,7 @@ function SectionBlock({ section }: { section: PageSection }) {
 
         case 'cta':
             return (
-                <div className="rounded-2xl bg-primary px-6 py-10 text-primary-foreground sm:px-10">
+                <div className="rounded-2xl bg-primary px-6 py-8 text-primary-foreground sm:px-10 sm:py-10">
                     <h2 className="font-serif text-2xl font-bold tracking-tight">{section.title}</h2>
                     {section.text && <p className="mt-2 max-w-2xl text-primary-foreground/80">{section.text}</p>}
                     <div className="mt-6 flex flex-wrap gap-3">
@@ -279,7 +279,7 @@ function SectionBlock({ section }: { section: PageSection }) {
                                 {section.rows.map((row, ri) => (
                                     <tr key={ri} className="even:bg-muted/20">
                                         {row.map((cell, ci) => (
-                                            <td key={ci} className="border-t border-border px-3 py-2 align-top">
+                                            <td key={ci} className="border-t border-border px-3 py-2 align-top break-words">
                                                 {cell}
                                             </td>
                                         ))}
@@ -298,8 +298,8 @@ function SectionBlock({ section }: { section: PageSection }) {
 
 export function PageSections({ sections }: { sections: PageSection[] }) {
     return (
-        <section className="mx-auto max-w-7xl px-6 py-12">
-            <div className="space-y-12">
+        <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
+            <div className="space-y-8 sm:space-y-12">
                 {sections.map((section, i) => (
                     <SectionBlock key={i} section={section} />
                 ))}

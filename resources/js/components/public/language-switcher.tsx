@@ -34,7 +34,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
                     href={`/set-locale/${code}?redirect=${encodeURIComponent(localizePath(url, code))}`}
                     aria-current={code === locale ? 'true' : undefined}
                     className={cn(
-                        'relative z-10 w-9 rounded-full py-1 text-center uppercase transition-colors',
+                        'relative z-10 inline-flex min-h-11 w-9 items-center justify-center rounded-full py-2 text-center uppercase transition-colors md:min-h-0 md:py-1',
                         code === locale ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
                     )}
                 >

@@ -25,7 +25,7 @@ function Field({
                 {label}
                 {required && ' *'}
             </Label>
-            <Input id={name} name={name} type={type} required={required} />
+            <Input id={name} name={name} type={type} required={required} className="h-11 sm:h-9" />
             {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
     );
@@ -44,7 +44,7 @@ export default function Inregistrare() {
                 description={t('admission.description')}
             />
 
-            <section className="mx-auto max-w-2xl px-6 py-12">
+            <section className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
                 <Form action="/inregistrarea-student" method="post" resetOnSuccess className="space-y-5">
                     {({ errors, processing, wasSuccessful }) =>
                         wasSuccessful ? (
@@ -79,7 +79,7 @@ export default function Inregistrare() {
                                     />
                                     {errors.preferred_time && <p className="text-sm text-destructive">{errors.preferred_time}</p>}
                                 </div>
-                                <Button type="submit" size="lg" disabled={processing}>
+                                <Button type="submit" size="lg" disabled={processing} className="h-11 w-full sm:h-10 sm:w-auto">
                                     {processing ? t('admission.submitting') : t('admission.submit')}
                                 </Button>
                                 <p className="text-xs text-muted-foreground">{t('admission.required_note')}</p>

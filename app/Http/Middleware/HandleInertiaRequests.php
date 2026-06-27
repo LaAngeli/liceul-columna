@@ -43,6 +43,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'canAccessAdmin' => $request->user()?->hasAnyRole(UserRole::panelRoleValues()) ?? false,
+                // Rolul (valoarea spatie) — eticheta tradusă se rezolvă în frontend din `site.roles.*`.
+                'role' => $request->user()?->getRoleNames()->first(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             // Badge de notificări necitite (lazy: query doar pentru utilizatori autentificați).

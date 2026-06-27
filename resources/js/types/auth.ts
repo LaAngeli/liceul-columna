@@ -13,6 +13,8 @@ export type User = {
 export type Auth = {
     user: User;
     canAccessAdmin: boolean;
+    /** Rolul spatie (valoare). Eticheta tradusă: `t('roles.' + role)`. */
+    role?: string;
 };
 
 export type TwoFactorSetupData = {

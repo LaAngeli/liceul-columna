@@ -13,8 +13,8 @@ export function PageBanner({ title, breadcrumbs = [], description }: { title: st
 
     return (
         <section className="border-b border-border bg-muted/40">
-            <div className="mx-auto max-w-7xl px-6 py-10">
-                <nav className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+                <nav className="flex flex-wrap items-center gap-x-1 gap-y-1.5 text-sm text-muted-foreground">
                     <LocaleLink href="/" className="hover:text-foreground">
                         {t('breadcrumb.home', 'Acasă')}
                     </LocaleLink>

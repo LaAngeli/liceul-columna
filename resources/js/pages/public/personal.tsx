@@ -31,11 +31,11 @@ export default function Personal({ groups }: { groups: Group[] }) {
                 description={t('staff.description', 'Echipa didactică și administrativă a Liceului „Columna” — oameni dedicați educației elevilor noștri.')}
             />
 
-            <section className="mx-auto max-w-7xl px-6 py-12">
+            <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
                 <div className="space-y-12">
                     {groups.map((group) => (
                         <div key={group.title}>
-                            <h2 className="font-serif text-2xl font-bold tracking-tight">{group.title}</h2>
+                            <h2 className="font-serif text-xl font-bold tracking-tight sm:text-2xl">{group.title}</h2>
                             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                 {group.members.map((member) => {
                                     const inner = (

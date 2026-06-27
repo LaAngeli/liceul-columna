@@ -28,7 +28,7 @@ export default function ArticoleIndex({ pageTitle, category, posts }: { pageTitl
 
             <PageBanner title={title} breadcrumbs={[{ title }]} />
 
-            <section className="mx-auto max-w-7xl px-6 py-12">
+            <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
                 {posts.data.length === 0 ? (
                     <p className="text-muted-foreground">{t('article.none', 'Nu există articole publicate momentan.')}</p>
                 ) : (
@@ -60,14 +60,14 @@ export default function ArticoleIndex({ pageTitle, category, posts }: { pageTitl
                 )}
 
                 {posts.links.length > 3 && (
-                    <nav className="mt-10 flex flex-wrap justify-center gap-1">
+                    <nav className="mt-10 flex flex-wrap justify-center gap-1.5 sm:gap-1">
                         {posts.links.map((link, i) =>
                             link.url ? (
                                 <Link
                                     key={i}
                                     href={link.url}
                                     className={cn(
-                                        'rounded-md border border-border px-3 py-1.5 text-sm transition-colors hover:bg-accent',
+                                        'rounded-md border border-border px-3 py-3 text-sm transition-colors hover:bg-accent sm:py-1.5',
                                         link.active && 'border-primary bg-primary text-primary-foreground',
                                     )}
                                     dangerouslySetInnerHTML={{ __html: link.label }}
@@ -75,7 +75,7 @@ export default function ArticoleIndex({ pageTitle, category, posts }: { pageTitl
                             ) : (
                                 <span
                                     key={i}
-                                    className="rounded-md px-3 py-1.5 text-sm text-muted-foreground"
+                                    className="rounded-md px-3 py-3 text-sm text-muted-foreground sm:py-1.5"
                                     dangerouslySetInnerHTML={{ __html: link.label }}
                                 />
                             ),

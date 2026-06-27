@@ -268,6 +268,39 @@ schimbă cu limba, niciun text rămas în altă limbă, niciun shortcode brut af
 - Meta `title`/`description` per pagină (acum doar `<Head title>` în paginile Inertia — `description`/OG/twitter de adăugat
   când se lucrează SEO); imaginile din articole/galerii încă țintesc `columna.org.md` (de re-pointat la migrare).
 
+## 11. Brand & design (brandbook oficial — OBLIGATORIU)
+
+> **TOT designul** (site public, cabinet, panou Filament, fluxul de auth, materiale, embleme) se conduce DUPĂ
+> **brandbook-ul oficial** „LICEUL COLUMNA — REBRANDING GUIDELINE" (ghid de 40 de pagini + fonturi + logo vectorial +
+> pattern-uri). E sursa unică de adevăr pentru culori, tipografie și logo. Detalii complete + locația asset-urilor:
+> memoria `brand-design-foundation`. Nu improviza alegeri de design care contrazic brandbook-ul.
+
+- **Paletă EXACTĂ (nu folosi alte culori — regulă explicită din ghid):** navy `#0f4d77` = **PRIMAR**,
+  verde `#9bc31e` = **ACCENT**, + warm-dark `#2e2d2c`, negru `#1d1d1c`, gri `#686867`, alb `#fffffc`.
+  Deja mapată în `resources/css/app.css` (`@theme`/`:root`/`.dark`, oklch + tokenuri `--brand-*`).
+- **Tipografie:** **Proxima Nova** (Regular/Semibold/Bold) = font de BAZĂ (text + UI); **Cervino Expanded**
+  (Regular/Bold/ExtraBold) = font DISPLAY/titluri (nobil, ascuțit, expandat). ⚠️ Site-ul folosește ACUM Lora+Inter
+  (alegere provizorie dinainte de brandbook) — **de MIGRAT** la fonturile de brand (task de implementare).
+- **Logo:** variația principală = **Albastru-Verde** (navy + verde, interschimbabile fundal/figură); forme
+  **Standard / Orizontal / Long Orizontal**; variante alternative Negru-Alb și Dark Gray-Soft Gray. Vector disponibil
+  în logo pack-ul brandbook (.ai/.pdf). **8 reguli „nu se permite":** fără distorsiune, fără schimbarea unghiului, fără
+  eliminarea elementelor, fără repoziționare, fără alte culori, fără efecte speciale, fără alt font, fără combinații haotice.
+- **Slogan:** „Succesul copilului începe aici." **Valori (7):** Credință, Onoare, Libertate, Unire, Munca, Națiune, Adevăr.
+- **Ton de voce:** profesional + prietenos, respectuos + empatic, clar și concis (fără jargon/limbaj academic vechi),
+  pozitiv + inspirațional, transparent + autentic, creativ + inovator.
+- **Pattern-uri de brand (4 seturi):** grilă logo+wordmark; simboluri împrăștiate (soare/cruce/peniță/carte); stele cu
+  4 colțuri rare (verde mare + romburi navy mici); badge-uri dense + stele. De folosit ca texturi de fundal decorative.
+
+**Responsiv (derivat din brandbook — print-focused, fără grid web; detalii: memoria `responsive-design-system`):**
+- **Logo pe breakpoint** (3 lockup-uri oficiale): **STANDARD** (doar emblema) = mobil/favicon/avatar; **ORIZONTAL**
+  (emblemă + wordmark 2 rânduri) = header tabletă/desktop; **LONG ORIZONTAL** (LICEUL·emblemă·COLUMNA) = footer/bannere wide.
+  Header-ul comută la `xl`: `<xl` = compact/hamburger, `≥xl` = orizontal.
+- **Tipografie mobil:** Proxima Nova = tot corpul (scalează bine). ⚠️ **Cervino e EXPANDED** → titluri lungi dau overflow pe
+  mobil; pe `<sm` reduce mult Cervino sau folosește Proxima Nova Bold; Cervino doar pt. titluri scurte (1–3 cuvinte). Scală `clamp()`.
+- **Contrast (a11y):** text = navy `#0f4d77`/negru; verdele `#9bc31e` pe alb NU trece AA la text mic → doar accente/elemente mari.
+- **Pattern-uri:** pe mobil seturile RARE (stele/simboluri); densul doar pe ecrane mari. **Spațiu de siguranță:** nu înghesui logo-ul.
+- **Derivat obligatoriu:** target-uri tactile ≥44px; o coloană sub `md`; testează la 360–390px / 768 / 1280.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

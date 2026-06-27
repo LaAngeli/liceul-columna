@@ -27,7 +27,7 @@ export default function ArticolShow({ post }: { post: PostShow }) {
                 breadcrumbs={[{ title: categoryLabel, href: post.categoryUrl }, { title: post.title }]}
             />
 
-            <article className="mx-auto max-w-3xl px-6 py-12">
+            <article className="mx-auto max-w-3xl px-6 py-8 sm:py-12">
                 {post.date && <p className="text-sm text-muted-foreground">{post.date}</p>}
 
                 {post.image && (
@@ -35,7 +35,7 @@ export default function ArticolShow({ post }: { post: PostShow }) {
                 )}
 
                 {/* Conținutul articolului, migrat din columna.org.md */}
-                <div className="prose-columna mt-8" dangerouslySetInnerHTML={{ __html: post.content }} />
+                <div className="prose-columna mt-8 [overflow-wrap:anywhere]" dangerouslySetInnerHTML={{ __html: post.content }} />
 
                 <LocaleLink href={post.categoryUrl} className="mt-10 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
                     <ArrowLeft className="size-4" /> {t('article.back_to', 'Înapoi la')} {categoryLabel}

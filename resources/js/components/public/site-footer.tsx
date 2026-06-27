@@ -71,7 +71,7 @@ export function SiteFooter() {
                                     href={href}
                                     target={external ? '_blank' : undefined}
                                     rel={external ? 'noreferrer' : undefined}
-                                    className="group flex items-start gap-3"
+                                    className="group flex min-h-11 items-start gap-3"
                                 >
                                     <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-primary transition-colors group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground">
                                         <Icon className="size-4" />
@@ -105,7 +105,7 @@ export function SiteFooter() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
                     {footerNav.map((column) => (
                         <div key={column.title}>
                             <h3 className="text-sm font-semibold">{t(column.tKey, column.title)}</h3>

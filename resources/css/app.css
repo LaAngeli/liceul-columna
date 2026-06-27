@@ -7,12 +7,26 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Fonturi de brand (brandbook): Proxima Nova = corp/UI, Cervino Expanded = display/titluri.
+   Self-hosted din public/fonts/. Folosite DOAR pe site-ul public (scope `.site-shell`);
+   panoul staff + cabinetul rămân pe Inter (`--font-sans` neschimbat). */
+@font-face { font-family: 'Proxima Nova'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/proxima-nova-400.woff2') format('woff2'); }
+@font-face { font-family: 'Proxima Nova'; font-weight: 400; font-style: italic; font-display: swap; src: url('/fonts/proxima-nova-400-italic.woff2') format('woff2'); }
+@font-face { font-family: 'Proxima Nova'; font-weight: 600; font-style: normal; font-display: swap; src: url('/fonts/proxima-nova-600.woff2') format('woff2'); }
+@font-face { font-family: 'Proxima Nova'; font-weight: 700; font-style: normal; font-display: swap; src: url('/fonts/proxima-nova-700.woff2') format('woff2'); }
+@font-face { font-family: 'Cervino'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/cervino-400.woff2') format('woff2'); }
+@font-face { font-family: 'Cervino'; font-weight: 700; font-style: normal; font-display: swap; src: url('/fonts/cervino-700.woff2') format('woff2'); }
+@font-face { font-family: 'Cervino'; font-weight: 800; font-style: normal; font-display: swap; src: url('/fonts/cervino-800.woff2') format('woff2'); }
+
 @theme {
     --font-sans:
         'Inter', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
     --font-serif: 'Lora', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+    /* Site public: corp Proxima Nova, titluri Cervino (brand). Aplicate prin `.site-shell` + utilitarul `font-display`. */
+    --font-brand: 'Proxima Nova', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Cervino', 'Proxima Nova', ui-sans-serif, sans-serif;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -213,6 +227,19 @@
     margin-block: 1rem;
     max-width: 100%;
     height: auto;
+}
+.prose-columna table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+}
+.prose-columna pre {
+    overflow-x: auto;
+    max-width: 100%;
+}
+.prose-columna iframe {
+    max-width: 100%;
 }
 .prose-columna blockquote {
     border-left: 3px solid var(--brand-green);

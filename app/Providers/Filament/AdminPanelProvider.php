@@ -75,6 +75,12 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::USER_MENU_PROFILE_AFTER,
                 fn (): string => View::make('filament.topbar.language-switcher')->render(),
             )
+            // Ceas+dată live (client-side) + badge cu rolul logat, în topbar — chiar înaintea avatarului
+            // (USER_MENU_BEFORE randează ÎN interiorul clusterului din dreapta, nu după avatar).
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_BEFORE,
+                fn (): string => View::make('filament.topbar.live-datetime')->render(),
+            )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([

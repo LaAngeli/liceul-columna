@@ -48,7 +48,7 @@ export function SiteHeader() {
             </div>
 
             {/* Bara principală */}
-            <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
                 <LocaleLink href="/" className="flex items-center gap-2.5">
                     <img src="/images/logo/columna-navy.png" alt="Liceul Columna" className="h-11 w-auto dark:hidden" />
                     <img src="/images/logo/columna-white.png" alt="Liceul Columna" className="hidden h-11 w-auto dark:block" />
@@ -125,7 +125,7 @@ export function SiteHeader() {
                     <button
                         type="button"
                         onClick={() => setMobileOpen((v) => !v)}
-                        className="inline-flex size-9 items-center justify-center rounded-md border border-border xl:hidden"
+                        className="inline-flex size-11 items-center justify-center rounded-md border border-border xl:hidden"
                         aria-label={t('action.menu', 'Meniu')}
                     >
                         {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -136,7 +136,7 @@ export function SiteHeader() {
             {/* Navigare mobil */}
             {mobileOpen && (
                 <div className="border-t border-border bg-background xl:hidden">
-                    <nav className="mx-auto max-w-7xl space-y-1 px-6 py-4">
+                    <nav className="mx-auto max-w-7xl space-y-1 px-4 py-4 sm:px-6">
                         {mainNav.map((item) =>
                             item.children ? (
                                 <details key={item.title} className="group">

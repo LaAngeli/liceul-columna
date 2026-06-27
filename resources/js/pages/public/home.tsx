@@ -50,7 +50,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
 
             {/* Hero */}
             <section className="border-b border-border bg-gradient-to-b from-muted/60 to-background">
-                <div className="mx-auto max-w-7xl px-6 py-20 text-center">
+                <div className="mx-auto max-w-7xl px-4 py-12 text-center sm:px-6 sm:py-20">
                     <span className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
                         {t('home.badge', 'IPL „Liceul Columna” · Chișinău')}
                     </span>
@@ -74,7 +74,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             </section>
 
             {/* Instituția Privată Liceul „Columna" */}
-            <section className="mx-auto max-w-7xl px-6 py-14">
+            <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
                 <h2 className="text-center font-serif text-2xl font-bold tracking-tight sm:text-3xl">
                     {t('home.institution_title', 'Instituția Privată Liceul „Columna”')}
                 </h2>
@@ -85,7 +85,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                             <LocaleLink
                                 key={card.href}
                                 href={card.href}
-                                className="group flex items-start gap-4 rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary"
+                                className="group flex items-start gap-4 rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary sm:p-6"
                             >
                                 <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                                     <Icon className="size-6" />
@@ -104,7 +104,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
 
             {/* Featured 4 carduri */}
             <section className="border-t border-border bg-muted/30">
-                <div className="mx-auto max-w-7xl px-6 py-14">
+                <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {featuredCards.map((card) => {
                             const Icon = card.icon;
@@ -112,7 +112,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                                 <LocaleLink
                                     key={card.href}
                                     href={card.href}
-                                    className="group flex flex-col rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary"
+                                    className="group flex flex-col rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary sm:p-6"
                                 >
                                     <span className="flex size-10 items-center justify-center rounded-md bg-primary/10 text-primary">
                                         <Icon className="size-5" />
@@ -131,8 +131,8 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
 
             {/* Ultimele actualități (din registru) */}
             {latestNews.length > 0 && (
-                <section className="mx-auto max-w-7xl px-6 py-14">
-                    <div className="flex items-center justify-between">
+                <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <h2 className="font-serif text-2xl font-bold tracking-tight">{t('home.latest_news', 'Ultimele actualități')}</h2>
                         <Button asChild variant="ghost" size="sm">
                             <LocaleLink href="/actualitati-si-evenimente">
@@ -167,7 +167,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
 
             {/* De ce Liceul „Columna" + statistici */}
             <section className="border-t border-border bg-primary text-primary-foreground">
-                <div className="mx-auto max-w-7xl px-6 py-16">
+                <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
                     <h2 className="text-center font-serif text-2xl font-bold tracking-tight sm:text-3xl">
                         {t('home.why_title', 'De ce Liceul „Columna”')}
                     </h2>
@@ -191,7 +191,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
 
             {/* Personal — conducerea */}
             {leadership.length > 0 && (
-                <section className="mx-auto max-w-7xl px-6 py-14">
+                <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
                     <h2 className="font-serif text-2xl font-bold tracking-tight">{t('home.staff_title', 'Personal')}</h2>
                     <p className="mt-3 max-w-3xl text-muted-foreground">{t('home.staff_intro', 'Profesorii noștri…')}</p>
                     <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -241,7 +241,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
 
             {/* Contactează-ne */}
             <section className="border-t border-border bg-muted/40">
-                <div className="mx-auto max-w-7xl px-6 py-16 text-center">
+                <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 text-center">
                     <h2 className="font-serif text-2xl font-bold tracking-tight sm:text-3xl">
                         {t('home.contact_title', 'Contactează-ne')}
                     </h2>

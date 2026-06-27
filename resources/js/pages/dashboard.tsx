@@ -1,5 +1,12 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ArrowUpRight, CalendarX, GraduationCap, TrendingUp } from 'lucide-react';
+import {
+    ArrowUpRight,
+    CalendarX,
+    GraduationCap,
+    TrendingUp,
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 
 interface StudentSummary {
@@ -19,6 +26,8 @@ interface DashboardProps {
 }
 
 function StudentCard({ student }: { student: StudentSummary }) {
+    const t = useTranslations();
+
     return (
         <Link
             href={`/cabinet/elev/${student.id}`}
@@ -30,26 +39,38 @@ function StudentCard({ student }: { student: StudentSummary }) {
                 </span>
                 <div className="min-w-0">
                     <h3 className="truncate font-semibold">{student.name}</h3>
-                    <p className="text-sm text-muted-foreground">{student.class ?? 'Clasă nealocată'}</p>
+                    <p className="text-sm text-muted-foreground">
+                        {student.class ?? t('cabinet.class_unassigned')}
+                    </p>
                 </div>
                 <ArrowUpRight className="ml-auto size-5 text-muted-foreground group-hover:text-primary" />
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-md bg-muted/50 p-2">
                     <div className="flex items-center justify-center gap-1 text-sm font-semibold">
-                        <TrendingUp className="size-3.5" /> {student.average ?? '—'}
+                        <TrendingUp className="size-3.5" />{' '}
+                        {student.average ?? '—'}
                     </div>
-                    <p className="text-xs text-muted-foreground">Media</p>
+                    <p className="text-xs text-muted-foreground">
+                        {t('dashboard.card_average')}
+                    </p>
                 </div>
                 <div className="rounded-md bg-muted/50 p-2">
-                    <div className="text-sm font-semibold">{student.grades_count}</div>
-                    <p className="text-xs text-muted-foreground">Note</p>
+                    <div className="text-sm font-semibold">
+                        {student.grades_count}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        {t('dashboard.card_grades')}
+                    </p>
                 </div>
                 <div className="rounded-md bg-muted/50 p-2">
                     <div className="flex items-center justify-center gap-1 text-sm font-semibold">
-                        <CalendarX className="size-3.5" /> {student.absences_count}
+                        <CalendarX className="size-3.5" />{' '}
+                        {student.absences_count}
                     </div>
-                    <p className="text-xs text-muted-foreground">Absențe</p>
+                    <p className="text-xs text-muted-foreground">
+                        {t('dashboard.card_absences')}
+                    </p>
                 </div>
             </div>
         </Link>
@@ -58,20 +79,37 @@ function StudentCard({ student }: { student: StudentSummary }) {
 
 export default function Dashboard({ cabinet }: DashboardProps) {
     const { auth } = usePage().props;
+    const t = useTranslations();
     const hasCabinet = cabinet.children.length > 0 || cabinet.self;
 
     return (
         <>
-            <Head title="Cabinet" />
+            <Head title={t('action.cabinet')} />
             <div className="flex h-full flex-1 flex-col gap-6 p-4">
-                <div>
-                    <h1 className="text-2xl font-semibold tracking-tight">Bun venit, {auth.user.name}</h1>
-                    <p className="text-sm text-muted-foreground">Cabinetul tău personal — Liceul Columna.</p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            {t('dashboard.welcome')}, {auth.user.name}
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            {t('dashboard.subtitle')}
+                        </p>
+                    </div>
+                    {auth.role && (
+                        <Badge
+                            variant="secondary"
+                            className="text-sm font-semibold"
+                        >
+                            {t(`roles.${auth.role}`, auth.role)}
+                        </Badge>
+                    )}
                 </div>
 
                 {cabinet.self && (
                     <section>
-                        <h2 className="mb-3 text-lg font-semibold">Profilul meu</h2>
+                        <h2 className="mb-3 text-lg font-semibold">
+                            {t('dashboard.my_profile')}
+                        </h2>
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <StudentCard student={cabinet.self} />
                         </div>
@@ -80,7 +118,9 @@ export default function Dashboard({ cabinet }: DashboardProps) {
 
                 {cabinet.children.length > 0 && (
                     <section>
-                        <h2 className="mb-3 text-lg font-semibold">Copiii mei</h2>
+                        <h2 className="mb-3 text-lg font-semibold">
+                            {t('dashboard.my_children')}
+                        </h2>
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {cabinet.children.map((child) => (
                                 <StudentCard key={child.id} student={child} />
@@ -93,7 +133,7 @@ export default function Dashboard({ cabinet }: DashboardProps) {
                     <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-sidebar-border/70 p-10 text-center text-muted-foreground dark:border-sidebar-border">
                         <div className="flex flex-col items-center gap-2">
                             <GraduationCap className="size-8" />
-                            <p>Niciun profil asociat încă. Contactează administrația.</p>
+                            <p>{t('dashboard.no_profile')}</p>
                         </div>
                     </div>
                 )}
@@ -105,7 +145,7 @@ export default function Dashboard({ cabinet }: DashboardProps) {
 Dashboard.layout = {
     breadcrumbs: [
         {
-            title: 'Cabinet',
+            title: 'action.cabinet',
             href: dashboard(),
         },
     ],
