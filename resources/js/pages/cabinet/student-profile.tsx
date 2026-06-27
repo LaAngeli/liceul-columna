@@ -55,6 +55,13 @@ interface StudentStatus {
     failingSubjects: string[];
 }
 
+interface StatusAck {
+    needed: boolean;
+    acknowledged: boolean;
+    acknowledgedAt: string | null;
+    canAcknowledge: boolean;
+}
+
 interface MotivationItem {
     id: number;
     reason: string;
@@ -121,6 +128,7 @@ interface Props {
     transcript: TranscriptLevel[];
     homework: HomeworkItem[];
     status: StudentStatus;
+    statusAck: StatusAck;
     dynamics: Dynamics;
     timetable: TimetableData | null;
     deferralRisk: DeferralRisk[];
@@ -193,6 +201,7 @@ export default function StudentProfile({
     transcript,
     homework,
     status,
+    statusAck,
     dynamics,
     timetable,
     deferralRisk,
@@ -259,6 +268,31 @@ export default function StudentProfile({
                         </div>
                     </div>
                 </div>
+
+                {/* Confirmare „am luat cunoștință" de statutul corigent/amânat (spec pct. 108–109) */}
+                {statusAck.needed && (
+                    <section className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
+                        <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('cabinet.status_ack_title')}</h2>
+                        <p className="mt-1 text-sm text-amber-800/90 dark:text-amber-300/90">{t('cabinet.status_ack_text')}</p>
+                        {statusAck.acknowledged ? (
+                            <p className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                                ✓ {t('cabinet.status_ack_done')} {statusAck.acknowledgedAt}
+                            </p>
+                        ) : statusAck.canAcknowledge ? (
+                            <Form action={`/cabinet/elev/${student.id}/confirm-statut`} method="post" className="mt-3">
+                                {({ processing }) => (
+                                    <button
+                                        type="submit"
+                                        disabled={processing}
+                                        className="inline-flex items-center justify-center rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+                                    >
+                                        {t('cabinet.status_ack_confirm')}
+                                    </button>
+                                )}
+                            </Form>
+                        ) : null}
+                    </section>
+                )}
 
                 {/* Note pe discipline */}
                 <section>

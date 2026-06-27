@@ -9,6 +9,7 @@ use App\Actions\GenerateRequestPdf;
 use App\Actions\LogStudentAccess;
 use App\Enums\AcademicRecordPeriod;
 use App\Enums\DocumentRequestType;
+use App\Enums\StudentStatus;
 use App\Enums\UserRole;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
@@ -16,6 +17,7 @@ use App\Models\AcademicRecord;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
 use App\Models\HomeworkAssignment;
+use App\Models\StatusAcknowledgement;
 use App\Models\Student;
 use App\Models\Term;
 use App\Models\TermAverage;
@@ -80,6 +82,7 @@ class CabinetController extends Controller
         }
 
         $class = $student->currentSchoolClass();
+        $status = $this->currentStatus($student);
 
         return Inertia::render('cabinet/student-profile', [
             'student' => $this->summary($student),
@@ -90,7 +93,8 @@ class CabinetController extends Controller
             'absencesUnmotivated' => $student->absences->where('is_motivated', false)->count(),
             'transcript' => $this->transcript($student),
             'homework' => $this->homeworkForStudent($student),
-            'status' => $this->currentStatus($student),
+            'status' => $status,
+            'statusAck' => $this->statusAcknowledgement($student, $viewer, $status),
             'dynamics' => app(ComputeStudentDynamics::class)->for($student),
             'timetable' => $class !== null ? app(Timetable::class)->forClass($class) : null,
             'deferralRisk' => app(ComputeDeferralRisk::class)->for($student),
@@ -136,6 +140,37 @@ class CabinetController extends Controller
         ]);
 
         return back()->with('success', 'Cererea de motivare a fost trimisă dirigintelui.');
+    }
+
+    /**
+     * Confirmarea electronică a părintelui că a luat cunoștință de statutul corigent/amânat al
+     * elevului (spec pct. 108–109 — echivalentul „contra-semnăturii"). Doar familia; idempotentă;
+     * rămâne urmă (cine/când) inclusiv în jurnalul de audit (modelul e Auditable).
+     */
+    public function acknowledgeStatus(Request $request, Student $student): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User && $this->isFamilyOf($user, $student), 403);
+
+        $status = $this->currentStatus($student);
+        abort_unless(
+            in_array($status['status'], [StudentStatus::Corigent->value, StudentStatus::Amanat->value], true),
+            422,
+        );
+
+        $termId = Term::query()->where('is_current', true)->value('id');
+        abort_if($termId === null, 422);
+
+        StatusAcknowledgement::updateOrCreate(
+            ['student_id' => $student->id, 'term_id' => (int) $termId],
+            [
+                'acknowledged_by_user_id' => $user->id,
+                'status' => $status['status'],
+                'acknowledged_at' => now(),
+            ],
+        );
+
+        return back()->with('success', 'Confirmarea a fost înregistrată.');
     }
 
     /**
@@ -302,6 +337,43 @@ class CabinetController extends Controller
                 fn (string $subject): string => ContentTranslator::subject($subject),
                 $result['failingSubjects'],
             ),
+        ];
+    }
+
+    /**
+     * Starea confirmării de „luare la cunoștință" a statutului corigent/amânat (spec pct. 108–109):
+     * dacă e necesară, dacă a fost deja confirmată (cu data) și dacă familia o poate confirma acum.
+     *
+     * @param  array<string, mixed>  $status
+     * @return array{needed: bool, acknowledged: bool, acknowledgedAt: string|null, canAcknowledge: bool}
+     */
+    private function statusAcknowledgement(Student $student, ?User $viewer, array $status): array
+    {
+        $needed = in_array($status['status'], [StudentStatus::Corigent->value, StudentStatus::Amanat->value], true);
+
+        if (! $needed) {
+            return ['needed' => false, 'acknowledged' => false, 'acknowledgedAt' => null, 'canAcknowledge' => false];
+        }
+
+        $termId = Term::query()->where('is_current', true)->value('id');
+        $ack = $termId !== null
+            ? StatusAcknowledgement::query()->where('student_id', $student->id)->where('term_id', $termId)->first()
+            : null;
+
+        $acknowledged = $ack !== null && $ack->status->value === $status['status'];
+
+        $acknowledgedAt = null;
+        if ($ack !== null && $acknowledged) {
+            $acknowledgedAt = $ack->acknowledged_at->format('d.m.Y H:i');
+        }
+
+        $isFamily = $viewer instanceof User && $this->isFamilyOf($viewer, $student);
+
+        return [
+            'needed' => true,
+            'acknowledged' => $acknowledged,
+            'acknowledgedAt' => $acknowledgedAt,
+            'canAcknowledge' => $isFamily && ! $acknowledged,
         ];
     }
 

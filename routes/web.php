@@ -131,6 +131,7 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     Route::get('cabinet/elev/{student}', [CabinetController::class, 'student'])->name('cabinet.student');
     Route::post('cabinet/elev/{student}/motivare', [CabinetController::class, 'requestMotivation'])->name('cabinet.motivation');
     Route::get('cabinet/motivare/{absenceMotivation}/document', [CabinetController::class, 'downloadMotivationDocument'])->name('cabinet.motivation.document');
+    Route::post('cabinet/elev/{student}/confirm-statut', [CabinetController::class, 'acknowledgeStatus'])->name('cabinet.status.acknowledge');
 
     // Comunicare (spec §4): inbox + trimitere filtrată ierarhic + răspuns în fir.
     Route::get('cabinet/mesaje', [MessagesController::class, 'index'])->name('cabinet.messages');
