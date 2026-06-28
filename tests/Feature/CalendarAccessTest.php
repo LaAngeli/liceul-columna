@@ -98,8 +98,9 @@ it('agregatorul deduplică evenimentele identice și le sortează cronologic', f
         public function project(CalendarScope $scope, CarbonInterface $from, CarbonInterface $to): array
         {
             return [
+                // Aceeași ocurență logică emisă de două ori (același id) → trebuie deduplicată.
                 new CalendarItem('a', 'src', CalendarCategory::Event, 'Ședință', '2026-06-12'),
-                new CalendarItem('a-dup', 'src', CalendarCategory::Event, 'Ședință', '2026-06-12'),
+                new CalendarItem('a', 'src', CalendarCategory::Event, 'Ședință', '2026-06-12'),
                 new CalendarItem('b', 'src', CalendarCategory::Homework, 'Temă', '2026-06-05'),
             ];
         }

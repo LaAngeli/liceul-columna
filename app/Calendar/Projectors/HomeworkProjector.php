@@ -45,7 +45,9 @@ class HomeworkProjector implements CalendarProjector
                     continue;
                 }
 
-                $title = $homework->subject_name !== '' ? ContentTranslator::subject($homework->subject_name) : 'Temă';
+                $title = $homework->subject_name !== ''
+                    ? ContentTranslator::subject($homework->subject_name)
+                    : (string) trans('cabinet_calendar.cat_homework');
 
                 $items[] = new CalendarItem(
                     id: "homework:{$homework->id}:{$student->id}",

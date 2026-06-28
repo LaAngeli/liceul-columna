@@ -56,7 +56,7 @@ class CorigentaProjector implements CalendarProjector
                 id: "corigenta-session:{$session->id}",
                 source: 'corigenta_session',
                 category: CalendarCategory::Assessment,
-                title: 'Sesiune de corigență',
+                title: (string) trans('cabinet_calendar.auto_corigenta_session'),
                 date: $session->starts_on->toDateString(),
                 meta: ['season' => $session->season->value],
             );

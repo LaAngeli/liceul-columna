@@ -2,11 +2,13 @@
 
 namespace App\Calendar\Projectors;
 
+use App\Calendar\CalendarAccess;
 use App\Calendar\CalendarItem;
 use App\Calendar\CalendarProjector;
 use App\Calendar\CalendarScope;
 use App\Enums\CalendarEventScope;
 use App\Models\CalendarEvent;
+use App\Models\Student;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -18,13 +20,15 @@ use Illuminate\Support\Carbon;
  */
 class ManualEventProjector implements CalendarProjector
 {
+    public function __construct(private readonly CalendarAccess $access) {}
+
     public function project(CalendarScope $scope, CarbonInterface $from, CarbonInterface $to): array
     {
         if ($scope->isStaff) {
             $items = [];
 
             foreach ($this->rangeQuery($from, $to)->with('translations')->get() as $event) {
-                array_push($items, ...$this->expand($event, $from, $to, null));
+                array_push($items, ...$this->expand($event, $from, $to, null, null));
             }
 
             return $items;
@@ -41,11 +45,18 @@ class ManualEventProjector implements CalendarProjector
                 ->get();
 
             foreach ($events as $event) {
-                // Evenimentele globale nu sunt legate de un copil anume → studentId null (deduplicate
-                // între frați); cele de treaptă/clasă rămân legate de copilul respectiv.
-                $ownerId = $event->visibility_scope === CalendarEventScope::Global ? null : $student->id;
+                $isGlobal = $event->visibility_scope === CalendarEventScope::Global;
 
-                array_push($items, ...$this->expand($event, $from, $to, $ownerId));
+                // Evenimentele globale nu sunt legate de un copil anume → studentId null (deduplicate
+                // între frați); cele de treaptă/clasă rămân legate de copil ȘI doar pe zilele în care
+                // era înrolat (transfer → fără scurgere între familii, ca la teme).
+                array_push($items, ...$this->expand(
+                    $event,
+                    $from,
+                    $to,
+                    $isGlobal ? null : $student->id,
+                    $isGlobal ? null : $student,
+                ));
             }
         }
 
@@ -74,15 +85,22 @@ class ManualEventProjector implements CalendarProjector
 
     /**
      * Un eveniment (eventual pe mai multe zile) → câte un {@see CalendarItem} pe fiecare zi din interval.
+     * Dacă `$enrolled` e dat (eveniment de treaptă/clasă), se emit doar zilele de înrolare ale elevului.
      *
      * @return list<CalendarItem>
      */
-    private function expand(CalendarEvent $event, CarbonInterface $from, CarbonInterface $to, ?int $ownerId): array
+    private function expand(CalendarEvent $event, CarbonInterface $from, CarbonInterface $to, ?int $ownerId, ?Student $enrolled): array
     {
         $rangeStart = Carbon::parse($from)->startOfDay();
         $rangeEnd = Carbon::parse($to)->startOfDay();
         $start = Carbon::parse($event->starts_on)->startOfDay();
         $end = Carbon::parse($event->ends_on ?? $event->starts_on)->startOfDay();
+
+        // Interval inversat (ends_on < starts_on) — posibil doar prin scrieri directe (formularul îl
+        // previne cu afterOrEqual). Degradăm controlat, fără a produce evenimente fantomă.
+        if ($end->lt($start)) {
+            return [];
+        }
 
         $cursor = $start->gt($rangeStart) ? $start : $rangeStart->copy();
         $limit = $end->lt($rangeEnd) ? $end : $rangeEnd;
@@ -95,6 +113,12 @@ class ManualEventProjector implements CalendarProjector
         $items = [];
 
         while ($cursor->lte($limit)) {
+            if ($enrolled !== null && ! $this->access->wasEnrolledOn($enrolled, $cursor)) {
+                $cursor->addDay();
+
+                continue;
+            }
+
             $items[] = new CalendarItem(
                 id: "calendar-event:{$event->id}:{$cursor->toDateString()}{$suffix}",
                 source: 'calendar_event',

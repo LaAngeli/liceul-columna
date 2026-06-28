@@ -87,7 +87,9 @@ class CalendarEventForm
                         Select::make('locale')
                             ->label('Limba')
                             ->options(['ru' => 'Rusă', 'en' => 'Engleză'])
-                            ->required(),
+                            ->required()
+                            ->distinct()
+                            ->disableOptionsWhenSelectedInSiblingRepeaterItems(),
                         TextInput::make('title')
                             ->label('Titlu')
                             ->maxLength(255),

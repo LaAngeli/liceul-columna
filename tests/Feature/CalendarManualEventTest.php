@@ -101,3 +101,43 @@ it('evenimentul pe mai multe zile apare pe fiecare zi din interval', function ()
 
     expect($dates)->toContain('2026-06-08', '2026-06-09', '2026-06-10');
 });
+
+it('staff vede ambele evenimente distincte cu același titlu în aceeași zi (fără dedup eronat)', function () {
+    foreach ([SchoolClass::factory()->create()->id, SchoolClass::factory()->create()->id] as $classId) {
+        CalendarEvent::factory()->forClass($classId)->create([
+            'type' => CalendarEventType::Meeting,
+            'title' => 'Ședință',
+            'starts_on' => '2026-06-10',
+        ]);
+    }
+
+    $scope = app(CalendarAccess::class)->staffScope(User::factory()->create());
+
+    expect(collectManual($scope)->where('title', 'Ședință'))->toHaveCount(2);
+});
+
+it('elevul transferat nu vede evenimentul de clasă din afara perioadei de înrolare', function () {
+    $year = AcademicYear::factory()->create();
+    $class = SchoolClass::factory()->for($year)->create(['grade_level' => 9, 'section' => 'A']);
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($year)->create([
+        'enrolled_on' => '2026-06-01',
+        'left_on' => '2026-06-10',
+    ]);
+
+    CalendarEvent::factory()->forClass($class->id)->create([
+        'type' => CalendarEventType::Meeting,
+        'title' => 'Ședință în perioadă',
+        'starts_on' => '2026-06-05',
+    ]);
+    CalendarEvent::factory()->forClass($class->id)->create([
+        'type' => CalendarEventType::Meeting,
+        'title' => 'Ședință după plecare',
+        'starts_on' => '2026-06-20',
+    ]);
+
+    $titles = collectManual(familyScope($student))->pluck('title');
+
+    expect($titles)->toContain('Ședință în perioadă')
+        ->and($titles)->not->toContain('Ședință după plecare');
+});

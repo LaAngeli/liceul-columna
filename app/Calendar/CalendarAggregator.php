@@ -50,8 +50,10 @@ class CalendarAggregator
         $unique = [];
 
         foreach ($items as $item) {
-            $key = ($item->studentId ?? 'g').'|'.$item->date.'|'.$item->category->value.'|'.$item->title;
-            $unique[$key] ??= $item;
+            // id-ul codifică identitatea logică a ocurenței (sursă + zi + proprietar): evenimentele
+            // globale emise per-frate au același id → se deduplică; evenimentele distincte cu același
+            // titlu/zi/categorie NU se mai pierd (vezi review v2).
+            $unique[$item->id] ??= $item;
         }
 
         $result = array_values($unique);
