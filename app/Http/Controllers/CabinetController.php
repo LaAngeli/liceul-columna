@@ -179,6 +179,18 @@ class CabinetController extends Controller
             $documentPath = $file->store('motivations', 'local') ?: null;
         }
 
+        // Excepție = cererea acoperă absențe deja consolidate sau cu termenul de depunere (5 zile
+        // lucrătoare) depășit. O astfel de cerere se aprobă de vicedirectorul pe educație, nu de diriginte.
+        $isException = Absence::query()
+            ->where('student_id', $student->id)
+            ->whereBetween('occurred_on', [$data['period_start'], $data['period_end']])
+            ->where('is_motivated', false)
+            ->where(function (Builder $query): void {
+                $query->whereNotNull('motivation_locked_at')
+                    ->orWhereDate('motivation_deadline', '<', today());
+            })
+            ->exists();
+
         AbsenceMotivation::create([
             'student_id' => $student->id,
             'requested_by_user_id' => $user->id,
@@ -186,9 +198,12 @@ class CabinetController extends Controller
             'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
             'document_path' => $documentPath,
+            'is_exception' => $isException,
         ]);
 
-        return back()->with('success', 'Cererea de motivare a fost trimisă dirigintelui.');
+        return back()->with('success', $isException
+            ? 'Cererea (excepție, după termen) a fost transmisă vicedirectorului pe educație.'
+            : 'Cererea de motivare a fost trimisă dirigintelui.');
     }
 
     /**
@@ -334,6 +349,7 @@ class CabinetController extends Controller
                 'period' => $motivation->period_start->format('d.m.Y').' – '.$motivation->period_end->format('d.m.Y'),
                 'status' => $motivation->status->value,
                 'statusLabel' => $motivation->status->label(),
+                'isException' => $motivation->is_exception,
                 'documentUrl' => $motivation->document_path !== null
                     ? route('cabinet.motivation.document', ['absenceMotivation' => $motivation->id], false)
                     : null,

@@ -382,6 +382,7 @@ return [
         'motivation_sending' => 'Se trimite…',
         'motivation_sent' => 'Cererea a fost trimisă dirigintelui.',
         'motivation_none' => 'Nicio cerere de motivare depusă.',
+        'motivation_exception' => 'Excepție (după termen)',
         'motivation_status_pending' => 'În așteptare',
         'motivation_status_approved' => 'Aprobată',
         'motivation_status_rejected' => 'Respinsă',

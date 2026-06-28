@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\AbsenceMotivations;
 
+use App\Enums\AudienceDomain;
 use App\Enums\RequestStatus;
 use App\Filament\Resources\AbsenceMotivations\Pages\ListAbsenceMotivations;
 use App\Filament\Resources\AbsenceMotivations\Tables\AbsenceMotivationsTable;
 use App\Models\AbsenceMotivation;
+use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
@@ -51,11 +53,16 @@ class AbsenceMotivationResource extends Resource
     {
         $user = auth()->user();
 
-        if (! $user) {
+        if (! $user instanceof User) {
             return false;
         }
 
         if ($user->isAdministrator()) {
+            return true;
+        }
+
+        // Vicedirectorul pe educație validează EXCEPȚIILE (motivările tardive, §2.1/§4.2).
+        if ($user->handlesAudienceDomain(AudienceDomain::Educatie)) {
             return true;
         }
 
@@ -81,21 +88,34 @@ class AbsenceMotivationResource extends Resource
         $query = parent::getEloquentQuery();
         $user = auth()->user();
 
-        if (! $user || $user->isAdministrator()) {
+        if (! $user instanceof User || $user->isAdministrator()) {
             return $query;
         }
 
-        $teacher = $user->teacher;
+        $homeroomClassIds = $user->teacher?->homeroomSchoolClassIds() ?? [];
+        $handlesEducatie = $user->handlesAudienceDomain(AudienceDomain::Educatie);
 
-        if (! $teacher) {
-            return $query->whereRaw('1 = 0');
-        }
+        return $query->where(function (Builder $scope) use ($homeroomClassIds, $handlesEducatie): void {
+            $matched = false;
 
-        $homeroomClassIds = $teacher->homeroomSchoolClassIds();
+            // Dirigintele: cererile elevilor din clasa lui.
+            if ($homeroomClassIds !== []) {
+                $matched = true;
+                $scope->whereHas(
+                    'student.enrollments',
+                    fn (Builder $sub) => $sub->whereIn('school_class_id', $homeroomClassIds),
+                );
+            }
 
-        return $query->whereHas(
-            'student.enrollments',
-            fn (Builder $sub) => $sub->whereIn('school_class_id', $homeroomClassIds),
-        );
+            // Vicedirectorul pe educație: EXCEPȚIILE (oriunde).
+            if ($handlesEducatie) {
+                $matched = true;
+                $scope->orWhere('is_exception', true);
+            }
+
+            if (! $matched) {
+                $scope->whereRaw('1 = 0');
+            }
+        });
     }
 }

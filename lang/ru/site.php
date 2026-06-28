@@ -382,6 +382,7 @@ return [
         'motivation_sending' => 'Отправка…',
         'motivation_sent' => 'Заявка отправлена классному руководителю.',
         'motivation_none' => 'Нет поданных заявок.',
+        'motivation_exception' => 'Исключение (после срока)',
         'motivation_status_pending' => 'На рассмотрении',
         'motivation_status_approved' => 'Одобрена',
         'motivation_status_rejected' => 'Отклонена',

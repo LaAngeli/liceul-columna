@@ -382,6 +382,7 @@ return [
         'motivation_sending' => 'Sending…',
         'motivation_sent' => 'Request sent to the homeroom teacher.',
         'motivation_none' => 'No excuse requests submitted.',
+        'motivation_exception' => 'Exception (past deadline)',
         'motivation_status_pending' => 'Pending',
         'motivation_status_approved' => 'Approved',
         'motivation_status_rejected' => 'Rejected',

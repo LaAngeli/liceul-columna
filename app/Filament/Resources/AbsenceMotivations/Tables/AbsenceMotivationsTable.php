@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AbsenceMotivations\Tables;
 
 use App\Enums\RequestStatus;
 use App\Models\AbsenceMotivation;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -32,6 +33,19 @@ class AbsenceMotivationsTable
                     ->label('Stare')
                     ->badge()
                     ->color(fn (RequestStatus $state): string => $state->color()),
+                TextColumn::make('is_exception')
+                    ->label('Tip')
+                    ->badge()
+                    ->state(fn (AbsenceMotivation $record): string => $record->is_exception ? 'Excepție (tardivă)' : 'Normală')
+                    ->color(fn (AbsenceMotivation $record): string => $record->is_exception ? 'warning' : 'gray'),
+                TextColumn::make('validation_deadline')
+                    ->label('Termen validare')
+                    ->state(fn (AbsenceMotivation $record): string => $record->isPending()
+                        ? ($record->validationDeadline()?->format('d.m.Y') ?? '—')
+                        : '—')
+                    ->badge()
+                    ->color(fn (AbsenceMotivation $record): string => $record->isOverdue() ? 'danger' : 'gray')
+                    ->tooltip(fn (AbsenceMotivation $record): ?string => $record->isOverdue() ? 'Termen depășit (2 zile lucrătoare)' : null),
                 TextColumn::make('requestedBy.name')
                     ->label('Solicitată de')
                     ->toggleable(),
@@ -60,7 +74,7 @@ class AbsenceMotivationsTable
                     ->label('Validează')
                     ->icon('heroicon-o-check')
                     ->color('success')
-                    ->visible(fn (AbsenceMotivation $record): bool => $record->isPending())
+                    ->visible(fn (AbsenceMotivation $record): bool => self::canReview($record))
                     ->modalHeading('Validează motivarea')
                     ->modalDescription('Absențele elevului din perioada cerută vor fi marcate ca MOTIVATE.')
                     ->schema([
@@ -77,7 +91,7 @@ class AbsenceMotivationsTable
                     ->label('Respinge')
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
-                    ->visible(fn (AbsenceMotivation $record): bool => $record->isPending())
+                    ->visible(fn (AbsenceMotivation $record): bool => self::canReview($record))
                     ->modalHeading('Respinge motivarea')
                     ->schema([
                         Textarea::make('review_note')
@@ -90,5 +104,16 @@ class AbsenceMotivationsTable
                         Notification::make()->warning()->title('Motivare respinsă')->send();
                     }),
             ]);
+    }
+
+    /**
+     * Poate utilizatorul curent să valideze/respingă cererea (diriginte pentru normale,
+     * vicedirector pe educație pentru excepții) — vezi {@see AbsenceMotivation::canBeReviewedBy()}.
+     */
+    private static function canReview(AbsenceMotivation $record): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && $record->canBeReviewedBy($user);
     }
 }

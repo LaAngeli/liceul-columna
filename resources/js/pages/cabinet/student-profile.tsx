@@ -70,6 +70,7 @@ interface MotivationItem {
     period: string;
     status: 'pending' | 'approved' | 'rejected';
     statusLabel: string;
+    isException: boolean;
     documentUrl: string | null;
 }
 
@@ -551,6 +552,11 @@ export default function StudentProfile({
                                                 <div className="min-w-0">
                                                     <p className="text-sm font-medium">{m.period}</p>
                                                     <p className="truncate text-xs text-muted-foreground">{m.reason}</p>
+                                                    {m.isException && (
+                                                        <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                                                            {t('cabinet.motivation_exception', 'Excepție (după termen)')}
+                                                        </span>
+                                                    )}
                                                     {m.documentUrl && (
                                                         <a
                                                             href={m.documentUrl}

@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Enums\AudienceDomain;
 use App\Enums\RequestStatus;
 use App\Observers\AbsenceMotivationObserver;
+use App\Support\WorkingDays;
 use Database\Factories\AbsenceMotivationFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * Cerere de motivare a absențelor: părintele cere, dirigintele validează (§2.1).
@@ -19,10 +23,15 @@ use Illuminate\Support\Carbon;
  * @property Carbon $period_end
  * @property string|null $document_path
  * @property Carbon|null $reviewed_at
+ * @property bool $is_exception
+ * @property int $student_id
+ * @property Carbon|null $created_at
  */
 #[ObservedBy(AbsenceMotivationObserver::class)]
-class AbsenceMotivation extends Model
+class AbsenceMotivation extends Model implements Auditable
 {
+    use AuditableTrait;
+
     /** @use HasFactory<AbsenceMotivationFactory> */
     use HasFactory;
 
@@ -34,6 +43,7 @@ class AbsenceMotivation extends Model
         'period_end',
         'document_path',
         'status',
+        'is_exception',
         'reviewed_by_user_id',
         'reviewed_at',
         'review_note',
@@ -43,6 +53,7 @@ class AbsenceMotivation extends Model
     {
         return [
             'status' => RequestStatus::class,
+            'is_exception' => 'boolean',
             'period_start' => 'date',
             'period_end' => 'date',
             'reviewed_at' => 'datetime',
@@ -55,16 +66,67 @@ class AbsenceMotivation extends Model
     }
 
     /**
+     * Termenul-limită de validare al dirigintelui (spec §2.1): depunere + 2 zile lucrătoare.
+     */
+    public function validationDeadline(): ?Carbon
+    {
+        return $this->created_at !== null ? WorkingDays::add($this->created_at, 2) : null;
+    }
+
+    /**
+     * Cerere în așteptare al cărei termen de validare (2 zile lucrătoare) a fost depășit.
+     */
+    public function isOverdue(): bool
+    {
+        $deadline = $this->validationDeadline();
+
+        return $this->isPending() && $deadline !== null && $deadline->isPast();
+    }
+
+    /**
+     * Cine poate valida/respinge cererea: administrația întotdeauna; pentru cererile NORMALE —
+     * dirigintele clasei elevului; pentru EXCEPȚII (tardive) — vicedirectorul pe educație (atribut §4.2).
+     */
+    public function canBeReviewedBy(User $user): bool
+    {
+        if (! $this->isPending()) {
+            return false;
+        }
+
+        // Excepțiile (motivări tardive) → DOAR vicedirectorul pe educație; super-adminul rămâne
+        // break-glass. Ceilalți administratori le VĂD, dar nu le aprobă (decizia ține de educație).
+        if ($this->is_exception) {
+            return $user->isSuperAdmin() || $user->handlesAudienceDomain(AudienceDomain::Educatie);
+        }
+
+        // Cererile normale: administrația academică sau dirigintele clasei elevului.
+        if ($user->isAdministrator()) {
+            return true;
+        }
+
+        $teacher = $user->teacher;
+
+        if ($teacher === null || $teacher->homeroomSchoolClassIds() === []) {
+            return false;
+        }
+
+        return $this->student?->enrollments()
+            ->whereIn('school_class_id', $teacher->homeroomSchoolClassIds())
+            ->exists() ?? false;
+    }
+
+    /**
      * Aprobă: marchează ca MOTIVATE absențele elevului din perioada cerută și consemnează
      * dirigintele/data.
      */
     public function approve(int $reviewerId, ?string $note = null): void
     {
+        // Marchează MOTIVATE + DEBLOCHEAZĂ absențele consolidate (cazul aprobării unei excepții).
         Absence::query()
             ->where('student_id', $this->student_id)
             ->whereBetween('occurred_on', [$this->period_start, $this->period_end])
             ->where('is_motivated', false)
-            ->update(['is_motivated' => true]);
+            ->update(['is_motivated' => true, 'motivation_locked_at' => null]);
 
         $this->update([
             'status' => RequestStatus::Approved,

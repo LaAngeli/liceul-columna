@@ -9,9 +9,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
+/**
+ * @property Carbon $occurred_on
+ * @property bool $is_motivated
+ * @property Carbon|null $motivation_deadline
+ * @property Carbon|null $motivation_locked_at
+ */
 #[ObservedBy(AbsenceObserver::class)]
 class Absence extends Model implements Auditable
 {
@@ -28,6 +35,8 @@ class Absence extends Model implements Auditable
         'teacher_id',
         'occurred_on',
         'is_motivated',
+        'motivation_deadline',
+        'motivation_locked_at',
     ];
 
     protected function casts(): array
@@ -35,6 +44,8 @@ class Absence extends Model implements Auditable
         return [
             'occurred_on' => 'date',
             'is_motivated' => 'boolean',
+            'motivation_deadline' => 'date',
+            'motivation_locked_at' => 'datetime',
         ];
     }
 
