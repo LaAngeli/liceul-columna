@@ -75,6 +75,19 @@ class CalendarAccess
     }
 
     /**
+     * Scope-ul calendarului pentru STAFF. MVP: calendarul INSTITUȚIONAL (structură — semestre/vacanțe
+     * — + sesiuni de corigență publicate + viitoarele evenimente/ședințe manuale), fără agregare PII
+     * per-elev la scară. Elevii rămân goi ⇒ doar evenimentele globale. Extinderea pe clase = v2.
+     */
+    public function staffScope(User $viewer): CalendarScope
+    {
+        /** @var Collection<int, Student> $empty */
+        $empty = collect();
+
+        return new CalendarScope($viewer, $empty, [], true);
+    }
+
+    /**
      * Elevii pe care `viewer` îi poate vedea în calendar (familie). Pentru staff broad rămâne gol —
      * calendarul de staff agregă pe clasele lui, nu pe elevi individuali.
      *
