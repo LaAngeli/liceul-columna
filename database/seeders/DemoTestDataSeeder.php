@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Actions\SendMessage;
+use App\Enums\AudienceDomain;
 use App\Enums\CorrectionStatus;
 use App\Enums\RequestStatus;
 use App\Enums\UserRole;
@@ -159,7 +160,8 @@ class DemoTestDataSeeder extends Seeder
             }
         }
 
-        // Solicitare de audiență → rutată automat spre prim-vicedirector (creat mai sus).
+        // Solicitare de audiență pe domeniu (instruire) → rutată către responsabilul de domeniu,
+        // cu fallback pe director dacă niciun cont nu gestionează domeniul.
         $child = $parent->students()->first();
         if ($child !== null) {
             $send->audience(
@@ -167,6 +169,7 @@ class DemoTestDataSeeder extends Seeder
                 $child,
                 self::MARKER.' Solicitare audiență',
                 self::MARKER.' Aș dori o întâlnire pentru a discuta progresul copilului.',
+                AudienceDomain::Instruire,
             );
         }
 

@@ -2,9 +2,12 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Enums\AudienceDomain;
 use App\Enums\UserRole;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 class UserForm
@@ -44,7 +47,18 @@ class UserForm
                     // operațional doar conturi de familie + personal pedagogic.
                     ->options(fn (): array => self::roleOptions())
                     ->native(false)
+                    ->live()
                     ->required(),
+                CheckboxList::make('audience_domains')
+                    ->label('Domenii de audiență')
+                    ->helperText('Audiențele părinților pe acest domeniu se rutează către acest cont (spec §4.2).')
+                    ->options(AudienceDomain::options())
+                    ->columns(2)
+                    ->visible(fn (Get $get): bool => in_array($get('role'), [
+                        UserRole::Director->value,
+                        UserRole::PrimVicedirector->value,
+                        UserRole::AdministratorOperational->value,
+                    ], true)),
             ]);
     }
 

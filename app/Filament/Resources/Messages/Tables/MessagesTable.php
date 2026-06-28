@@ -37,6 +37,11 @@ class MessagesTable
                 TextColumn::make('type')
                     ->label('Tip')
                     ->badge(),
+                TextColumn::make('audience_domain')
+                    ->label('Domeniu')
+                    ->badge()
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('student.full_name')
                     ->label('Elev')
                     ->placeholder('—')

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\AudienceDomain;
 use App\Enums\NotificationChannel;
 use App\Enums\NotificationType;
 use App\Enums\UserRole;
@@ -36,10 +37,11 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $notification_locale
  * @property array<string, string>|null $notification_contacts
  * @property array<string, list<string>>|null $notification_preferences
+ * @property list<string>|null $audience_domains
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'username', 'email', 'password', 'must_change_password', 'locale', 'notification_locale', 'notification_contacts', 'notification_preferences'])]
+#[Fillable(['name', 'username', 'email', 'password', 'must_change_password', 'locale', 'notification_locale', 'notification_contacts', 'notification_preferences', 'audience_domains'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
@@ -128,6 +130,42 @@ class User extends Authenticatable implements FilamentUser
             UserRole::PrimVicedirector->value,
             UserRole::AdministratorOperational->value,
         ]);
+    }
+
+    /**
+     * Domeniile de audiență pe care contul le gestionează (atributul „responsabil de domeniu",
+     * spec §4.2). NU e un rol — se atribuie unor conturi de conducere existente, ca să evităm
+     * proliferarea de roluri. Conduce rutarea audiențelor + aprobarea excepțiilor pe domeniu.
+     *
+     * @return list<AudienceDomain>
+     */
+    public function audienceDomains(): array
+    {
+        $domains = [];
+        foreach ($this->audience_domains ?? [] as $value) {
+            $domain = AudienceDomain::tryFrom((string) $value);
+            if ($domain !== null) {
+                $domains[] = $domain;
+            }
+        }
+
+        return $domains;
+    }
+
+    /**
+     * Contul răspunde de domeniul de audiență dat.
+     */
+    public function handlesAudienceDomain(AudienceDomain $domain): bool
+    {
+        return in_array($domain->value, $this->audience_domains ?? [], true);
+    }
+
+    /**
+     * Contul e responsabil de cel puțin un domeniu de audiență (vede inboxul de audiențe pe domeniu).
+     */
+    public function canHandleAudiences(): bool
+    {
+        return $this->audienceDomains() !== [];
     }
 
     // ----------------------------------------------------------------------------------
@@ -457,6 +495,7 @@ class User extends Authenticatable implements FilamentUser
             'two_factor_confirmed_at' => 'datetime',
             'notification_contacts' => 'array',
             'notification_preferences' => 'array',
+            'audience_domains' => 'array',
         ];
     }
 }

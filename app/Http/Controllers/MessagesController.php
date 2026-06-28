@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\SendMessage;
+use App\Enums\AudienceDomain;
 use App\Models\Message;
 use App\Models\Student;
 use App\Models\User;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rules\Enum;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -47,6 +49,7 @@ class MessagesController extends Controller
             'type' => ['required', 'in:direct,audience'],
             'student_id' => ['required', 'integer', 'exists:students,id'],
             'recipient_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'domain' => ['required_if:type,audience', 'nullable', new Enum(AudienceDomain::class)],
             'subject' => ['nullable', 'string', 'max:150'],
             'body' => ['required', 'string', 'max:2000'],
         ]);
@@ -56,7 +59,13 @@ class MessagesController extends Controller
         $send = app(SendMessage::class);
 
         if ($data['type'] === 'audience') {
-            $send->audience($user, $student, $data['subject'] ?? 'Solicitare audiență', $data['body']);
+            $send->audience(
+                $user,
+                $student,
+                $data['subject'] ?? 'Solicitare audiență',
+                $data['body'],
+                AudienceDomain::from((string) $data['domain']),
+            );
         } else {
             abort_if($data['recipient_user_id'] === null, 422, 'Alege un destinatar.');
             $recipient = User::query()->findOrFail((int) $data['recipient_user_id']);
@@ -142,6 +151,7 @@ class MessagesController extends Controller
                 'recipients' => $send->allowedRecipientsForStudent($student),
             ])->all(),
             'canAudience' => $students->isNotEmpty(),
+            'audienceDomains' => AudienceDomain::values(),
         ];
     }
 }

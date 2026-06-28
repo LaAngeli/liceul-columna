@@ -40,6 +40,7 @@ interface Props {
     compose: {
         students: StudentOption[];
         canAudience: boolean;
+        audienceDomains: string[];
     };
 }
 
@@ -52,12 +53,14 @@ export default function MessagesPage({ threads, compose }: Props) {
         type: 'direct' | 'audience';
         student_id: number | '';
         recipient_user_id: number | '';
+        domain: string;
         subject: string;
         body: string;
     }>({
         type: 'direct',
         student_id: compose.students[0]?.id ?? '',
         recipient_user_id: '',
+        domain: '',
         subject: '',
         body: '',
     });
@@ -69,7 +72,7 @@ export default function MessagesPage({ threads, compose }: Props) {
         e.preventDefault();
         form.post(messageRoutes.send().url, {
             preserveScroll: true,
-            onSuccess: () => form.reset('subject', 'body', 'recipient_user_id'),
+            onSuccess: () => form.reset('subject', 'body', 'recipient_user_id', 'domain'),
         });
     }
 
@@ -157,6 +160,24 @@ export default function MessagesPage({ threads, compose }: Props) {
                                     )}
                                 </select>
                             </label>
+
+                            {form.data.type === 'audience' && (
+                                <label className="grid gap-1.5 text-xs text-muted-foreground">
+                                    {t('cabinet.messages_domain', 'Domeniul sesizării')}
+                                    <select
+                                        value={form.data.domain}
+                                        onChange={(e) => form.setData('domain', e.target.value)}
+                                        className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                                    >
+                                        <option value="">—</option>
+                                        {compose.audienceDomains.map((d) => (
+                                            <option key={d} value={d}>
+                                                {t(`cabinet.audience_${d}`, d)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            )}
                         </div>
 
                         <input
@@ -186,7 +207,11 @@ export default function MessagesPage({ threads, compose }: Props) {
 
                         <button
                             type="submit"
-                            disabled={form.processing || (form.data.type === 'direct' && form.data.recipient_user_id === '')}
+                            disabled={
+                                form.processing ||
+                                (form.data.type === 'direct' && form.data.recipient_user_id === '') ||
+                                (form.data.type === 'audience' && form.data.domain === '')
+                            }
                             className="mt-3 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                         >
                             {t('cabinet.messages_send')}

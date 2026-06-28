@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Enums\AudienceDomain;
 use App\Enums\MessageType;
 use App\Enums\UserRole;
 use App\Models\Enrollment;
@@ -14,9 +15,9 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * Trimiterea mesajelor cu filtrare IERARHICĂ pe server (spec §4.2): comunicarea e liberă spre
  * nivelul firesc (familie ↔ profesorul/dirigintele copilului), dar familia NU scrie direct
- * conducerii — pentru asta există „Solicitarea de audiență", rutată automat spre prim-vicedirector
- * (în lipsa vicedirectorilor de domeniu din spec), escaladabilă spre director. Canalele nepermise
- * nu apar în interfață, dar regula reală e aici, verificată la fiecare scriere.
+ * conducerii — pentru asta există „Solicitarea de audiență", rutată către vicedirectorul de
+ * DOMENIU (instruire/educație) după subiect, cu fallback pe director. Canalele nepermise nu apar
+ * în interfață, dar regula reală e aici, verificată la fiecare scriere.
  */
 class SendMessage
 {
@@ -75,13 +76,15 @@ class SendMessage
     }
 
     /**
-     * Solicitare de audiență a familiei → rutată către conducere (prim-vicedirector).
+     * Solicitare de audiență a familiei → rutată către vicedirectorul responsabil de DOMENIU
+     * (instruire / educație), după subiectul sesizării (§4.2). Dacă niciun cont nu gestionează
+     * domeniul, cade pe director — care poate apoi atribui responsabilul (atributul audience_domains).
      */
-    public function audience(User $sender, Student $student, string $subject, string $body): Message
+    public function audience(User $sender, Student $student, string $subject, string $body, AudienceDomain $domain): Message
     {
         abort_unless($this->isFamilyOf($sender, $student), 403, 'Doar familia poate solicita audiență.');
 
-        $recipient = $this->audienceTarget();
+        $recipient = $this->audienceTargetForDomain($domain);
         abort_unless($recipient !== null, 422, 'Nu există un membru al conducerii pentru rutarea audienței.');
 
         return Message::create([
@@ -89,6 +92,7 @@ class SendMessage
             'recipient_user_id' => $recipient->id,
             'student_id' => $student->id,
             'type' => MessageType::Audience,
+            'audience_domain' => $domain,
             'subject' => $subject,
             'body' => $body,
         ]);
@@ -196,9 +200,27 @@ class SendMessage
             ->exists();
     }
 
+    /**
+     * Destinatarul unei audiențe pe un domeniu: întâi un cont care GESTIONEAZĂ domeniul
+     * (atributul audience_domains), altfel fallback pe conducere. Atributul de domeniu primează.
+     */
+    private function audienceTargetForDomain(AudienceDomain $domain): ?User
+    {
+        $handler = User::query()
+            ->whereJsonContains('audience_domains', $domain->value)
+            ->orderBy('id')
+            ->first();
+
+        return $handler ?? $this->audienceTarget();
+    }
+
+    /**
+     * Fallback de rutare dacă niciun responsabil de domeniu nu e atribuit: director, apoi
+     * (excepțional) prim-vicedirector / administrator operațional.
+     */
     private function audienceTarget(): ?User
     {
-        foreach ([UserRole::PrimVicedirector, UserRole::Director, UserRole::AdministratorOperational] as $role) {
+        foreach ([UserRole::Director, UserRole::PrimVicedirector, UserRole::AdministratorOperational] as $role) {
             $user = User::query()
                 ->whereHas('roles', fn ($query) => $query->where('name', $role->value))
                 ->first();

@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\SendMessage;
+use App\Enums\AudienceDomain;
 use App\Enums\MessageType;
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
@@ -99,17 +100,34 @@ it('familia NU poate scrie direct conducerii (canal nepermis → 403)', function
     app(SendMessage::class)->direct($parent, $director, 'Vreau să discut.', null, $student);
 })->throws(HttpException::class);
 
-it('solicitarea de audiență a familiei e rutată către prim-vicedirector', function () {
+it('solicitarea de audiență e rutată către responsabilul de DOMENIU (atribut, nu rol)', function () {
     [$student] = studentInClass();
     $parent = parentOf($student);
-    $primVice = User::factory()->create();
-    $primVice->assignRole(UserRole::PrimVicedirector->value);
 
-    $message = app(SendMessage::class)->audience($parent, $student, 'Solicitare audiență', 'Aș dori o întâlnire.');
+    // Cont de conducere desemnat pe domeniul „instruire" prin atribut (fără rol nou).
+    $vice = User::factory()->create(['audience_domains' => [AudienceDomain::Instruire->value]]);
+    $vice->assignRole(UserRole::PrimVicedirector->value);
+
+    $message = app(SendMessage::class)
+        ->audience($parent, $student, 'Solicitare audiență', 'Aș dori o întâlnire.', AudienceDomain::Instruire);
 
     expect($message->type)->toBe(MessageType::Audience)
-        ->and($message->recipient_user_id)->toBe($primVice->id)
+        ->and($message->audience_domain)->toBe(AudienceDomain::Instruire)
+        ->and($message->recipient_user_id)->toBe($vice->id)
         ->and($message->student_id)->toBe($student->id);
+});
+
+it('audiența cade pe director dacă domeniul nu are responsabil atribuit', function () {
+    [$student] = studentInClass();
+    $parent = parentOf($student);
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+
+    $message = app(SendMessage::class)
+        ->audience($parent, $student, 'Solicitare', 'Text.', AudienceDomain::Educatie);
+
+    expect($message->recipient_user_id)->toBe($director->id)
+        ->and($message->audience_domain)->toBe(AudienceDomain::Educatie);
 });
 
 it('profesorul poate scrie familiei unui elev pe care îl predă, dar nu altei familii', function () {
@@ -200,4 +218,35 @@ it('inboxul cabinetului se randează cu firele și contextul de compunere', func
             ->component('cabinet/messages')
             ->has('threads', 1)
             ->has('compose.students'));
+});
+
+it('ruta de cabinet trimite o audiență pe domeniu (HTTP)', function () {
+    [$student] = studentInClass();
+    $parent = parentOf($student);
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+
+    $this->actingAs($parent)->post(route('cabinet.messages.send'), [
+        'type' => 'audience',
+        'student_id' => $student->id,
+        'domain' => AudienceDomain::Educatie->value,
+        'subject' => 'Audiență',
+        'body' => 'Aș dori o discuție.',
+    ])->assertRedirect();
+
+    expect(Message::query()
+        ->where('type', MessageType::Audience)
+        ->where('audience_domain', AudienceDomain::Educatie->value)
+        ->exists())->toBeTrue();
+});
+
+it('audiența din cabinet cere un domeniu (eroare de validare fără el)', function () {
+    [$student] = studentInClass();
+    $parent = parentOf($student);
+
+    $this->actingAs($parent)->post(route('cabinet.messages.send'), [
+        'type' => 'audience',
+        'student_id' => $student->id,
+        'body' => 'Fără domeniu.',
+    ])->assertSessionHasErrors('domain');
 });

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Actions\SendMessage;
+use App\Enums\AudienceDomain;
 use App\Enums\MessageType;
 use App\Observers\MessageObserver;
 use Database\Factories\MessageFactory;
@@ -20,6 +21,7 @@ use Illuminate\Support\Carbon;
  * într-un fir (parent_id). Regulile de „cine poate scrie cui" sunt în {@see SendMessage}.
  *
  * @property MessageType $type
+ * @property AudienceDomain|null $audience_domain
  * @property Carbon|null $read_at
  */
 #[ObservedBy(MessageObserver::class)]
@@ -34,6 +36,7 @@ class Message extends Model
         'student_id',
         'parent_id',
         'type',
+        'audience_domain',
         'subject',
         'body',
         'read_at',
@@ -43,6 +46,7 @@ class Message extends Model
     {
         return [
             'type' => MessageType::class,
+            'audience_domain' => AudienceDomain::class,
             'read_at' => 'datetime',
         ];
     }

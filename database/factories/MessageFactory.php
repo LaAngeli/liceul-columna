@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\AudienceDomain;
 use App\Enums\MessageType;
 use App\Models\Message;
 use App\Models\User;
@@ -38,6 +39,9 @@ class MessageFactory extends Factory
 
     public function audience(): static
     {
-        return $this->state(fn (): array => ['type' => MessageType::Audience]);
+        return $this->state(fn (): array => [
+            'type' => MessageType::Audience,
+            'audience_domain' => AudienceDomain::Instruire,
+        ]);
     }
 }
