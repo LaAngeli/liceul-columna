@@ -168,6 +168,18 @@ class User extends Authenticatable implements FilamentUser
         return $this->audienceDomains() !== [];
     }
 
+    /**
+     * Poate gestiona calendarul de corigență (spec §2.5): super-adminul, conducerea (director/
+     * prim-vicedirector/AO) și vicedirectorul pe instruire (atribut de domeniu). Aprobarea (ordin
+     * director) și publicarea (AO) concrete sunt gated mai fin în resursă.
+     */
+    public function canManageCorigenta(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->isManagement()
+            || $this->handlesAudienceDomain(AudienceDomain::Instruire);
+    }
+
     // ----------------------------------------------------------------------------------
     // Capabilități (matricea §3.3). Sursa UNICĂ de adevăr pentru celulele binare ●/—.
     // Scoping-ul fin (◐ „limitat") rămâne în policies + global scopes + concern-urile Enforces*.
