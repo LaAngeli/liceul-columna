@@ -1,13 +1,16 @@
 <?php
 
 use App\Http\Controllers\AdmissionController;
+use App\Http\Controllers\BibliotecaController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CabinetController;
+use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ForcedPasswordController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\MessagesController;
 use App\Http\Controllers\NotificationsController;
+use App\Http\Controllers\PrivacyConsentController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Middleware\SetPublicLocale;
 use App\Http\Middleware\SetUserLocale;
@@ -88,7 +91,7 @@ $publicRoutes = function (): void {
     publicPage('/galerie', 'galerie', 'Galerie', [['title' => 'Galerie']]);
 
     // Calendar / Orare
-    publicPage('/calendar', 'calendar', 'Calendar și orare', [['title' => 'Calendar și orare']], 'Toate orarele și programele Liceului „Columna" într-un singur loc.');
+    Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar'); // explorator interactiv de orare
     publicPage('/orarul-lectiilor', 'orarul-lectiilor', 'Orarul lecțiilor', [['title' => 'Calendar', 'href' => '/calendar'], ['title' => 'Orarul lecțiilor']]);
     publicPage('/orarul-sunetelor', 'orarul-sunetelor', 'Orarul sunetelor', [['title' => 'Calendar'], ['title' => 'Orarul sunetelor']]);
     publicPage('/orarul-examenelor', 'orarul-examenelor', 'Orarul examenelor', [['title' => 'Calendar'], ['title' => 'Orarul examenelor']]);
@@ -112,7 +115,7 @@ $publicRoutes = function (): void {
     publicPage('/consiliul-metodic', 'consiliul-metodic', 'Consiliul Metodic', [['title' => 'Consiliul Metodic']]);
     publicPage('/consiliul-scolar', 'consiliul-scolar', 'Consiliul școlar', [['title' => 'Consiliul școlar']]);
     publicPage('/cambridge-english-exam', 'cambridge-english-exam', 'Cambridge English Exam', [['title' => 'Cambridge English']]);
-    publicPage('/biblioteca-online', 'biblioteca-online', 'Biblioteca online', [['title' => 'Biblioteca online']], 'Cărți, curricula și ghiduri în format electronic.', true);
+    Route::get('/biblioteca-online', [BibliotecaController::class, 'index'])->name('biblioteca-online'); // pagină interactivă dedicată
     publicPage('/tabara-de-vara', 'tabara-de-vara', 'Tabără de vară', [['title' => 'Tabără de vară']]);
     publicPage('/sponsorizare', 'sponsorizare', 'Sponsorizare', [['title' => 'Sponsorizare']]);
     publicPage('/contacte', 'contacte', 'Contacte', [['title' => 'Contacte']]);
@@ -164,4 +167,8 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
 Route::middleware(['auth', SetUserLocale::class])->group(function () {
     Route::get('schimbare-parola', [ForcedPasswordController::class, 'edit'])->name('password.change');
     Route::put('schimbare-parola', [ForcedPasswordController::class, 'update'])->name('password.change.update');
+
+    // Luare la cunoștință a notei de informare (Legea 133/2011 §7) — blocant pentru elev/părinte.
+    Route::get('consimtamant', [PrivacyConsentController::class, 'show'])->name('privacy.consent');
+    Route::post('consimtamant', [PrivacyConsentController::class, 'store'])->name('privacy.consent.store');
 });

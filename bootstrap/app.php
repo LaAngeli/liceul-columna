@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsurePasswordChanged;
+use App\Http\Middleware\EnsurePrivacyAcknowledged;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             EnsurePasswordChanged::class,
+            EnsurePrivacyAcknowledged::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

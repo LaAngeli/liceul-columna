@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -38,10 +39,12 @@ use Spatie\Permission\Traits\HasRoles;
  * @property array<string, string>|null $notification_contacts
  * @property array<string, list<string>>|null $notification_preferences
  * @property list<string>|null $audience_domains
+ * @property string|null $privacy_acknowledged_version
+ * @property Carbon|null $privacy_acknowledged_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'username', 'email', 'password', 'must_change_password', 'locale', 'notification_locale', 'notification_contacts', 'notification_preferences', 'audience_domains'])]
+#[Fillable(['name', 'username', 'email', 'password', 'must_change_password', 'locale', 'notification_locale', 'notification_contacts', 'notification_preferences', 'audience_domains', 'privacy_acknowledged_version', 'privacy_acknowledged_at'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
@@ -178,6 +181,24 @@ class User extends Authenticatable implements FilamentUser
         return $this->isSuperAdmin()
             || $this->isManagement()
             || $this->handlesAudienceDomain(AudienceDomain::Instruire);
+    }
+
+    /**
+     * A confirmat (luat la cunoștință) nota de informare în versiunea curentă (Legea 133/2011 §7)?
+     */
+    public function hasAcknowledgedCurrentPrivacyNotice(): bool
+    {
+        return $this->privacy_acknowledged_version === (string) config('privacy.notice_version');
+    }
+
+    /**
+     * Istoricul confirmărilor notei de informare (dovadă L133).
+     *
+     * @return HasMany<ConsentAcknowledgment, $this>
+     */
+    public function consentAcknowledgments(): HasMany
+    {
+        return $this->hasMany(ConsentAcknowledgment::class);
     }
 
     // ----------------------------------------------------------------------------------
@@ -508,6 +529,7 @@ class User extends Authenticatable implements FilamentUser
             'notification_contacts' => 'array',
             'notification_preferences' => 'array',
             'audience_domains' => 'array',
+            'privacy_acknowledged_at' => 'datetime',
         ];
     }
 }

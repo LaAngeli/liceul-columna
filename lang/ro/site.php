@@ -186,6 +186,18 @@ return [
         'cpae' => 'Orarul CPAE',
         'recovery' => 'Orar recuperări',
         'meetings' => 'Ședințele cu părinții',
+        'intro' => 'Alege un tip de orar, apoi clasa — totul se afișează pe loc, fără a schimba pagina.',
+        'types_active' => 'tipuri de orar',
+        'classes' => 'orare pe clase',
+        'programs' => 'programe publicate',
+        'pick_class' => 'Alege clasa',
+        'primar' => 'Primar',
+        'gimnaziu' => 'Gimnaziu',
+        'liceu' => 'Liceu',
+        'empty' => 'Acest program va fi publicat în curând.',
+        'today' => 'Azi',
+        'updated' => 'Orarele sunt întreținute de administrație și se pot actualiza pe parcursul anului.',
+        'open_full' => 'Pagina completă',
     ],
     'utility' => [
         'cei' => 'Centrul de Evaluare Instituțională',
@@ -535,6 +547,8 @@ return [
 
         'must_title' => 'Schimbă parola',
         'must_subtitle' => 'Din motive de securitate, setează o parolă nouă pentru a continua',
+        'privacy_title' => 'Notă de informare',
+        'privacy_subtitle' => 'Te rugăm să iei cunoștință înainte de a continua',
         'must_submit' => 'Salvează parola',
 
         'head_login' => 'Autentificare',

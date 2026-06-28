@@ -186,6 +186,18 @@ return [
         'cpae' => 'CPAE schedule',
         'recovery' => 'Make-up schedule',
         'meetings' => 'Parent meetings',
+        'intro' => 'Pick a schedule type, then a class — everything shows instantly, no page change.',
+        'types_active' => 'schedule types',
+        'classes' => 'class timetables',
+        'programs' => 'published programmes',
+        'pick_class' => 'Pick a class',
+        'primar' => 'Primary',
+        'gimnaziu' => 'Secondary',
+        'liceu' => 'High school',
+        'empty' => 'This schedule will be published soon.',
+        'today' => 'Today',
+        'updated' => 'Schedules are maintained by the administration and may be updated during the year.',
+        'open_full' => 'Full page',
     ],
     'utility' => [
         'cei' => 'Institutional Evaluation Centre',
@@ -535,6 +547,8 @@ return [
 
         'must_title' => 'Change password',
         'must_subtitle' => 'For security reasons, please set a new password to continue',
+        'privacy_title' => 'Information notice',
+        'privacy_subtitle' => 'Please review before continuing',
         'must_submit' => 'Save password',
 
         'head_login' => 'Sign in',

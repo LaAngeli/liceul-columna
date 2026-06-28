@@ -33,6 +33,10 @@ class UserFactory extends Factory
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
+            // Implicit „a luat la cunoștință" nota de informare (ca email_verified_at). Testele care
+            // vizează fluxul de consimțământ folosesc starea ->unacknowledged().
+            'privacy_acknowledged_version' => config('privacy.notice_version'),
+            'privacy_acknowledged_at' => now(),
         ];
     }
 
@@ -55,6 +59,17 @@ class UserFactory extends Factory
             'two_factor_secret' => encrypt('secret'),
             'two_factor_recovery_codes' => encrypt(json_encode(['recovery-code-1'])),
             'two_factor_confirmed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Userul NU a luat la cunoștință nota de informare (pentru testele fluxului de consimțământ).
+     */
+    public function unacknowledged(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'privacy_acknowledged_version' => null,
+            'privacy_acknowledged_at' => null,
         ]);
     }
 }
