@@ -156,6 +156,7 @@ function gradeLabel(item: GradeItem): string {
     if (item.value !== null) {
         return String(Number(item.value));
     }
+
     return item.calificativ ?? '—';
 }
 
@@ -167,9 +168,11 @@ function motivationStatusClass(status: string): string {
     if (status === 'approved') {
         return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
     }
+
     if (status === 'rejected') {
         return 'bg-destructive/10 text-destructive';
     }
+
     return 'bg-amber-500/10 text-amber-600 dark:text-amber-400';
 }
 
@@ -177,12 +180,15 @@ function trendSymbol(trend: Trend): { symbol: string; cls: string } | null {
     if (trend === 'up') {
         return { symbol: '▲', cls: 'text-emerald-600 dark:text-emerald-400' };
     }
+
     if (trend === 'down') {
         return { symbol: '▼', cls: 'text-destructive' };
     }
+
     if (trend === 'stable') {
         return { symbol: '▬', cls: 'text-muted-foreground' };
     }
+
     return null;
 }
 
@@ -191,6 +197,7 @@ function sparklinePoints(values: number[], width: number, height: number): strin
     if (values.length === 0) {
         return '';
     }
+
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min || 1;
@@ -200,6 +207,7 @@ function sparklinePoints(values: number[], width: number, height: number): strin
         .map((v, i) => {
             const x = i * step;
             const y = height - ((v - min) / range) * height;
+
             return `${x.toFixed(1)},${y.toFixed(1)}`;
         })
         .join(' ');
@@ -265,8 +273,14 @@ export default function StudentProfile({
                         )}
                     </div>
                     <Link
-                        href={notificationRoutes.url()}
+                        href="/cabinet/calendar"
                         className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
+                    >
+                        {t('ccal.title')}
+                    </Link>
+                    <Link
+                        href={notificationRoutes.url()}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
                     >
                         {t('cabinet.notif_title')}
                     </Link>
@@ -436,6 +450,7 @@ export default function StudentProfile({
                                             <td className="px-3 py-2 font-semibold text-muted-foreground">{num}</td>
                                             {timetable.days.map((d) => {
                                                 const cell = timetable.grid[`${d.value}-${num}`];
+
                                                 return (
                                                     <td key={d.value} className="px-3 py-2 text-center align-top">
                                                         {cell ? (
@@ -814,6 +829,7 @@ export default function StudentProfile({
                                             {dynamics.current.average ?? '—'}
                                             {(() => {
                                                 const tr = trendSymbol(dynamics.current.trend);
+
                                                 return tr ? <span className={`ml-1 text-base ${tr.cls}`}>{tr.symbol}</span> : null;
                                             })()}
                                         </p>
@@ -877,6 +893,7 @@ export default function StudentProfile({
                                         {dynamics.subjects.map((s) => {
                                             const tr = trendSymbol(s.trend);
                                             const last = s.points[s.points.length - 1];
+
                                             return (
                                                 <li key={s.subject} className="flex items-center justify-between gap-3 px-4 py-2">
                                                     <span className="truncate text-sm">{s.subject}</span>

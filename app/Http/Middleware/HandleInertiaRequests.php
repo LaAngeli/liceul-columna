@@ -56,7 +56,17 @@ class HandleInertiaRequests extends Middleware
             // Toate limbile, ca interfața să poată rezerva lățimea celei mai lungi
             // variante (butoanele nu-și schimbă dimensiunea la traducere).
             'messages' => fn (): array => collect(array_keys(Locale::supported()))
-                ->mapWithKeys(fn (string $code): array => [$code => trans('site', [], $code)])
+                ->mapWithKeys(function (string $code): array {
+                    $site = trans('site', [], $code);
+                    $calendar = trans('cabinet_calendar', [], $code);
+
+                    // Modulul Calendar își ține cheile într-un fișier separat (izolat de site.php),
+                    // expus sub prefixul `ccal.*`.
+                    return [$code => [
+                        ...is_array($site) ? $site : [],
+                        'ccal' => is_array($calendar) ? $calendar : [],
+                    ]];
+                })
                 ->all(),
         ];
     }
