@@ -83,8 +83,9 @@ class CalendarAccess
     public function visibleStudents(User $viewer): Collection
     {
         // Tutore: prin pivotul guardian_student. Elev: fișa proprie, legată prin Student.user_id.
-        $guarded = $viewer->students()->get();
-        $own = Student::query()->where('user_id', $viewer->id)->get();
+        // Înrolările sunt pre-încărcate pentru garda pe zi ({@see wasEnrolledOn}).
+        $guarded = $viewer->students()->with('enrollments')->get();
+        $own = Student::query()->where('user_id', $viewer->id)->with('enrollments')->get();
 
         return $guarded->concat($own)->unique('id')->values();
     }
