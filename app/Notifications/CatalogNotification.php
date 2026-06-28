@@ -27,6 +27,13 @@ class CatalogNotification extends Notification implements ShouldQueue
     use Queueable;
 
     /**
+     * Reziliență (spec §8 / #41): la livrare eșuată (server mail / API Telegram indisponibil),
+     * reîncearcă de 3 ori; după epuizare, jobul ajunge în `failed_jobs` (poate fi reluat manual).
+     * Pauzele cresc — vezi {@see backoff()}.
+     */
+    public int $tries = 3;
+
+    /**
      * @param  array<string, string>  $params  Valorile placeholderelor din șablon (`:student`...).
      * @param  array<string, mixed>  $meta  Date suplimentare puse în payload (ex. `announcement_id`).
      */
@@ -38,6 +45,16 @@ class CatalogNotification extends Notification implements ShouldQueue
         public ?string $customBody = null,
         public array $meta = [],
     ) {}
+
+    /**
+     * Pauzele (secunde) între reîncercările de livrare.
+     *
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        return [60, 300, 900];
+    }
 
     /**
      * @return list<string>
