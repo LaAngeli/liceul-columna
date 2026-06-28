@@ -381,7 +381,7 @@ export default function StudentProfile({
 
                 {/* Absențe */}
                 {absencesTotal > 0 && (
-                    <section>
+                    <section id="absences">
                         <div className="mb-3 flex flex-wrap items-center gap-3">
                             <h2 className="text-lg font-semibold">{t('cabinet.absences_by_subject')}</h2>
                             <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
@@ -479,7 +479,7 @@ export default function StudentProfile({
 
                 {/* Motivarea absențelor (familia depune, dirigintele validează) */}
                 {corigentaExams.length > 0 && (
-                    <section className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
+                    <section id="corigenta" className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
                         <h2 className="mb-3 text-lg font-semibold">{t('cabinet.corigenta_title', 'Lichidarea corigenței')}</h2>
                         <ul className="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
                             {corigentaExams.map((e) => (
@@ -500,7 +500,7 @@ export default function StudentProfile({
                 )}
 
                 {(canRequestMotivation || motivations.length > 0) && (
-                    <section>
+                    <section id="motivations">
                         <h2 className="mb-3 text-lg font-semibold">{t('cabinet.motivations_title')}</h2>
                         <div className="grid gap-4 lg:grid-cols-2">
                             {canRequestMotivation && (
@@ -920,7 +920,7 @@ export default function StudentProfile({
 
                 {/* Teme */}
                 {homework.length > 0 && (
-                    <section>
+                    <section id="homework">
                         <h2 className="mb-3 text-lg font-semibold">{t('cabinet.homework')}</h2>
                         <div className="flex flex-col gap-3">
                             {homework.map((h) => (

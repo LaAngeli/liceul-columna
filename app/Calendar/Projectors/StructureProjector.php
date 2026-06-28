@@ -30,7 +30,7 @@ class StructureProjector implements CalendarProjector
                     id: "term-start:{$term->id}",
                     source: 'term',
                     category: CalendarCategory::Structure,
-                    title: 'Început de semestru',
+                    title: (string) trans('cabinet_calendar.auto_term_start'),
                     date: $term->starts_on->toDateString(),
                     meta: ['boundary' => 'start'],
                 );
@@ -41,7 +41,7 @@ class StructureProjector implements CalendarProjector
                     id: "term-end:{$term->id}",
                     source: 'term',
                     category: CalendarCategory::Structure,
-                    title: 'Sfârșit de semestru',
+                    title: (string) trans('cabinet_calendar.auto_term_end'),
                     date: $term->ends_on->toDateString(),
                     meta: ['boundary' => 'end'],
                 );

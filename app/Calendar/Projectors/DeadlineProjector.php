@@ -42,8 +42,9 @@ class DeadlineProjector implements CalendarProjector
                 id: "motivation-deadline:{$absence->id}",
                 source: 'motivation_deadline',
                 category: CalendarCategory::Deadline,
-                title: 'Termen de motivare a absenței',
+                title: (string) trans('cabinet_calendar.auto_motivation_deadline'),
                 date: $absence->motivation_deadline->toDateString(),
+                deepLink: "/cabinet/elev/{$absence->student_id}#motivations",
                 studentId: $absence->student_id,
             );
         }

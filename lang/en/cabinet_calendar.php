@@ -23,4 +23,13 @@ return [
     'cat_schedule' => 'Timetable',
     'cat_structure' => 'Structure',
     'cat_communication' => 'Communications',
+
+    // Titles for auto-aggregated events (used by projectors, localized server-side).
+    'auto_absence' => 'Absence',
+    'auto_absence_motivated' => 'Excused absence',
+    'auto_motivation_deadline' => 'Absence justification deadline',
+    'auto_corigenta_exam' => 'Remedial exam',
+    'auto_corigenta_session' => 'Remedial exam session',
+    'auto_term_start' => 'Term start',
+    'auto_term_end' => 'Term end',
 ];

@@ -90,3 +90,16 @@ it('proiectează limitele de semestru ca evenimente de structură', function () 
     expect($structure)->toHaveCount(2)
         ->and($structure->pluck('date'))->toContain('2026-06-02', '2026-06-28');
 });
+
+it('evenimentele PII poartă deep-link către secțiunea din cabinet + titlu localizat', function () {
+    $year = AcademicYear::factory()->create();
+    $class = SchoolClass::factory()->for($year)->create(['grade_level' => 9, 'section' => 'A']);
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($year)->create();
+    Absence::factory()->for($student)->create(['occurred_on' => '2026-06-12', 'is_motivated' => false]);
+
+    $absence = collectCalendar(calendarScopeFor($student))->firstWhere('source', 'absence');
+
+    expect($absence->deepLink)->toBe("/cabinet/elev/{$student->id}#absences")
+        ->and($absence->title)->toBe('Absență');
+});

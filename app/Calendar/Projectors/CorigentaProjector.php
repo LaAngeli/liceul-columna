@@ -38,8 +38,9 @@ class CorigentaProjector implements CalendarProjector
                     id: "corigenta-exam:{$exam->id}",
                     source: 'corigenta_exam',
                     category: CalendarCategory::Assessment,
-                    title: 'Examen de corigență',
+                    title: (string) trans('cabinet_calendar.auto_corigenta_exam'),
                     date: $exam->scheduled_on->toDateString(),
+                    deepLink: "/cabinet/elev/{$exam->student_id}#corigenta",
                     studentId: $exam->student_id,
                 );
             }

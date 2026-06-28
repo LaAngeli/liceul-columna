@@ -31,12 +31,15 @@ class AbsenceProjector implements CalendarProjector
             ->get();
 
         foreach ($absences as $absence) {
+            $title = (string) trans('cabinet_calendar.'.($absence->is_motivated ? 'auto_absence_motivated' : 'auto_absence'));
+
             $items[] = new CalendarItem(
                 id: "absence:{$absence->id}",
                 source: 'absence',
                 category: CalendarCategory::Absence,
-                title: $absence->is_motivated ? 'Absență motivată' : 'Absență',
+                title: $title,
                 date: $absence->occurred_on->toDateString(),
+                deepLink: "/cabinet/elev/{$absence->student_id}#absences",
                 studentId: $absence->student_id,
                 meta: ['motivated' => $absence->is_motivated],
             );

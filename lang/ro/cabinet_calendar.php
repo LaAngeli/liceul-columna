@@ -23,4 +23,13 @@ return [
     'cat_schedule' => 'Orar',
     'cat_structure' => 'Structură',
     'cat_communication' => 'Comunicări',
+
+    // Titluri pentru evenimentele auto-agregate (folosite în proiectoare, localizate pe server).
+    'auto_absence' => 'Absență',
+    'auto_absence_motivated' => 'Absență motivată',
+    'auto_motivation_deadline' => 'Termen de motivare a absenței',
+    'auto_corigenta_exam' => 'Examen de corigență',
+    'auto_corigenta_session' => 'Sesiune de corigență',
+    'auto_term_start' => 'Început de semestru',
+    'auto_term_end' => 'Sfârșit de semestru',
 ];

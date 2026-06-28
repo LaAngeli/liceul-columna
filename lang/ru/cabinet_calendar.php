@@ -23,4 +23,13 @@ return [
     'cat_schedule' => 'Расписание',
     'cat_structure' => 'Структура',
     'cat_communication' => 'Сообщения',
+
+    // Заголовки авто-агрегированных событий (используются в проекторах, локализуются на сервере).
+    'auto_absence' => 'Пропуск',
+    'auto_absence_motivated' => 'Уважительный пропуск',
+    'auto_motivation_deadline' => 'Срок обоснования пропуска',
+    'auto_corigenta_exam' => 'Экзамен по ликвидации задолженности',
+    'auto_corigenta_session' => 'Сессия ликвидации задолженности',
+    'auto_term_start' => 'Начало семестра',
+    'auto_term_end' => 'Конец семестра',
 ];

@@ -8,6 +8,7 @@ use App\Calendar\CalendarProjector;
 use App\Calendar\CalendarScope;
 use App\Enums\CalendarCategory;
 use App\Models\HomeworkAssignment;
+use App\Support\ContentTranslator;
 use Carbon\CarbonInterface;
 
 /**
@@ -44,7 +45,7 @@ class HomeworkProjector implements CalendarProjector
                     continue;
                 }
 
-                $title = $homework->subject_name !== '' ? $homework->subject_name : 'Temă';
+                $title = $homework->subject_name !== '' ? ContentTranslator::subject($homework->subject_name) : 'Temă';
 
                 $items[] = new CalendarItem(
                     id: "homework:{$homework->id}:{$student->id}",
@@ -52,6 +53,7 @@ class HomeworkProjector implements CalendarProjector
                     category: CalendarCategory::Homework,
                     title: $title,
                     date: $homework->assigned_on->toDateString(),
+                    deepLink: "/cabinet/elev/{$student->id}#homework",
                     studentId: $student->id,
                 );
             }
