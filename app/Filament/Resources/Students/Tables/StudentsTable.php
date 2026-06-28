@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Students\Tables;
 
 use App\Actions\DetermineStudentStatus;
+use App\Actions\GenerateCorigentaExams;
 use App\Enums\StudentStatus;
 use App\Models\SemesterValidation;
 use App\Models\Student;
@@ -92,6 +93,15 @@ class StudentsTable
                                 'validated_at' => now(),
                             ],
                         );
+
+                        // „Corigent" → generează automat intrările de corigență (per disciplină restantă),
+                        // vizibile părintelui/dirigintelui; data + comisia se completează din sesiune (§2.5).
+                        if ($data['status'] === StudentStatus::Corigent->value) {
+                            $term = Term::query()->find((int) $termId);
+                            if ($term !== null) {
+                                app(GenerateCorigentaExams::class)->forStudentTerm($record, $term);
+                            }
+                        }
 
                         Notification::make()->success()->title('Statut validat oficial')->send();
                     }),

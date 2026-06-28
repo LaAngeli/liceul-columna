@@ -74,6 +74,16 @@ interface MotivationItem {
     documentUrl: string | null;
 }
 
+interface CorigentaExamItem {
+    id: number;
+    subject: string;
+    season: string;
+    scheduledOn: string | null;
+    commission: string | null;
+    sessionType: string | null;
+    passed: boolean | null;
+}
+
 interface DocumentRequestItem {
     id: number;
     type: string;
@@ -137,6 +147,7 @@ interface Props {
     deferralRisk: DeferralRisk[];
     motivations: MotivationItem[];
     documentRequests: DocumentRequestItem[];
+    corigentaExams: CorigentaExamItem[];
     requestTypes: Record<string, string>;
     canRequestMotivation: boolean;
 }
@@ -210,6 +221,7 @@ export default function StudentProfile({
     deferralRisk,
     motivations,
     documentRequests,
+    corigentaExams,
     requestTypes,
     canRequestMotivation,
 }: Props) {
@@ -451,6 +463,27 @@ export default function StudentProfile({
                 )}
 
                 {/* Motivarea absențelor (familia depune, dirigintele validează) */}
+                {corigentaExams.length > 0 && (
+                    <section className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
+                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.corigenta_title', 'Lichidarea corigenței')}</h2>
+                        <ul className="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
+                            {corigentaExams.map((e) => (
+                                <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                                    <span className="font-medium">{e.subject}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {e.sessionType ? `${e.sessionType} · ` : ''}
+                                        {e.season}
+                                        {e.scheduledOn
+                                            ? ` · ${e.scheduledOn}`
+                                            : ` · ${t('cabinet.corigenta_unscheduled', 'în curs de programare')}`}
+                                        {e.commission ? ` · ${e.commission}` : ''}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                )}
+
                 {(canRequestMotivation || motivations.length > 0) && (
                     <section>
                         <h2 className="mb-3 text-lg font-semibold">{t('cabinet.motivations_title')}</h2>

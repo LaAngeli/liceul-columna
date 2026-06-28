@@ -14,6 +14,7 @@ use App\Enums\UserRole;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
 use App\Models\AcademicRecord;
+use App\Models\CorigentaExam;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
 use App\Models\HomeworkAssignment;
@@ -148,6 +149,7 @@ class CabinetController extends Controller
             'timetable' => $class !== null ? app(Timetable::class)->forClass($class) : null,
             'deferralRisk' => app(ComputeDeferralRisk::class)->for($student),
             'motivations' => $this->motivations($student),
+            'corigentaExams' => $this->corigentaExams($student),
             'documentRequests' => $this->documentRequests($student),
             'requestTypes' => DocumentRequestType::options(),
             // Doar familia (tutore/elev) poate depune cereri de motivare/tipice — personalul vede
@@ -618,5 +620,30 @@ class CabinetController extends Controller
             'absences_count' => $student->absences()->count(),
             'average' => $overall,
         ];
+    }
+
+    /**
+     * Calendarul de lichidare a corigenței al elevului (spec §2.5 / #33): disciplina restantă,
+     * sezonul, data și comisia (când sunt programate). Vizibil familiei și dirigintelui.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function corigentaExams(Student $student): array
+    {
+        return CorigentaExam::query()
+            ->where('student_id', $student->id)
+            ->with(['subject', 'commission', 'session'])
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (CorigentaExam $exam): array => [
+                'id' => $exam->id,
+                'subject' => ContentTranslator::subject((string) $exam->subject->name),
+                'season' => $exam->season->label(),
+                'scheduledOn' => $exam->scheduled_on?->format('d.m.Y'),
+                'commission' => $exam->commission?->name,
+                'sessionType' => $exam->session?->type->label(),
+                'passed' => $exam->passed,
+            ])
+            ->all();
     }
 }
