@@ -7,6 +7,7 @@ use App\Calendar\Projectors\AbsenceProjector;
 use App\Calendar\Projectors\CorigentaProjector;
 use App\Calendar\Projectors\DeadlineProjector;
 use App\Calendar\Projectors\HomeworkProjector;
+use App\Calendar\Projectors\ManualEventProjector;
 use App\Calendar\Projectors\StructureProjector;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -29,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
             $app->make(DeadlineProjector::class),
             $app->make(StructureProjector::class),
             $app->make(CorigentaProjector::class),
+            $app->make(ManualEventProjector::class),
         ]));
     }
 
