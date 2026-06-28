@@ -20,8 +20,13 @@ class UserForm
                 TextInput::make('email')
                     ->label('Email')
                     ->email()
-                    ->required()
+                    // Obligatoriu doar la CREARE (acolo e identificatorul de login — formularul nu setează
+                    // username). La editare e opțional: mulți elevi/părinți migrați nu au e-mail (intră cu
+                    // username), iar resetarea parolei din panou nu trebuie să-i forțeze administrației inventarea unuia.
+                    ->required(fn (string $operation): bool => $operation === 'create')
                     ->unique(ignoreRecord: true)
+                    // Câmp gol → NULL (nu ''), ca să nu intre în coliziune cu indexul unique pe e-mail.
+                    ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? $state : null)
                     ->maxLength(255),
                 TextInput::make('password')
                     ->label('Parolă')

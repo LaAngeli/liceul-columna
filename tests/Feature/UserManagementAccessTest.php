@@ -1,8 +1,11 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
@@ -85,4 +88,21 @@ it('UserResource::canEdit respectă ierarhia (directorul nu editează un super-a
 
     $this->actingAs(userCu(UserRole::Admin));
     expect(UserResource::canEdit($admin))->toBeTrue();
+});
+
+it('administrația poate reseta parola unui elev fără e-mail, fără să fie forțată să adauge unul', function () {
+    $admin = userCu(UserRole::Admin);
+    $elev = User::factory()->create(['email' => null, 'username' => 'elev.fara.email']);
+    $elev->assignRole(UserRole::Elev->value);
+
+    $this->actingAs($admin);
+
+    Livewire::test(EditUser::class, ['record' => $elev->getRouteKey()])
+        ->fillForm(['password' => 'parola-noua-123'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $elev->refresh();
+    expect($elev->email)->toBeNull()
+        ->and(Hash::check('parola-noua-123', $elev->password))->toBeTrue();
 });
