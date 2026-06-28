@@ -423,6 +423,111 @@ final class PublicPageContent
                 ['type' => 'lead', 'text' => 'Momente din viața Liceului „Columna" — evenimente, activități și sărbători.'],
                 ['type' => 'gallery', 'images' => self::galleryImages('general')],
             ],
+
+            'istorie' => [
+                ['type' => 'lead', 'text' => 'Liceul „Columna" a fost fondat în anul 1998, cu misiunea de a oferi o educație de calitate, ancorată în valori și deschisă spre lume.'],
+                ['type' => 'prose', 'paragraphs' => [
+                    'De la primii ani de activitate, instituția și-a propus să dezvolte un mediu școlar prietenos copilului, în care fiecare elev este îndrumat să gândească critic, să exploreze și să creeze.',
+                    'De-a lungul timpului, liceul a investit continuu în infrastructură, în formarea cadrelor didactice și în diversificarea ofertei educaționale, rămânând fidel idealurilor pedagogice cu care a pornit.',
+                    'În anul 2019, Liceul „Columna" a devenit centru autorizat de pregătire pentru examenele internaționale Cambridge English, consolidând dimensiunea internațională a studiilor.',
+                    'Astăzi, instituția acoperă toate cele trei trepte de școlaritate — primară, gimnazială și liceală — și continuă să formeze generații de elevi pregătiți pentru o viață independentă și împlinită.',
+                ]],
+                ['type' => 'heading', 'level' => 3, 'text' => 'Repere'],
+                ['type' => 'list', 'variant' => 'bullet', 'items' => [
+                    '1998 — fondarea Liceului „Columna" la Chișinău.',
+                    '2019 — autorizare ca centru de pregătire Cambridge English.',
+                    'Prezent — trei trepte de școlaritate (I–XII) și un registru online pentru elevi și părinți.',
+                ]],
+                ['type' => 'cta', 'title' => 'Vrei să faci parte din povestea noastră?', 'text' => 'Programează o vizită sau înscrie-ți copilul.', 'actions' => [
+                    ['label' => 'Înscrie copilul', 'href' => '/inregistrarea-student', 'variant' => 'primary'],
+                    ['label' => 'Contacte', 'href' => '/contacte', 'variant' => 'outline'],
+                ]],
+            ],
+
+            'taxe' => [
+                ['type' => 'lead', 'text' => 'Liceul „Columna" este o instituție privată. Taxele de studii se stabilesc anual și se comunică transparent la momentul înscrierii.'],
+                ['type' => 'prose', 'paragraphs' => [
+                    'Pentru informații actualizate despre taxa de înmatriculare și taxa lunară/anuală pentru fiecare treaptă de școlaritate, vă rugăm să contactați secretariatul liceului sau să programați o vizită.',
+                ]],
+                ['type' => 'heading', 'level' => 3, 'text' => 'Ce include taxa de studii'],
+                ['type' => 'list', 'items' => [
+                    'Procesul instructiv conform curriculumului național, în cele trei trepte de școlaritate;',
+                    'Accesul la cabinete, bibliotecă, sală de sport și celelalte dotări ale instituției;',
+                    'Activitățile Centrului de Promovare și Activități Extracurriculare (CPAE);',
+                    'Accesul la cabinetul/registrul online pentru elevi și părinți.',
+                ]],
+                ['type' => 'prose', 'paragraphs' => [
+                    'Notă: sumele exacte și modalitățile de achitare se comunică în cadrul procesului de admitere. Această pagină urmează să fie completată cu grila de taxe oficială.',
+                ]],
+                ['type' => 'cta', 'title' => 'Întrebări despre taxe?', 'text' => 'Contactează secretariatul pentru grila de taxe actuală.', 'actions' => [
+                    ['label' => 'Contacte', 'href' => '/contacte', 'variant' => 'primary'],
+                    ['label' => 'Admitere', 'href' => '/admitere', 'variant' => 'outline'],
+                ]],
+            ],
+
+            'intrebari-frecvente' => [
+                ['type' => 'lead', 'text' => 'Răspunsuri la cele mai frecvente întrebări despre admitere, programul școlar și viața la Liceul „Columna".'],
+                ['type' => 'faq', 'items' => [
+                    ['question' => 'Cum îmi înscriu copilul la Liceul „Columna"?', 'answer' => 'Completezi formularul de înscriere online, programezi o vizită, apoi depui dosarul de înmatriculare. Te însoțim la fiecare pas.'],
+                    ['question' => 'Ce trepte de școlaritate acoperă liceul?', 'answer' => 'Toate cele trei trepte: primară (clasele I–IV), gimnazială (V–IX) și liceală (X–XII).'],
+                    ['question' => 'Ce limbi străine se studiază?', 'answer' => 'Limba engleză are un loc central, liceul fiind centru autorizat Cambridge English; oferta completă de limbi se comunică la înscriere.'],
+                    ['question' => 'Există activități extracurriculare?', 'answer' => 'Da, prin Centrul de Promovare și Activități Extracurriculare (CPAE), care organizează activități de dezvoltare personală și socială.'],
+                    ['question' => 'Cum urmăresc notele și absențele copilului?', 'answer' => 'Prin cabinetul/registrul online: părinții și elevii văd notele, absențele și mediile, iar profesorii le actualizează în timp real.'],
+                    ['question' => 'Care sunt taxele de studii?', 'answer' => 'Liceul este o instituție privată; grila de taxe se comunică transparent la momentul înscrierii. Contactează secretariatul pentru informații actuale.'],
+                ]],
+                ['type' => 'cta', 'title' => 'Nu ai găsit răspunsul?', 'text' => 'Scrie-ne sau sună-ne — îți răspundem cu drag.', 'actions' => [
+                    ['label' => 'Contacte', 'href' => '/contacte', 'variant' => 'primary'],
+                    ['label' => 'Înscrie copilul', 'href' => '/inregistrarea-student', 'variant' => 'outline'],
+                ]],
+            ],
+
+            'confidentialitate' => [
+                ['type' => 'lead', 'text' => 'Liceul „Columna" respectă confidențialitatea datelor cu caracter personal ale elevilor, părinților și vizitatorilor, în conformitate cu Legea nr. 133/2011 privind protecția datelor cu caracter personal.'],
+                ['type' => 'heading', 'level' => 3, 'text' => 'Operatorul de date'],
+                ['type' => 'prose', 'paragraphs' => [
+                    'IPL „Liceul Columna", cu sediul în Chișinău, Republica Moldova, este operatorul datelor cu caracter personal prelucrate prin intermediul acestui site și al registrului online.',
+                ]],
+                ['type' => 'heading', 'level' => 3, 'text' => 'Ce date prelucrăm'],
+                ['type' => 'list', 'items' => [
+                    'Date de contact transmise prin formularul de înscriere (numele părintelui și al copilului, telefon, e-mail);',
+                    'Date necesare procesului educativ pentru elevii înmatriculați (note, absențe, medii), accesibile în cabinetul online;',
+                    'Date tehnice minime de funcționare a site-ului (de exemplu, preferința de limbă).',
+                ]],
+                ['type' => 'heading', 'level' => 3, 'text' => 'Scopul prelucrării'],
+                ['type' => 'list', 'items' => [
+                    'Procesarea cererilor de înscriere și comunicarea cu familiile;',
+                    'Desfășurarea procesului educativ și ținerea evidenței școlare;',
+                    'Îmbunătățirea serviciilor și a experienței pe site.',
+                ]],
+                ['type' => 'heading', 'level' => 3, 'text' => 'Drepturile dumneavoastră'],
+                ['type' => 'list', 'items' => [
+                    'Dreptul de acces la datele prelucrate;',
+                    'Dreptul la rectificarea datelor inexacte;',
+                    'Dreptul la ștergerea datelor, în condițiile legii;',
+                    'Dreptul de a vă opune prelucrării și de a depune o plângere la autoritatea competentă.',
+                ]],
+                ['type' => 'prose', 'paragraphs' => [
+                    'Pentru exercitarea acestor drepturi sau pentru orice întrebare privind protecția datelor, ne puteți contacta folosind datele din pagina Contacte. Această politică poate fi actualizată periodic.',
+                ]],
+                ['type' => 'cta', 'title' => 'Întrebări despre datele tale?', 'text' => 'Contactează-ne pentru orice clarificare.', 'actions' => [
+                    ['label' => 'Contacte', 'href' => '/contacte', 'variant' => 'primary'],
+                ]],
+            ],
+
+            'calendar' => [
+                ['type' => 'lead', 'text' => 'Toate orarele și programele Liceului „Columna" într-un singur loc.'],
+                ['type' => 'cards', 'columns' => 3, 'items' => [
+                    ['title' => 'Orarul lecțiilor', 'text' => 'Orarul pe clase.', 'href' => '/orarul-lectiilor'],
+                    ['title' => 'Orarul sunetelor', 'text' => 'Intervalele lecțiilor și pauzelor.', 'href' => '/orarul-sunetelor'],
+                    ['title' => 'Orarul examenelor', 'text' => 'Sesiunea curentă.', 'href' => '/orarul-examenelor'],
+                    ['title' => 'Orarul ESS (teze)', 'text' => 'Evaluările sumative semestriale.', 'href' => '/orarul-ess'],
+                    ['title' => 'Orarul pretestărilor', 'text' => 'Pregătirea pentru examenele naționale.', 'href' => '/orarul-pretestarilor'],
+                    ['title' => 'Pregătire pentru examene', 'text' => 'Cursuri de pregătire.', 'href' => '/cursuri-de-pregatire-pentru-examene'],
+                    ['title' => 'Orarul CPAE', 'text' => 'Activitățile extracurriculare.', 'href' => '/orarul-cpae'],
+                    ['title' => 'Orar recuperări', 'text' => 'Orele de recuperare.', 'href' => '/orar-recuperari'],
+                    ['title' => 'Ședințele cu părinții', 'text' => 'Programul pe clase.', 'href' => '/sedintele-cu-parintii'],
+                ]],
+            ],
         ];
     }
 

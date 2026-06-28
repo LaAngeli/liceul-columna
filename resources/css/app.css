@@ -186,6 +186,7 @@
 .prose-columna {
     line-height: 1.75;
     color: var(--foreground);
+    overflow-wrap: anywhere;
 }
 .prose-columna p {
     margin-block: 0.85rem;
@@ -261,3 +262,142 @@
 .dark .auth-emblem {
     background-image: url('/gifs/logo/columna_white_horizontal_clean_download.webp');
 }
+
+/* ============================================================================
+   SITE PUBLIC — sistemul de design „Columna Civic Editorial" (brandbook).
+   TOT e scopat sub `.site-shell` (aplicat de PublicLayout) → panoul staff și
+   cabinetul rămân pe Inter/shadcn, neatinse. Corp = Proxima Nova, titluri = Cervino.
+   Reguli-cheie: keyline 1px navy/12% (nu 0.5px), verdele NICIODATĂ text pe alb,
+   titluri dinamice → Proxima pe <640px, mișcare cu respect pt. reduced-motion.
+   ============================================================================ */
+.site-shell {
+    font-family: var(--font-brand);
+    font-size: 1.0625rem; /* 17px */
+    line-height: 1.65;
+    color: var(--brand-dark);
+    --container: 75rem; /* 1200px */
+    --keyline: color-mix(in oklch, var(--brand-navy) 14%, transparent);
+}
+.dark .site-shell {
+    color: var(--foreground);
+}
+
+/* Container editorial */
+.site-shell .site-container {
+    width: 100%;
+    max-width: var(--container);
+    margin-inline: auto;
+    padding-inline: 1rem;
+}
+@media (min-width: 640px) {
+    .site-shell .site-container { padding-inline: 1.5rem; }
+}
+
+/* Titluri display (Cervino). `.display` = static scurt; `.heading-dynamic` = CMS (anti-overflow). */
+.site-shell .display {
+    font-family: var(--font-display);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+}
+.site-shell .display-soft { font-weight: 700; letter-spacing: -0.005em; }
+.site-shell .heading-dynamic {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 1.1;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+}
+@media (max-width: 639.98px) {
+    .site-shell .heading-dynamic {
+        font-family: var(--font-brand);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0;
+        hyphens: manual;
+    }
+}
+
+/* Eyebrow / kicker / section-index */
+.site-shell .eyebrow {
+    font-family: var(--font-brand);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 0.8125rem;
+    line-height: 1.2;
+}
+@media (max-width: 639.98px) {
+    .site-shell .eyebrow { letter-spacing: 0.08em; overflow-wrap: anywhere; }
+}
+
+/* Keyline 1px navy/12% (snapped) — separatorul-cheie al sistemului */
+.site-shell .keyline { border-color: var(--keyline) !important; }
+
+/* Numerale Cervino tabulare (stat ribbon, „1998") */
+.site-shell .numeral {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+}
+
+/* Texturi de „sistem/date" — dot-grid verde discret pe navy (admitere, cabinet) */
+.site-shell .dotgrid {
+    background-image: radial-gradient(color-mix(in oklch, var(--brand-green) 60%, transparent) 1.1px, transparent 1.3px);
+    background-size: 22px 22px;
+}
+
+/* 4-point star fleuron rotește lent DOAR în footer (altfel static) */
+@media (prefers-reduced-motion: no-preference) {
+    .site-shell .star-spin { animation: site-star-spin 8s linear infinite; }
+}
+@keyframes site-star-spin { to { transform: rotate(360deg); } }
+
+/* Scroll-reveal (fade-up 16px, o singură dată); rule-draw (linie ledger st→dr).
+   Sub reduced-motion: elementele rămân vizibile (fără opacity:0/scaleX:0). */
+@media (prefers-reduced-motion: no-preference) {
+    .site-shell [data-reveal] {
+        opacity: 0;
+        transform: translateY(16px);
+        transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .site-shell [data-reveal].is-in { opacity: 1; transform: none; }
+    .site-shell [data-rule] { transform: scaleX(0); transform-origin: left; transition: transform 0.28s ease-out 0.1s; }
+    .site-shell [data-rule].is-in { transform: scaleX(1); }
+}
+
+/* Foto în cadru fix: zoom subtil la hover (oprit la reduced-motion) */
+@media (prefers-reduced-motion: no-preference) {
+    .site-shell .photo-frame img { transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+    .site-shell .photo-frame:hover img { transform: scale(1.03); }
+}
+
+/* Focus vizibil — inel navy 2px (niciodată verde); pe navy → off-white */
+.site-shell :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--brand-navy);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+.site-shell .on-navy :where(a, button, [tabindex]):focus-visible {
+    outline-color: var(--brand-green-foreground);
+}
+
+/* Skip-to-content */
+.site-shell .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -3rem;
+    z-index: 100;
+    background: var(--brand-navy);
+    color: var(--brand-navy-foreground);
+    padding: 0.5rem 0.9rem;
+    border-radius: 0.5rem;
+    transition: top 0.2s ease;
+}
+.site-shell .skip-link:focus { top: 1rem; }

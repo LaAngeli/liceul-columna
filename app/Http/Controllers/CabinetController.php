@@ -66,6 +66,54 @@ class CabinetController extends Controller
     }
 
     /**
+     * Profilul personal — DOAR vizualizare (cabinetul elev/părinte nu permite editarea sau ștergerea
+     * contului; conturile sunt administrate de personal, după ierarhie). Afișează datele contului plus
+     * un rezumat al situației: pentru elev — propria fișă; pentru părinte — copiii asociați.
+     */
+    public function profile(Request $request): Response|RedirectResponse
+    {
+        $user = $request->user();
+
+        // Personalul folosește panoul Filament — niciodată cabinetul Inertia.
+        if ($user->hasAnyRole(UserRole::panelRoleValues())) {
+            return redirect()->to($user->homePath());
+        }
+
+        $self = Student::query()->where('user_id', $user->id)->first();
+
+        return Inertia::render('cabinet/profile', [
+            'account' => [
+                'name' => $user->name,
+                'username' => $user->username,
+                'email' => $user->email,
+                'role' => $user->getRoleNames()->first(),
+                'memberSince' => $user->created_at?->translatedFormat('d MMMM yyyy'),
+                'locale' => $user->locale,
+            ],
+            'self' => $self !== null ? $this->profileCard($self) : null,
+            'children' => $user->students()->get()
+                ->map(fn (Student $student): array => $this->profileCard($student))
+                ->all(),
+        ]);
+    }
+
+    /**
+     * Card de profil (rezumat + situație curentă) pentru un elev, afișat în pagina de profil a cabinetului.
+     *
+     * @return array<string, mixed>
+     */
+    private function profileCard(Student $student): array
+    {
+        $status = $this->currentStatus($student);
+
+        return [
+            ...$this->summary($student),
+            'statusValue' => $status['status'],
+            'statusLabel' => $status['label'],
+        ];
+    }
+
+    /**
      * Profilul unui elev: note, absențe, foaie matricolă și teme. Acces via StudentPolicy.
      */
     public function student(Student $student, LogStudentAccess $accessLog): Response

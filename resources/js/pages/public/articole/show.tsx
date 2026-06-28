@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { LocaleLink } from '@/components/locale-link';
+import { Container } from '@/components/public/brand';
 import { PageBanner } from '@/components/public/page-banner';
 import { useTranslations } from '@/lib/i18n';
 
@@ -22,25 +23,26 @@ export default function ArticolShow({ post }: { post: PostShow }) {
         <>
             <Head title={post.title} />
 
-            <PageBanner
-                title={post.title}
-                breadcrumbs={[{ title: categoryLabel, href: post.categoryUrl }, { title: post.title }]}
-            />
+            <PageBanner title={post.title} breadcrumbs={[{ title: categoryLabel, href: post.categoryUrl }, { title: post.title }]} />
 
-            <article className="mx-auto max-w-3xl px-6 py-8 sm:py-12">
-                {post.date && <p className="text-sm text-muted-foreground">{post.date}</p>}
+            <Container className="py-[clamp(2.5rem,6vw,5rem)]">
+                <article className="mx-auto max-w-[68ch]">
+                    {post.date && <p className="eyebrow text-brand-gray">{post.date}</p>}
 
-                {post.image && (
-                    <img src={post.image} alt={post.title} className="mt-6 w-full rounded-lg border border-border object-cover" />
-                )}
+                    {post.image && (
+                        <div className="photo-frame mt-5 overflow-hidden rounded-[12px] border keyline">
+                            <img src={post.image} alt={post.title} className="w-full object-cover" />
+                        </div>
+                    )}
 
-                {/* Conținutul articolului, migrat din columna.org.md */}
-                <div className="prose-columna mt-8 [overflow-wrap:anywhere]" dangerouslySetInnerHTML={{ __html: post.content }} />
+                    {/* Corpul articolului, migrat din columna.org.md (Proxima Nova prin .site-shell) */}
+                    <div className="prose-columna mt-8 [overflow-wrap:anywhere]" dangerouslySetInnerHTML={{ __html: post.content }} />
 
-                <LocaleLink href={post.categoryUrl} className="mt-10 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-                    <ArrowLeft className="size-4" /> {t('article.back_to', 'Înapoi la')} {categoryLabel}
-                </LocaleLink>
-            </article>
+                    <LocaleLink href={post.categoryUrl} className="mt-12 inline-flex min-h-11 items-center gap-1.5 font-semibold text-brand-navy underline decoration-brand-green decoration-2 underline-offset-4">
+                        <ArrowLeft className="size-4" /> {t('article.back_to', 'Înapoi la')} {categoryLabel}
+                    </LocaleLink>
+                </article>
+            </Container>
         </>
     );
 }

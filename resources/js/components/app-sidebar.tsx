@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { Bell, BellRing, LayoutGrid, MessageSquare, Palette, ShieldCheck, UserCog } from 'lucide-react';
+import { Bell, LayoutGrid, MessageSquare, UserCircle } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -16,14 +16,12 @@ import {
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
-import { edit as editAppearance } from '@/routes/appearance';
-import { edit as editProfile } from '@/routes/profile';
-import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
 
 /**
- * Sidebar-ul cabinetului elev/părinte — aceeași arhitectură ca panoul staff (Filament):
- * navigare grupată pe categorii, cu un grup „Setări" care adună toate preferințele.
+ * Sidebar-ul cabinetului elev/părinte. Navigare grupată; cabinetul e DOAR pentru vizualizare —
+ * fără secțiune „Setări” (datele contului apar read-only în „Profil”, iar gestiunea conturilor revine
+ * personalului). Logo-ul de brand trimite la homepage-ul site-ului public (`/`).
  */
 export function AppSidebar() {
     const t = useTranslations();
@@ -32,22 +30,16 @@ export function AppSidebar() {
     const groups: { label: string; items: NavItem[] }[] = [
         {
             label: t('cabinet.grp_main', 'Principal'),
-            items: [{ title: t('cabinet.nav_home', 'Acasă'), href: dashboard(), icon: LayoutGrid }],
+            items: [
+                { title: t('cabinet.nav_home', 'Acasă'), href: dashboard(), icon: LayoutGrid },
+                { title: t('profile.head', 'Profil'), href: '/cabinet/profil', icon: UserCircle },
+            ],
         },
         {
             label: t('cabinet.grp_communication', 'Comunicare'),
             items: [
                 { title: t('cabinet.nav_messages', 'Mesaje'), href: '/cabinet/mesaje', icon: MessageSquare },
                 { title: t('cabinet.nav_notifications', 'Notificări'), href: '/cabinet/notificari', icon: Bell },
-            ],
-        },
-        {
-            label: t('cabinet.grp_settings', 'Setări'),
-            items: [
-                { title: t('cabinet.set_profile', 'Profil'), href: editProfile(), icon: UserCog },
-                { title: t('cabinet.set_security', 'Securitate'), href: editSecurity(), icon: ShieldCheck },
-                { title: t('cabinet.set_notifications', 'Notificări'), href: '/cabinet/notificari/setari', icon: BellRing },
-                { title: t('cabinet.set_appearance', 'Aspect'), href: editAppearance(), icon: Palette },
             ],
         },
     ];
@@ -58,7 +50,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link href="/" aria-label="Liceul Columna">
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

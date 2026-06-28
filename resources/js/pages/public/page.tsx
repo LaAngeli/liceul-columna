@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { Construction, Download } from 'lucide-react';
+import { Container } from '@/components/public/brand';
 import { PageBanner } from '@/components/public/page-banner';
 import { PageSections, type PageSection } from '@/components/public/page-sections';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,10 +29,10 @@ export default function PublicPage({ title, description, breadcrumbs = [], hasDo
             {sections.length > 0 ? (
                 <PageSections sections={sections} />
             ) : (
-                <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
-                    <div className="rounded-lg border border-dashed border-border bg-card p-5 sm:p-8">
-                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                            <Construction className="size-4" />
+                <Container className="py-[clamp(2.5rem,6vw,5rem)]">
+                    <div className="rounded-[12px] border border-dashed keyline border-l-[5px] border-l-brand-green bg-card p-5 sm:p-8">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-brand-navy">
+                            <Construction className="size-4 text-brand-green" />
                             Pagină în construcție
                         </div>
 
@@ -43,15 +44,15 @@ export default function PublicPage({ title, description, breadcrumbs = [], hasDo
                         </div>
 
                         {hasDownloads && (
-                            <div className="mt-8 rounded-md border border-border bg-muted/40 p-4">
-                                <div className="flex items-center gap-2 text-sm font-medium">
-                                    <Download className="size-4" />
+                            <div className="mt-8 rounded-md border keyline bg-brand-navy/[0.03] p-4">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-brand-navy">
+                                    <Download className="size-4 text-brand-green" />
                                     Descărcări
                                 </div>
                             </div>
                         )}
                     </div>
-                </section>
+                </Container>
             )}
         </>
     );

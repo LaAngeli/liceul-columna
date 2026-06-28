@@ -1,9 +1,9 @@
 import { Mail, MapPin, Phone } from 'lucide-react';
 import { LocaleLink } from '@/components/locale-link';
+import { Container, FourStar } from '@/components/public/brand';
 import { useTranslations } from '@/lib/i18n';
 import { footerNav, siteContact } from '@/lib/public-navigation';
 
-// lucide-react (v0.475) nu mai exportă iconițe de brand → SVG inline (path-uri simple-icons).
 function FacebookIcon({ className }: { className?: string }) {
     return (
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
@@ -11,7 +11,6 @@ function FacebookIcon({ className }: { className?: string }) {
         </svg>
     );
 }
-
 function InstagramIcon({ className }: { className?: string }) {
     return (
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
@@ -20,99 +19,81 @@ function InstagramIcon({ className }: { className?: string }) {
     );
 }
 
+const VALUES: [string, string][] = [
+    ['credinta', 'Credință'], ['onoare', 'Onoare'], ['libertate', 'Libertate'], ['unire', 'Unire'],
+    ['munca', 'Munca'], ['natiune', 'Națiune'], ['adevar', 'Adevăr'],
+];
+
 export function SiteFooter() {
     const t = useTranslations();
 
     const contactRows = [
-        {
-            icon: MapPin,
-            label: t('contact.address', 'Adresă'),
-            value: siteContact.address,
-            href: `https://maps.google.com/?q=${encodeURIComponent(siteContact.address)}`,
-            external: true,
-        },
-        {
-            icon: Phone,
-            label: t('contact.phone', 'Telefon'),
-            value: siteContact.phone,
-            href: `tel:${siteContact.phone.replace(/[^+\d]/g, '')}`,
-            external: false,
-        },
-        {
-            icon: Mail,
-            label: t('contact.email', 'E-mail'),
-            value: siteContact.email,
-            href: `mailto:${siteContact.email}`,
-            external: false,
-        },
+        { icon: MapPin, value: siteContact.address, href: `https://maps.google.com/?q=${encodeURIComponent(siteContact.address)}`, external: true },
+        { icon: Phone, value: siteContact.phone, href: 'tel:+37322742852', external: false },
+        { icon: Mail, value: siteContact.email, href: `mailto:${siteContact.email}`, external: false },
     ] as const;
 
-    const socialLinks = [
+    const social = [
         { icon: FacebookIcon, label: 'Facebook', href: 'https://www.facebook.com/ColumnaLyceum' },
         { icon: InstagramIcon, label: 'Instagram', href: 'https://www.instagram.com/liceul.columna/' },
     ] as const;
 
     return (
-        <footer className="mt-16 border-t border-border bg-muted/30">
-            <div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 md:grid-cols-2">
-                <div className="flex flex-col items-center text-center">
-                    <LocaleLink href="/" className="inline-flex flex-col items-center gap-2.5">
-                        <img src="/images/logo/columna-navy.png" alt="Liceul Columna" className="h-14 w-auto dark:hidden" />
-                        <img src="/images/logo/columna-white.png" alt="Liceul Columna" className="hidden h-14 w-auto dark:block" />
-                        <span className="font-serif text-lg font-semibold">Liceul Columna</span>
-                    </LocaleLink>
+        <footer className="on-navy relative mt-auto overflow-hidden bg-brand-navy text-[color:var(--brand-navy-foreground)]">
+            {/* Watermark crest */}
+            <img
+                src="/images/logo/columna-white.png"
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute -right-16 -bottom-16 w-[28rem] max-w-[60%] opacity-[0.05] select-none"
+            />
 
-                    <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">{t('home.tagline', siteContact.tagline)}</p>
-
-                    <ul className="mx-auto mt-6 flex w-fit max-w-full flex-col gap-3 text-left">
-                        {contactRows.map(({ icon: Icon, label, value, href, external }) => (
-                            <li key={label}>
-                                <a
-                                    href={href}
-                                    target={external ? '_blank' : undefined}
-                                    rel={external ? 'noreferrer' : undefined}
-                                    className="group flex min-h-11 items-start gap-3"
-                                >
-                                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-primary transition-colors group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground">
-                                        <Icon className="size-4" />
-                                    </span>
-                                    <span className="min-w-0">
-                                        <span className="block text-xs text-muted-foreground">{label}</span>
-                                        <span className="block text-sm font-medium text-foreground transition-colors group-hover:text-primary">{value}</span>
-                                    </span>
+            <Container className="relative py-14">
+                {/* Colofon */}
+                <div className="flex flex-col items-start gap-5 border-b border-white/15 pb-10 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <LocaleLink href="/" aria-label="Liceul Columna" className="inline-flex items-center gap-3">
+                            <img src="/images/logo/columna-white.png" alt="Liceul Columna" className="h-14 w-auto" />
+                            <span className="numeral text-2xl text-white/40">est. 1998</span>
+                        </LocaleLink>
+                        <p className="mt-5 max-w-md text-[clamp(1.25rem,2.6vw,1.75rem)] leading-tight" style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>
+                            {t('home.hero_title_a', 'Succesul copilului')} <span className="text-brand-green">{t('home.hero_title_b', 'începe aici.')}</span>
+                        </p>
+                    </div>
+                    <ul className="flex flex-col gap-2.5 text-sm">
+                        {contactRows.map(({ icon: Icon, value, href, external }) => (
+                            <li key={value}>
+                                <a href={href} {...(external ? { target: '_blank', rel: 'noreferrer' } : {})} className="group inline-flex min-h-11 items-center gap-2.5 text-white/85 hover:text-white md:min-h-9">
+                                    <Icon className="size-4 shrink-0 text-brand-green" />
+                                    {value}
                                 </a>
                             </li>
                         ))}
                     </ul>
-
-                    <div className="mt-7">
-                        <p className="text-xs font-medium text-muted-foreground">{t('footer.follow', 'Urmărește-ne')}</p>
-                        <div className="mt-3 flex items-center justify-center gap-3">
-                            {socialLinks.map(({ icon: Icon, label, href }) => (
-                                <a
-                                    key={label}
-                                    href={href}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    aria-label={label}
-                                    title={label}
-                                    className="flex size-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
-                                >
-                                    <Icon className="size-5" />
-                                </a>
-                            ))}
-                        </div>
-                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+                {/* Valori */}
+                <ul className="flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-white/15 py-7">
+                    {VALUES.map(([key, fb], i) => (
+                        <li key={key} className="flex items-center gap-2">
+                            <span className="text-[0.8125rem] font-bold tracking-[0.08em] text-white/90 uppercase sm:tracking-[0.14em]" style={{ fontFamily: 'var(--font-display)' }}>
+                                {t(`values.${key}`, fb)}
+                            </span>
+                            {i < VALUES.length - 1 && <FourStar className="size-2.5 text-brand-green" />}
+                        </li>
+                    ))}
+                </ul>
+
+                {/* Sitemap */}
+                <nav className="grid grid-cols-2 gap-8 py-10 sm:grid-cols-3 lg:grid-cols-5">
                     {footerNav.map((column) => (
                         <div key={column.title}>
-                            <h3 className="text-sm font-semibold">{t(column.tKey, column.title)}</h3>
-                            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                            <h3 className="eyebrow text-white/55">{t(column.tKey, column.title)}</h3>
+                            <ul className="mt-4 space-y-1">
                                 {column.links.map((link) => (
                                     <li key={link.href}>
-                                        <LocaleLink href={link.href} className="hover:text-foreground">
+                                        <LocaleLink href={link.href} className="flex min-h-11 items-center gap-2 text-sm text-white/80 hover:text-white md:min-h-10">
+                                            <FourStar className="size-2 shrink-0 text-brand-green/70" />
                                             {link.tKey ? t(link.tKey, link.title) : link.title}
                                         </LocaleLink>
                                     </li>
@@ -120,24 +101,41 @@ export function SiteFooter() {
                             </ul>
                         </div>
                     ))}
-                </div>
-            </div>
+                </nav>
 
-            <div className="border-t border-border">
-                <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-6 py-4 text-xs text-muted-foreground sm:flex-row">
-                    <p>© {new Date().getFullYear()} IPL „Liceul Columna”. {t('footer.rights', 'Toate drepturile rezervate.')}</p>
+                {/* Social */}
+                <div className="flex items-center justify-center gap-3 border-t border-white/15 pt-8">
+                    {social.map(({ icon: Icon, label, href }) => (
+                        <a key={label} href={href} target="_blank" rel="noreferrer" aria-label={label} title={label} className="flex size-11 items-center justify-center rounded-full border border-white/25 text-white/85 transition-colors hover:border-brand-green hover:text-brand-green">
+                            <Icon className="size-5" />
+                        </a>
+                    ))}
+                </div>
+            </Container>
+
+            <div className="border-t border-white/15">
+                <Container className="flex flex-col items-center justify-between gap-2 py-5 text-xs text-white/60 sm:flex-row">
+                    <p>
+                        © {new Date().getFullYear()} IPL „Liceul Columna”. {t('footer.rights', 'Toate drepturile rezervate.')}{' '}
+                        <LocaleLink href="/confidentialitate" className="underline decoration-white/30 underline-offset-2 hover:text-white/90">
+                            {t('footer.privacy', 'Confidențialitate')}
+                        </LocaleLink>
+                        {' · '}
+                        <button
+                            type="button"
+                            onClick={() => window.dispatchEvent(new CustomEvent('cookie-settings:open'))}
+                            className="underline decoration-white/30 underline-offset-2 hover:text-white/90"
+                        >
+                            {t('cookies.settings', 'Setări cookies')}
+                        </button>
+                    </p>
                     <p>
                         Created by{' '}
-                        <a
-                            href="https://advista.marketing/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium transition-colors hover:text-[rgb(228,81,55)]"
-                        >
+                        <a href="https://advista.marketing/" target="_blank" rel="noopener noreferrer" className="font-medium transition-colors hover:text-[rgb(228,81,55)]">
                             AdVista
                         </a>
                     </p>
-                </div>
+                </Container>
             </div>
         </footer>
     );

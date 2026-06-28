@@ -53,6 +53,7 @@ $publicRoutes = function (): void {
     publicPage('/de-ce-columna', 'de-ce-columna', 'De ce Columna?', [['title' => 'Despre liceu'], ['title' => 'De ce Columna?']]);
     publicPage('/filosofia-liceului', 'filosofia-liceului', 'Filosofia liceului', [['title' => 'Despre liceu'], ['title' => 'Filosofia liceului']]);
     publicPage('/acreditari', 'acreditari', 'Acreditări', [['title' => 'Despre liceu'], ['title' => 'Acreditări']], 'Documentele de acreditare ale instituției.', true);
+    publicPage('/istorie', 'istorie', 'Istoria liceului', [['title' => 'Despre liceu'], ['title' => 'Istoria liceului']], 'Povestea Liceului „Columna", din 1998 până azi.');
 
     // Structura școlii
     publicPage('/structura-scolii', 'structura-scolii', 'Structura școlii', [['title' => 'Structura școlii']]);
@@ -87,7 +88,8 @@ $publicRoutes = function (): void {
     publicPage('/galerie', 'galerie', 'Galerie', [['title' => 'Galerie']]);
 
     // Calendar / Orare
-    publicPage('/orarul-lectiilor', 'orarul-lectiilor', 'Orarul lecțiilor', [['title' => 'Calendar'], ['title' => 'Orarul lecțiilor']]);
+    publicPage('/calendar', 'calendar', 'Calendar și orare', [['title' => 'Calendar și orare']], 'Toate orarele și programele Liceului „Columna" într-un singur loc.');
+    publicPage('/orarul-lectiilor', 'orarul-lectiilor', 'Orarul lecțiilor', [['title' => 'Calendar', 'href' => '/calendar'], ['title' => 'Orarul lecțiilor']]);
     publicPage('/orarul-sunetelor', 'orarul-sunetelor', 'Orarul sunetelor', [['title' => 'Calendar'], ['title' => 'Orarul sunetelor']]);
     publicPage('/orarul-examenelor', 'orarul-examenelor', 'Orarul examenelor', [['title' => 'Calendar'], ['title' => 'Orarul examenelor']]);
     publicPage('/orarul-ess', 'orarul-ess', 'Orarul ESS (teze semestriale)', [['title' => 'Calendar'], ['title' => 'Orarul ESS']]);
@@ -99,6 +101,8 @@ $publicRoutes = function (): void {
 
     // Admitere + formular de înscriere
     publicPage('/admitere', 'admitere', 'Admitere', [['title' => 'Admitere']], 'Pașii de înscriere la Liceul Columna.');
+    publicPage('/taxe', 'taxe', 'Taxe și costuri', [['title' => 'Admitere', 'href' => '/admitere'], ['title' => 'Taxe și costuri']], 'Taxele de studii la Liceul „Columna".');
+    publicPage('/intrebari-frecvente', 'intrebari-frecvente', 'Întrebări frecvente', [['title' => 'Admitere', 'href' => '/admitere'], ['title' => 'Întrebări frecvente']], 'Răspunsuri la întrebările frecvente.');
     Route::get('/inregistrarea-student', [AdmissionController::class, 'create'])->name('inregistrarea-student');
     Route::post('/inregistrarea-student', [AdmissionController::class, 'store']);
 
@@ -112,6 +116,7 @@ $publicRoutes = function (): void {
     publicPage('/tabara-de-vara', 'tabara-de-vara', 'Tabără de vară', [['title' => 'Tabără de vară']]);
     publicPage('/sponsorizare', 'sponsorizare', 'Sponsorizare', [['title' => 'Sponsorizare']]);
     publicPage('/contacte', 'contacte', 'Contacte', [['title' => 'Contacte']]);
+    publicPage('/confidentialitate', 'confidentialitate', 'Politica de confidențialitate', [['title' => 'Confidențialitate']], 'Cum protejăm datele cu caracter personal, conform Legii 133/2011.');
 };
 
 // RO la root + RU/EN cu prefix de URL.
@@ -149,6 +154,10 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     Route::post('cabinet/notificari/{notification}/citit', [NotificationsController::class, 'markRead'])->name('cabinet.notifications.read');
     Route::get('cabinet/notificari/setari', [NotificationsController::class, 'settings'])->name('cabinet.notifications.settings');
     Route::put('cabinet/notificari/setari', [NotificationsController::class, 'updateSettings'])->name('cabinet.notifications.settings.update');
+
+    // Profil (DOAR vizualizare): datele contului + situația elevului/copiilor. Fără editare/ștergere
+    // a contului din cabinet — gestiunea conturilor revine personalului (UserResource, după ierarhie).
+    Route::get('cabinet/profil', [CabinetController::class, 'profile'])->name('cabinet.profile');
 });
 
 // Schimbarea obligatorie a parolei (userii migrați) — doar `auth`.
@@ -156,5 +165,3 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
     Route::get('schimbare-parola', [ForcedPasswordController::class, 'edit'])->name('password.change');
     Route::put('schimbare-parola', [ForcedPasswordController::class, 'update'])->name('password.change.update');
 });
-
-require __DIR__.'/settings.php';

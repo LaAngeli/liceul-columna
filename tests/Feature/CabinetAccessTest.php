@@ -12,6 +12,7 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
+use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Contracts\LoginResponse;
 use Laravel\Fortify\Contracts\TwoFactorLoginResponse;
@@ -22,6 +23,38 @@ beforeEach(function () {
         Role::findOrCreate($role->value, 'web');
     }
 });
+
+it('elevul își vede profilul de cabinet (doar vizualizare)', function () {
+    $user = User::factory()->create();
+    $user->assignRole(UserRole::Elev->value);
+    Student::factory()->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->get(route('cabinet.profile'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('cabinet/profile')
+            ->where('account.role', UserRole::Elev->value)
+        );
+});
+
+it('redirecționează personalul de la profilul de cabinet către panou', function () {
+    $staff = User::factory()->create();
+    $staff->assignRole(UserRole::Profesor->value);
+
+    $this->actingAs($staff)->get(route('cabinet.profile'))->assertRedirect('/admin');
+});
+
+it('cabinetul nu mai expune rute de modificare/ștergere a contului (doar vizualizare)', function (string $name) {
+    expect(Route::has($name))->toBeFalse();
+})->with([
+    'profile.edit',
+    'profile.update',
+    'profile.destroy',
+    'security.edit',
+    'user-password.update',
+    'appearance.edit',
+]);
 
 it('un părinte vede profilul copilului său, dar nu al altora', function () {
     $parent = User::factory()->create();

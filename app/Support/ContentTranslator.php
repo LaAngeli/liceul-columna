@@ -19,7 +19,7 @@ final class ContentTranslator
     /**
      * Câmpuri scalare ale unei secțiuni al căror text se traduce.
      */
-    private const SCALAR_KEYS = ['text', 'title', 'note', 'label', 'caption'];
+    private const SCALAR_KEYS = ['text', 'title', 'note', 'label', 'caption', 'question', 'answer'];
 
     /**
      * Câmpuri-listă ale căror șiruri-frunză se traduc (recursiv).

@@ -1,7 +1,9 @@
 /**
- * Structura de navigare a site-ului public (columna.md).
- * Sursă unică pentru header, footer și hartă site. Slug-urile păstrează paginile vechi.
- * `tKey` = cheia de traducere (lang/{locale}/site.php); `title` rămâne fallback RO.
+ * Arhitectura informațională a site-ului public (columna.md) — restructurată („Columna Civic Editorial").
+ * 5 grupuri principale: Despre noi · Programe · Admitere · Viața școlii · Contacte.
+ * Sursă unică pentru header, footer și hartă site. `tKey` = cheie i18n (lang/{locale}/site.php).
+ * NOTĂ: paginile net-noi (istorie, taxe, întrebări frecvente, hub Calendar) se adaugă pe măsură ce
+ * sunt construite — momentan link-urile țintesc rutele existente, ca să nu apară 404.
  */
 
 export interface NavLink {
@@ -19,102 +21,117 @@ export interface NavItem {
 
 export const mainNav: NavItem[] = [
     {
-        title: 'Despre liceu',
-        tKey: 'nav.about',
+        title: 'Despre noi',
+        tKey: 'menu.about',
         children: [
-            { title: 'Scrisoarea directorului', href: '/scrisoarea-directorului', tKey: 'about.letter' },
             { title: 'De ce Columna?', href: '/de-ce-columna', tKey: 'about.why' },
-            { title: 'Filosofia liceului', href: '/filosofia-liceului', tKey: 'about.philosophy' },
-            { title: 'Acreditări', href: '/acreditari', tKey: 'about.accreditation' },
+            { title: 'Scrisoarea directorului', href: '/scrisoarea-directorului', tKey: 'about.letter' },
+            { title: 'Misiune și valori', href: '/filosofia-liceului', tKey: 'menu.mission' },
+            { title: 'Istoria liceului', href: '/istorie', tKey: 'menu.history' },
+            { title: 'Personal didactic', href: '/personal', tKey: 'nav.staff' },
+            { title: 'Acreditări și autorizare', href: '/acreditari', tKey: 'about.accreditation' },
+            { title: 'Centrul de Evaluare Instituțională', href: '/centrul-de-evaluare-institutionala', tKey: 'utility.cei' },
+            { title: 'Consiliul Metodic', href: '/consiliul-metodic', tKey: 'utility.methodical' },
+            { title: 'Consiliul școlar', href: '/consiliul-scolar', tKey: 'utility.council' },
         ],
     },
     {
-        title: 'Structura școlii',
+        title: 'Programe de studii',
         href: '/structura-scolii',
-        tKey: 'nav.structure',
+        tKey: 'menu.programs',
         children: [
+            { title: 'Structura școlii', href: '/structura-scolii', tKey: 'nav.structure' },
             { title: 'Școala primară', href: '/scoala-primara', tKey: 'structure.primary' },
             { title: 'Școala gimnazială', href: '/scoala-gimnaziala', tKey: 'structure.gymnasium' },
             { title: 'Școala liceală', href: '/scoala-liceala', tKey: 'structure.lyceum' },
+            { title: 'Cambridge English', href: '/cambridge-english-exam', tKey: 'utility.cambridge' },
+            { title: 'Activități extracurriculare', href: '/extracurriculare', tKey: 'menu.extracurricular' },
+            { title: 'Tabăra de vară', href: '/tabara-de-vara', tKey: 'utility.summer_camp' },
         ],
     },
-    { title: 'Personal', href: '/personal', tKey: 'nav.staff' },
-    { title: 'Actualități', href: '/actualitati-si-evenimente', tKey: 'nav.news' },
-    { title: 'Blog', href: '/blog', tKey: 'nav.blog' },
     {
-        title: 'Calendar',
-        tKey: 'nav.calendar',
+        title: 'Admitere',
+        href: '/admitere',
+        tKey: 'nav.admission',
         children: [
-            { title: 'Orarul lecțiilor', href: '/orarul-lectiilor', tKey: 'calendar.lessons' },
-            { title: 'Orarul sunetelor', href: '/orarul-sunetelor', tKey: 'calendar.bells' },
-            { title: 'Orarul examenelor', href: '/orarul-examenelor', tKey: 'calendar.exams' },
-            { title: 'Orarul ESS (teze)', href: '/orarul-ess', tKey: 'calendar.ess' },
-            { title: 'Orarul pretestărilor', href: '/orarul-pretestarilor', tKey: 'calendar.pretests' },
-            { title: 'Pregătire pentru examene', href: '/cursuri-de-pregatire-pentru-examene', tKey: 'calendar.prep' },
-            { title: 'Orarul CPAE', href: '/orarul-cpae', tKey: 'calendar.cpae' },
-            { title: 'Orar recuperări', href: '/orar-recuperari', tKey: 'calendar.recovery' },
-            { title: 'Ședințele cu părinții', href: '/sedintele-cu-parintii', tKey: 'calendar.meetings' },
+            { title: 'Procesul de admitere', href: '/admitere', tKey: 'menu.admission_process' },
+            { title: 'Înscriere online', href: '/inregistrarea-student', tKey: 'menu.enroll_online' },
+            { title: 'Taxe și costuri', href: '/taxe', tKey: 'menu.fees' },
+            { title: 'Întrebări frecvente', href: '/intrebari-frecvente', tKey: 'menu.faq' },
         ],
     },
-    { title: 'Galerie', href: '/galerie', tKey: 'nav.gallery' },
-    { title: 'Admitere', href: '/admitere', tKey: 'nav.admission' },
+    {
+        title: 'Viața școlii',
+        tKey: 'menu.school_life',
+        children: [
+            { title: 'Actualități și evenimente', href: '/actualitati-si-evenimente', tKey: 'nav.news' },
+            { title: 'Blog', href: '/blog', tKey: 'nav.blog' },
+            { title: 'Galerie foto', href: '/galerie', tKey: 'nav.gallery' },
+            { title: 'Calendar și orare', href: '/calendar', tKey: 'menu.calendar' },
+            { title: 'Biblioteca online', href: '/biblioteca-online', tKey: 'utility.library' },
+        ],
+    },
+    { title: 'Contacte', href: '/contacte', tKey: 'utility.contact' },
 ];
 
 /** Meniu secundar (bara de sus). */
 export const utilityNav: NavLink[] = [
-    { title: 'Centrul de Evaluare Instituțională', href: '/centrul-de-evaluare-institutionala', tKey: 'utility.cei' },
-    { title: 'CPAE', href: '/extracurriculare', tKey: 'utility.cpae' },
-    { title: 'Consiliul Metodic', href: '/consiliul-metodic', tKey: 'utility.methodical' },
-    { title: 'Cambridge English', href: '/cambridge-english-exam', tKey: 'utility.cambridge' },
+    { title: 'Calendar și orare', href: '/calendar', tKey: 'menu.calendar' },
     { title: 'Biblioteca online', href: '/biblioteca-online', tKey: 'utility.library' },
-    { title: 'Tabără de vară', href: '/tabara-de-vara', tKey: 'utility.summer_camp' },
-    { title: 'Contacte', href: '/contacte', tKey: 'utility.contact' },
+    { title: 'Sponsorizare', href: '/sponsorizare', tKey: 'utility.sponsorship' },
 ];
 
-/** Coloane footer. */
+/** Coloane footer — 5 grupuri (Despre · Programe · Admitere · Resurse · Instituție). */
 export const footerNav: { title: string; tKey: string; links: NavLink[] }[] = [
     {
         title: 'Despre liceu',
         tKey: 'footer.about',
         links: [
-            { title: 'Scrisoarea directorului', href: '/scrisoarea-directorului', tKey: 'about.letter' },
             { title: 'De ce Columna?', href: '/de-ce-columna', tKey: 'about.why' },
-            { title: 'Filosofia liceului', href: '/filosofia-liceului', tKey: 'about.philosophy' },
+            { title: 'Scrisoarea directorului', href: '/scrisoarea-directorului', tKey: 'about.letter' },
+            { title: 'Misiune și valori', href: '/filosofia-liceului', tKey: 'menu.mission' },
+            { title: 'Personal didactic', href: '/personal', tKey: 'nav.staff' },
             { title: 'Acreditări', href: '/acreditari', tKey: 'about.accreditation' },
         ],
     },
     {
-        title: 'Pentru elevi și părinți',
-        tKey: 'footer.students',
+        title: 'Programe',
+        tKey: 'menu.programs',
         links: [
-            { title: 'Admitere', href: '/admitere', tKey: 'nav.admission' },
-            { title: 'Orarul lecțiilor', href: '/orarul-lectiilor', tKey: 'calendar.lessons' },
-            { title: 'Biblioteca online', href: '/biblioteca-online', tKey: 'utility.library' },
-            { title: 'Pregătire pentru examene', href: '/cursuri-de-pregatire-pentru-examene', tKey: 'calendar.prep' },
-            { title: 'Ședințele cu părinții', href: '/sedintele-cu-parintii', tKey: 'calendar.meetings' },
+            { title: 'Școala primară', href: '/scoala-primara', tKey: 'structure.primary' },
+            { title: 'Școala gimnazială', href: '/scoala-gimnaziala', tKey: 'structure.gymnasium' },
+            { title: 'Școala liceală', href: '/scoala-liceala', tKey: 'structure.lyceum' },
+            { title: 'Cambridge English', href: '/cambridge-english-exam', tKey: 'utility.cambridge' },
+            { title: 'Activități extracurriculare', href: '/extracurriculare', tKey: 'menu.extracurricular' },
         ],
     },
     {
-        title: 'Activitate',
-        tKey: 'footer.activity',
+        title: 'Admitere',
+        tKey: 'nav.admission',
         links: [
-            { title: 'Actualități/Evenimente', href: '/actualitati-si-evenimente', tKey: 'nav.news' },
+            { title: 'Procesul de admitere', href: '/admitere', tKey: 'menu.admission_process' },
+            { title: 'Înscriere online', href: '/inregistrarea-student', tKey: 'menu.enroll_online' },
+            { title: 'Tabăra de vară', href: '/tabara-de-vara', tKey: 'utility.summer_camp' },
+        ],
+    },
+    {
+        title: 'Resurse',
+        tKey: 'menu.resources',
+        links: [
+            { title: 'Actualități și evenimente', href: '/actualitati-si-evenimente', tKey: 'nav.news' },
             { title: 'Blog', href: '/blog', tKey: 'nav.blog' },
-            { title: 'Galerie', href: '/galerie', tKey: 'nav.gallery' },
-            { title: 'CPAE', href: '/extracurriculare', tKey: 'utility.cpae' },
-            { title: 'Tabără de vară', href: '/tabara-de-vara', tKey: 'utility.summer_camp' },
-            { title: 'Sponsorizare', href: '/sponsorizare', tKey: 'utility.sponsorship' },
+            { title: 'Galerie foto', href: '/galerie', tKey: 'nav.gallery' },
+            { title: 'Biblioteca online', href: '/biblioteca-online', tKey: 'utility.library' },
         ],
     },
     {
         title: 'Instituție',
         tKey: 'footer.institution',
         links: [
-            { title: 'Structura școlii', href: '/structura-scolii', tKey: 'nav.structure' },
-            { title: 'Personal', href: '/personal', tKey: 'nav.staff' },
+            { title: 'Centrul de Evaluare Instituțională', href: '/centrul-de-evaluare-institutionala', tKey: 'utility.cei' },
             { title: 'Consiliul Metodic', href: '/consiliul-metodic', tKey: 'utility.methodical' },
             { title: 'Consiliul școlar', href: '/consiliul-scolar', tKey: 'utility.council' },
-            { title: 'Centrul de Evaluare Instituțională', href: '/centrul-de-evaluare-institutionala', tKey: 'utility.cei' },
+            { title: 'Sponsorizare', href: '/sponsorizare', tKey: 'utility.sponsorship' },
             { title: 'Contacte', href: '/contacte', tKey: 'utility.contact' },
         ],
     },
@@ -125,5 +142,6 @@ export const siteContact = {
     address: 'str. Alba Iulia 5/2, Chișinău, Republica Moldova',
     phone: '(+373) 22 74 28 52',
     email: 'info@columna.org.md',
-    tagline: 'Studii de CALITATE pentru un viitor de CALITATE',
+    tagline: 'Succesul copilului începe aici.',
+    founded: 1998,
 };
