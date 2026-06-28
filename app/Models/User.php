@@ -515,6 +515,25 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Clasele la care acest cont e DIRIGINTE (gol dacă nu are fișă de profesor sau nu e diriginte).
+     *
+     * @return list<int>
+     */
+    public function homeroomSchoolClassIds(): array
+    {
+        return $this->teacher?->homeroomSchoolClassIds() ?? [];
+    }
+
+    /**
+     * Poate gestiona evenimente de calendar (modul Calendar v2): conducerea (`canPublishContent`)
+     * publică orice scope; dirigintele creează evenimente pentru clasa lui.
+     */
+    public function canManageCalendarEvents(): bool
+    {
+        return $this->canPublishContent() || $this->homeroomSchoolClassIds() !== [];
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
