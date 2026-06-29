@@ -1,24 +1,16 @@
 <x-filament-panels::page>
     @php
-        $dotColors = [
-            'success' => 'bg-emerald-500',
-            'accent' => 'bg-sky-500',
-            'danger' => 'bg-red-500',
-            'warning' => 'bg-amber-500',
-            'event' => 'bg-violet-500',
-            'neutral' => 'bg-slate-400',
-            'muted' => 'bg-slate-300',
-            'info' => 'bg-cyan-500',
-        ];
-        $chipColors = [
-            'success' => 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300',
-            'accent' => 'bg-sky-500/12 text-sky-700 dark:text-sky-300',
-            'danger' => 'bg-red-500/12 text-red-600 dark:text-red-400',
-            'warning' => 'bg-amber-500/12 text-amber-700 dark:text-amber-300',
-            'event' => 'bg-violet-500/12 text-violet-700 dark:text-violet-300',
-            'neutral' => 'bg-slate-400/12 text-slate-600 dark:text-slate-300',
-            'muted' => 'bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-300',
-            'info' => 'bg-cyan-500/12 text-cyan-700 dark:text-cyan-300',
+        // Stiluri INLINE (nu clase Tailwind): panoul Filament are propriul build de CSS care nu
+        // scanează acest Blade, deci clasele de grilă/culori arbitrare nu s-ar compila. [dot+text, fundal].
+        $cat = [
+            'success' => ['#10b981', 'rgba(16,185,129,.16)'],
+            'accent' => ['#0ea5e9', 'rgba(14,165,233,.16)'],
+            'danger' => ['#f87171', 'rgba(248,113,113,.16)'],
+            'warning' => ['#f59e0b', 'rgba(245,158,11,.18)'],
+            'event' => ['#a78bfa', 'rgba(167,139,250,.16)'],
+            'neutral' => ['#94a3b8', 'rgba(148,163,184,.16)'],
+            'muted' => ['#cbd5e1', 'rgba(203,213,225,.16)'],
+            'info' => ['#22d3ee', 'rgba(34,211,238,.16)'],
         ];
         $cells = $this->monthCells();
         $weekdays = ['Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ', 'Du'];
@@ -38,36 +30,31 @@
             <span class="ms-1 text-lg font-semibold capitalize">{{ $this->monthLabel() }}</span>
         </div>
 
-        {{-- Gridul lunar --}}
+        {{-- Gridul lunar (inline) --}}
         <div>
-            <div class="grid grid-cols-7 gap-1 pb-1 text-center text-xs text-gray-400">
+            <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:4px;">
                 @foreach ($weekdays as $w)
-                    <div class="py-1">{{ $w }}</div>
+                    <div style="text-align:center;font-size:12px;padding:4px 0;opacity:.6;">{{ $w }}</div>
                 @endforeach
             </div>
-            <div class="grid grid-cols-7 gap-1">
+            <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;">
                 @foreach ($cells as $cell)
                     @if ($cell === null)
-                        <div class="min-h-20 rounded-md bg-gray-50 dark:bg-white/5"></div>
+                        <div style="min-height:84px;border-radius:8px;background:rgba(130,130,130,.06);"></div>
                     @else
-                        <div @class([
-                            'min-h-20 rounded-lg border bg-white p-1 dark:bg-gray-900',
-                            'border-[#9bc31e] ring-1 ring-[#9bc31e]' => $cell['isToday'],
-                            'border-gray-200 dark:border-white/10' => ! $cell['isToday'],
-                        ])>
-                            <span @class([
-                                'inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold',
-                                'bg-[#9bc31e] text-[#1d1d1c]' => $cell['isToday'],
-                                'text-gray-500 dark:text-gray-400' => ! $cell['isToday'],
-                            ])>{{ $cell['day'] }}</span>
+                        <div style="min-height:84px;border-radius:8px;padding:4px;overflow:hidden;{{ $cell['isToday'] ? 'border:1.5px solid #9bc31e;box-shadow:0 0 0 1px #9bc31e;' : 'border:1px solid rgba(128,128,128,.22);' }}">
+                            <div>
+                                <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:12px;font-weight:600;{{ $cell['isToday'] ? 'background:#9bc31e;color:#1d1d1c;' : 'opacity:.55;' }}">{{ $cell['day'] }}</span>
+                            </div>
                             @foreach (array_slice($cell['events'], 0, 3) as $event)
-                                <div class="mt-0.5 flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] leading-tight {{ $chipColors[$event['color']] ?? $chipColors['muted'] }}">
-                                    <span class="size-1.5 shrink-0 rounded-full {{ $dotColors[$event['color']] ?? 'bg-slate-400' }}"></span>
-                                    <span class="truncate">{{ $event['title'] }}</span>
+                                @php($c = $cat[$event['color']] ?? $cat['muted'])
+                                <div style="display:flex;align-items:center;gap:4px;margin-top:2px;padding:1px 5px;border-radius:4px;font-size:10px;line-height:1.6;background:{{ $c[1] }};color:{{ $c[0] }};white-space:nowrap;overflow:hidden;">
+                                    <span style="width:6px;height:6px;border-radius:50%;background:{{ $c[0] }};flex:none;"></span>
+                                    <span style="overflow:hidden;text-overflow:ellipsis;">{{ $event['title'] }}</span>
                                 </div>
                             @endforeach
                             @if (count($cell['events']) > 3)
-                                <span class="px-1 text-[10px] text-gray-400">+{{ count($cell['events']) - 3 }}</span>
+                                <div style="font-size:10px;opacity:.55;padding:1px 5px;">+{{ count($cell['events']) - 3 }}</div>
                             @endif
                         </div>
                     @endif
@@ -77,21 +64,22 @@
 
         {{-- Agenda lunii (complement la grilă) --}}
         @if ($agendaDays->isEmpty())
-            <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+            <div style="border:1px dashed rgba(128,128,128,.35);border-radius:12px;padding:28px;text-align:center;font-size:14px;opacity:.65;">
                 Niciun eveniment instituțional în această lună.
             </div>
         @else
             <div class="space-y-3">
                 @foreach ($agendaDays as $cell)
-                    <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
-                        <h3 class="text-sm font-semibold capitalize text-gray-700 dark:text-gray-200">
+                    <div style="border-radius:12px;padding:14px;border:1px solid rgba(128,128,128,.18);background:rgba(130,130,130,.04);">
+                        <h3 class="text-sm font-semibold capitalize">
                             {{ \Illuminate\Support\Carbon::parse($cell['date'])->translatedFormat('l, j F') }}
                         </h3>
-                        <div class="mt-2 space-y-1.5">
+                        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
                             @foreach ($cell['events'] as $event)
-                                <div class="flex items-center gap-2.5">
-                                    <span class="size-2.5 shrink-0 rounded-full {{ $dotColors[$event['color']] ?? 'bg-slate-400' }}"></span>
-                                    <span class="text-sm text-gray-800 dark:text-gray-100">{{ $event['title'] }}</span>
+                                @php($c = $cat[$event['color']] ?? $cat['muted'])
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <span style="width:10px;height:10px;border-radius:50%;background:{{ $c[0] }};flex:none;"></span>
+                                    <span class="text-sm">{{ $event['title'] }}</span>
                                 </div>
                             @endforeach
                         </div>
@@ -100,7 +88,7 @@
             </div>
         @endif
 
-        <p class="text-xs text-gray-500 dark:text-gray-400">
+        <p style="font-size:12px;opacity:.55;">
             Calendarul instituției: semestre, vacanțe, sesiuni de corigență publicate și evenimentele
             manuale. Temele și absențele individuale rămân în cabinetul fiecărui elev.
         </p>
