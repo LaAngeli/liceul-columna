@@ -82,6 +82,43 @@ class Calendar extends Page
         return $grouped;
     }
 
+    /**
+     * Gridul lunii: celule (sau null pentru spațiile dinainte/după lună), cu evenimentele fiecărei zile.
+     *
+     * @return list<array{day: int, date: string, isToday: bool, events: list<array<string, mixed>>}|null>
+     */
+    public function monthCells(): array
+    {
+        $base = $this->baseMonth();
+        $byDay = $this->eventsByDay();
+        $todayStr = Carbon::now()->toDateString();
+
+        $lead = $base->copy()->startOfMonth()->dayOfWeekIso - 1;
+        $daysInMonth = (int) $base->copy()->endOfMonth()->format('j');
+
+        $cells = [];
+
+        for ($i = 0; $i < $lead; $i++) {
+            $cells[] = null;
+        }
+
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $date = $base->copy()->day($d)->toDateString();
+            $cells[] = [
+                'day' => $d,
+                'date' => $date,
+                'isToday' => $date === $todayStr,
+                'events' => $byDay[$date] ?? [],
+            ];
+        }
+
+        while (count($cells) % 7 !== 0) {
+            $cells[] = null;
+        }
+
+        return $cells;
+    }
+
     private function baseMonth(): Carbon
     {
         return (Carbon::createFromFormat('Y-m', $this->month) ?: Carbon::now())->startOfMonth();
