@@ -7,14 +7,17 @@ use Database\Factories\ScheduleFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
 
 /**
  * Un tabel de orar publicabil (spec §2.1). Sursa UNICĂ: editat în panou, citit read-only pe site.
+ * Pentru orarul „lecții", `school_class_id` leagă opțional tabelul de clasa reală (canonizare orar).
  *
  * @property ScheduleType $type
  * @property string $label
+ * @property int|null $school_class_id
  * @property array<int, string> $headers
  * @property array<int, array<int, string>> $rows
  * @property bool $is_public
@@ -27,6 +30,7 @@ class Schedule extends Model
     protected $fillable = [
         'type',
         'label',
+        'school_class_id',
         'headers',
         'rows',
         'position',
@@ -61,6 +65,16 @@ class Schedule extends Model
     public function scopePublic(Builder $query): void
     {
         $query->where('is_public', true);
+    }
+
+    /**
+     * Clasa reală a orarului (pentru tipul „lecții"); null pentru orarele globale (sunete, examene…).
+     *
+     * @return BelongsTo<SchoolClass, $this>
+     */
+    public function schoolClass(): BelongsTo
+    {
+        return $this->belongsTo(SchoolClass::class);
     }
 
     /**
