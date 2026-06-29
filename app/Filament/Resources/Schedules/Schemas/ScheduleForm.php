@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Schedules\Schemas;
 
 use App\Enums\ScheduleType;
+use App\Models\SchoolClass;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -24,6 +25,13 @@ class ScheduleForm
                     ->label('Titlu (ex. clasa / grupul)')
                     ->required()
                     ->maxLength(150),
+                Select::make('school_class_id')
+                    ->label('Clasa (pentru orarul „lecții")')
+                    ->relationship('schoolClass', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (SchoolClass $record): string => trim($record->name.' '.($record->section ?? '')))
+                    ->searchable()
+                    ->preload()
+                    ->helperText('Leagă orarul de clasa reală → poate apărea în cabinetul elevilor. Opțional; gol pentru orarele globale (sunete, examene…).'),
                 TextInput::make('position')
                     ->label('Ordine')
                     ->numeric()

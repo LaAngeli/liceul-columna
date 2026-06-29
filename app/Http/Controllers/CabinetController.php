@@ -18,6 +18,7 @@ use App\Models\CorigentaExam;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
 use App\Models\HomeworkAssignment;
+use App\Models\SchoolClass;
 use App\Models\SemesterValidation;
 use App\Models\StatusAcknowledgement;
 use App\Models\Student;
@@ -147,6 +148,7 @@ class CabinetController extends Controller
             'statusAck' => $this->statusAcknowledgement($student, $viewer, $status),
             'dynamics' => app(ComputeStudentDynamics::class)->for($student),
             'timetable' => $class !== null ? app(Timetable::class)->forClass($class) : null,
+            'lessonsSchedule' => $this->lessonsSchedule($class),
             'deferralRisk' => app(ComputeDeferralRisk::class)->for($student),
             'motivations' => $this->motivations($student),
             'corigentaExams' => $this->corigentaExams($student),
@@ -331,6 +333,31 @@ class CabinetController extends Controller
     private function isFamilyOf(User $user, Student $student): bool
     {
         return $user->students()->whereKey($student->id)->exists() || $student->user_id === $user->id;
+    }
+
+    /**
+     * Orarul „lecții" PUBLIC al clasei (legat prin canonizare), în forma {label, headers, rows} —
+     * orarul bogat (cu ore) afișat în cabinet, complementar orarului structurat. Date la nivel de
+     * clasă (fără PII); doar dacă e publicat.
+     *
+     * @return array{label: string, headers: list<string>, rows: list<list<string>>}|null
+     */
+    private function lessonsSchedule(?SchoolClass $class): ?array
+    {
+        $schedule = $class?->lessonsSchedule;
+
+        if ($schedule === null || ! $schedule->is_public) {
+            return null;
+        }
+
+        return [
+            'label' => $schedule->label,
+            'headers' => array_values($schedule->headers),
+            'rows' => array_values(array_map(
+                static fn (array $row): array => array_values($row),
+                $schedule->rows,
+            )),
+        ];
     }
 
     /**

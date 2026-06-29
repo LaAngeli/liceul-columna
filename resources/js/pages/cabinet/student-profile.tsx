@@ -2,7 +2,11 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
-import { messages as messageRoutes, motivation, notifications as notificationRoutes } from '@/routes/cabinet';
+import {
+    messages as messageRoutes,
+    motivation,
+    notifications as notificationRoutes,
+} from '@/routes/cabinet';
 import { store as requestRoute } from '@/routes/cabinet/requests';
 
 interface StudentSummary {
@@ -131,6 +135,12 @@ interface DeferralRisk {
     scheduled: number;
 }
 
+interface LessonsSchedule {
+    label: string;
+    headers: string[];
+    rows: string[][];
+}
+
 interface Props {
     student: StudentSummary;
     subjects: SubjectGrades[];
@@ -144,6 +154,7 @@ interface Props {
     statusAck: StatusAck;
     dynamics: Dynamics;
     timetable: TimetableData | null;
+    lessonsSchedule: LessonsSchedule | null;
     deferralRisk: DeferralRisk[];
     motivations: MotivationItem[];
     documentRequests: DocumentRequestItem[];
@@ -193,7 +204,11 @@ function trendSymbol(trend: Trend): { symbol: string; cls: string } | null {
 }
 
 /** Construiește punctele unei polilinii SVG dintr-o serie de valori (scalată la min/max propriu). */
-function sparklinePoints(values: number[], width: number, height: number): string {
+function sparklinePoints(
+    values: number[],
+    width: number,
+    height: number,
+): string {
     if (values.length === 0) {
         return '';
     }
@@ -226,6 +241,7 @@ export default function StudentProfile({
     statusAck,
     dynamics,
     timetable,
+    lessonsSchedule,
     deferralRisk,
     motivations,
     documentRequests,
@@ -246,11 +262,16 @@ export default function StudentProfile({
                         {student.name.charAt(0)}
                     </span>
                     <div>
-                        <h1 className="text-xl font-semibold">{student.name}</h1>
-                        <p className="text-sm text-muted-foreground">{student.class ?? t('cabinet.class_unassigned')}</p>
+                        <h1 className="text-xl font-semibold">
+                            {student.name}
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            {student.class ?? t('cabinet.class_unassigned')}
+                        </p>
                         {status.status === 'corigent' && (
                             <span className="mt-1.5 inline-flex rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
-                                {t('cabinet.status_corigent')} — {status.failingSubjects.join(', ')}
+                                {t('cabinet.status_corigent')} —{' '}
+                                {status.failingSubjects.join(', ')}
                             </span>
                         )}
                         {status.status === 'promovat' && (
@@ -292,16 +313,28 @@ export default function StudentProfile({
                     </Link>
                     <div className="flex gap-6 text-center">
                         <div>
-                            <div className="text-2xl font-semibold text-primary">{student.average ?? '—'}</div>
-                            <p className="text-xs text-muted-foreground">{t('cabinet.average_general')}</p>
+                            <div className="text-2xl font-semibold text-primary">
+                                {student.average ?? '—'}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {t('cabinet.average_general')}
+                            </p>
                         </div>
                         <div>
-                            <div className="text-2xl font-semibold">{student.grades_count}</div>
-                            <p className="text-xs text-muted-foreground">{t('cabinet.grades')}</p>
+                            <div className="text-2xl font-semibold">
+                                {student.grades_count}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {t('cabinet.grades')}
+                            </p>
                         </div>
                         <div>
-                            <div className="text-2xl font-semibold">{absencesTotal}</div>
-                            <p className="text-xs text-muted-foreground">{t('cabinet.absences')}</p>
+                            <div className="text-2xl font-semibold">
+                                {absencesTotal}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {t('cabinet.absences')}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -309,14 +342,23 @@ export default function StudentProfile({
                 {/* Confirmare „am luat cunoștință" de statutul corigent/amânat (spec pct. 108–109) */}
                 {statusAck.needed && (
                     <section className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
-                        <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('cabinet.status_ack_title')}</h2>
-                        <p className="mt-1 text-sm text-amber-800/90 dark:text-amber-300/90">{t('cabinet.status_ack_text')}</p>
+                        <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                            {t('cabinet.status_ack_title')}
+                        </h2>
+                        <p className="mt-1 text-sm text-amber-800/90 dark:text-amber-300/90">
+                            {t('cabinet.status_ack_text')}
+                        </p>
                         {statusAck.acknowledged ? (
                             <p className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                                ✓ {t('cabinet.status_ack_done')} {statusAck.acknowledgedAt}
+                                ✓ {t('cabinet.status_ack_done')}{' '}
+                                {statusAck.acknowledgedAt}
                             </p>
                         ) : statusAck.canAcknowledge ? (
-                            <Form action={`/cabinet/elev/${student.id}/confirm-statut`} method="post" className="mt-3">
+                            <Form
+                                action={`/cabinet/elev/${student.id}/confirm-statut`}
+                                method="post"
+                                className="mt-3"
+                            >
                                 {({ processing }) => (
                                     <button
                                         type="submit"
@@ -333,43 +375,68 @@ export default function StudentProfile({
 
                 {/* Note pe discipline */}
                 <section>
-                    <h2 className="mb-3 text-lg font-semibold">{t('cabinet.grades_by_subject')}</h2>
+                    <h2 className="mb-3 text-lg font-semibold">
+                        {t('cabinet.grades_by_subject')}
+                    </h2>
                     <details className="mb-3 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-xs dark:border-sidebar-border">
-                        <summary className="cursor-pointer font-medium text-muted-foreground">ℹ️ {t('cabinet.info_procedure')}</summary>
-                        <p className="mt-1.5 text-muted-foreground">{t('cabinet.extract_grades')}</p>
+                        <summary className="cursor-pointer font-medium text-muted-foreground">
+                            ℹ️ {t('cabinet.info_procedure')}
+                        </summary>
+                        <p className="mt-1.5 text-muted-foreground">
+                            {t('cabinet.extract_grades')}
+                        </p>
                     </details>
                     <div className="overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 text-left text-muted-foreground">
                                 <tr>
-                                    <th className="px-4 py-2 font-medium">{t('cabinet.subject')}</th>
-                                    <th className="px-4 py-2 font-medium">{t('cabinet.grades')}</th>
-                                    <th className="px-4 py-2 text-right font-medium">{t('cabinet.average')}</th>
+                                    <th className="px-4 py-2 font-medium">
+                                        {t('cabinet.subject')}
+                                    </th>
+                                    <th className="px-4 py-2 font-medium">
+                                        {t('cabinet.grades')}
+                                    </th>
+                                    <th className="px-4 py-2 text-right font-medium">
+                                        {t('cabinet.average')}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {subjects.map((s) => (
-                                    <tr key={s.subject} className="border-t border-sidebar-border/70 dark:border-sidebar-border">
-                                        <td className="px-4 py-3 font-medium">{s.subject}</td>
+                                    <tr
+                                        key={s.subject}
+                                        className="border-t border-sidebar-border/70 dark:border-sidebar-border"
+                                    >
+                                        <td className="px-4 py-3 font-medium">
+                                            {s.subject}
+                                        </td>
                                         <td className="px-4 py-3">
                                             <div className="flex flex-wrap gap-1.5">
                                                 {s.items.map((item, i) => (
                                                     <span
                                                         key={i}
                                                         className="inline-flex min-w-7 items-center justify-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary"
-                                                        title={item.date ?? undefined}
+                                                        title={
+                                                            item.date ??
+                                                            undefined
+                                                        }
                                                     >
                                                         {gradeLabel(item)}
                                                     </span>
                                                 ))}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3 text-right font-semibold">{s.average ?? '—'}</td>
+                                        <td className="px-4 py-3 text-right font-semibold">
+                                            {s.average ?? '—'}
+                                        </td>
                                     </tr>
                                 ))}
                                 {subjects.length === 0 && (
                                     <tr>
-                                        <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">
+                                        <td
+                                            colSpan={3}
+                                            className="px-4 py-6 text-center text-muted-foreground"
+                                        >
                                             {t('cabinet.no_grades')}
                                         </td>
                                     </tr>
@@ -383,7 +450,9 @@ export default function StudentProfile({
                 {absencesTotal > 0 && (
                     <section id="absences">
                         <div className="mb-3 flex flex-wrap items-center gap-3">
-                            <h2 className="text-lg font-semibold">{t('cabinet.absences_by_subject')}</h2>
+                            <h2 className="text-lg font-semibold">
+                                {t('cabinet.absences_by_subject')}
+                            </h2>
                             <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                                 {absencesMotivated} {t('cabinet.motivated')}
                             </span>
@@ -392,8 +461,12 @@ export default function StudentProfile({
                             </span>
                         </div>
                         <details className="mb-3 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-xs dark:border-sidebar-border">
-                            <summary className="cursor-pointer font-medium text-muted-foreground">ℹ️ {t('cabinet.info_procedure')}</summary>
-                            <p className="mt-1.5 text-muted-foreground">{t('cabinet.extract_absences')}</p>
+                            <summary className="cursor-pointer font-medium text-muted-foreground">
+                                ℹ️ {t('cabinet.info_procedure')}
+                            </summary>
+                            <p className="mt-1.5 text-muted-foreground">
+                                {t('cabinet.extract_absences')}
+                            </p>
                         </details>
                         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {absencesBySubject.map((a) => (
@@ -401,8 +474,12 @@ export default function StudentProfile({
                                     key={a.subject}
                                     className="flex items-center justify-between rounded-lg border border-sidebar-border/70 bg-card px-4 py-2 dark:border-sidebar-border"
                                 >
-                                    <span className="truncate text-sm">{a.subject}</span>
-                                    <span className="ml-2 rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">{a.count}</span>
+                                    <span className="truncate text-sm">
+                                        {a.subject}
+                                    </span>
+                                    <span className="ml-2 rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
+                                        {a.count}
+                                    </span>
                                 </div>
                             ))}
                         </div>
@@ -412,14 +489,24 @@ export default function StudentProfile({
                 {/* Risc de amânare (≤1 notă + >50% absențe din lecțiile programate) */}
                 {deferralRisk.length > 0 && (
                     <section className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
-                        <h2 className="mb-2 text-lg font-semibold text-amber-700 dark:text-amber-400">⚠️ {t('cabinet.deferral_title')}</h2>
-                        <p className="mb-3 text-sm text-amber-800/90 dark:text-amber-300/90">{t('cabinet.deferral_hint')}</p>
+                        <h2 className="mb-2 text-lg font-semibold text-amber-700 dark:text-amber-400">
+                            ⚠️ {t('cabinet.deferral_title')}
+                        </h2>
+                        <p className="mb-3 text-sm text-amber-800/90 dark:text-amber-300/90">
+                            {t('cabinet.deferral_hint')}
+                        </p>
                         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {deferralRisk.map((r) => (
-                                <li key={r.subject} className="rounded-lg border border-amber-500/40 bg-card px-4 py-2 text-sm">
-                                    <span className="font-medium">{r.subject}</span>
+                                <li
+                                    key={r.subject}
+                                    className="rounded-lg border border-amber-500/40 bg-card px-4 py-2 text-sm"
+                                >
+                                    <span className="font-medium">
+                                        {r.subject}
+                                    </span>
                                     <span className="mt-0.5 block text-xs text-muted-foreground">
-                                        {r.absences} / {r.scheduled} {t('cabinet.deferral_lessons')}
+                                        {r.absences} / {r.scheduled}{' '}
+                                        {t('cabinet.deferral_lessons')}
                                     </span>
                                 </li>
                             ))}
@@ -430,41 +517,84 @@ export default function StudentProfile({
                 {/* Orar structurat al clasei (navigabil) */}
                 {timetable && (
                     <section>
-                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.timetable_title')}</h2>
+                        <h2 className="mb-3 text-lg font-semibold">
+                            {t('cabinet.timetable_title')}
+                        </h2>
                         <div className="overflow-x-auto rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                             <table className="w-full text-sm">
                                 <thead className="bg-muted/50 text-left text-muted-foreground">
                                     <tr>
-                                        <th className="px-3 py-2 font-medium">{t('cabinet.timetable_lesson')}</th>
+                                        <th className="px-3 py-2 font-medium">
+                                            {t('cabinet.timetable_lesson')}
+                                        </th>
                                         {timetable.days.map((d) => (
-                                            <th key={d.value} className="px-3 py-2 text-center font-medium" title={d.label}>
-                                                <span className="hidden sm:inline">{d.label}</span>
-                                                <span className="sm:hidden">{d.short}</span>
+                                            <th
+                                                key={d.value}
+                                                className="px-3 py-2 text-center font-medium"
+                                                title={d.label}
+                                            >
+                                                <span className="hidden sm:inline">
+                                                    {d.label}
+                                                </span>
+                                                <span className="sm:hidden">
+                                                    {d.short}
+                                                </span>
                                             </th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {Array.from({ length: timetable.maxLesson }, (_, i) => i + 1).map((num) => (
-                                        <tr key={num} className="border-t border-sidebar-border/70 dark:border-sidebar-border">
-                                            <td className="px-3 py-2 font-semibold text-muted-foreground">{num}</td>
+                                    {Array.from(
+                                        { length: timetable.maxLesson },
+                                        (_, i) => i + 1,
+                                    ).map((num) => (
+                                        <tr
+                                            key={num}
+                                            className="border-t border-sidebar-border/70 dark:border-sidebar-border"
+                                        >
+                                            <td className="px-3 py-2 font-semibold text-muted-foreground">
+                                                {num}
+                                            </td>
                                             {timetable.days.map((d) => {
-                                                const cell = timetable.grid[`${d.value}-${num}`];
+                                                const cell =
+                                                    timetable.grid[
+                                                        `${d.value}-${num}`
+                                                    ];
 
                                                 return (
-                                                    <td key={d.value} className="px-3 py-2 text-center align-top">
+                                                    <td
+                                                        key={d.value}
+                                                        className="px-3 py-2 text-center align-top"
+                                                    >
                                                         {cell ? (
                                                             <div className="flex flex-col">
-                                                                <span className="font-medium">{cell.subject}</span>
-                                                                {cell.teacher && <span className="text-xs text-muted-foreground">{cell.teacher}</span>}
+                                                                <span className="font-medium">
+                                                                    {
+                                                                        cell.subject
+                                                                    }
+                                                                </span>
+                                                                {cell.teacher && (
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        {
+                                                                            cell.teacher
+                                                                        }
+                                                                    </span>
+                                                                )}
                                                                 {cell.room && (
                                                                     <span className="text-xs text-muted-foreground">
-                                                                        {t('cabinet.timetable_room')} {cell.room}
+                                                                        {t(
+                                                                            'cabinet.timetable_room',
+                                                                        )}{' '}
+                                                                        {
+                                                                            cell.room
+                                                                        }
                                                                     </span>
                                                                 )}
                                                             </div>
                                                         ) : (
-                                                            <span className="text-muted-foreground/40">—</span>
+                                                            <span className="text-muted-foreground/40">
+                                                                —
+                                                            </span>
                                                         )}
                                                     </td>
                                                 );
@@ -477,21 +607,84 @@ export default function StudentProfile({
                     </section>
                 )}
 
+                {/* Orarul public al clasei (bogat, cu ore) — afișat când nu există orar structurat */}
+                {!timetable && lessonsSchedule && (
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold">
+                            {t('cabinet.timetable_title')}
+                        </h2>
+                        <div className="overflow-x-auto rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                            <table className="w-full text-sm">
+                                <thead className="bg-muted/50 text-left text-muted-foreground">
+                                    <tr>
+                                        {lessonsSchedule.headers.map((h, i) => (
+                                            <th
+                                                key={i}
+                                                className="px-3 py-2 font-medium"
+                                            >
+                                                {h}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {lessonsSchedule.rows.map((row, ri) => (
+                                        <tr
+                                            key={ri}
+                                            className="border-t border-sidebar-border/70 align-top dark:border-sidebar-border"
+                                        >
+                                            {row.map((cell, ci) => (
+                                                <td
+                                                    key={ci}
+                                                    className={`px-3 py-2 ${ci === 0 ? 'font-semibold whitespace-nowrap text-muted-foreground' : ''}`}
+                                                >
+                                                    {cell || (
+                                                        <span className="text-muted-foreground/40">
+                                                            —
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                )}
+
                 {/* Motivarea absențelor (familia depune, dirigintele validează) */}
                 {corigentaExams.length > 0 && (
-                    <section id="corigenta" className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
-                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.corigenta_title', 'Lichidarea corigenței')}</h2>
+                    <section
+                        id="corigenta"
+                        className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
+                    >
+                        <h2 className="mb-3 text-lg font-semibold">
+                            {t(
+                                'cabinet.corigenta_title',
+                                'Lichidarea corigenței',
+                            )}
+                        </h2>
                         <ul className="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
                             {corigentaExams.map((e) => (
-                                <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-                                    <span className="font-medium">{e.subject}</span>
+                                <li
+                                    key={e.id}
+                                    className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
+                                >
+                                    <span className="font-medium">
+                                        {e.subject}
+                                    </span>
                                     <span className="text-xs text-muted-foreground">
-                                        {e.sessionType ? `${e.sessionType} · ` : ''}
+                                        {e.sessionType
+                                            ? `${e.sessionType} · `
+                                            : ''}
                                         {e.season}
                                         {e.scheduledOn
                                             ? ` · ${e.scheduledOn}`
                                             : ` · ${t('cabinet.corigenta_unscheduled', 'în curs de programare')}`}
-                                        {e.commission ? ` · ${e.commission}` : ''}
+                                        {e.commission
+                                            ? ` · ${e.commission}`
+                                            : ''}
                                     </span>
                                 </li>
                             ))}
@@ -501,7 +694,9 @@ export default function StudentProfile({
 
                 {(canRequestMotivation || motivations.length > 0) && (
                     <section id="motivations">
-                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.motivations_title')}</h2>
+                        <h2 className="mb-3 text-lg font-semibold">
+                            {t('cabinet.motivations_title')}
+                        </h2>
                         <div className="grid gap-4 lg:grid-cols-2">
                             {canRequestMotivation && (
                                 <Form
@@ -509,58 +704,96 @@ export default function StudentProfile({
                                     resetOnSuccess
                                     className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
                                 >
-                                    {({ processing, errors, recentlySuccessful }) => (
+                                    {({
+                                        processing,
+                                        errors,
+                                        recentlySuccessful,
+                                    }) => (
                                         <div className="flex flex-col gap-3">
-                                            <p className="text-sm font-medium">{t('cabinet.motivation_new')}</p>
+                                            <p className="text-sm font-medium">
+                                                {t('cabinet.motivation_new')}
+                                            </p>
                                             <div className="grid gap-1.5">
-                                                <label htmlFor="reason" className="text-xs text-muted-foreground">
-                                                    {t('cabinet.motivation_reason')}
+                                                <label
+                                                    htmlFor="reason"
+                                                    className="text-xs text-muted-foreground"
+                                                >
+                                                    {t(
+                                                        'cabinet.motivation_reason',
+                                                    )}
                                                 </label>
                                                 <textarea
                                                     id="reason"
                                                     name="reason"
                                                     required
                                                     rows={3}
-                                                    placeholder={t('cabinet.motivation_reason_ph')}
-                                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                                    placeholder={t(
+                                                        'cabinet.motivation_reason_ph',
+                                                    )}
+                                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:outline-none"
                                                 />
-                                                {errors.reason && <p className="text-xs text-destructive">{errors.reason}</p>}
+                                                {errors.reason && (
+                                                    <p className="text-xs text-destructive">
+                                                        {errors.reason}
+                                                    </p>
+                                                )}
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div className="grid gap-1.5">
-                                                    <label htmlFor="period_start" className="text-xs text-muted-foreground">
-                                                        {t('cabinet.motivation_from')}
+                                                    <label
+                                                        htmlFor="period_start"
+                                                        className="text-xs text-muted-foreground"
+                                                    >
+                                                        {t(
+                                                            'cabinet.motivation_from',
+                                                        )}
                                                     </label>
                                                     <input
                                                         id="period_start"
                                                         name="period_start"
                                                         type="date"
                                                         required
-                                                        className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                                        className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:outline-none"
                                                     />
                                                     {errors.period_start && (
-                                                        <p className="text-xs text-destructive">{errors.period_start}</p>
+                                                        <p className="text-xs text-destructive">
+                                                            {
+                                                                errors.period_start
+                                                            }
+                                                        </p>
                                                     )}
                                                 </div>
                                                 <div className="grid gap-1.5">
-                                                    <label htmlFor="period_end" className="text-xs text-muted-foreground">
-                                                        {t('cabinet.motivation_to')}
+                                                    <label
+                                                        htmlFor="period_end"
+                                                        className="text-xs text-muted-foreground"
+                                                    >
+                                                        {t(
+                                                            'cabinet.motivation_to',
+                                                        )}
                                                     </label>
                                                     <input
                                                         id="period_end"
                                                         name="period_end"
                                                         type="date"
                                                         required
-                                                        className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                                        className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:outline-none"
                                                     />
                                                     {errors.period_end && (
-                                                        <p className="text-xs text-destructive">{errors.period_end}</p>
+                                                        <p className="text-xs text-destructive">
+                                                            {errors.period_end}
+                                                        </p>
                                                     )}
                                                 </div>
                                             </div>
                                             <div className="grid gap-1.5">
-                                                <label htmlFor="document" className="text-xs text-muted-foreground">
-                                                    {t('cabinet.motivation_document')}
+                                                <label
+                                                    htmlFor="document"
+                                                    className="text-xs text-muted-foreground"
+                                                >
+                                                    {t(
+                                                        'cabinet.motivation_document',
+                                                    )}
                                                 </label>
                                                 <input
                                                     id="document"
@@ -569,18 +802,30 @@ export default function StudentProfile({
                                                     accept=".pdf,.jpg,.jpeg,.png"
                                                     className="rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
                                                 />
-                                                {errors.document && <p className="text-xs text-destructive">{errors.document}</p>}
+                                                {errors.document && (
+                                                    <p className="text-xs text-destructive">
+                                                        {errors.document}
+                                                    </p>
+                                                )}
                                             </div>
                                             <button
                                                 type="submit"
                                                 disabled={processing}
                                                 className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                                             >
-                                                {processing ? t('cabinet.motivation_sending') : t('cabinet.motivation_submit')}
+                                                {processing
+                                                    ? t(
+                                                          'cabinet.motivation_sending',
+                                                      )
+                                                    : t(
+                                                          'cabinet.motivation_submit',
+                                                      )}
                                             </button>
                                             {recentlySuccessful && (
                                                 <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                                    {t('cabinet.motivation_sent')}
+                                                    {t(
+                                                        'cabinet.motivation_sent',
+                                                    )}
                                                 </p>
                                             )}
                                         </div>
@@ -596,13 +841,23 @@ export default function StudentProfile({
                                 ) : (
                                     <ul className="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
                                         {motivations.map((m) => (
-                                            <li key={m.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                                            <li
+                                                key={m.id}
+                                                className="flex items-start justify-between gap-3 px-4 py-3"
+                                            >
                                                 <div className="min-w-0">
-                                                    <p className="text-sm font-medium">{m.period}</p>
-                                                    <p className="truncate text-xs text-muted-foreground">{m.reason}</p>
+                                                    <p className="text-sm font-medium">
+                                                        {m.period}
+                                                    </p>
+                                                    <p className="truncate text-xs text-muted-foreground">
+                                                        {m.reason}
+                                                    </p>
                                                     {m.isException && (
                                                         <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-                                                            {t('cabinet.motivation_exception', 'Excepție (după termen)')}
+                                                            {t(
+                                                                'cabinet.motivation_exception',
+                                                                'Excepție (după termen)',
+                                                            )}
                                                         </span>
                                                     )}
                                                     {m.documentUrl && (
@@ -612,14 +867,20 @@ export default function StudentProfile({
                                                             rel="noopener noreferrer"
                                                             className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                                                         >
-                                                            📎 {t('cabinet.motivation_document_view')}
+                                                            📎{' '}
+                                                            {t(
+                                                                'cabinet.motivation_document_view',
+                                                            )}
                                                         </a>
                                                     )}
                                                 </div>
                                                 <span
                                                     className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${motivationStatusClass(m.status)}`}
                                                 >
-                                                    {t(`cabinet.motivation_status_${m.status}`, m.statusLabel)}
+                                                    {t(
+                                                        `cabinet.motivation_status_${m.status}`,
+                                                        m.statusLabel,
+                                                    )}
                                                 </span>
                                             </li>
                                         ))}
@@ -633,10 +894,16 @@ export default function StudentProfile({
                 {/* Cereri tipice (familia depune → PDF → secretariat, §4.3) */}
                 {(canRequestMotivation || documentRequests.length > 0) && (
                     <section>
-                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.requests_title')}</h2>
+                        <h2 className="mb-3 text-lg font-semibold">
+                            {t('cabinet.requests_title')}
+                        </h2>
                         <details className="mb-3 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-xs dark:border-sidebar-border">
-                            <summary className="cursor-pointer font-medium text-muted-foreground">ℹ️ {t('cabinet.info_procedure')}</summary>
-                            <p className="mt-1.5 text-muted-foreground">{t('cabinet.extract_requests')}</p>
+                            <summary className="cursor-pointer font-medium text-muted-foreground">
+                                ℹ️ {t('cabinet.info_procedure')}
+                            </summary>
+                            <p className="mt-1.5 text-muted-foreground">
+                                {t('cabinet.extract_requests')}
+                            </p>
                         </details>
                         <div className="grid gap-4 lg:grid-cols-2">
                             {canRequestMotivation && (
@@ -646,11 +913,20 @@ export default function StudentProfile({
                                     onSuccess={() => setRequestType('')}
                                     className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
                                 >
-                                    {({ processing, errors, recentlySuccessful }) => (
+                                    {({
+                                        processing,
+                                        errors,
+                                        recentlySuccessful,
+                                    }) => (
                                         <div className="flex flex-col gap-3">
-                                            <p className="text-sm font-medium">{t('cabinet.requests_new')}</p>
+                                            <p className="text-sm font-medium">
+                                                {t('cabinet.requests_new')}
+                                            </p>
                                             <div className="grid gap-1.5">
-                                                <label htmlFor="req_type" className="text-xs text-muted-foreground">
+                                                <label
+                                                    htmlFor="req_type"
+                                                    className="text-xs text-muted-foreground"
+                                                >
                                                     {t('cabinet.requests_type')}
                                                 </label>
                                                 <select
@@ -658,24 +934,42 @@ export default function StudentProfile({
                                                     name="type"
                                                     required
                                                     value={requestType}
-                                                    onChange={(e) => setRequestType(e.target.value)}
+                                                    onChange={(e) =>
+                                                        setRequestType(
+                                                            e.target.value,
+                                                        )
+                                                    }
                                                     className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
                                                 >
                                                     <option value="">—</option>
-                                                    {Object.entries(requestTypes).map(([value, label]) => (
-                                                        <option key={value} value={value}>
+                                                    {Object.entries(
+                                                        requestTypes,
+                                                    ).map(([value, label]) => (
+                                                        <option
+                                                            key={value}
+                                                            value={value}
+                                                        >
                                                             {label}
                                                         </option>
                                                     ))}
                                                 </select>
-                                                {errors.type && <p className="text-xs text-destructive">{errors.type}</p>}
+                                                {errors.type && (
+                                                    <p className="text-xs text-destructive">
+                                                        {errors.type}
+                                                    </p>
+                                                )}
                                             </div>
 
                                             {requestType === 'invoire' && (
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div className="grid gap-1.5">
-                                                        <label htmlFor="req_start" className="text-xs text-muted-foreground">
-                                                            {t('cabinet.motivation_from')}
+                                                        <label
+                                                            htmlFor="req_start"
+                                                            className="text-xs text-muted-foreground"
+                                                        >
+                                                            {t(
+                                                                'cabinet.motivation_from',
+                                                            )}
                                                         </label>
                                                         <input
                                                             id="req_start"
@@ -685,8 +979,13 @@ export default function StudentProfile({
                                                         />
                                                     </div>
                                                     <div className="grid gap-1.5">
-                                                        <label htmlFor="req_end" className="text-xs text-muted-foreground">
-                                                            {t('cabinet.motivation_to')}
+                                                        <label
+                                                            htmlFor="req_end"
+                                                            className="text-xs text-muted-foreground"
+                                                        >
+                                                            {t(
+                                                                'cabinet.motivation_to',
+                                                            )}
                                                         </label>
                                                         <input
                                                             id="req_end"
@@ -699,26 +998,46 @@ export default function StudentProfile({
                                             )}
 
                                             <div className="grid gap-1.5">
-                                                <label htmlFor="req_details" className="text-xs text-muted-foreground">
-                                                    {t('cabinet.requests_details')}
+                                                <label
+                                                    htmlFor="req_details"
+                                                    className="text-xs text-muted-foreground"
+                                                >
+                                                    {t(
+                                                        'cabinet.requests_details',
+                                                    )}
                                                 </label>
                                                 <textarea
                                                     id="req_details"
                                                     name="details"
                                                     rows={3}
-                                                    placeholder={t('cabinet.requests_details_ph')}
+                                                    placeholder={t(
+                                                        'cabinet.requests_details_ph',
+                                                    )}
                                                     maxLength={1500}
                                                     className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                                                 />
-                                                {errors.details && <p className="text-xs text-destructive">{errors.details}</p>}
+                                                {errors.details && (
+                                                    <p className="text-xs text-destructive">
+                                                        {errors.details}
+                                                    </p>
+                                                )}
                                             </div>
 
                                             <button
                                                 type="submit"
-                                                disabled={processing || requestType === ''}
+                                                disabled={
+                                                    processing ||
+                                                    requestType === ''
+                                                }
                                                 className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                                             >
-                                                {processing ? t('cabinet.motivation_sending') : t('cabinet.requests_submit')}
+                                                {processing
+                                                    ? t(
+                                                          'cabinet.motivation_sending',
+                                                      )
+                                                    : t(
+                                                          'cabinet.requests_submit',
+                                                      )}
                                             </button>
                                             {recentlySuccessful && (
                                                 <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -738,16 +1057,26 @@ export default function StudentProfile({
                                 ) : (
                                     <ul className="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
                                         {documentRequests.map((r) => (
-                                            <li key={r.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                                            <li
+                                                key={r.id}
+                                                className="flex items-center justify-between gap-3 px-4 py-3"
+                                            >
                                                 <div className="min-w-0">
-                                                    <p className="truncate text-sm font-medium">{r.type}</p>
-                                                    <p className="text-xs text-muted-foreground">{r.date}</p>
+                                                    <p className="truncate text-sm font-medium">
+                                                        {r.type}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {r.date}
+                                                    </p>
                                                 </div>
                                                 <div className="flex shrink-0 items-center gap-2">
                                                     <span
                                                         className={`rounded-md px-2 py-0.5 text-xs font-semibold ${motivationStatusClass(r.status)}`}
                                                     >
-                                                        {t(`cabinet.motivation_status_${r.status}`, r.statusLabel)}
+                                                        {t(
+                                                            `cabinet.motivation_status_${r.status}`,
+                                                            r.statusLabel,
+                                                        )}
                                                     </span>
                                                     {r.pdfUrl && (
                                                         <a
@@ -772,7 +1101,9 @@ export default function StudentProfile({
                 {/* Foaie matricolă */}
                 {transcript.length > 0 && (
                     <section>
-                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.transcript')}</h2>
+                        <h2 className="mb-3 text-lg font-semibold">
+                            {t('cabinet.transcript')}
+                        </h2>
                         <div className="flex flex-col gap-3">
                             {transcript.map((level, idx) => (
                                 <details
@@ -786,19 +1117,38 @@ export default function StudentProfile({
                                     <table className="w-full text-sm">
                                         <thead className="text-left text-muted-foreground">
                                             <tr className="border-t border-sidebar-border/70 dark:border-sidebar-border">
-                                                <th className="px-4 py-2 font-medium">{t('cabinet.subject')}</th>
-                                                <th className="px-4 py-2 text-center font-medium">{t('cabinet.sem1')}</th>
-                                                <th className="px-4 py-2 text-center font-medium">{t('cabinet.sem2')}</th>
-                                                <th className="px-4 py-2 text-center font-medium">{t('cabinet.annual')}</th>
+                                                <th className="px-4 py-2 font-medium">
+                                                    {t('cabinet.subject')}
+                                                </th>
+                                                <th className="px-4 py-2 text-center font-medium">
+                                                    {t('cabinet.sem1')}
+                                                </th>
+                                                <th className="px-4 py-2 text-center font-medium">
+                                                    {t('cabinet.sem2')}
+                                                </th>
+                                                <th className="px-4 py-2 text-center font-medium">
+                                                    {t('cabinet.annual')}
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {level.subjects.map((s) => (
-                                                <tr key={s.subject} className="border-t border-sidebar-border/70 dark:border-sidebar-border">
-                                                    <td className="px-4 py-2 font-medium">{s.subject}</td>
-                                                    <td className="px-4 py-2 text-center">{s.sem1 ?? '—'}</td>
-                                                    <td className="px-4 py-2 text-center">{s.sem2 ?? '—'}</td>
-                                                    <td className="px-4 py-2 text-center font-semibold">{s.annual ?? '—'}</td>
+                                                <tr
+                                                    key={s.subject}
+                                                    className="border-t border-sidebar-border/70 dark:border-sidebar-border"
+                                                >
+                                                    <td className="px-4 py-2 font-medium">
+                                                        {s.subject}
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        {s.sem1 ?? '—'}
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        {s.sem2 ?? '—'}
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center font-semibold">
+                                                        {s.annual ?? '—'}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -810,9 +1160,12 @@ export default function StudentProfile({
                 )}
 
                 {/* Dinamică & evoluție (spec §2.2/§2.3) — raportat la istoricul PROPRIU */}
-                {(dynamics.general.length > 0 || dynamics.current.average !== null) && (
+                {(dynamics.general.length > 0 ||
+                    dynamics.current.average !== null) && (
                     <section>
-                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.dynamics_title')}</h2>
+                        <h2 className="mb-3 text-lg font-semibold">
+                            {t('cabinet.dynamics_title')}
+                        </h2>
 
                         {dynamics.current.alert && (
                             <p className="mb-3 rounded-lg bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive">
@@ -824,33 +1177,63 @@ export default function StudentProfile({
                             <div className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
                                 <div className="flex flex-wrap items-end gap-5">
                                     <div>
-                                        <p className="text-xs text-muted-foreground">{t('cabinet.dynamics_current')}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {t('cabinet.dynamics_current')}
+                                        </p>
                                         <p className="text-2xl font-semibold text-primary">
                                             {dynamics.current.average ?? '—'}
                                             {(() => {
-                                                const tr = trendSymbol(dynamics.current.trend);
+                                                const tr = trendSymbol(
+                                                    dynamics.current.trend,
+                                                );
 
-                                                return tr ? <span className={`ml-1 text-base ${tr.cls}`}>{tr.symbol}</span> : null;
+                                                return tr ? (
+                                                    <span
+                                                        className={`ml-1 text-base ${tr.cls}`}
+                                                    >
+                                                        {tr.symbol}
+                                                    </span>
+                                                ) : null;
                                             })()}
                                         </p>
                                     </div>
-                                    {dynamics.current.historyAverage !== null && (
+                                    {dynamics.current.historyAverage !==
+                                        null && (
                                         <div>
-                                            <p className="text-xs text-muted-foreground">{t('cabinet.dynamics_history')}</p>
-                                            <p className="text-lg font-medium">{dynamics.current.historyAverage}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {t('cabinet.dynamics_history')}
+                                            </p>
+                                            <p className="text-lg font-medium">
+                                                {
+                                                    dynamics.current
+                                                        .historyAverage
+                                                }
+                                            </p>
                                         </div>
                                     )}
-                                    {dynamics.current.previousYearSameTerm !== null && (
+                                    {dynamics.current.previousYearSameTerm !==
+                                        null && (
                                         <div>
-                                            <p className="text-xs text-muted-foreground">{t('cabinet.dynamics_vs_last_year')}</p>
-                                            <p className="text-lg font-medium">{dynamics.current.previousYearSameTerm}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {t(
+                                                    'cabinet.dynamics_vs_last_year',
+                                                )}
+                                            </p>
+                                            <p className="text-lg font-medium">
+                                                {
+                                                    dynamics.current
+                                                        .previousYearSameTerm
+                                                }
+                                            </p>
                                         </div>
                                     )}
                                 </div>
 
                                 {dynamics.general.length > 1 && (
                                     <div className="mt-4">
-                                        <p className="mb-1 text-xs text-muted-foreground">{t('cabinet.dynamics_general')}</p>
+                                        <p className="mb-1 text-xs text-muted-foreground">
+                                            {t('cabinet.dynamics_general')}
+                                        </p>
                                         <svg
                                             viewBox="0 0 200 48"
                                             className="h-12 w-full text-primary"
@@ -860,8 +1243,17 @@ export default function StudentProfile({
                                             <polyline
                                                 points={sparklinePoints(
                                                     [
-                                                        ...dynamics.general.map((g) => g.average),
-                                                        ...(dynamics.current.average !== null ? [dynamics.current.average] : []),
+                                                        ...dynamics.general.map(
+                                                            (g) => g.average,
+                                                        ),
+                                                        ...(dynamics.current
+                                                            .average !== null
+                                                            ? [
+                                                                  dynamics
+                                                                      .current
+                                                                      .average,
+                                                              ]
+                                                            : []),
                                                     ],
                                                     200,
                                                     44,
@@ -874,9 +1266,15 @@ export default function StudentProfile({
                                         </svg>
                                         <div className="mt-2 flex flex-wrap gap-1.5">
                                             {dynamics.general.map((g) => (
-                                                <span key={g.level} className="rounded-md bg-muted px-2 py-0.5 text-xs">
-                                                    {t('cabinet.class')} {g.level}:{' '}
-                                                    <span className="font-semibold">{g.average}</span>
+                                                <span
+                                                    key={g.level}
+                                                    className="rounded-md bg-muted px-2 py-0.5 text-xs"
+                                                >
+                                                    {t('cabinet.class')}{' '}
+                                                    {g.level}:{' '}
+                                                    <span className="font-semibold">
+                                                        {g.average}
+                                                    </span>
                                                 </span>
                                             ))}
                                         </div>
@@ -892,17 +1290,29 @@ export default function StudentProfile({
                                     <ul className="max-h-72 divide-y divide-sidebar-border/70 overflow-y-auto dark:divide-sidebar-border">
                                         {dynamics.subjects.map((s) => {
                                             const tr = trendSymbol(s.trend);
-                                            const last = s.points[s.points.length - 1];
+                                            const last =
+                                                s.points[s.points.length - 1];
 
                                             return (
-                                                <li key={s.subject} className="flex items-center justify-between gap-3 px-4 py-2">
-                                                    <span className="truncate text-sm">{s.subject}</span>
+                                                <li
+                                                    key={s.subject}
+                                                    className="flex items-center justify-between gap-3 px-4 py-2"
+                                                >
+                                                    <span className="truncate text-sm">
+                                                        {s.subject}
+                                                    </span>
                                                     <span className="flex items-center gap-2">
-                                                        <span className="text-sm font-semibold">{last ? last.value : '—'}</span>
+                                                        <span className="text-sm font-semibold">
+                                                            {last
+                                                                ? last.value
+                                                                : '—'}
+                                                        </span>
                                                         {tr && (
                                                             <span
                                                                 className={`text-xs ${tr.cls}`}
-                                                                title={t(`cabinet.dynamics_trend_${s.trend}`)}
+                                                                title={t(
+                                                                    `cabinet.dynamics_trend_${s.trend}`,
+                                                                )}
                                                             >
                                                                 {tr.symbol}
                                                             </span>
@@ -921,7 +1331,9 @@ export default function StudentProfile({
                 {/* Teme */}
                 {homework.length > 0 && (
                     <section id="homework">
-                        <h2 className="mb-3 text-lg font-semibold">{t('cabinet.homework')}</h2>
+                        <h2 className="mb-3 text-lg font-semibold">
+                            {t('cabinet.homework')}
+                        </h2>
                         <div className="flex flex-col gap-3">
                             {homework.map((h) => (
                                 <article
@@ -929,19 +1341,29 @@ export default function StudentProfile({
                                     className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
                                 >
                                     <div className="mb-1 flex flex-wrap items-center gap-2">
-                                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{h.subject}</span>
-                                        <span className="text-xs text-muted-foreground">{h.date}</span>
+                                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                                            {h.subject}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {h.date}
+                                        </span>
                                     </div>
-                                    {h.topic && <p className="font-medium">{h.topic}</p>}
+                                    {h.topic && (
+                                        <p className="font-medium">{h.topic}</p>
+                                    )}
                                     {h.required && (
                                         <p className="mt-1 text-sm">
-                                            <span className="text-muted-foreground">{t('cabinet.required')} </span>
+                                            <span className="text-muted-foreground">
+                                                {t('cabinet.required')}{' '}
+                                            </span>
                                             {h.required}
                                         </p>
                                     )}
                                     {h.optional && (
                                         <p className="mt-1 text-sm">
-                                            <span className="text-muted-foreground">{t('cabinet.optional')} </span>
+                                            <span className="text-muted-foreground">
+                                                {t('cabinet.optional')}{' '}
+                                            </span>
                                             {h.optional}
                                         </p>
                                     )}
@@ -956,10 +1378,14 @@ export default function StudentProfile({
                                                         rel="noopener noreferrer"
                                                         className="rounded-md bg-muted px-2 py-0.5 text-xs text-primary underline-offset-2 hover:underline"
                                                     >
-                                                        {t('cabinet.link')} {i + 1}
+                                                        {t('cabinet.link')}{' '}
+                                                        {i + 1}
                                                     </a>
                                                 ) : (
-                                                    <span key={i} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                                                    <span
+                                                        key={i}
+                                                        className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                                                    >
                                                         {link}
                                                     </span>
                                                 ),
