@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { Bell, LayoutGrid, MessageSquare, UserCircle } from 'lucide-react';
+import { Bell, CalendarDays, LayoutGrid, MessageSquare, UserCircle } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -32,6 +32,7 @@ export function AppSidebar() {
             label: t('cabinet.grp_main', 'Principal'),
             items: [
                 { title: t('cabinet.nav_home', 'Acasă'), href: dashboard(), icon: LayoutGrid },
+                { title: t('ccal.title', 'Calendar'), href: '/cabinet/calendar', icon: CalendarDays },
                 { title: t('profile.head', 'Profil'), href: '/cabinet/profil', icon: UserCircle },
             ],
         },
