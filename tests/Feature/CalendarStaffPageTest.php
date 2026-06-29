@@ -41,7 +41,7 @@ it('navigarea schimbă luna afișată', function () {
 
     Livewire::test(Calendar::class)
         ->assertSet('month', now()->format('Y-m'))
-        ->call('previousMonth')
+        ->call('previous')
         ->assertSet('month', now()->subMonthNoOverflow()->format('Y-m'))
         ->call('goToday')
         ->assertSet('month', now()->format('Y-m'));

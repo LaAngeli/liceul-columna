@@ -549,11 +549,17 @@ function MonthGrid({
                     const isToday = cell === todayStr;
 
                     return (
-                        <button
-                            type="button"
+                        <div
+                            role="button"
+                            tabIndex={0}
                             key={i}
                             onClick={() => onDay(cell)}
-                            className={`min-h-20 rounded-md border bg-card p-1 text-left transition-colors hover:border-primary/40 ${
+                            onKeyDown={(ev) => {
+                                if (ev.key === 'Enter' || ev.key === ' ') {
+                                    onDay(cell);
+                                }
+                            }}
+                            className={`flex min-h-20 cursor-pointer flex-col rounded-md border bg-card p-1 text-left transition-colors hover:border-primary/40 ${
                                 isToday
                                     ? 'border-[#9bc31e] ring-1 ring-[#9bc31e]'
                                     : 'border-sidebar-border/70 dark:border-sidebar-border'
@@ -570,21 +576,14 @@ function MonthGrid({
                             </span>
                             <span className="mt-0.5 flex flex-col gap-0.5">
                                 {dayEvents.slice(0, 3).map((e) => (
-                                    <span
+                                    <button
+                                        type="button"
                                         key={e.id}
-                                        role="button"
-                                        tabIndex={0}
                                         onClick={(ev) => {
                                             ev.stopPropagation();
                                             onEvent(e);
                                         }}
-                                        onKeyDown={(ev) => {
-                                            if (ev.key === 'Enter') {
-                                                ev.stopPropagation();
-                                                onEvent(e);
-                                            }
-                                        }}
-                                        className={`flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] leading-tight ${colorFor(e.color).chip}`}
+                                        className={`flex items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[10px] leading-tight ${colorFor(e.color).chip}`}
                                     >
                                         <span
                                             className={`size-1.5 shrink-0 rounded-full ${colorFor(e.color).dot}`}
@@ -592,7 +591,7 @@ function MonthGrid({
                                         <span className="truncate">
                                             {e.title}
                                         </span>
-                                    </span>
+                                    </button>
                                 ))}
                                 {dayEvents.length > 3 && (
                                     <span className="px-1 text-[10px] text-muted-foreground">
@@ -600,7 +599,7 @@ function MonthGrid({
                                     </span>
                                 )}
                             </span>
-                        </button>
+                        </div>
                     );
                 })}
             </div>

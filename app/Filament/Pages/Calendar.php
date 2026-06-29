@@ -12,8 +12,8 @@ use Illuminate\Support\Carbon;
 
 /**
  * Calendarul INSTITUȚIONAL pentru staff (modul Calendar). Consumă același {@see CalendarAggregator}
- * ca și cabinetul, dar cu scope de staff: doar evenimentele globale (structură — semestre/vacanțe — +
- * sesiuni de corigență publicate + viitoarele evenimente/ședințe manuale), fără PII per-elev la scară.
+ * ca și cabinetul, cu scope de staff: doar evenimente globale (structură + sesiuni publicate +
+ * evenimente/ședințe manuale), fără PII per-elev. Vederi: Lună / Săptămână / Zi / Agendă.
  */
 class Calendar extends Page
 {
@@ -29,68 +29,72 @@ class Calendar extends Page
 
     public string $month = '';
 
+    public string $mode = 'month';
+
+    public string $focus = '';
+
     public function mount(): void
     {
-        $this->month = Carbon::now()->format('Y-m');
+        $now = Carbon::now();
+        $this->month = $now->format('Y-m');
+        $this->focus = $now->toDateString();
     }
 
-    public function previousMonth(): void
+    public function setMode(string $mode): void
     {
-        $this->month = $this->baseMonth()->subMonthNoOverflow()->format('Y-m');
+        if (in_array($mode, ['month', 'week', 'day', 'agenda'], true)) {
+            $this->mode = $mode;
+        }
     }
 
-    public function nextMonth(): void
+    public function previous(): void
     {
-        $this->month = $this->baseMonth()->addMonthNoOverflow()->format('Y-m');
+        $this->shift(-1);
+    }
+
+    public function next(): void
+    {
+        $this->shift(1);
     }
 
     public function goToday(): void
     {
-        $this->month = Carbon::now()->format('Y-m');
+        $now = Carbon::now();
+        $this->month = $now->format('Y-m');
+        $this->focus = $now->toDateString();
     }
 
-    public function monthLabel(): string
+    public function openDay(string $date): void
     {
+        $this->focus = $date;
+        $this->mode = 'day';
+        $this->month = Carbon::parse($date)->format('Y-m');
+    }
+
+    public function periodTitle(): string
+    {
+        if ($this->mode === 'day') {
+            return Carbon::parse($this->focus)->translatedFormat('l, j F Y');
+        }
+
+        if ($this->mode === 'week') {
+            $start = Carbon::parse($this->focus)->startOfWeek(Carbon::MONDAY);
+
+            return $start->translatedFormat('j M').' – '.$start->copy()->addDays(6)->translatedFormat('j M Y');
+        }
+
         return $this->baseMonth()->translatedFormat('F Y');
     }
 
     /**
-     * Evenimentele instituționale ale lunii, grupate și sortate pe zi (Y-m-d).
-     *
-     * @return array<string, list<array<string, mixed>>>
-     */
-    public function eventsByDay(): array
-    {
-        $viewer = auth()->user();
-
-        if (! $viewer instanceof User) {
-            return [];
-        }
-
-        $base = $this->baseMonth();
-        $scope = app(CalendarAccess::class)->staffScope($viewer);
-        $items = app(CalendarAggregator::class)->collect($scope, $base->copy()->startOfMonth(), $base->copy()->endOfMonth());
-
-        $grouped = [];
-
-        foreach ($items as $item) {
-            $grouped[$item->date][] = $item->toArray();
-        }
-
-        ksort($grouped);
-
-        return $grouped;
-    }
-
-    /**
-     * Gridul lunii: celule (sau null pentru spațiile dinainte/după lună), cu evenimentele fiecărei zile.
+     * Gridul lunii: celule (sau null), cu evenimentele fiecărei zile.
      *
      * @return list<array{day: int, date: string, isToday: bool, events: list<array<string, mixed>>}|null>
      */
     public function monthCells(): array
     {
         $base = $this->baseMonth();
-        $byDay = $this->eventsByDay();
+        $byDay = $this->byDay();
         $todayStr = Carbon::now()->toDateString();
 
         $lead = $base->copy()->startOfMonth()->dayOfWeekIso - 1;
@@ -117,6 +121,106 @@ class Calendar extends Page
         }
 
         return $cells;
+    }
+
+    /**
+     * Cele 7 zile ale săptămânii curente (luni–duminică), cu evenimentele lor.
+     *
+     * @return list<array{date: string, weekday: string, day: int, isToday: bool, events: list<array<string, mixed>>}>
+     */
+    public function weekDays(): array
+    {
+        $byDay = $this->byDay();
+        $start = Carbon::parse($this->focus)->startOfWeek(Carbon::MONDAY);
+        $todayStr = Carbon::now()->toDateString();
+
+        $out = [];
+
+        for ($i = 0; $i < 7; $i++) {
+            $day = $start->copy()->addDays($i);
+            $date = $day->toDateString();
+            $out[] = [
+                'date' => $date,
+                'weekday' => $day->translatedFormat('D'),
+                'day' => $day->day,
+                'isToday' => $date === $todayStr,
+                'events' => $byDay[$date] ?? [],
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Evenimentele zilei aflate în focus (vederea Zi).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function dayEvents(): array
+    {
+        return $this->byDay()[$this->focus] ?? [];
+    }
+
+    /**
+     * Evenimentele instituționale ale intervalului încărcat, grupate și sortate pe zi (Y-m-d).
+     *
+     * @return array<string, list<array<string, mixed>>>
+     */
+    public function byDay(): array
+    {
+        $viewer = auth()->user();
+
+        if (! $viewer instanceof User) {
+            return [];
+        }
+
+        [$from, $to] = $this->loadedRange();
+        $scope = app(CalendarAccess::class)->staffScope($viewer);
+        $items = app(CalendarAggregator::class)->collect($scope, $from, $to);
+
+        $grouped = [];
+
+        foreach ($items as $item) {
+            $grouped[$item->date][] = $item->toArray();
+        }
+
+        ksort($grouped);
+
+        return $grouped;
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function loadedRange(): array
+    {
+        $base = $this->baseMonth();
+
+        return [
+            $base->copy()->startOfMonth()->startOfWeek(Carbon::MONDAY),
+            $base->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY),
+        ];
+    }
+
+    private function shift(int $dir): void
+    {
+        if ($this->mode === 'week') {
+            $this->focus = Carbon::parse($this->focus)->addDays($dir * 7)->toDateString();
+            $this->month = Carbon::parse($this->focus)->format('Y-m');
+
+            return;
+        }
+
+        if ($this->mode === 'day') {
+            $this->focus = Carbon::parse($this->focus)->addDays($dir)->toDateString();
+            $this->month = Carbon::parse($this->focus)->format('Y-m');
+
+            return;
+        }
+
+        $base = $this->baseMonth()->addMonthsNoOverflow($dir);
+        $this->month = $base->format('Y-m');
+        $this->focus = $base->toDateString();
     }
 
     private function baseMonth(): Carbon
