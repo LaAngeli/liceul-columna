@@ -40,6 +40,11 @@ class CalendarDemoSeeder extends Seeder
         }
 
         $class = $this->ensureClass($student);
+
+        // Leagă contul demo de părinte la elevul demo → demo-ul se vede și din perspectiva părintelui.
+        $parent = User::query()->where('email', 'parinte@columna.test')->first();
+        $parent?->students()->syncWithoutDetaching([$student->id]);
+
         $month = Carbon::now()->startOfMonth();
         $on = fn (int $day): string => $month->copy()->day(min($day, $month->daysInMonth))->toDateString();
 
