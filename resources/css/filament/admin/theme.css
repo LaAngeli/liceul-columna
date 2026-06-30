@@ -1,0 +1,236 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+/* Fonturile de brand (brandbook): Proxima Nova pentru corp/UI. Self-hosted din public/fonts/.
+   Sunt declarate ÎN tema Filament (NU sub `.site-shell` ca în app.css) pentru ca panoul staff
+   să le poată folosi. Cervino e font display/titluri — în panou nu apar titluri editoriale,
+   deci nu îl includem aici (greutate inutilă). Vezi memoria `brand-design-foundation`. */
+@font-face {
+    font-family: 'Proxima Nova';
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/proxima-nova-400.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Proxima Nova';
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+    src: url('/fonts/proxima-nova-400-italic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Proxima Nova';
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/proxima-nova-600.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Proxima Nova';
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/proxima-nova-700.woff2') format('woff2');
+}
+
+/* Aplicăm Proxima Nova în panou: setăm întreaga „pagină" Filament (.fi-body) pe Proxima Nova,
+   moștenire prin font-family. Inter rămâne fallback. */
+.fi-body {
+    font-family: 'Proxima Nova', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ============================================================================
+   Tokeni de brand pentru panoul Filament (§11 brandbook).
+   Sursă unică pentru navy + verde — evită driftul cromatic (un view care rămâne
+   pe alt hex e exact rădăcina problemelor de tipul „amber în welcome" sau
+   „modal alb în dark"). Inline-style din Blade-uri referă DOAR `var(--brand-*)`.
+
+   ⚠️ Sincronizare obligatorie: `#0f4d77` apare ȘI în
+   `AdminPanelProvider.php::colors(['primary' => '#0f4d77'])`, care e API PHP
+   Filament — nu poate referi var() CSS. Cele două valori trebuie ținute identice.
+   ============================================================================ */
+:root {
+    --brand-navy: #0f4d77;
+    --brand-navy-contrast: #ffffff;
+    --brand-green: #9bc31e;
+    --brand-green-contrast: #1d1d1c;
+}
+
+/* Logo-ul în topbar: brandbook-ul cere spațiu de respirație în jurul logo-ului. Suprascriem
+   înălțimea brandLogo să fie aerată. */
+.fi-topbar .fi-logo img {
+    max-height: 2.25rem;
+    width: auto;
+}
+
+/* ============================================================================
+   Pagina Calendar (modul Calendar) — sistem vizual + accesibilitate.
+   Mutat din stiluri INLINE în temă: Filament nu scanează `resources/views` pentru
+   clase Tailwind, dar CLASELE CSS dintr-o temă COMPILATĂ funcționează — inclusiv
+   variantele `.dark` (clasa pe <html>). Astfel modalul, chip-urile și pastilele
+   sunt theme-aware (light/dark), cu contrast AA, paletă ancorată pe brand
+   (navy = examene/„accent"; verde = teme), ținte ≥24px și focus vizibil.
+   ============================================================================ */
+
+/* Variabile neutre + de modal, theme-aware (înlocuiesc rgba(128,128,128,…) inline). */
+.cal {
+    --cal-border: rgba(0, 0, 0, 0.12);
+    --cal-surface: rgba(0, 0, 0, 0.025);
+    --cal-empty: rgba(0, 0, 0, 0.05);
+    --cal-modal-bg: #ffffff;
+    --cal-modal-fg: #1d1d1c;
+    --cal-focus: #0f4d77;
+}
+.dark .cal {
+    --cal-border: rgba(255, 255, 255, 0.12);
+    --cal-surface: rgba(255, 255, 255, 0.04);
+    --cal-empty: rgba(255, 255, 255, 0.04);
+    --cal-modal-bg: #1a1d21;
+    --cal-modal-fg: #e5e7eb;
+    --cal-focus: #7fb1d6;
+}
+
+/* Paleta categoriilor: --cal-dot (punct), --cal-bg (fundal chip/pastilă),
+   --cal-fg (text — ales suficient de ÎNCHIS ca să treacă WCAG AA pe fundal).
+   „accent" = navy de brand; „success" (teme) = verde de brand. Restul: hue-uri
+   distincte (necesare pt. codarea pe categorii — culoarea NU e singurul semnal:
+   pastilele au și titlu-text + aria-label cu numele categoriei). */
+.cal-cat-accent  { --cal-dot: #0f4d77; --cal-bg: rgba(15, 77, 119, 0.10);  --cal-fg: #0f4d77; }
+.cal-cat-success { --cal-dot: #4d7c0f; --cal-bg: rgba(155, 195, 30, 0.16); --cal-fg: #3f6212; }
+.cal-cat-danger  { --cal-dot: #dc2626; --cal-bg: #fee2e2;                  --cal-fg: #991b1b; }
+.cal-cat-warning { --cal-dot: #b45309; --cal-bg: #fef3c7;                  --cal-fg: #92400e; }
+.cal-cat-event   { --cal-dot: #7c3aed; --cal-bg: #ede9fe;                  --cal-fg: #5b21b6; }
+.cal-cat-info    { --cal-dot: #0e7490; --cal-bg: #cffafe;                  --cal-fg: #155e75; }
+.cal-cat-neutral { --cal-dot: #475569; --cal-bg: #e2e8f0;                  --cal-fg: #334155; }
+.cal-cat-muted   { --cal-dot: #64748b; --cal-bg: #f1f5f9;                  --cal-fg: #475569; }
+
+.dark .cal-cat-accent  { --cal-dot: #7fb1d6; --cal-bg: rgba(15, 77, 119, 0.35);  --cal-fg: #cfe2f0; }
+.dark .cal-cat-success { --cal-dot: #a3d139; --cal-bg: rgba(155, 195, 30, 0.18); --cal-fg: #d7e8a8; }
+.dark .cal-cat-danger  { --cal-dot: #f87171; --cal-bg: rgba(239, 68, 68, 0.20);  --cal-fg: #fecaca; }
+.dark .cal-cat-warning { --cal-dot: #fbbf24; --cal-bg: rgba(245, 158, 11, 0.20); --cal-fg: #fde68a; }
+.dark .cal-cat-event   { --cal-dot: #a78bfa; --cal-bg: rgba(139, 92, 246, 0.22); --cal-fg: #ddd6fe; }
+.dark .cal-cat-info    { --cal-dot: #22d3ee; --cal-bg: rgba(6, 182, 212, 0.20);  --cal-fg: #a5f3fc; }
+.dark .cal-cat-neutral { --cal-dot: #94a3b8; --cal-bg: rgba(100, 116, 139, 0.25); --cal-fg: #cbd5e1; }
+.dark .cal-cat-muted   { --cal-dot: #94a3b8; --cal-bg: rgba(148, 163, 184, 0.18); --cal-fg: #cbd5e1; }
+
+/* Focus vizibil pe toate elementele interactive ale calendarului. */
+.cal-tab:focus-visible,
+.cal-chip:focus-visible,
+.cal-chip-all:focus-visible,
+.cal-daynum:focus-visible,
+.cal-pill:focus-visible,
+.cal-daybar:focus-visible,
+.cal-modal-close:focus-visible,
+.cal-add:focus-visible,
+.cal-edit:focus-visible {
+    outline: 2px solid var(--cal-focus);
+    outline-offset: 2px;
+}
+
+/* Taburi de vedere (Lună/Săptămână/Zi/Agendă). Starea = aria-pressed (sursă unică). */
+.cal-tabs { display: inline-flex; border: 1px solid var(--cal-border); border-radius: 8px; overflow: hidden; }
+.cal-tab {
+    padding: 8px 12px; min-height: 36px; font-size: 13px; font-weight: 500;
+    cursor: pointer; background: transparent; border: none; color: inherit; opacity: 0.7;
+}
+.cal-tab + .cal-tab { border-inline-start: 1px solid var(--cal-border); }
+.cal-tab[aria-pressed='true'] { background: var(--brand-navy); color: var(--brand-navy-contrast); opacity: 1; }
+
+/* Chip-uri filtru categorii. aria-pressed conduce vizualul. */
+.cal-chip {
+    display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 4px 10px;
+    border-radius: 9999px; border: 1px solid var(--cal-dot); background: var(--cal-bg);
+    color: var(--cal-fg); font-size: 11px; font-weight: 600; cursor: pointer;
+}
+.cal-chip[aria-pressed='false'] { border-color: var(--cal-border); background: transparent; color: inherit; opacity: 0.6; }
+.cal-chip__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cal-dot); flex: none; }
+.cal-chip-all {
+    min-height: 28px; padding: 4px 10px; border-radius: 9999px; border: 1px dashed var(--cal-border);
+    background: transparent; font-size: 11px; font-weight: 500; cursor: pointer; color: inherit; opacity: 0.75;
+}
+
+/* Buton „Adaugă eveniment" + „Editează" (brand navy). */
+.cal-add, .cal-edit {
+    display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;
+    background: var(--brand-navy); color: var(--brand-navy-contrast); text-decoration: none; font-weight: 600;
+}
+.cal-add { padding: 8px 12px; font-size: 13px; min-height: 36px; }
+.cal-edit { padding: 8px 12px; font-size: 12px; }
+
+/* Grilă lună */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-weekhead { text-align: center; font-size: 12px; padding: 4px 0; opacity: 0.6; }
+.cal-cell {
+    min-height: 84px; border-radius: 8px; padding: 4px; overflow: hidden;
+    border: 1px solid var(--cal-border); display: flex; flex-direction: column; gap: 2px;
+}
+.cal-cell--blank { background: var(--cal-empty); border: none; }
+.cal-cell--today { border: 1.5px solid var(--brand-green); box-shadow: 0 0 0 1px var(--brand-green); }
+.cal-daynum {
+    align-self: flex-start; display: inline-flex; align-items: center; justify-content: center;
+    min-width: 28px; height: 28px; border-radius: 9999px; font-size: 12px; font-weight: 600;
+    background: transparent; border: none; cursor: pointer; opacity: 0.7; color: inherit;
+}
+.cal-daynum:hover { background: var(--cal-surface); opacity: 1; }
+.cal-cell--today .cal-daynum { background: var(--brand-green); color: var(--brand-green-contrast); opacity: 1; }
+
+/* Pastilă eveniment (buton) */
+.cal-pill {
+    display: flex; align-items: center; gap: 5px; width: 100%; min-height: 24px; padding: 2px 6px;
+    border-radius: 5px; border: none; font-size: 11px; line-height: 1.3; text-align: start;
+    cursor: pointer; background: var(--cal-bg); color: var(--cal-fg);
+}
+.cal-pill__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cal-dot); flex: none; }
+.cal-pill__time { font-weight: 700; }
+.cal-pill__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-more { font-size: 10px; opacity: 0.6; padding: 1px 6px; }
+
+/* Carduri săptămână / agendă + bară zi */
+.cal-card { border-radius: 10px; padding: 8px; border: 1px solid var(--cal-border); }
+.cal-card--today { border: 1.5px solid var(--brand-green); }
+.cal-agenda-card { border-radius: 12px; padding: 14px; border: 1px solid var(--cal-border); background: var(--cal-surface); }
+.cal-daybar {
+    display: flex; align-items: stretch; overflow: hidden; border-radius: 10px; width: 100%;
+    border: 1px solid var(--cal-border); background: transparent; cursor: pointer; text-align: start; color: inherit;
+}
+.cal-daybar__rail { width: 4px; background: var(--cal-dot); flex: none; }
+.cal-daybar__body { padding: 10px 14px; font-size: 14px; }
+
+/* Legendă */
+.cal-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border-top: 1px solid var(--cal-border); padding-top: 12px; font-size: 12px; }
+.cal-legend__item { display: inline-flex; align-items: center; gap: 6px; }
+.cal-legend__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cal-dot); }
+
+/* Empty state */
+.cal-empty { border: 1px dashed var(--cal-border); border-radius: 12px; padding: 28px; text-align: center; font-size: 14px; opacity: 0.7; }
+
+/* Modal detalii eveniment — theme-aware (în panou `var(--background)` din SPA nu există). */
+.cal-modal-overlay {
+    position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--brand-navy) 35%, transparent); backdrop-filter: blur(2px); padding: 16px;
+}
+.cal-modal-card {
+    width: 100%; max-width: 480px; border-radius: 14px; overflow: hidden;
+    background: var(--cal-modal-bg); color: var(--cal-modal-fg);
+    border: 1px solid var(--cal-border); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.cal-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--cal-border); }
+.cal-modal-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.cal-modal-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--cal-border); background: var(--cal-surface); }
+.cal-modal-row { display: flex; justify-content: space-between; gap: 10px; }
+.cal-modal-close { background: transparent; border: none; cursor: pointer; font-size: 20px; line-height: 1; opacity: 0.6; min-width: 32px; min-height: 32px; border-radius: 8px; color: inherit; }
+.cal-modal-close:hover { background: var(--cal-surface); opacity: 1; }
+
+/* Responsiv: sub 768px grila rămâne 7 coloane, dar pastilele colapsează la PUNCTE
+   (titlul ascuns) — vedere „dots" de tip mobil; tap pe cifra zilei → vederea Zi. */
+@media (max-width: 767px) {
+    .cal-cell { min-height: 58px; }
+    .cal-pill { min-height: 16px; padding: 1px; gap: 0; justify-content: center; }
+    .cal-pill__title, .cal-pill__time { display: none; }
+    .cal-pill__dot { width: 8px; height: 8px; }
+    .cal-more { padding: 0 2px; }
+    .cal-weekhead { font-size: 10px; }
+}

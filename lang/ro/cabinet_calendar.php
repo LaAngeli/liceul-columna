@@ -14,6 +14,7 @@ return [
     'all_children' => 'Toți copiii',
     'select_day' => 'Alege o zi pentru detalii.',
     'legend' => 'Legendă',
+    'show_all' => 'Toate',
     'open' => 'Deschide',
     'week_view' => 'Săptămână',
     'day_view' => 'Zi',

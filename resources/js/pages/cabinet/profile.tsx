@@ -10,8 +10,14 @@ import {
     Shield,
     TrendingUp,
     UserRound,
+    Users,
 } from 'lucide-react';
+import { EmptyState } from '@/components/cabinet/empty-state';
+import { SectionHeading } from '@/components/cabinet/section-heading';
+import { StudentStatusBadge  } from '@/components/cabinet/student-status-badge';
+import type {StudentStatusValue} from '@/components/cabinet/student-status-badge';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { useInitials } from '@/hooks/use-initials';
 import { useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -55,36 +61,24 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof Mail; label: strin
     );
 }
 
-/** Badge de situație: corigent/amânat = accent de avertizare; altfel „în regulă”. */
-function StatusBadge({ student }: { student: StudentCard }) {
-    const t = useTranslations();
-    const atRisk = student.statusValue === 'corigent' || student.statusValue === 'amanat';
-    const label = student.statusLabel ?? t('profile.status_ok', 'În regulă');
-
-    return (
-        <Badge variant={atRisk ? 'destructive' : 'secondary'} className="font-semibold">
-            {label}
-        </Badge>
-    );
-}
-
 /** Card compact pentru un copil (părinte), cu link către profilul complet. */
 function ChildCard({ student }: { student: StudentCard }) {
     const t = useTranslations();
+    const getInitials = useInitials();
 
     return (
         <Link
             href={`/cabinet/elev/${student.id}`}
-            className="group flex flex-col rounded-xl border border-sidebar-border/70 bg-card p-5 transition-colors hover:border-primary dark:border-sidebar-border"
+            className="group flex flex-col rounded-xl border bg-card p-5 text-card-foreground shadow-sm transition-colors hover:border-primary"
         >
             <div className="flex items-center gap-3">
                 <span className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary">
-                    {student.name.charAt(0)}
+                    {getInitials(student.name)}
                 </span>
                 <div className="min-w-0">
                     <h3 className="truncate font-semibold">{student.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                        {student.class ?? t('cabinet.class_unassigned', 'Clasă nealocată')}
+                        {student.class ?? t('cabinet.class_unassigned')}
                     </p>
                 </div>
                 <ArrowUpRight className="ml-auto size-5 text-muted-foreground group-hover:text-primary" />
@@ -93,7 +87,7 @@ function ChildCard({ student }: { student: StudentCard }) {
                 <span className="inline-flex items-center gap-1 text-sm font-semibold">
                     <TrendingUp className="size-3.5" /> {student.average ?? '—'}
                 </span>
-                <StatusBadge student={student} />
+                <StudentStatusBadge status={student.statusValue as StudentStatusValue} />
             </div>
         </Link>
     );
@@ -118,62 +112,66 @@ export default function CabinetProfile({ account, self, children: students = [] 
                 </header>
 
                 {/* Cardul contului (read-only) */}
-                <section className="rounded-xl border border-sidebar-border/70 bg-card p-6 dark:border-sidebar-border">
-                    <div className="flex items-center gap-4">
-                        <span className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary">
-                            {getInitials(account.name)}
-                        </span>
-                        <div className="min-w-0">
-                            <h2 className="truncate text-lg font-semibold">{account.name}</h2>
-                            {account.role && (
-                                <Badge variant="secondary" className="mt-1 font-semibold">
-                                    {t(`roles.${account.role}`, account.role)}
-                                </Badge>
-                            )}
+                <Card>
+                    <CardContent>
+                        <div className="flex items-center gap-4">
+                            <span className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary">
+                                {getInitials(account.name)}
+                            </span>
+                            <div className="min-w-0">
+                                <h2 className="truncate text-lg font-semibold">{account.name}</h2>
+                                {account.role && (
+                                    <Badge variant="secondary" className="mt-1 font-semibold">
+                                        {t(`roles.${account.role}`, account.role)}
+                                    </Badge>
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    <dl className="mt-4 grid gap-x-8 sm:grid-cols-2">
-                        <InfoRow icon={UserRound} label={t('profile.username', 'Utilizator')} value={account.username ?? '—'} />
-                        <InfoRow icon={Mail} label={t('profile.email', 'E-mail')} value={account.email ?? '—'} />
-                        <InfoRow icon={Shield} label={t('profile.role', 'Rol')} value={account.role ? t(`roles.${account.role}`, account.role) : '—'} />
-                        <InfoRow icon={CalendarDays} label={t('profile.member_since', 'Membru din')} value={account.memberSince ?? '—'} />
-                        <InfoRow icon={Languages} label={t('profile.language', 'Limbă')} value={language} />
-                    </dl>
+                        <dl className="mt-4 grid gap-x-8 sm:grid-cols-2">
+                            <InfoRow icon={UserRound} label={t('profile.username', 'Utilizator')} value={account.username ?? '—'} />
+                            <InfoRow icon={Mail} label={t('profile.email', 'E-mail')} value={account.email ?? '—'} />
+                            <InfoRow icon={Shield} label={t('profile.role', 'Rol')} value={account.role ? t(`roles.${account.role}`, account.role) : '—'} />
+                            <InfoRow icon={CalendarDays} label={t('profile.member_since', 'Membru din')} value={account.memberSince ?? '—'} />
+                            <InfoRow icon={Languages} label={t('profile.language', 'Limbă')} value={language} />
+                        </dl>
 
-                    <p className="mt-2 flex items-start gap-2 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
-                        <Lock className="mt-0.5 size-3.5 shrink-0" />
-                        {t('profile.readonly_note', 'Datele contului sunt gestionate de administrația liceului. Pentru orice modificare, contactează secretariatul.')}
-                    </p>
-                </section>
+                        <p className="mt-2 flex items-start gap-2 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
+                            <Lock className="mt-0.5 size-3.5 shrink-0" />
+                            {t('profile.readonly_note', 'Datele contului sunt gestionate de administrația liceului. Pentru orice modificare, contactează secretariatul.')}
+                        </p>
+                    </CardContent>
+                </Card>
 
                 {/* Datele mele (elev) */}
                 {self && (
-                    <section className="rounded-xl border border-sidebar-border/70 bg-card p-6 dark:border-sidebar-border">
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                            <h2 className="text-lg font-semibold">{t('profile.my_data', 'Datele mele')}</h2>
-                            <StatusBadge student={self} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                            <Stat label={t('profile.class', 'Clasa')} value={self.class ?? '—'} icon={GraduationCap} />
-                            <Stat label={t('profile.average', 'Media generală')} value={self.average !== null ? String(self.average) : '—'} icon={TrendingUp} />
-                            <Stat label={t('profile.grades', 'Note')} value={String(self.grades_count)} icon={GraduationCap} />
-                            <Stat label={t('profile.absences', 'Absențe')} value={String(self.absences_count)} icon={CalendarX} />
-                        </div>
-                        <Link
-                            href={`/cabinet/elev/${self.id}`}
-                            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-                        >
-                            {t('profile.view_full', 'Vezi profilul complet')}
-                            <ArrowUpRight className="size-4" />
-                        </Link>
-                    </section>
+                    <Card>
+                        <CardContent>
+                            <SectionHeading
+                                title={t('profile.my_data', 'Datele mele')}
+                                actions={<StudentStatusBadge status={self.statusValue as StudentStatusValue} />}
+                            />
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                <Stat label={t('profile.class', 'Clasa')} value={self.class ?? '—'} icon={GraduationCap} />
+                                <Stat label={t('profile.average', 'Media generală')} value={self.average !== null ? String(self.average) : '—'} icon={TrendingUp} />
+                                <Stat label={t('profile.grades', 'Note')} value={String(self.grades_count)} icon={GraduationCap} />
+                                <Stat label={t('profile.absences', 'Absențe')} value={String(self.absences_count)} icon={CalendarX} />
+                            </div>
+                            <Link
+                                href={`/cabinet/elev/${self.id}`}
+                                className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                            >
+                                {t('profile.view_full', 'Vezi profilul complet')}
+                                <ArrowUpRight className="size-4" />
+                            </Link>
+                        </CardContent>
+                    </Card>
                 )}
 
                 {/* Copiii mei (părinte) */}
                 {students.length > 0 && (
                     <section>
-                        <h2 className="mb-3 text-lg font-semibold">{t('profile.my_children', 'Copiii mei')}</h2>
+                        <SectionHeading title={t('profile.my_children', 'Copiii mei')} />
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {students.map((child) => (
                                 <ChildCard key={child.id} student={child} />
@@ -183,9 +181,10 @@ export default function CabinetProfile({ account, self, children: students = [] 
                 )}
 
                 {!self && students.length === 0 && (
-                    <p className="rounded-xl border border-dashed border-sidebar-border/70 p-8 text-center text-sm text-muted-foreground dark:border-sidebar-border">
-                        {t('profile.no_children', 'Nu există elevi asociați acestui cont.')}
-                    </p>
+                    <EmptyState
+                        icon={Users}
+                        title={t('profile.no_children', 'Nu există elevi asociați acestui cont.')}
+                    />
                 )}
             </div>
         </>

@@ -12,6 +12,7 @@ export function resolveKey(messages: Messages | undefined, key: string): string 
         if (acc && typeof acc === 'object') {
             return (acc as Record<string, unknown>)[part];
         }
+
         return undefined;
     }, messages);
 
@@ -31,6 +32,19 @@ export function useTranslations(): (key: string, fallback?: string) => string {
     const current = messages?.[locale];
 
     return (key, fallback) => resolveKey(current, key) ?? fallback ?? key;
+}
+
+/**
+ * Returnează cheia plurală corespunzătoare (`baseKey_one` la count===1, altfel `baseKey_other`).
+ * Pentru toate cele 3 limbi suportate folosim regula simplă one/other — suficient pentru contoarele
+ * UI uzuale. Pentru rusă regula reală e one/few/many; aproximăm la one/other (1 vs. rest), iar dacă
+ * apar contoare unde diferența 2-4 contează vizibil, se poate adăuga `_few` ulterior fără modificări
+ * la cod (helper-ul se va extinde cu detecția 2-4 doar pentru locale='ru').
+ *
+ * Folosire: `t(pluralKey('cabinet.cockpit_unread_messages', count))`.
+ */
+export function pluralKey(baseKey: string, count: number): string {
+    return `${baseKey}_${count === 1 ? 'one' : 'other'}`;
 }
 
 /**

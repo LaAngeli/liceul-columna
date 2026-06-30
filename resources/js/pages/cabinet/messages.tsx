@@ -1,8 +1,12 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { MailX } from 'lucide-react';
 import { useState } from 'react';
+import { EmptyState } from '@/components/cabinet/empty-state';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
-import { messages as messageRoutes } from '@/routes/cabinet';
+// Importăm sub-namespace-ul COMPLET (send/reply/read) — `cabinet/index.ts` re-exportă doar funcția
+// `messages` (GET inbox), nu și acțiunile de sub-rută.
+import * as messageRoutes from '@/routes/cabinet/messages';
 
 interface Recipient {
     id: number;
@@ -48,6 +52,9 @@ export default function MessagesPage({ threads, compose }: Props) {
     const t = useTranslations();
     const [expanded, setExpanded] = useState<number | null>(null);
     const [replyBody, setReplyBody] = useState<Record<number, string>>({});
+    // Set de id-uri de thread aflate în trimitere — folosit pentru a dezactiva butonul de reply
+    // și a preveni dubla-trimitere când backend-ul nu răspunde instant.
+    const [replying, setReplying] = useState<Set<number>>(new Set());
 
     const form = useForm<{
         type: 'direct' | 'audience';
@@ -79,6 +86,7 @@ export default function MessagesPage({ threads, compose }: Props) {
     function toggleThread(thread: Thread) {
         const next = expanded === thread.id ? null : thread.id;
         setExpanded(next);
+
         if (next !== null && thread.unread > 0) {
             router.post(messageRoutes.read(thread.id).url, {}, { preserveScroll: true, preserveState: true });
         }
@@ -87,9 +95,12 @@ export default function MessagesPage({ threads, compose }: Props) {
     function submitReply(e: React.FormEvent, threadId: number) {
         e.preventDefault();
         const body = (replyBody[threadId] ?? '').trim();
-        if (body === '') {
+
+        if (body === '' || replying.has(threadId)) {
             return;
         }
+
+        setReplying((prev) => new Set(prev).add(threadId));
         router.post(
             messageRoutes.reply(threadId).url,
             { body },
@@ -97,6 +108,13 @@ export default function MessagesPage({ threads, compose }: Props) {
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => setReplyBody((prev) => ({ ...prev, [threadId]: '' })),
+                onFinish: () =>
+                    setReplying((prev) => {
+                        const next = new Set(prev);
+                        next.delete(threadId);
+
+                        return next;
+                    }),
             },
         );
     }
@@ -108,10 +126,20 @@ export default function MessagesPage({ threads, compose }: Props) {
                 <h1 className="text-xl font-semibold">{t('cabinet.messages_title')}</h1>
 
                 {/* Compunere (comunicare rapidă filtrată) */}
+                {/* Empty state explicit când utilizatorul N-ARE pe cine să contacteze direct
+                    (audit § mesaje #8) — altfel formularul „dispărea" silențios și inboxul rămânea singur. */}
+                {compose.students.length === 0 && (
+                    <EmptyState
+                        icon={MailX}
+                        title={t('cabinet.messages_no_channel')}
+                        description={t('cabinet.messages_no_channel_hint')}
+                    />
+                )}
+
                 {compose.students.length > 0 && (
                     <form
                         onSubmit={submitCompose}
-                        className="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
+                        className="rounded-xl border bg-card p-6 text-card-foreground shadow-sm"
                     >
                         <p className="mb-3 text-sm font-medium">{t('cabinet.messages_new')}</p>
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -163,7 +191,7 @@ export default function MessagesPage({ threads, compose }: Props) {
 
                             {form.data.type === 'audience' && (
                                 <label className="grid gap-1.5 text-xs text-muted-foreground">
-                                    {t('cabinet.messages_domain', 'Domeniul sesizării')}
+                                    {t('cabinet.messages_domain')}
                                     <select
                                         value={form.data.domain}
                                         onChange={(e) => form.setData('domain', e.target.value)}
@@ -222,9 +250,7 @@ export default function MessagesPage({ threads, compose }: Props) {
                 {/* Inbox */}
                 <section className="flex flex-col gap-3">
                     {threads.length === 0 && (
-                        <p className="rounded-xl border border-dashed border-sidebar-border/70 px-4 py-8 text-center text-sm text-muted-foreground dark:border-sidebar-border">
-                            {t('cabinet.messages_empty')}
-                        </p>
+                        <EmptyState icon={MailX} title={t('cabinet.messages_empty')} />
                     )}
 
                     {threads.map((thread) => (
@@ -283,9 +309,12 @@ export default function MessagesPage({ threads, compose }: Props) {
                                         />
                                         <button
                                             type="submit"
-                                            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                                            disabled={replying.has(thread.id) || (replyBody[thread.id] ?? '').trim() === ''}
+                                            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                                         >
-                                            {t('cabinet.messages_reply')}
+                                            {replying.has(thread.id)
+                                                ? t('cabinet.motivation_sending')
+                                                : t('cabinet.messages_reply')}
                                         </button>
                                     </form>
                                 </div>
@@ -300,7 +329,7 @@ export default function MessagesPage({ threads, compose }: Props) {
 
 MessagesPage.layout = {
     breadcrumbs: [
-        { title: 'Cabinet', href: dashboard() },
-        { title: 'Mesaje', href: '#' },
+        { title: 'action.cabinet', href: dashboard() },
+        { title: 'cabinet.nav_messages', href: '#' },
     ],
 };

@@ -1,5 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useLocale, useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 
@@ -32,57 +34,71 @@ interface Props {
 
 type View = 'month' | 'week' | 'day' | 'agenda';
 
+// Audit § calendar #4 — paletă brand-aliniată: cele 8 chei semantice ale backend-ului (succes/accent/
+// danger/warning/event/neutral/muted/info) sunt mapate la PATRU familii din identitatea liceului
+// Columna: navy `--brand-navy` (primar, evenimente formale), verde `--brand-green` (acțiuni pozitive
+// și comunicare), destructive (absențe și termene-limită = atenție), muted (rutine și structură).
+// Astfel calendarul nu mai „iese" din restul cabinetului (care folosește exclusiv tokenuri brand).
 const COLORS: Record<
     string,
     { dot: string; rail: string; chip: string; text: string }
 > = {
+    // Homework — verde brand: „de făcut", acțiune pozitivă pentru elev.
     success: {
-        dot: 'bg-emerald-500',
-        rail: 'bg-emerald-500',
-        chip: 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300',
-        text: 'text-emerald-600 dark:text-emerald-400',
+        dot: 'bg-brand-green',
+        rail: 'bg-brand-green',
+        chip: 'bg-brand-green/15 text-emerald-800 dark:text-emerald-200',
+        text: 'text-emerald-800 dark:text-emerald-200',
     },
+    // Assessment — navy primar: eveniment instituțional important.
     accent: {
-        dot: 'bg-sky-500',
-        rail: 'bg-sky-500',
-        chip: 'bg-sky-500/12 text-sky-700 dark:text-sky-300',
-        text: 'text-sky-600 dark:text-sky-400',
+        dot: 'bg-primary',
+        rail: 'bg-primary',
+        chip: 'bg-primary/10 text-primary',
+        text: 'text-primary',
     },
+    // Absence — destructive: stare problematică/semnal.
     danger: {
-        dot: 'bg-red-500',
-        rail: 'bg-red-500',
-        chip: 'bg-red-500/12 text-red-600 dark:text-red-400',
-        text: 'text-red-600 dark:text-red-400',
+        dot: 'bg-destructive',
+        rail: 'bg-destructive',
+        chip: 'bg-destructive/10 text-destructive',
+        text: 'text-destructive',
     },
+    // Deadline — destructive (atenție/termen). Mapat la destructive pentru a păstra strict 4 familii brand
+    // (auditul a cerut max ~4); pe rolul „urgență temporală", destructive funcționează ca semnal vizual.
     warning: {
-        dot: 'bg-amber-500',
-        rail: 'bg-amber-500',
-        chip: 'bg-amber-500/12 text-amber-700 dark:text-amber-300',
-        text: 'text-amber-600 dark:text-amber-400',
+        dot: 'bg-destructive/80',
+        rail: 'bg-destructive/80',
+        chip: 'bg-destructive/10 text-destructive',
+        text: 'text-destructive',
     },
+    // Event — navy primar: eveniment școlar general (ședințe, festivități).
     event: {
-        dot: 'bg-violet-500',
-        rail: 'bg-violet-500',
-        chip: 'bg-violet-500/12 text-violet-700 dark:text-violet-300',
-        text: 'text-violet-600 dark:text-violet-400',
+        dot: 'bg-primary',
+        rail: 'bg-primary',
+        chip: 'bg-primary/10 text-primary',
+        text: 'text-primary',
     },
+    // Schedule — muted: orar/rutină, fond informativ.
     neutral: {
-        dot: 'bg-slate-400',
-        rail: 'bg-slate-400',
-        chip: 'bg-slate-400/12 text-slate-600 dark:text-slate-300',
-        text: 'text-slate-600 dark:text-slate-400',
-    },
-    muted: {
-        dot: 'bg-slate-300',
-        rail: 'bg-slate-300',
+        dot: 'bg-muted-foreground/60',
+        rail: 'bg-muted-foreground/60',
         chip: 'bg-muted text-muted-foreground',
         text: 'text-muted-foreground',
     },
+    // Structure — muted: structură an academic (ferme, vacanțe), informativ.
+    muted: {
+        dot: 'bg-muted-foreground/40',
+        rail: 'bg-muted-foreground/40',
+        chip: 'bg-muted text-muted-foreground',
+        text: 'text-muted-foreground',
+    },
+    // Communication — verde brand: comunicări/anunțuri (acțiune relațională pozitivă).
     info: {
-        dot: 'bg-cyan-500',
-        rail: 'bg-cyan-500',
-        chip: 'bg-cyan-500/12 text-cyan-700 dark:text-cyan-300',
-        text: 'text-cyan-600 dark:text-cyan-400',
+        dot: 'bg-brand-green',
+        rail: 'bg-brand-green',
+        chip: 'bg-brand-green/15 text-emerald-800 dark:text-emerald-200',
+        text: 'text-emerald-800 dark:text-emerald-200',
     },
 };
 
@@ -155,8 +171,22 @@ export default function Calendar({
     const today = new Date();
     const todayStr = ymd(today);
 
-    const [view, setView] = useState<View>('month');
-    const [activeCats, setActiveCats] = useState<Set<string>>(new Set());
+    // Pe mobil (<md), grila lunară 7×6 e prea înghesuită — chip-urile cu `text-[10px]` devin ilizibile
+    // la 360–390px. Deci pornim direct cu vederea „agendă", listă lizibilă pe o coloană.
+    // Utilizatorul poate comuta înapoi la lună din toolbar dacă vrea explicit.
+    const [view, setView] = useState<View>(() => {
+        if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+            return 'agenda';
+        }
+
+        return 'month';
+    });
+    // Semantică INVERSATĂ vs. versiunea veche `activeCats` (audit § calendar #2): pornim cu toate vizibile;
+    // click pe un chip ASCUNDE acea categorie (model mental așteptat). Buton „Toate" resetează când !empty.
+    const [hiddenCats, setHiddenCats] = useState<Set<string>>(new Set());
+    // Indicator de încărcare pentru navigarea lunii / schimbarea copilului (audit § calendar #5): fără el,
+    // evenimentele „dispar și reapar" silențios între request-uri Inertia.
+    const [loading, setLoading] = useState(false);
     const [selected, setSelected] = useState<CalendarEvent | null>(null);
     const [cursor, setCursor] = useState<Date>(() => {
         const [y, m] = month.split('-').map(Number);
@@ -167,11 +197,8 @@ export default function Calendar({
     });
 
     const visibleEvents = useMemo(
-        () =>
-            events.filter(
-                (e) => activeCats.size === 0 || activeCats.has(e.category),
-            ),
-        [events, activeCats],
+        () => events.filter((e) => !hiddenCats.has(e.category)),
+        [events, hiddenCats],
     );
 
     const byDay = useMemo(() => {
@@ -210,6 +237,8 @@ export default function Calendar({
                     preserveState: true,
                     preserveScroll: true,
                     replace: true,
+                    onStart: () => setLoading(true),
+                    onFinish: () => setLoading(false),
                 },
             );
         }
@@ -239,12 +268,14 @@ export default function Calendar({
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
+                onStart: () => setLoading(true),
+                onFinish: () => setLoading(false),
             },
         );
     }
 
     function toggleCat(cat: string) {
-        setActiveCats((prev) => {
+        setHiddenCats((prev) => {
             const next = new Set(prev);
 
             if (next.has(cat)) {
@@ -255,6 +286,10 @@ export default function Calendar({
 
             return next;
         });
+    }
+
+    function showAllCats() {
+        setHiddenCats(new Set());
     }
 
     function openDay(dateStr: string) {
@@ -357,7 +392,7 @@ export default function Calendar({
                             onClick={() => shift(-1)}
                             className="flex size-9 items-center justify-center rounded-md border border-sidebar-border/70 text-muted-foreground hover:bg-muted dark:border-sidebar-border"
                         >
-                            ‹
+                            <ChevronLeft className="size-4" aria-hidden="true" />
                         </button>
                         <button
                             type="button"
@@ -372,7 +407,7 @@ export default function Calendar({
                             onClick={() => shift(1)}
                             className="flex size-9 items-center justify-center rounded-md border border-sidebar-border/70 text-muted-foreground hover:bg-muted dark:border-sidebar-border"
                         >
-                            ›
+                            <ChevronRight className="size-4" aria-hidden="true" />
                         </button>
                         <span className="ml-2 text-base font-semibold capitalize">
                             {periodTitle()}
@@ -396,7 +431,11 @@ export default function Calendar({
                     </div>
                 </div>
 
-                {/* Vederea activă */}
+                {/* Vederea activă — wrapper cu aria-busy + dim subtil în timpul navigării request-ului. */}
+                <div
+                    aria-busy={loading}
+                    className={`transition-opacity duration-150 ${loading ? 'pointer-events-none opacity-60' : ''}`}
+                >
                 {view === 'month' && (
                     <MonthGrid
                         cursor={cursor}
@@ -439,26 +478,28 @@ export default function Calendar({
                         categoryLabel={(c) => t(`ccal.cat_${c}`)}
                     />
                 )}
+                </div>
 
-                {/* Legendă / filtre */}
+                {/* Legendă / filtre — semantică inversată (vezi `hiddenCats`). Chip activ = vizibil, plin;
+                    chip cu line-through = ascuns. „Toate" apare doar când ai ascuns ceva — reset rapid. */}
                 {legend.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2 border-t border-sidebar-border/70 pt-3 dark:border-sidebar-border">
                         <span className="text-xs font-medium text-muted-foreground">
                             {t('ccal.legend')}:
                         </span>
                         {legend.map(([cat, color]) => {
-                            const active =
-                                activeCats.size === 0 || activeCats.has(cat);
+                            const isHidden = hiddenCats.has(cat);
 
                             return (
                                 <button
                                     type="button"
                                     key={cat}
                                     onClick={() => toggleCat(cat)}
-                                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-opacity ${
-                                        active
-                                            ? 'border-sidebar-border/70 dark:border-sidebar-border'
-                                            : 'border-transparent opacity-40'
+                                    aria-pressed={!isHidden}
+                                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all ${
+                                        isHidden
+                                            ? 'border-transparent text-muted-foreground line-through opacity-40 hover:opacity-60'
+                                            : 'border-sidebar-border/70 dark:border-sidebar-border'
                                     }`}
                                 >
                                     <span
@@ -468,21 +509,29 @@ export default function Calendar({
                                 </button>
                             );
                         })}
+                        {hiddenCats.size > 0 && (
+                            <button
+                                type="button"
+                                onClick={showAllCats}
+                                className="ml-1 inline-flex items-center rounded-full border border-primary/40 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                            >
+                                {t('ccal.show_all')}
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
 
-            {selected && (
-                <EventDetail
-                    event={selected}
-                    localeTag={localeTag}
-                    onClose={() => setSelected(null)}
-                    openLabel={t('ccal.open')}
-                    closeLabel={t('ccal.close')}
-                    allDayLabel={t('ccal.all_day')}
-                    categoryLabel={t(`ccal.cat_${selected.category}`)}
-                />
-            )}
+            <EventDetail
+                event={selected}
+                localeTag={localeTag}
+                open={selected !== null}
+                onOpenChange={(o) => !o && setSelected(null)}
+                openLabel={t('ccal.open')}
+                closeLabel={t('ccal.close')}
+                allDayLabel={t('ccal.all_day')}
+                categoryLabel={selected !== null ? t(`ccal.cat_${selected.category}`) : ''}
+            />
         </>
     );
 }
@@ -594,9 +643,19 @@ function MonthGrid({
                                     </button>
                                 ))}
                                 {dayEvents.length > 3 && (
-                                    <span className="px-1 text-[10px] text-muted-foreground">
+                                    // Audit § calendar #15 — afordanță vizibilă: era `<span>` mut. Acum buton
+                                    // cu text-primary + underline pe hover; click stop-propagation → deschide ziua.
+                                    <button
+                                        type="button"
+                                        onClick={(ev) => {
+                                            ev.stopPropagation();
+                                            onDay(cell);
+                                        }}
+                                        aria-label={`+${dayEvents.length - 3}`}
+                                        className="self-start px-1 text-[10px] font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                                    >
                                         +{dayEvents.length - 3}
-                                    </span>
+                                    </button>
                                 )}
                             </span>
                         </div>
@@ -828,23 +887,34 @@ function EventRow({
     );
 }
 
+/**
+ * Detaliile unui eveniment afișate într-un Dialog Radix (audit § calendar #3): aduce automat suport
+ * pentru Escape + focus-trap + focus-return + scroll-lock — toate cerute de pattern-ul ARIA dialog,
+ * pe care implementarea hand-rolled anterioară nu le avea.
+ */
 function EventDetail({
     event,
     localeTag,
-    onClose,
+    open,
+    onOpenChange,
     openLabel,
     closeLabel,
     allDayLabel,
     categoryLabel,
 }: {
-    event: CalendarEvent;
+    event: CalendarEvent | null;
     localeTag: string;
-    onClose: () => void;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
     openLabel: string;
     closeLabel: string;
     allDayLabel: string;
     categoryLabel: string;
 }) {
+    if (event === null) {
+        return null;
+    }
+
     const c = colorFor(event.color);
     const dateLabel = capitalize(
         parseYmd(event.date).toLocaleDateString(localeTag, {
@@ -855,39 +925,25 @@ function EventDetail({
     );
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
-            role="dialog"
-            aria-modal="true"
-        >
-            <button
-                type="button"
-                aria-label={closeLabel}
-                onClick={onClose}
-                className="absolute inset-0 bg-black/40"
-            />
-            <div className="relative z-10 w-full rounded-t-2xl border border-sidebar-border/70 bg-card p-5 shadow-xl sm:max-w-md sm:rounded-2xl dark:border-sidebar-border">
-                <div className="flex items-start gap-3">
-                    <span
-                        className={`mt-1 size-3 shrink-0 rounded-full ${c.dot}`}
-                    />
-                    <div className="flex-1">
-                        <p className={`text-xs font-medium ${c.text}`}>
-                            {categoryLabel}
-                        </p>
-                        <h3 className="text-lg font-semibold">{event.title}</h3>
-                        <p className="mt-0.5 text-sm text-muted-foreground capitalize">
-                            {dateLabel}
-                            {event.startTime
-                                ? ` · ${event.startTime}`
-                                : ` · ${allDayLabel}`}
-                        </p>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <div className="flex items-start gap-3">
+                        <span className={`mt-1 size-3 shrink-0 rounded-full ${c.dot}`} aria-hidden="true" />
+                        <div className="flex-1">
+                            <p className={`text-xs font-medium ${c.text}`}>{categoryLabel}</p>
+                            <DialogTitle className="text-lg font-semibold">{event.title}</DialogTitle>
+                            <p className="mt-0.5 text-sm capitalize text-muted-foreground">
+                                {dateLabel}
+                                {event.startTime ? ` · ${event.startTime}` : ` · ${allDayLabel}`}
+                            </p>
+                        </div>
                     </div>
-                </div>
-                <div className="mt-5 flex items-center justify-end gap-2">
+                </DialogHeader>
+                <DialogFooter>
                     <button
                         type="button"
-                        onClick={onClose}
+                        onClick={() => onOpenChange(false)}
                         className="rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
                     >
                         {closeLabel}
@@ -900,9 +956,9 @@ function EventDetail({
                             {openLabel}
                         </Link>
                     )}
-                </div>
-            </div>
-        </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 

@@ -250,17 +250,78 @@
     margin-block: 1rem;
 }
 
-/* Emblema animată de pe paginile de autentificare. Sursa e temă-dependentă prin selectorul .dark,
-   așa că browserul descarcă DOAR fișierul temei active (light = verde, dark = alb) — nu ambele.
-   WebP animat transparent (mult mai ușor decât GIF-ul); fără GIF-uri originale păstrate. */
+/* Emblema de pe paginile de autentificare.
+   LIGHT: logo-ul `0030` descompus în 2 straturi ALINIATE ca să se rotească DOAR scutul din mijloc, nu tot logo-ul:
+   - `.auth-emblem::before` = surround-ul STATIC (arcul, „19 98", frunzele, wordmark „LICEUL COLUMNA") cu o gaură
+     în formă de scut în centru;
+   - `.auth-emblem__coin` = scutul, care se rotește 3D pe axa verticală (coin-spin) prin 2 fețe (`::before` față +
+     `::after` spate re-oglindit cu scaleX) → conținutul scutului rămâne mereu lizibil, ca un medalion double-sided.
+     Scutul e centrat pe x=50% → `rotateY` (ortografic) îl „squash"-uiește în jurul propriei axe; la 90° devine
+     muchie și se vede gaura curată din surround. 2 imagini statice + rotație GPU = ușor pe VPS.
+   DARK: se PĂSTREAZĂ logo-ul animat vechi (crestul alb întreg care se rotește, WebP animat) — sarcina de „doar
+   scutul" a fost doar pentru tema luminoasă. Pe dark, surround-ul devine acel WebP animat și scutul stratificat
+   e ascuns. */
 .auth-emblem {
-    background-image: url('/gifs/logo/columna_green_horizontal_clean_download.webp');
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
+    position: relative;
+    --crest-surround: url('/gifs/logo/crest_surround.webp');
+    --crest-shield: url('/gifs/logo/crest_shield.webp');
 }
-.dark .auth-emblem {
+.auth-emblem::before {
+    /* surround static (cu gaura scutului) — pe light */
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--crest-surround) center / contain no-repeat;
+}
+/* DARK: emblema animată veche (crestul alb întreg se rotește) în locul straturilor */
+.dark .auth-emblem::before {
     background-image: url('/gifs/logo/columna_white_horizontal_clean_download.webp');
+}
+.dark .auth-emblem__coin {
+    display: none;
+}
+/* ON-NAVY (banda navy, hero, etc.): wordmark-ul navy din surround ar fi invizibil pe navy → folosim varianta albă animată (la fel ca pe dark) indiferent de tema globală. */
+.on-navy .auth-emblem::before {
+    background-image: url('/gifs/logo/columna_white_horizontal_clean_download.webp');
+}
+.on-navy .auth-emblem__coin {
+    display: none;
+}
+.auth-emblem__coin {
+    /* scutul rotativ — același footprint ca surround-ul, deci stă fix peste gaură */
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    animation: authEmblemSpin 4.8s linear infinite;
+}
+.auth-emblem__coin::before,
+.auth-emblem__coin::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--crest-shield) center / contain no-repeat;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+.auth-emblem__coin::after {
+    /* fața din spate: rotită 180° + re-oglindită → conținut identic, lizibil */
+    transform: rotateY(180deg) scaleX(-1);
+}
+@keyframes authEmblemSpin {
+    from {
+        transform: rotateY(0deg);
+    }
+    to {
+        transform: rotateY(360deg);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .auth-emblem__coin {
+        animation: none;
+    }
+    .auth-emblem__coin::after {
+        display: none;
+    }
 }
 
 /* ============================================================================
@@ -277,6 +338,12 @@
     color: var(--brand-dark);
     --container: 75rem; /* 1200px */
     --keyline: color-mix(in oklch, var(--brand-navy) 14%, transparent);
+    /* Igienă de randare a textului (diacritice RO): kerning/ligaturi + AA gri pe macOS,
+       fără sinteză de stiluri „false" care ar deforma semnele subțiri (i, î, ț, ș). */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
 }
 .dark .site-shell {
     color: var(--foreground);

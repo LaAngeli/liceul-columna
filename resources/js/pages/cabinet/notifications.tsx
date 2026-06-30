@@ -1,4 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { Bell, BellOff, BookOpen, CalendarDays, Flag, GraduationCap, Inbox, MailCheck, Megaphone, MessageSquare, SquarePen, UserPlus  } from 'lucide-react';
+import type {LucideIcon} from 'lucide-react';
+import { useState } from 'react';
+import { EmptyState } from '@/components/cabinet/empty-state';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 import { read, readAll, settings as notificationSettings } from '@/routes/cabinet/notifications';
@@ -13,16 +17,49 @@ interface NotificationItem {
     at: string | null;
 }
 
+// Dicționar tip-notificare → iconiță lucide (oglindă a NotificationType::icon() din PHP). Folosit
+// pentru diferențiere vizuală în inboxul cabinetului. Fallback la Bell pentru tipuri necunoscute.
+const TYPE_ICONS: Record<string, LucideIcon> = {
+    new_grade: GraduationCap,
+    new_absence: CalendarDays,
+    new_homework: BookOpen,
+    status_change: Flag,
+    new_message: MessageSquare,
+    announcement: Megaphone,
+    grade_correction_request: SquarePen,
+    absence_motivation_submitted: MailCheck,
+    document_request_submitted: Inbox,
+    admission_request_submitted: UserPlus,
+};
+
 interface Props {
     notifications: NotificationItem[];
 }
 
 export default function NotificationsPage({ notifications }: Props) {
     const t = useTranslations();
-    const hasUnread = notifications.some((n) => !n.read);
+    // Optimistic mark-read: id-urile sunt mutate INSTANT în acest Set la click; cardul apare ca citit
+    // imediat, fără să așteptăm round-trip-ul server. Pe eroare HTTP, le scoatem (revenire la „necitit").
+    const [optimisticRead, setOptimisticRead] = useState<Set<string>>(new Set());
+    const hasUnread = notifications.some((n) => !n.read && !optimisticRead.has(n.id));
 
     function markRead(id: string) {
-        router.post(read(id).url, {}, { preserveScroll: true, preserveState: true });
+        if (optimisticRead.has(id)) {
+            return;
+        }
+
+        setOptimisticRead((prev) => new Set(prev).add(id));
+        router.post(read(id).url, {}, {
+            preserveScroll: true,
+            preserveState: true,
+            onError: () =>
+                setOptimisticRead((prev) => {
+                    const next = new Set(prev);
+                    next.delete(id);
+
+                    return next;
+                }),
+        });
     }
 
     function markAll() {
@@ -53,40 +90,15 @@ export default function NotificationsPage({ notifications }: Props) {
                 </div>
 
                 {notifications.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-sidebar-border/70 px-4 py-10 text-center text-sm text-muted-foreground dark:border-sidebar-border">
-                        {t('cabinet.notif_empty')}
-                    </p>
+                    <EmptyState icon={BellOff} title={t('cabinet.notif_empty')} />
                 ) : (
                     <ul className="flex flex-col gap-2">
                         {notifications.map((n) => (
-                            <li
+                            <NotificationCard
                                 key={n.id}
-                                onClick={() => !n.read && markRead(n.id)}
-                                className={`rounded-xl border px-4 py-3 ${
-                                    n.read
-                                        ? 'border-sidebar-border/70 bg-card dark:border-sidebar-border'
-                                        : 'cursor-pointer border-primary/30 bg-primary/5'
-                                }`}
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="flex items-center gap-2 font-medium">
-                                            {!n.read && <span className="size-2 shrink-0 rounded-full bg-primary" />}
-                                            <span className="truncate">{n.title}</span>
-                                        </p>
-                                        {n.body && <p className="mt-0.5 text-sm text-muted-foreground">{n.body}</p>}
-                                    </div>
-                                    <span className="shrink-0 text-xs text-muted-foreground">{n.at}</span>
-                                </div>
-                                {n.url && (
-                                    <Link
-                                        href={n.url}
-                                        className="mt-1.5 inline-block text-xs font-medium text-primary hover:underline"
-                                    >
-                                        {t('cabinet.notif_open')}
-                                    </Link>
-                                )}
-                            </li>
+                                notification={optimisticRead.has(n.id) ? { ...n, read: true } : n}
+                                onMarkRead={markRead}
+                            />
                         ))}
                     </ul>
                 )}
@@ -95,9 +107,95 @@ export default function NotificationsPage({ notifications }: Props) {
     );
 }
 
+/**
+ * Card-link pattern accesibil: cardul ÎNTREG e ținta interactivă, niciodată un `<li onClick>` sau
+ * link imbricat. Pe tastatură: Tab focalizează, Enter/Space activează. Fără suprapunere de event-uri.
+ *
+ *   - URL + neread     → `<Link>` (la click marchează citit ȘI navighează)
+ *   - fără URL + neread → `<button>` (marchează citit, fără navigare)
+ *   - read              → `<div>` static (nu mai e nimic de făcut pe el)
+ */
+function NotificationCard({
+    notification: n,
+    onMarkRead,
+}: {
+    notification: NotificationItem;
+    onMarkRead: (id: string) => void;
+}) {
+    const t = useTranslations();
+
+    // Iconiță per-tip (decorativă, aria-hidden) — semnal vizual complementar punctului „necitit".
+    const TypeIcon = (n.type && TYPE_ICONS[n.type]) || Bell;
+
+    const baseClass = `block w-full rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+        n.read
+            ? 'border-sidebar-border/70 bg-card dark:border-sidebar-border'
+            : 'border-primary/30 bg-primary/5 hover:bg-primary/10'
+    }`;
+
+    const inner = (
+        <div className="flex items-start gap-3">
+            <span
+                className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                aria-hidden="true"
+            >
+                <TypeIcon className="size-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-2 font-medium">
+                    {!n.read && <span className="size-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />}
+                    <span className="truncate">{n.title}</span>
+                </p>
+                {n.body && <p className="mt-0.5 text-sm text-muted-foreground">{n.body}</p>}
+            </div>
+            <span className="shrink-0 text-xs text-muted-foreground">{n.at}</span>
+        </div>
+    );
+
+    if (n.url) {
+        const ariaLabel = n.read
+            ? `${t('cabinet.notif_open')}: ${n.title}`
+            : `${n.title} — ${t('cabinet.notif_unread')}, ${t('cabinet.notif_open').toLowerCase()}`;
+
+        return (
+            <li>
+                <Link
+                    href={n.url}
+                    onClick={() => !n.read && onMarkRead(n.id)}
+                    className={baseClass}
+                    aria-label={ariaLabel}
+                >
+                    {inner}
+                </Link>
+            </li>
+        );
+    }
+
+    if (!n.read) {
+        return (
+            <li>
+                <button
+                    type="button"
+                    onClick={() => onMarkRead(n.id)}
+                    className={baseClass}
+                    aria-label={`${t('cabinet.notif_mark_read')}: ${n.title}`}
+                >
+                    {inner}
+                </button>
+            </li>
+        );
+    }
+
+    return (
+        <li className={baseClass}>
+            {inner}
+        </li>
+    );
+}
+
 NotificationsPage.layout = {
     breadcrumbs: [
-        { title: 'Cabinet', href: dashboard() },
-        { title: 'Notificări', href: '#' },
+        { title: 'action.cabinet', href: dashboard() },
+        { title: 'cabinet.nav_notifications', href: '#' },
     ],
 };

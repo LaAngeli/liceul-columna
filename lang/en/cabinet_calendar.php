@@ -14,6 +14,7 @@ return [
     'all_children' => 'All children',
     'select_day' => 'Pick a day for details.',
     'legend' => 'Legend',
+    'show_all' => 'All',
     'open' => 'Open',
     'week_view' => 'Week',
     'day_view' => 'Day',

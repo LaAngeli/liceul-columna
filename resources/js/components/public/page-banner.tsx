@@ -13,13 +13,22 @@ export function PageBanner({ title, breadcrumbs = [], description }: { title: st
 
     return (
         <section className="relative overflow-hidden border-b keyline bg-background">
-            <img
-                src="/images/logo/columna-navy.png"
-                alt=""
-                aria-hidden="true"
-                className="pointer-events-none absolute -right-12 -bottom-20 w-72 max-w-[45%] opacity-[0.04] select-none dark:hidden"
-            />
-            <Container className="relative py-[clamp(2.5rem,5vw,4.5rem)]">
+            {/* Altitudine FIXĂ pe toate paginile (h-[13rem] = 208px) pentru consistență vizuală absolută.
+               Lead-urile trebuie să încapă pe UN SINGUR RÂND — vezi reformulările din i18n. */}
+            <Container className="relative flex h-[13rem] flex-col justify-center">
+                {/* Crest — dimensiune FIXĂ pe toate paginile (h-[10rem] = 160px) */}
+                <img
+                    src="/images/logo/columna-crest-color.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-1/2 right-0 hidden aspect-square h-[10rem] max-w-[44%] -translate-y-1/2 object-contain select-none md:block dark:hidden"
+                />
+                <img
+                    src="/images/logo/columna-crest-white.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-1/2 right-0 hidden aspect-square h-[10rem] max-w-[44%] -translate-y-1/2 object-contain opacity-[0.03] select-none md:dark:block"
+                />
                 <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-brand-gray">
                     <LocaleLink href="/" className="inline-flex min-h-9 items-center hover:text-brand-navy">
                         {t('breadcrumb.home', 'Acasă')}

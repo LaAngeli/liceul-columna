@@ -80,7 +80,7 @@ export function ThemeToggle({ className, variant = 'icon' }: { className?: strin
                             aria-label={optionLabel}
                             title={optionLabel}
                             className={cn(
-                                'relative z-10 inline-flex w-9 items-center justify-center rounded-full py-3 transition-colors',
+                                'relative z-10 inline-flex w-9 items-center justify-center rounded-full py-2.5 transition-colors',
                                 active ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
                             )}
                         >

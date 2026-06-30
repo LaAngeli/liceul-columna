@@ -10,8 +10,8 @@
 @endphp
 
 {{-- Comutator de limbă animat (pastilă segmentată), inserat în meniul user al panoului.
-     Stilurile sunt inline pentru că Tailwind-ul Filament v4 NU scanează resources/views/
-     pentru clase noi (folosește propriul bundle pre-compilat). --}}
+     Stilizare prin atribute `style` inline (nu clase utility); culorile vin din tokenii --brand-*
+     definiți în resources/css/filament/admin/theme.css. --}}
 <div class="fi-lang-switch">
     <div
         class="fi-lang-switch__pill"
@@ -66,8 +66,8 @@
         left: 2px;
         width: 2.5rem;
         border-radius: 9999px;
-        /* Amber (culoarea primară a panoului) — fix, vizibil în light ȘI dark. */
-        background-color: #f59e0b;
+        /* Navy de brand (§11) — fix, vizibil în light ȘI dark. */
+        background-color: var(--brand-navy);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
         transition: transform 300ms cubic-bezier(0, 0, 0.2, 1);
     }

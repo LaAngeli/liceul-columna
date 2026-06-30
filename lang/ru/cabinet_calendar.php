@@ -14,6 +14,7 @@ return [
     'all_children' => 'Все дети',
     'select_day' => 'Выберите день для подробностей.',
     'legend' => 'Легенда',
+    'show_all' => 'Все',
     'open' => 'Открыть',
     'week_view' => 'Неделя',
     'day_view' => 'День',

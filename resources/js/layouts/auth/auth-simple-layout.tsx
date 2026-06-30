@@ -16,12 +16,14 @@ export default function AuthSimpleLayout({
                 <div className="flex flex-col gap-7">
                     <div className="flex flex-col items-center gap-4">
                         <Link href={home()} aria-label="Liceul Columna" className="block">
-                            {/* Emblemă animată (WebP transparent), sursă temă-dependentă din CSS
-                                (`.auth-emblem`): se descarcă DOAR fișierul temei active, nu ambele. */}
+                            {/* Emblema Columna: surround static + scutul care se rotește 3D (doar el).
+                                Straturile/temele vin din CSS (`.auth-emblem`, `app.css`). */}
                             <span
                                 className="auth-emblem block h-28 w-28 sm:h-32 sm:w-32"
                                 aria-hidden="true"
-                            />
+                            >
+                                <span className="auth-emblem__coin" />
+                            </span>
                         </Link>
 
                         <div className="space-y-1.5 text-center">

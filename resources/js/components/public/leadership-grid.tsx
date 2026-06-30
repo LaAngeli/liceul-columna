@@ -26,7 +26,7 @@ export interface LeadershipMember {
 const ROTATE_SLOTS = 3;
 const FADE_MS = 380; // durata fade-out / fade-in
 const STAGGER_MS = 1100; // pauză între sloturi în cadrul unui ciclu (> 2× FADE → secvențial)
-const CYCLE_PAUSE_MS = 5000; // pauză după închiderea ciclului
+const CYCLE_PAUSE_MS = 6000; // pauză după închiderea ciclului
 const START_DELAY_MS = 2500; // întârziere inițială (lasă pagina să se așeze)
 
 function shuffle<T>(arr: T[]): T[] {
@@ -75,15 +75,20 @@ export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
     const [shown, setShown] = useState<LeadershipMember[]>(() => pool.slice(0, ROTATE_SLOTS));
     const [op, setOp] = useState<number[]>(() => Array(ROTATE_SLOTS).fill(1));
     const shownRef = useRef<LeadershipMember[]>(pool.slice(0, ROTATE_SLOTS));
+    // „Sac" de membri de introdus în ciclul curent = cei care NU sunt vizibili acum. Nimeni nu
+    // reapare până nu a fost afișată toată echipa; la golirea sacului se reumple (ciclu nou).
+    const bagRef = useRef<LeadershipMember[]>([]);
     const pausedRef = useRef(false);
     const inViewRef = useRef(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Primul amestec random.
-        const first = shuffle(pool).slice(0, ROTATE_SLOTS);
+        // Primul amestec: 3 vizibili + restul în „sac" (de introdus în ciclul curent, fără repetare).
+        const deck = shuffle(pool);
+        const first = deck.slice(0, ROTATE_SLOTS);
         shownRef.current = first;
         setShown(first);
+        bagRef.current = deck.slice(ROTATE_SLOTS);
 
         const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (reduce || pool.length <= ROTATE_SLOTS) return;
@@ -101,13 +106,20 @@ export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
         let fadeTimer = 0;
         let cursor = 0;
 
+        // Următorul membru de afișat = scos din „sac". Când sacul se golește (toată echipa a fost
+        // afișată în ciclul curent), îl reumplem DOAR cu cei care NU sunt vizibili acum → nimeni nu
+        // se repetă până nu trece tot ciclul; abia apoi pot reapărea (ciclu nou).
+        const nextFromBag = (): LeadershipMember | undefined => {
+            if (!bagRef.current.length) {
+                const shownNames = new Set(shownRef.current.map((m) => m.name));
+                bagRef.current = shuffle(pool.filter((m) => !shownNames.has(m.name)));
+            }
+            return bagRef.current.shift();
+        };
+
         const swapSlot = (slot: number) => {
-            const shownNames = new Set(shownRef.current.map((m) => m.name));
-            const hidden = pool.filter((m) => !shownNames.has(m.name)); // candidați care nu sunt deja vizibili
-            const current = shownRef.current[slot];
-            const candidates = hidden.length ? hidden : pool.filter((m) => m.name !== current?.name);
-            if (!candidates.length) return;
-            const next = candidates[Math.floor(Math.random() * candidates.length)];
+            const next = nextFromBag();
+            if (!next) return;
 
             setOp((prev) => prev.map((v, i) => (i === slot ? 0 : v))); // fade-out
             fadeTimer = window.setTimeout(() => {
@@ -147,7 +159,7 @@ export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
     return (
         <div
             ref={rootRef}
-            className="mt-8 grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-4"
+            className="mt-8 grid grid-cols-2 items-stretch gap-4 sm:gap-5 lg:grid-cols-4"
             onMouseEnter={() => {
                 pausedRef.current = true;
             }}

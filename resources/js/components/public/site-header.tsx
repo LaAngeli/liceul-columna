@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { ChevronDown, GraduationCap, LayoutDashboard, Menu, Phone, X } from 'lucide-react';
+import { CalendarDays, ChevronDown, LayoutDashboard, Menu, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { LocaleLink } from '@/components/locale-link';
 import { BrandButton, Container, FourStar } from '@/components/public/brand';
@@ -60,7 +60,9 @@ export function SiteHeader() {
     }, [mobileOpen]);
 
     const cabinetHref = auth?.user ? (auth.canAccessAdmin ? '/admin' : dashboard().url) : login().url;
-    const enrollHref = '/inregistrarea-student';
+    // CTA principal mereu-vizibil = programare vizită (acțiune cu angajament mic, sensibilă oricând).
+    // Înscrierea propriu-zisă stă în meniul Admitere (acțiune cu angajament mare).
+    const visitHref = '/programeaza-vizita';
 
     return (
         <header className="sticky top-0 z-40 w-full">
@@ -93,7 +95,7 @@ export function SiteHeader() {
             >
                 <Container className={cn('flex items-center justify-between gap-4 transition-all', scrolled ? 'py-2' : 'py-2.5')}>
                     <LocaleLink href="/" aria-label="Liceul Columna" className="shrink-0">
-                        <LogoLockup imgClassName={cn('w-auto transition-all', scrolled ? 'h-8 sm:h-9' : 'h-9 sm:h-10')} />
+                        <LogoLockup imgClassName={cn('w-auto transition-all', scrolled ? 'h-[48px] sm:h-[54px]' : 'h-[54px] sm:h-[60px]')} />
                     </LocaleLink>
 
                     {/* Navigare desktop */}
@@ -147,8 +149,8 @@ export function SiteHeader() {
                         <BrandButton href={cabinetHref} variant="ghost" icon={LayoutDashboard} className="hidden h-10 min-h-10 px-3.5 text-sm sm:inline-flex">
                             {t('action.cabinet', 'Cabinet')}
                         </BrandButton>
-                        <BrandButton href={enrollHref} variant="primary" icon={GraduationCap} className="hidden h-10 min-h-10 px-3.5 text-sm md:inline-flex">
-                            {t('menu.enroll', 'Înscrie copilul')}
+                        <BrandButton href={visitHref} variant="primary" icon={CalendarDays} className="hidden h-10 min-h-10 px-3.5 text-sm md:inline-flex">
+                            {t('menu.book_visit', 'Programează o vizită')}
                         </BrandButton>
                         <button
                             type="button"
@@ -253,18 +255,16 @@ export function SiteHeader() {
                                 <BrandButton href={cabinetHref} variant="ghost-navy" icon={LayoutDashboard} className="w-full text-sm">
                                     {t('action.cabinet', 'Cabinet')}
                                 </BrandButton>
-                                <BrandButton href={enrollHref} variant="primary" icon={GraduationCap} className="w-full text-sm">
-                                    {t('menu.enroll', 'Înscrie copilul')}
+                                <BrandButton href={visitHref} variant="primary" icon={CalendarDays} className="w-full text-sm">
+                                    {t('menu.book_visit', 'Programează o vizită')}
                                 </BrandButton>
                             </div>
                             <div className="flex items-center justify-between gap-3">
-                                <a href="tel:+37322742852" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-white/85 hover:text-white">
-                                    <Phone className="size-4 text-brand-green" /> (+373) 22 74 28 52
-                                </a>
+                                <span className="text-base font-semibold text-white/85">{t('language', 'Limbă')}</span>
                                 <LanguageSwitcher />
                             </div>
                             <div className="flex items-center justify-between gap-3">
-                                <span className="text-sm font-medium text-white/70">{t('theme.label', 'Temă')}</span>
+                                <span className="text-base font-semibold text-white/85">{t('theme.label', 'Temă')}</span>
                                 <ThemeToggle variant="tabs" />
                             </div>
                         </Container>
@@ -277,8 +277,8 @@ export function SiteHeader() {
                 <BrandButton href={cabinetHref} variant="ghost" icon={LayoutDashboard} className="flex-1 text-sm">
                     {t('action.cabinet', 'Cabinet')}
                 </BrandButton>
-                <BrandButton href={enrollHref} variant="primary" icon={GraduationCap} className="flex-1 text-sm">
-                    {t('menu.enroll', 'Înscrie copilul')}
+                <BrandButton href={visitHref} variant="primary" icon={CalendarDays} className="flex-1 text-sm">
+                    {t('menu.book_visit', 'Programează o vizită')}
                 </BrandButton>
             </div>
         </header>

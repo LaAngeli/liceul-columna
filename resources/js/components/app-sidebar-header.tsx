@@ -1,12 +1,21 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { Bell } from 'lucide-react';
+import { useEffect } from 'react';
 import { AppClock } from '@/components/app-clock';
 import { AppUserBadge } from '@/components/app-user-badge';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { LanguageSwitcher } from '@/components/public/language-switcher';
+import { ThemeToggle } from '@/components/public/theme-toggle';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useTranslations } from '@/lib/i18n';
 import { notifications } from '@/routes/cabinet';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
+
+/**
+ * Cât de des recerem doar prop-ul `notificationsUnread` din server (în ms). 60s e suficient pentru
+ * a percepe „aproape live" fără să încărcăm serverul. Real-time prin WebSockets = Faza B (Reverb).
+ */
+const NOTIFICATION_POLL_MS = 60_000;
 
 export function AppSidebarHeader({
     breadcrumbs = [],
@@ -15,6 +24,20 @@ export function AppSidebarHeader({
 }) {
     const t = useTranslations();
     const unread = Number(usePage().props.notificationsUnread ?? 0);
+
+    // Polling natival Inertia v3: la fiecare 60s reîmprospătăm DOAR prop-ul de unread (`only:[…]`),
+    // fără să refacem pagina. Pauzat când tab-ul nu e vizibil (Inertia gestionează automat).
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
+
+            router.reload({ only: ['notificationsUnread'] });
+        }, NOTIFICATION_POLL_MS);
+
+        return () => window.clearInterval(interval);
+    }, []);
 
     return (
         <header className="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/50 px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
@@ -26,6 +49,12 @@ export function AppSidebarHeader({
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
                 <AppClock />
                 <AppUserBadge />
+
+                {/* Comutatoare limbă + temă (sincronizate cu Filament prin localStorage `theme` și
+                    cu serverul prin /set-locale). Ascunse pe ecrane foarte înguste pentru spațiu. */}
+                <LanguageSwitcher className="hidden sm:inline-flex" />
+                <ThemeToggle variant="icon" className="hidden sm:block" />
+
                 <Link
                     href={notifications.url()}
                     aria-label={t('cabinet.notif_title')}

@@ -55,6 +55,7 @@ export const mainNav: NavItem[] = [
         tKey: 'nav.admission',
         children: [
             { title: 'Procesul de admitere', href: '/admitere', tKey: 'menu.admission_process' },
+            { title: 'Programează o vizită', href: '/programeaza-vizita', tKey: 'menu.book_visit' },
             { title: 'Înscriere online', href: '/inregistrarea-student', tKey: 'menu.enroll_online' },
             { title: 'Taxe și costuri', href: '/taxe', tKey: 'menu.fees' },
             { title: 'Întrebări frecvente', href: '/intrebari-frecvente', tKey: 'menu.faq' },
@@ -110,6 +111,7 @@ export const footerNav: { title: string; tKey: string; links: NavLink[] }[] = [
         tKey: 'nav.admission',
         links: [
             { title: 'Procesul de admitere', href: '/admitere', tKey: 'menu.admission_process' },
+            { title: 'Programează o vizită', href: '/programeaza-vizita', tKey: 'menu.book_visit' },
             { title: 'Înscriere online', href: '/inregistrarea-student', tKey: 'menu.enroll_online' },
             { title: 'Tabăra de vară', href: '/tabara-de-vara', tKey: 'utility.summer_camp' },
         ],

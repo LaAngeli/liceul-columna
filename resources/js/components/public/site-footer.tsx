@@ -45,10 +45,10 @@ export function SiteFooter() {
                 src="/images/logo/columna-white.png"
                 alt=""
                 aria-hidden="true"
-                className="pointer-events-none absolute -right-16 -bottom-16 w-[28rem] max-w-[60%] opacity-[0.05] select-none"
+                className="pointer-events-none absolute top-1/2 left-1/2 w-[26rem] max-h-[85%] max-w-[70%] -translate-x-1/2 -translate-y-1/2 opacity-[0.05] select-none"
             />
 
-            <Container className="relative py-14">
+            <Container className="relative pt-14 pb-5">
                 {/* Colofon */}
                 <div className="flex flex-col items-start gap-5 border-b border-white/15 pb-10 lg:flex-row lg:items-end lg:justify-between">
                     <div>
@@ -104,7 +104,7 @@ export function SiteFooter() {
                 </nav>
 
                 {/* Social */}
-                <div className="flex items-center justify-center gap-3 border-t border-white/15 pt-8">
+                <div className="flex items-center justify-center gap-3 border-t border-white/15 pt-5">
                     {social.map(({ icon: Icon, label, href }) => (
                         <a key={label} href={href} target="_blank" rel="noreferrer" aria-label={label} title={label} className="flex size-11 items-center justify-center rounded-full border border-white/25 text-white/85 transition-colors hover:border-brand-green hover:text-brand-green">
                             <Icon className="size-5" />
