@@ -428,7 +428,7 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
-     * Contactul setat pentru un canal (e-mail / telegram / viber / messenger / whatsapp), sau null
+     * Contactul setat pentru un canal (e-mail / telegram / viber), sau null
      * dacă lipsește. Canalul „cabinet" nu are nevoie de contact.
      */
     public function notificationContact(NotificationChannel $channel): ?string

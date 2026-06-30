@@ -8,7 +8,7 @@ return [
     'types' => [
         'new_grade' => 'Новая оценка',
         'new_absence' => 'Новый пропуск',
-        'new_homework' => 'Новое задание',
+        'new_homework' => 'Ежедневная сводка заданий',
         'new_message' => 'Новое сообщение',
         'status_change' => 'Изменение статуса',
         'announcement' => 'Объявление руководства',
@@ -23,8 +23,6 @@ return [
         'email' => 'Эл. почта',
         'telegram' => 'Telegram',
         'viber' => 'Viber',
-        'messenger' => 'Messenger',
-        'whatsapp' => 'WhatsApp',
     ],
 
     // Подпись кнопки действия в письме.

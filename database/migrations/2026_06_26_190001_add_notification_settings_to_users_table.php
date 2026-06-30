@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            // {telegram: "...", viber: "...", messenger: "...", whatsapp: "..."}
+            // {telegram: "...", viber: "..."}
             $table->json('notification_contacts')->nullable();
             // {new_grade: ["cabinet","telegram"], new_homework: ["email"], ...}
             $table->json('notification_preferences')->nullable();

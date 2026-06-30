@@ -13,7 +13,7 @@ return [
     'types' => [
         'new_grade' => 'Notă nouă',
         'new_absence' => 'Absență nouă',
-        'new_homework' => 'Temă nouă',
+        'new_homework' => 'Rezumat zilnic de teme',
         'new_message' => 'Mesaj nou',
         'status_change' => 'Schimbare de statut',
         'announcement' => 'Anunț al conducerii',
@@ -28,8 +28,6 @@ return [
         'email' => 'E-mail',
         'telegram' => 'Telegram',
         'viber' => 'Viber',
-        'messenger' => 'Messenger',
-        'whatsapp' => 'WhatsApp',
     ],
 
     // Eticheta butonului de acțiune din e-mail.

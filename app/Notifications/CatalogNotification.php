@@ -5,7 +5,6 @@ namespace App\Notifications;
 use App\Enums\NotificationChannel;
 use App\Enums\NotificationType;
 use App\Models\User;
-use App\Notifications\Channels\MessengerChannel;
 use App\Notifications\Channels\TelegramChannel;
 use App\Notifications\Channels\ViberChannel;
 use Illuminate\Bus\Queueable;
@@ -70,18 +69,19 @@ class CatalogNotification extends Notification implements ShouldQueue
             NotificationChannel::Email->value => 'mail',
             NotificationChannel::Telegram->value => TelegramChannel::class,
             NotificationChannel::Viber->value => ViberChannel::class,
-            NotificationChannel::Messenger->value => MessengerChannel::class,
-            // WhatsApp: amânat (API plătit) — fără canal activ.
         ];
 
         $channels = [];
         foreach ($notifiable->channelsFor($this->type) as $channel) {
+            // Defense-in-depth: chiar dacă preferința e salvată, sărim canalele fără driver/token
+            // de liceu — altfel utilizatorul s-ar baza pe un canal care nu trimite nimic în tăcere.
+            if (! $channel->isConfigured()) {
+                continue;
+            }
             if ($channel->requiresContact() && $notifiable->notificationContact($channel) === null) {
                 continue;
             }
-            if (isset($map[$channel->value])) {
-                $channels[] = $map[$channel->value];
-            }
+            $channels[] = $map[$channel->value];
         }
 
         return array_values(array_unique($channels));
@@ -144,7 +144,7 @@ class CatalogNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * Textul pentru canalele sociale (Telegram/Viber/Messenger), în limba destinatarului.
+     * Textul pentru canalele sociale (Telegram/Viber), în limba destinatarului.
      */
     public function toSocialText(User $notifiable): string
     {

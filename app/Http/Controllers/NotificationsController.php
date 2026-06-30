@@ -37,7 +37,10 @@ class NotificationsController extends Controller
 
     public function markRead(Request $request, string $notification): RedirectResponse
     {
-        $request->user()->notifications()->whereKey($notification)->update(['read_at' => now()]);
+        // Folosim API-ul DatabaseNotification (la fel ca markAllRead) ca să declanșăm event-urile
+        // modelului — orice listener viitor pe „marcat citit" (sync cross-device, analytics) prinde
+        // ambele căi uniform. null-safe = no-op silențios dacă id-ul nu există / nu aparține userului.
+        $request->user()->notifications()->whereKey($notification)->first()?->markAsRead();
 
         return back();
     }
@@ -59,7 +62,11 @@ class NotificationsController extends Controller
             'preferences' => $user->effectiveNotificationMatrix(),
             // Doar tipurile relevante pentru rolul utilizatorului (spec §5: „pe nișa lui").
             'types' => NotificationType::labelsFor($user->availableNotificationTypes()),
-            'channels' => NotificationChannel::options(),
+            // Doar canale livrabile (cabinet/email/telegram/viber).
+            'channels' => NotificationChannel::selectableOptions(),
+            // Per-canal: e activat de liceu? (cabinet/email mereu da; sociale după token din .env)
+            // UI marchează vizual canalele sociale neconfigurate; matricea nu lasă să se bifeze.
+            'channelStatus' => NotificationChannel::configurationStatus(),
             'email' => $user->email,
             'locale' => $user->notification_locale ?? $user->locale ?? 'ro',
             'locales' => self::notificationLocales(),
@@ -68,9 +75,10 @@ class NotificationsController extends Controller
 
     public function updateSettings(Request $request): RedirectResponse
     {
+        // Doar canale LIVRABILE — o preferință pe un canal necunoscut trimisă manual e respinsă (422).
         $channelValues = array_map(
             static fn (NotificationChannel $channel): string => $channel->value,
-            NotificationChannel::cases(),
+            array_filter(NotificationChannel::cases(), static fn (NotificationChannel $c): bool => $c->isDeliverable()),
         );
 
         $data = $request->validate([
@@ -78,8 +86,6 @@ class NotificationsController extends Controller
             'contacts' => ['nullable', 'array'],
             'contacts.telegram' => ['nullable', 'string', 'max:120'],
             'contacts.viber' => ['nullable', 'string', 'max:120'],
-            'contacts.messenger' => ['nullable', 'string', 'max:120'],
-            'contacts.whatsapp' => ['nullable', 'string', 'max:120'],
             'preferences' => ['nullable', 'array'],
             'preferences.*' => ['array'],
             'preferences.*.*' => [Rule::in($channelValues)],

@@ -8,7 +8,7 @@ return [
     'types' => [
         'new_grade' => 'New grade',
         'new_absence' => 'New absence',
-        'new_homework' => 'New homework',
+        'new_homework' => 'Daily homework summary',
         'new_message' => 'New message',
         'status_change' => 'Status change',
         'announcement' => 'Management announcement',
@@ -23,8 +23,6 @@ return [
         'email' => 'E-mail',
         'telegram' => 'Telegram',
         'viber' => 'Viber',
-        'messenger' => 'Messenger',
-        'whatsapp' => 'WhatsApp',
     ],
 
     // Action button label in the e-mail.

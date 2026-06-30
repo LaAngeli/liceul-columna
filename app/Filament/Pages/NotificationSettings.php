@@ -13,7 +13,6 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use UnitEnum;
 
 /**
  * Setări → Notificări (personal). Oglindește fereastra din cabinetul familiei: limba notificărilor,
@@ -27,13 +26,22 @@ class NotificationSettings extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBellAlert;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Setări';
-
     protected static ?int $navigationSort = 2;
 
-    protected static ?string $title = 'Notificări';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.settings');
+    }
 
-    protected static ?string $navigationLabel = 'Notificări';
+    public function getTitle(): string
+    {
+        return __('panel.pages.notifications.title');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.pages.notifications.title');
+    }
 
     protected string $view = 'filament.pages.notification-settings';
 
@@ -56,8 +64,8 @@ class NotificationSettings extends Page
         return $schema
             ->components([
                 Select::make('notification_locale')
-                    ->label(__('site.notif_language'))
-                    ->helperText(__('site.notif_language_hint'))
+                    ->label(__('site.cabinet.notif_language'))
+                    ->helperText(__('site.cabinet.notif_language_hint'))
                     ->options([
                         'ro' => 'Română',
                         'ru' => 'Русский',
@@ -66,18 +74,19 @@ class NotificationSettings extends Page
                     ->native(false)
                     ->required(),
 
-                Section::make(__('site.notif_contacts'))
-                    ->description(__('site.notif_contacts_hint'))
+                Section::make(__('site.cabinet.notif_contacts'))
+                    ->description(__('site.cabinet.notif_contacts_hint'))
                     ->schema([
-                        TextInput::make('contacts.telegram')->label('Telegram')->maxLength(120),
-                        TextInput::make('contacts.viber')->label('Viber')->maxLength(120),
-                        TextInput::make('contacts.messenger')->label('Messenger (PSID)')->maxLength(120),
-                        TextInput::make('contacts.whatsapp')->label('WhatsApp')->maxLength(120),
+                        // Hint dinamic „neconfigurat" pe canalele sociale fără token de liceu.
+                        TextInput::make('contacts.telegram')->label('Telegram')->maxLength(120)
+                            ->hint(NotificationChannel::Telegram->isConfigured() ? null : (string) __('site.cabinet.notif_channel_unconfigured')),
+                        TextInput::make('contacts.viber')->label('Viber')->maxLength(120)
+                            ->hint(NotificationChannel::Viber->isConfigured() ? null : (string) __('site.cabinet.notif_channel_unconfigured')),
                     ])
                     ->columns(2),
 
-                Section::make(__('site.notif_matrix'))
-                    ->description(__('site.notif_contacts_hint'))
+                Section::make(__('site.cabinet.notif_matrix'))
+                    ->description(__('site.cabinet.notif_matrix_hint'))
                     ->schema($this->matrixComponents()),
             ])
             ->statePath('data');
@@ -101,7 +110,7 @@ class NotificationSettings extends Page
 
         Notification::make()
             ->success()
-            ->title(__('site.notif_saved'))
+            ->title(__('site.cabinet.notif_saved'))
             ->send();
     }
 
@@ -112,13 +121,17 @@ class NotificationSettings extends Page
      */
     protected function matrixComponents(): array
     {
-        $channels = NotificationChannel::options();
+        // Doar canale livrabile (cabinet/email/telegram/viber).
+        $channels = NotificationChannel::selectableOptions();
 
         $components = [];
         foreach ($this->currentUser()->availableNotificationTypes() as $type) {
             $components[] = CheckboxList::make("preferences.{$type->value}")
                 ->label($type->label())
                 ->options($channels)
+                // Sociale fără token (telegram/viber) → checkbox blocat: utilizatorul nu
+                // poate bifa un canal care oricum nu trimite. Cabinet/Email mereu activabile.
+                ->disableOptionWhen(fn (string $value): bool => ! (NotificationChannel::tryFrom($value)?->isConfigured() ?? true))
                 ->columns(3)
                 ->bulkToggleable();
         }

@@ -46,8 +46,4 @@ return [
         'sender' => env('VIBER_SENDER', 'Liceul Columna'),
     ],
 
-    'messenger' => [
-        'token' => env('MESSENGER_PAGE_TOKEN'),
-    ],
-
 ];
