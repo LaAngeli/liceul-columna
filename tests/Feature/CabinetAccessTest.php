@@ -160,6 +160,7 @@ it('profilul elevului include foaie matricolă, teme și absențe defalcate', fu
     $parent->assignRole(UserRole::Parinte->value);
     $parent->students()->attach($student->id);
 
+    // Pasul 1 — răspunsul inițial conține DOAR prop-urile eager (absențele defalcate).
     $this->actingAs($parent)
         ->get("/cabinet/elev/{$student->id}")
         ->assertInertia(fn (Assert $page) => $page
@@ -167,9 +168,18 @@ it('profilul elevului include foaie matricolă, teme și absențe defalcate', fu
             ->where('absencesTotal', 3)
             ->where('absencesMotivated', 2)
             ->where('absencesUnmotivated', 1)
-            ->has('transcript', 1)
-            ->has('homework', 1)
         );
+
+    // Pasul 2 — partial reload (echivalent cu al 2-lea request automat al lui Inertia după mount)
+    // aduce prop-urile defer (transcript, homework). Răspuns JSON → `assertJsonCount` pe `props.*`.
+    $this->actingAs($parent)
+        ->get(
+            "/cabinet/elev/{$student->id}",
+            inertiaPartialHeaders('cabinet/student-profile', 'transcript,homework'),
+        )
+        ->assertOk()
+        ->assertJsonCount(1, 'props.transcript')
+        ->assertJsonCount(1, 'props.homework');
 });
 
 it('cabinetul arată statutul corigent cu disciplinele restante', function () {
@@ -233,12 +243,19 @@ it('cabinetul oferă formularul de motivare familiei, dar nu personalului', func
     $parent->assignRole(UserRole::Parinte->value);
     $parent->students()->attach($student->id);
 
-    // Familia poate depune cereri de motivare.
+    // Familia poate depune cereri de motivare (prop-ul eager `canRequestMotivation`).
     $this->actingAs($parent)
         ->get("/cabinet/elev/{$student->id}")
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('canRequestMotivation', true)
-            ->has('motivations'));
+        ->assertInertia(fn (Assert $page) => $page->where('canRequestMotivation', true));
+
+    // Lista de motivări e prop defer — vine la al 2-lea request (partial reload, JSON).
+    $this->actingAs($parent)
+        ->get(
+            "/cabinet/elev/{$student->id}",
+            inertiaPartialHeaders('cabinet/student-profile', 'motivations'),
+        )
+        ->assertOk()
+        ->assertJsonStructure(['props' => ['motivations']]);
 
     // Personalul vede pagina, dar NU formularul (ar primi 403 la trimitere).
     $staff = User::factory()->create();
@@ -260,12 +277,16 @@ it('o cerere depusă apare în lista de motivări din cabinet', function () {
         'period_end' => '2026-03-04',
     ])->assertRedirect();
 
+    // `motivations` e prop defer — partial reload (JSON) ca să-l primim.
     $this->actingAs($parent)
-        ->get("/cabinet/elev/{$student->id}")
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('motivations', 1)
-            ->where('motivations.0.status', 'pending')
-            ->where('motivations.0.reason', 'Consultație medicală'));
+        ->get(
+            "/cabinet/elev/{$student->id}",
+            inertiaPartialHeaders('cabinet/student-profile', 'motivations'),
+        )
+        ->assertOk()
+        ->assertJsonCount(1, 'props.motivations')
+        ->assertJsonPath('props.motivations.0.status', 'pending')
+        ->assertJsonPath('props.motivations.0.reason', 'Consultație medicală');
 });
 
 it('panoul staff are pagina Profil (secțiunea Setări) accesibilă', function () {

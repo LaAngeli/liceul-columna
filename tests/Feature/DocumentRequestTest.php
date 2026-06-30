@@ -26,7 +26,9 @@ it('familia depune o cerere tipică și se generează un PDF privat', function (
     $this->actingAs($parent)->post("/cabinet/elev/{$student->id}/cereri", [
         'type' => DocumentRequestType::Adeverinta->value,
         'details' => 'Necesară pentru dosarul de bursă.',
-    ])->assertRedirect();
+    ])
+        ->assertRedirect()
+        ->assertInertiaFlash('toast.type', 'success');
 
     $request = DocumentRequest::query()->where('student_id', $student->id)->first();
 

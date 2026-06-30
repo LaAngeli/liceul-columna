@@ -12,7 +12,7 @@ it('listează articolele din categoria Actualități', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('public/articole/index')
             ->where('category', 'actualitati')
-            ->has('posts.data', 1));
+            ->has('posts', 1));
 });
 
 it('listează articolele din categoria Blog', function () {
@@ -20,15 +20,20 @@ it('listează articolele din categoria Blog', function () {
 
     $this->get('/blog')
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('public/articole/index')->has('posts.data', 1));
+        ->assertInertia(fn (Assert $page) => $page->component('public/articole/index')->has('posts', 1));
 });
 
-it('afișează un articol individual', function () {
-    $post = Post::factory()->create(['slug' => 'articol-de-test', 'published_at' => now()->subDay()]);
+it('afișează un articol individual cu timp de citire și articole similare', function () {
+    $post = Post::factory()->blog()->create(['slug' => 'articol-de-test', 'published_at' => now()->subDay()]);
+    Post::factory()->blog()->create(['published_at' => now()->subDays(2)]);
 
     $this->get('/articol/articol-de-test')
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('public/articole/show')->where('post.title', $post->title));
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('public/articole/show')
+            ->where('post.title', $post->title)
+            ->where('post.readingMinutes', fn ($m) => is_int($m) && $m >= 1)
+            ->has('related', 1));
 });
 
 it('nu afișează articolele nepublicate', function () {

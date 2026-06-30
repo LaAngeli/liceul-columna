@@ -34,7 +34,9 @@ it('familia depune o cerere de motivare din cabinet', function () {
             'period_start' => '2026-03-01',
             'period_end' => '2026-03-03',
         ])
-        ->assertRedirect();
+        ->assertRedirect()
+        ->assertInertiaFlash('toast.type', 'success')
+        ->assertInertiaFlash('toast.message', __('cabinet_flash.motivation_sent'));
 
     expect(AbsenceMotivation::query()
         ->where('student_id', $student->id)
@@ -189,7 +191,10 @@ it('o cerere care acoperă o absență consolidată e marcată EXCEPȚIE', funct
         'reason' => 'Adeverință tardivă',
         'period_start' => '2026-03-01',
         'period_end' => '2026-03-03',
-    ])->assertRedirect();
+    ])
+        ->assertRedirect()
+        ->assertInertiaFlash('toast.type', 'success')
+        ->assertInertiaFlash('toast.message', __('cabinet_flash.motivation_sent_exception'));
 
     expect(AbsenceMotivation::query()->where('student_id', $student->id)->where('is_exception', true)->exists())
         ->toBeTrue();

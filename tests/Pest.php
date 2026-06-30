@@ -16,6 +16,12 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    // Resetează locale la default ÎNAINTE de fiecare test: unele teste setează app()->setLocale('ru'/'en')
+    // și nu resetează (ex. ContentTranslationTest), iar locale-ul s-ar scurge în testele următoare
+    // (ContentTranslator/enum-uri sensibile la limbă) → fragilitate de ordine. Reset = suită deterministă.
+    ->beforeEach(function () {
+        app()->setLocale(config('app.locale'));
+    })
     ->in('Feature');
 
 /*
@@ -47,4 +53,25 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * Header-uri pentru un Inertia partial reload, replicând exact logica de versiune din
+ * `Inertia\Middleware::version()` (hash xxh128 al manifestului Vite). Necesar fiindcă middleware-ul
+ * suprascrie pe fiecare request `Inertia::version(...)` cu această valoare — orice setare din
+ * `beforeEach` e ignorată. Cu hash-ul ăsta, GET-ul partial trece de check-ul de versiune (fără 409).
+ *
+ * @return array<string, string>
+ */
+function inertiaPartialHeaders(string $component, string $only): array
+{
+    $manifest = public_path('build/manifest.json');
+    $version = file_exists($manifest) ? hash_file('xxh128', $manifest) : '';
+
+    return [
+        'X-Inertia' => 'true',
+        'X-Inertia-Version' => $version,
+        'X-Inertia-Partial-Component' => $component,
+        'X-Inertia-Partial-Data' => $only,
+    ];
 }

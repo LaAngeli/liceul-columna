@@ -88,9 +88,9 @@ it('Post cade pe conținutul RO când rândul de traducere are content null', fu
 });
 
 it('servește pagina publică cu conținut tradus sub /ru', function () {
-    $roLead = 'Pentru orice întrebare despre admitere, programul școlar sau viața liceului, scrie-ne sau vino să ne cunoști.';
+    $roLead = 'Curriculumul la disciplină pentru treapta gimnazială (clasele V–IX).';
 
-    $this->get('/ru/contacte')
+    $this->get('/ru/scoala-gimnaziala/curriculum')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('public/page')

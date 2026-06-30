@@ -95,6 +95,10 @@ it('widget-ul „orare de completat" apare AO-ului cât timp lipsesc tipuri și 
         Schedule::factory()->ofType($type)->create(['is_public' => true]);
     }
 
+    // Widget-ul memoizează rezultatul per-request — în test schimbăm starea în același proces,
+    // deci golim cache-ul ca să recalculeze. În prod fiecare cerere are instanță proaspătă.
+    SchedulesToComplete::flushCache();
+
     expect(SchedulesToComplete::canView())->toBeFalse();
 });
 

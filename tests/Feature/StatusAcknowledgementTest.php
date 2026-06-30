@@ -54,7 +54,9 @@ it('familia confirmă luarea la cunoștință a statutului corigent (urmă în B
     $this->actingAs($stranger)->post("/cabinet/elev/{$student->id}/confirm-statut")->assertForbidden();
 
     // Familia confirmă → se înregistrează.
-    $this->actingAs($parent)->post("/cabinet/elev/{$student->id}/confirm-statut")->assertRedirect();
+    $this->actingAs($parent)->post("/cabinet/elev/{$student->id}/confirm-statut")
+        ->assertRedirect()
+        ->assertInertiaFlash('toast.type', 'success');
 
     expect(StatusAcknowledgement::query()
         ->where('student_id', $student->id)

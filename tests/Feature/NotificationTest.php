@@ -25,7 +25,7 @@ beforeEach(function () {
     }
 });
 
-it('via() respectă preferințele și sare canalele sociale fără contact', function () {
+it('via() respectă preferințele și sare canalele sociale fără contact sau fără token de liceu', function () {
     $user = User::factory()->create([
         'notification_preferences' => ['new_grade' => ['cabinet', 'telegram']],
         'notification_contacts' => [],
@@ -36,8 +36,14 @@ it('via() respectă preferințele și sare canalele sociale fără contact', fun
     // Fără contact Telegram → doar cabinet (database).
     expect($notification->via($user))->toBe(['database']);
 
-    // Cu contact Telegram → se adaugă canalul social.
+    // Cu contact Telegram DAR fără token de liceu → tot doar cabinet (defense-in-depth, vezi
+    // NotificationChannel::isConfigured): nu promitem un canal pe care backendul nu-l onorează.
     $user->update(['notification_contacts' => ['telegram' => '123456']]);
+    config()->set('services.telegram.token', null);
+    expect($notification->via($user))->toBe(['database']);
+
+    // Cu contact ȘI token activ → canalul social se adaugă.
+    config()->set('services.telegram.token', 'test-token');
     expect($notification->via($user))->toBe(['database', TelegramChannel::class]);
 });
 

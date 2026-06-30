@@ -12,7 +12,6 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
-use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
@@ -50,11 +49,14 @@ it('cabinetul afișează orarul structurat al clasei elevului', function () {
     $parent->assignRole(UserRole::Parinte->value);
     $parent->students()->attach($student->id);
 
+    // `timetable` e prop defer — partial reload (JSON).
     $this->actingAs($parent)
-        ->get("/cabinet/elev/{$student->id}")
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('timetable.days')
-            ->has('timetable.grid'));
+        ->get(
+            "/cabinet/elev/{$student->id}",
+            inertiaPartialHeaders('cabinet/student-profile', 'timetable'),
+        )
+        ->assertOk()
+        ->assertJsonStructure(['props' => ['timetable' => ['days', 'grid']]]);
 });
 
 it('riscul de amânare apare la disciplina cu ≤1 notă și >50% absențe din lecțiile programate', function () {

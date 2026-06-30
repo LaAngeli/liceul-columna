@@ -1,9 +1,12 @@
 <?php
 
+use App\Enums\AdmissionRequestType;
 use App\Enums\UserRole;
 use App\Filament\Resources\AdmissionRequests\AdmissionRequestResource;
+use App\Mail\AdmissionRequestNotification;
 use App\Models\AdmissionRequest;
 use App\Models\User;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 
@@ -19,7 +22,9 @@ it('afișează formularul public de înscriere', function () {
         ->assertInertia(fn (Assert $page) => $page->component('public/admitere/inregistrare'));
 });
 
-it('salvează o cerere de înscriere validă', function () {
+it('salvează o cerere de înmatriculare validă și trimite e-mail către administrație', function () {
+    Mail::fake();
+
     $this->post('/inregistrarea-student', [
         'parent_name' => 'Maria Popescu',
         'phone' => '069123456',
@@ -27,14 +32,32 @@ it('salvează o cerere de înscriere validă', function () {
         'child_name' => 'Ion Popescu',
         'child_age' => 7,
         'desired_class' => 'Clasa I',
-        'preferred_time' => 'Luni, după-amiaza',
     ])->assertRedirect();
 
     $this->assertDatabaseHas('admission_requests', [
+        'type' => 'enrollment',
         'child_name' => 'Ion Popescu',
         'parent_name' => 'Maria Popescu',
         'status' => 'nou',
     ]);
+
+    Mail::assertQueued(AdmissionRequestNotification::class, function (AdmissionRequestNotification $mail) {
+        return $mail->hasTo((string) config('contact.mailbox'))
+            && $mail->admission->type === AdmissionRequestType::Enrollment
+            && $mail->admission->child_name === 'Ion Popescu';
+    });
+});
+
+it('respinge înmatricularea cu nume care conține cifre și cu vârstă incoerentă cu clasa', function () {
+    $this->post('/inregistrarea-student', [
+        'parent_name' => '12345',
+        'phone' => '069123456',
+        'child_name' => 'Ion Popescu',
+        'child_age' => 3,
+        'desired_class' => 'Clasa IX',
+    ])->assertSessionHasErrors(['parent_name', 'child_age']);
+
+    expect(AdmissionRequest::count())->toBe(0);
 });
 
 it('respinge cererea fără câmpurile obligatorii', function () {
