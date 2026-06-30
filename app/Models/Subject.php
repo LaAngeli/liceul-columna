@@ -3,14 +3,23 @@
 namespace App\Models;
 
 use App\Enums\GradingType;
+use Database\Factories\SubjectFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property string $name
+ * @property string|null $abbreviation
+ * @property int|null $min_grade
+ * @property int|null $max_grade
+ * @property GradingType $grading_type
+ * @property int|null $report_order
+ */
 class Subject extends Model
 {
-    /** @use HasFactory<\Database\Factories\SubjectFactory> */
+    /** @use HasFactory<SubjectFactory> */
     use HasFactory, SoftDeletes;
 
     protected $fillable = [

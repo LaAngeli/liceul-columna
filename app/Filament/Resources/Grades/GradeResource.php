@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Grades;
 
+use App\Filament\RelationManagers\AuditsRelationManager;
 use App\Filament\Resources\Grades\Pages\CreateGrade;
 use App\Filament\Resources\Grades\Pages\EditGrade;
 use App\Filament\Resources\Grades\Pages\ListGrades;
@@ -23,13 +24,27 @@ class GradeResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPencilSquare;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+    protected static ?int $navigationSort = 10;
 
-    protected static ?string $navigationLabel = 'Note';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.catalog');
+    }
 
-    protected static ?string $modelLabel = 'notă';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.grades.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Note';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.grades.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.grades.plural');
+    }
 
     /**
      * Introduc note: profesorii/diriginții (scoped pe server) + autoritatea academică
@@ -55,7 +70,7 @@ class GradeResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            AuditsRelationManager::class,
         ];
     }
 

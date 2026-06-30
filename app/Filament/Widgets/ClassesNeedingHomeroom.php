@@ -29,38 +29,37 @@ class ClassesNeedingHomeroom extends TableWidget
 
         return $user !== null
             && $user->isAdministrator()
-            && SchoolClass::query()->whereNull('homeroom_teacher_id')->has('enrollments')->exists();
+            && SchoolClass::query()->withoutHomeroom()->exists();
     }
 
     public function table(Table $table): Table
     {
         return $table
-            ->heading('Clase active fără diriginte')
-            ->description('Clase cu elevi care necesită numirea unui diriginte.')
+            ->heading(__('panel.widgets.classes_needing_homeroom.heading'))
+            ->description(__('panel.widgets.classes_needing_homeroom.description'))
             ->query(fn (): Builder => SchoolClass::query()
-                ->whereNull('homeroom_teacher_id')
-                ->has('enrollments')
+                ->withoutHomeroom()
                 ->withCount('enrollments'))
             ->columns([
                 TextColumn::make('name')
-                    ->label('Clasa')
+                    ->label(__('panel.fields.class'))
                     ->formatStateUsing(fn (SchoolClass $record): string => trim($record->name.' '.($record->section ?? ''))),
                 TextColumn::make('grade_level')
-                    ->label('Treapta'),
+                    ->label(__('panel.fields.grade_level')),
                 TextColumn::make('academicYear.name')
-                    ->label('An școlar'),
+                    ->label(__('panel.fields.academic_year')),
                 TextColumn::make('enrollments_count')
-                    ->label('Elevi'),
+                    ->label(__('panel.widgets.classes_needing_homeroom.enrollments')),
             ])
             ->recordActions([
                 Action::make('assignHomeroom')
-                    ->label('Numește diriginte')
+                    ->label(__('panel.widgets.classes_needing_homeroom.assign.label'))
                     ->icon(Heroicon::OutlinedUserPlus)
-                    ->modalHeading('Numește diriginte')
-                    ->modalSubmitActionLabel('Numește')
+                    ->modalHeading(fn (): string => __('panel.widgets.classes_needing_homeroom.assign.heading'))
+                    ->modalSubmitActionLabel(fn (): string => __('panel.widgets.classes_needing_homeroom.assign.submit'))
                     ->schema([
                         Select::make('homeroom_teacher_id')
-                            ->label('Diriginte')
+                            ->label(__('panel.tables.school_classes.homeroom'))
                             ->options(fn (): array => self::teacherOptions())
                             ->searchable()
                             ->required(),
@@ -70,8 +69,10 @@ class ClassesNeedingHomeroom extends TableWidget
 
                         Notification::make()
                             ->success()
-                            ->title('Diriginte numit')
-                            ->body(trim($record->name.' '.($record->section ?? '')).' are acum diriginte.')
+                            ->title(__('panel.widgets.classes_needing_homeroom.assign.success_title'))
+                            ->body(__('panel.widgets.classes_needing_homeroom.assign.success_body', [
+                                'class' => trim($record->name.' '.($record->section ?? '')),
+                            ]))
                             ->send();
                     }),
             ])

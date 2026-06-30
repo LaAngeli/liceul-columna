@@ -2,6 +2,9 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\Students\StudentResource;
+use App\Filament\Resources\Teachers\TeacherResource;
+use App\Filament\Resources\Users\UserResource;
 use App\Models\Grade;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -16,7 +19,11 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
  */
 class AdminOverview extends StatsOverviewWidget
 {
-    protected static ?int $sort = -3;
+    // -4: după WelcomeWidget (-5), înaintea AccountWidget (-3, default) — fără coliziune de ordine.
+    protected static ?int $sort = -4;
+
+    // Stats predominant statice (conturi/volume) → polling rar (5 min) ca să nu încarce DB.
+    protected ?string $pollingInterval = '5m';
 
     public static function canView(): bool
     {
@@ -28,22 +35,28 @@ class AdminOverview extends StatsOverviewWidget
         $pendingPasswords = User::query()->where('must_change_password', true)->count();
 
         return [
-            Stat::make('Conturi', User::query()->count())
-                ->description('Utilizatori în sistem')
+            Stat::make(__('panel.widgets.admin_overview.accounts'), User::query()->count())
+                ->description(__('panel.widgets.admin_overview.accounts_desc'))
                 ->descriptionIcon(Heroicon::OutlinedUsers)
-                ->color('primary'),
-            Stat::make('Parole neschimbate', $pendingPasswords)
-                ->description('Conturi migrate care nu și-au schimbat parola')
+                ->color('primary')
+                ->url(UserResource::getUrl('index')),
+            Stat::make(__('panel.widgets.admin_overview.passwords_pending'), $pendingPasswords)
+                ->description(__('panel.widgets.admin_overview.passwords_pending_desc'))
                 ->descriptionIcon(Heroicon::OutlinedKey)
-                ->color($pendingPasswords > 0 ? 'warning' : 'success'),
-            Stat::make('Elevi', Student::query()->count())
-                ->description('Fișe de elev')
-                ->descriptionIcon(Heroicon::OutlinedAcademicCap),
-            Stat::make('Profesori', Teacher::query()->count())
-                ->description('Fișe de profesor')
-                ->descriptionIcon(Heroicon::OutlinedUserGroup),
-            Stat::make('Note în catalog', Grade::query()->count())
-                ->description('Volum date (integritate import)')
+                ->color($pendingPasswords > 0 ? 'warning' : 'success')
+                ->url(UserResource::getUrl('index')),
+            Stat::make(__('panel.widgets.admin_overview.students'), Student::query()->count())
+                ->description(__('panel.widgets.admin_overview.students_desc'))
+                ->descriptionIcon(Heroicon::OutlinedAcademicCap)
+                ->url(StudentResource::getUrl('index')),
+            Stat::make(__('panel.widgets.admin_overview.teachers'), Teacher::query()->count())
+                ->description(__('panel.widgets.admin_overview.teachers_desc'))
+                ->descriptionIcon(Heroicon::OutlinedUserGroup)
+                ->url(TeacherResource::getUrl('index')),
+            // Aliniat la scope-ul active() (consecvent cu SchoolTrendChart și motorul de medii): notele
+            // anulate (annulled_at) sunt păstrate în istoric dar NU se numără în „note în catalog".
+            Stat::make(__('panel.widgets.admin_overview.grades_count'), Grade::query()->active()->count())
+                ->description(__('panel.widgets.admin_overview.grades_count_desc'))
                 ->descriptionIcon(Heroicon::OutlinedCircleStack),
         ];
     }

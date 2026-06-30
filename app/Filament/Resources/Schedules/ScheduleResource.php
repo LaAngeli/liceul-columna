@@ -28,13 +28,27 @@ class ScheduleResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Configurare';
+    protected static ?int $navigationSort = 40;
 
-    protected static ?string $navigationLabel = 'Orare';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.configuration');
+    }
 
-    protected static ?string $modelLabel = 'orar';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.schedules.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Orare';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.schedules.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.schedules.plural');
+    }
 
     public static function canAccess(): bool
     {

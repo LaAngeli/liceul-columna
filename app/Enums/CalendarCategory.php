@@ -21,16 +21,7 @@ enum CalendarCategory: string implements HasLabel
 
     public function getLabel(): string
     {
-        return match ($this) {
-            self::Homework => 'Teme',
-            self::Assessment => 'Evaluări și examene',
-            self::Absence => 'Absențe',
-            self::Deadline => 'Termene-limită',
-            self::Event => 'Evenimente și ședințe',
-            self::Schedule => 'Orar',
-            self::Structure => 'Structură (semestre, vacanțe)',
-            self::Communication => 'Comunicări',
-        };
+        return (string) trans('enums.calendar_category.'.$this->value);
     }
 
     /**

@@ -3,6 +3,8 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\EditProfile;
+use App\Filament\Resources\Absences\AbsenceResource;
+use App\Filament\Resources\Grades\GradeResource;
 use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\SetUserLocale;
 use Filament\Http\Middleware\Authenticate;
@@ -14,7 +16,6 @@ use Filament\Navigation\NavigationItem;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\Support\Colors\Color;
 use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
@@ -34,39 +35,65 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->viteTheme('resources/css/filament/admin/theme.css')
             // Fără login separat: oaspeții pe /admin sunt trimiși la autentificarea unică (/login).
             ->brandName('Liceul Columna · Administrare')
+            // Logo de brand în topbar (variația „Long Orizontal" — light/dark).
+            ->brandLogo(fn (): string => asset('images/logo/columna-wordmark.webp'))
+            ->darkModeBrandLogo(fn (): string => asset('images/logo/columna-wordmark-white.webp'))
+            ->brandLogoHeight('2.25rem')
+            // Favicon (emblema bicoloră a brand-ului — vezi public/favicon.ico generat din columna-crest-color).
+            ->favicon(asset('favicon.ico'))
             // Pagina Profil (nume/email/parolă/2FA), în layout cu sidebar (isSimple: false).
             ->profile(EditProfile::class, isSimple: false)
             // Clopoțelul de notificări din panou (spec §5): personalul își primește notificările „de
             // nișă" (database) chiar în dashboard, ca structură proprie de recepție.
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
+            // Brand (§11): navy #0f4d77 = PRIMAR; verdele #9bc31e = ACCENT, înregistrat ca o
+            // culoare custom „brand-green" pentru folosire țintită (badge-uri/butoane secundare).
+            // Filament generează automat cele 11 shades din culoarea hex.
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => '#0f4d77',
+                'brand-green' => '#9bc31e',
             ])
             // Ordinea grupurilor din sidebar; „Setări" la final (oglindește cabinetul elev/părinte).
+            // Etichetele se localizează la fiecare request (SetUserLocale rulează înainte de panel()):
+            // Filament grupează pe label exact, deci resursele returnează aceeași cheie tradusă.
             ->navigationGroups([
-                'Catalog',
-                'Configurare',
-                'Comunicare',
-                'Admitere',
-                'Administrare',
-                'Setări',
+                __('panel.nav.groups.catalog'),
+                __('panel.nav.groups.configuration'),
+                __('panel.nav.groups.communication'),
+                __('panel.nav.groups.admission'),
+                __('panel.nav.groups.administration'),
+                __('panel.nav.groups.settings'),
             ])
             // Pagina de profil Filament e legată de meniul user, nu de sidebar (`->profile()` nu o
             // adaugă în navigație). Adăugăm manual linkul „Setări → Profil" către `getProfileUrl()`.
             ->navigationItems([
-                NavigationItem::make('Profil')
-                    ->group('Setări')
+                NavigationItem::make(__('panel.nav.items.profile'))
+                    ->group(__('panel.nav.groups.settings'))
                     ->icon(Heroicon::OutlinedUserCircle)
                     ->url(fn (): ?string => filament()->getProfileUrl())
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.auth.profile'))
                     ->sort(1),
             ])
             ->userMenuItems([
+                // Quick-create pe fluxul zilnic de mare volum al profesorului (§spec catalog).
+                // Gated pe canCreate() — administratorul operațional/tehnic NU vede aceste linkuri
+                // pentru că nu pot crea note/absențe (vezi GradeResource::canCreate, §3.2).
                 MenuItem::make()
-                    ->label('Vezi site-ul public')
+                    ->label(fn (): string => __('panel.nav.items.new_grade'))
+                    ->url(fn (): string => GradeResource::getUrl('create'))
+                    ->icon(Heroicon::OutlinedPlusCircle)
+                    ->visible(fn (): bool => GradeResource::canCreate()),
+                MenuItem::make()
+                    ->label(fn (): string => __('panel.nav.items.new_absence'))
+                    ->url(fn (): string => AbsenceResource::getUrl('create'))
+                    ->icon(Heroicon::OutlinedPlusCircle)
+                    ->visible(fn (): bool => AbsenceResource::canCreate()),
+                MenuItem::make()
+                    ->label(fn (): string => __('panel.nav.items.view_site'))
                     ->url('/', shouldOpenInNewTab: true)
                     ->icon(Heroicon::OutlinedGlobeAlt),
             ])

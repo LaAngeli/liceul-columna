@@ -16,11 +16,7 @@ enum StudentStatus: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Promovat => 'Promovat',
-            self::Corigent => 'Corigent',
-            self::Amanat => 'Amânat',
-        };
+        return (string) trans('enums.student_status.'.$this->value);
     }
 
     public function getLabel(): string

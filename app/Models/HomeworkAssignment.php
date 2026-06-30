@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Console\Commands\SendHomeworkDigest;
 use Database\Factories\HomeworkAssignmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,10 @@ use Illuminate\Support\Carbon;
 
 /**
  * Temă academică dată unei clase (treaptă + literă) la o disciplină.
+ *
+ * Notificarea familiilor se face printr-un DIGEST ZILNIC (un singur rezumat/seară/clasă) —
+ * vezi {@see SendHomeworkDigest}. Per-temă instant a fost dezactivat
+ * intenționat ca să nu spamăm familiile cu o notificare la fiecare adăugare.
  *
  * @property int $grade_level
  * @property string $subject_name

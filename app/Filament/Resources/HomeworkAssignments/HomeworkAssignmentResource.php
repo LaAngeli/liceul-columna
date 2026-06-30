@@ -24,13 +24,27 @@ class HomeworkAssignmentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+    protected static ?int $navigationSort = 30;
 
-    protected static ?string $navigationLabel = 'Teme';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.catalog');
+    }
 
-    protected static ?string $modelLabel = 'temă';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.homework.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Teme';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.homework.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.homework.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {

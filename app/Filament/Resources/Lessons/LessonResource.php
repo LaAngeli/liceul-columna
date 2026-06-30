@@ -28,13 +28,27 @@ class LessonResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Configurare';
+    protected static ?int $navigationSort = 50;
 
-    protected static ?string $navigationLabel = 'Orar structurat';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.configuration');
+    }
 
-    protected static ?string $modelLabel = 'lecție';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.lessons.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Orar structurat';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.lessons.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.lessons.plural');
+    }
 
     public static function canAccess(): bool
     {

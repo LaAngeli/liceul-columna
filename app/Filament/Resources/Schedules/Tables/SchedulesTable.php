@@ -21,28 +21,28 @@ class SchedulesTable
             ->defaultSort('position')
             ->columns([
                 TextColumn::make('type')
-                    ->label('Tip')
+                    ->label(__('panel.fields.type'))
                     ->badge(),
                 TextColumn::make('label')
-                    ->label('Titlu')
+                    ->label(__('panel.forms.schedule.title'))
                     ->searchable(),
                 TextColumn::make('position')
-                    ->label('Ordine')
+                    ->label(__('panel.forms.schedule.position'))
                     ->sortable(),
                 ToggleColumn::make('is_public')
-                    ->label('Publicat'),
+                    ->label(__('panel.forms.schedule.is_public_short')),
                 TextColumn::make('updated_at')
-                    ->label('Actualizat')
+                    ->label(__('panel.forms.schedule.updated_at'))
                     ->dateTime('d.m.Y H:i')
                     ->sortable()
                     ->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('type')
-                    ->label('Tip')
+                    ->label(__('panel.fields.type'))
                     ->options(ScheduleType::options()),
                 TernaryFilter::make('is_public')
-                    ->label('Publicat pe site'),
+                    ->label(__('panel.forms.schedule.is_public_filter')),
             ])
             ->recordActions([
                 EditAction::make(),

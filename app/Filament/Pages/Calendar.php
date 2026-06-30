@@ -4,6 +4,8 @@ namespace App\Filament\Pages;
 
 use App\Calendar\CalendarAccess;
 use App\Calendar\CalendarAggregator;
+use App\Enums\CalendarCategory;
+use App\Filament\Resources\CalendarEvents\CalendarEventResource;
 use App\Models\User;
 use BackedEnum;
 use Filament\Pages\Page;
@@ -21,11 +23,17 @@ class Calendar extends Page
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static ?string $navigationLabel = 'Calendar';
-
-    protected static ?string $title = 'Calendar';
-
     protected static ?int $navigationSort = -2;
+
+    public function getTitle(): string
+    {
+        return __('panel.pages.calendar.title');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.pages.calendar.title');
+    }
 
     public string $month = '';
 
@@ -33,11 +41,23 @@ class Calendar extends Page
 
     public string $focus = '';
 
+    /**
+     * Cheile categoriilor vizibile (filtru chip-toggle). Implicit toate sunt vizibile;
+     * un click pe chip îl scoate / repune. Filtrarea se aplică în byDay().
+     *
+     * @var list<string>
+     */
+    public array $visibleCategories = [];
+
+    /** ID-ul evenimentului deschis în modal (CalendarItem::id), sau null când modalul e închis. */
+    public ?string $selectedEventId = null;
+
     public function mount(): void
     {
         $now = Carbon::now();
         $this->month = $now->format('Y-m');
         $this->focus = $now->toDateString();
+        $this->visibleCategories = array_map(fn (CalendarCategory $c): string => $c->value, CalendarCategory::cases());
     }
 
     public function setMode(string $mode): void
@@ -69,6 +89,81 @@ class Calendar extends Page
         $this->focus = $date;
         $this->mode = 'day';
         $this->month = Carbon::parse($date)->format('Y-m');
+    }
+
+    /**
+     * Toggle vizibilitatea unei categorii din filtrul de chip-uri. Cel puțin una rămâne activă
+     * (apăsând pe ultima activă o re-aprinde, nu lasă calendarul gol).
+     */
+    public function toggleCategory(string $key): void
+    {
+        if (! in_array($key, $this->visibleCategories, true)) {
+            $this->visibleCategories[] = $key;
+
+            return;
+        }
+
+        $next = array_values(array_filter($this->visibleCategories, static fn (string $v): bool => $v !== $key));
+
+        if ($next === []) {
+            return;
+        }
+
+        $this->visibleCategories = $next;
+    }
+
+    public function showAllCategories(): void
+    {
+        $this->visibleCategories = array_map(static fn (CalendarCategory $c): string => $c->value, CalendarCategory::cases());
+    }
+
+    public function selectEvent(string $id): void
+    {
+        $this->selectedEventId = $id;
+    }
+
+    public function closeEvent(): void
+    {
+        $this->selectedEventId = null;
+    }
+
+    /**
+     * Caută evenimentul selectat în lista de items încărcate. Null dacă nu mai e în range (după
+     * navigare prev/next, modalul se închide automat la următoarea redare).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function selectedEvent(): ?array
+    {
+        if ($this->selectedEventId === null) {
+            return null;
+        }
+
+        foreach ($this->byDay() as $events) {
+            foreach ($events as $event) {
+                if (($event['id'] ?? null) === $this->selectedEventId) {
+                    return $event;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Poate utilizatorul curent să creeze evenimente de calendar (conducere ●; diriginți doar
+     * pentru clasele lor — același gating ca pe CalendarEventResource).
+     */
+    public function canAddEvent(): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && $user->canManageCalendarEvents();
+    }
+
+    public function addEventUrl(): string
+    {
+        return CalendarEventResource::getUrl('create');
     }
 
     public function periodTitle(): string
@@ -181,12 +276,40 @@ class Calendar extends Page
         $grouped = [];
 
         foreach ($items as $item) {
+            // Filtru pe categorii vizibile (chip-uri toggle din UI). Dacă lista e goală, nimic
+            // nu trece — dar `toggleCategory()` refuză să golească lista complet.
+            if (! in_array($item->category->value, $this->visibleCategories, true)) {
+                continue;
+            }
+
             $grouped[$item->date][] = $item->toArray();
         }
 
         ksort($grouped);
 
         return $grouped;
+    }
+
+    /**
+     * Lista de chip-uri pentru filtrul de categorii: pentru fiecare categorie din taxonomie,
+     * eticheta + cheia de culoare + dacă e activă acum (`isActive`).
+     *
+     * @return list<array{key: string, label: string, color: string, isActive: bool}>
+     */
+    public function categoryChips(): array
+    {
+        $chips = [];
+
+        foreach (CalendarCategory::cases() as $category) {
+            $chips[] = [
+                'key' => $category->value,
+                'label' => $category->getLabel(),
+                'color' => $category->color(),
+                'isActive' => in_array($category->value, $this->visibleCategories, true),
+            ];
+        }
+
+        return $chips;
     }
 
     /**

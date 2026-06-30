@@ -15,35 +15,35 @@ class StudentForm
         return $schema
             ->components([
                 TextInput::make('last_name')
-                    ->label('Nume')
+                    ->label(__('panel.fields.last_name'))
                     ->required()
                     ->maxLength(50),
                 TextInput::make('first_name')
-                    ->label('Prenume')
+                    ->label(__('panel.fields.first_name'))
                     ->required()
                     ->maxLength(50),
                 Select::make('sex')
-                    ->label('Sex')
+                    ->label(__('panel.fields.sex'))
                     ->options(Sex::class),
                 TextInput::make('register_number')
-                    ->label('Nr. matricol')
+                    ->label(__('panel.fields.register_number'))
                     ->maxLength(10),
                 Select::make('second_language')
-                    ->label('Limba străină 2')
+                    ->label(__('panel.forms.student.second_language'))
                     ->options(SecondLanguage::class)
                     ->default(SecondLanguage::None->value)
                     ->required(),
                 TextInput::make('english_group')
-                    ->label('Grupa de engleză')
+                    ->label(__('panel.forms.student.english_group'))
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(3),
                 Select::make('user_id')
-                    ->label('Cont utilizator')
+                    ->label(__('panel.forms.student.account'))
                     ->relationship('user', 'name')
                     ->searchable()
                     ->preload()
-                    ->helperText('Opțional — leagă elevul de un cont de logare.'),
+                    ->helperText(__('panel.forms.student.account_hint')),
             ]);
     }
 }

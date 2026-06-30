@@ -18,11 +18,11 @@ class EditProfile extends BaseEditProfile
 {
     public function getTitle(): string|Htmlable
     {
-        return 'Profil';
+        return __('panel.pages.profile.title');
     }
 
     public static function getLabel(): string
     {
-        return 'Profil';
+        return __('panel.pages.profile.title');
     }
 }

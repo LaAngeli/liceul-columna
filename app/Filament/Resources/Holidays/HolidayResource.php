@@ -26,13 +26,27 @@ class HolidayResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSun;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Configurare';
+    protected static ?int $navigationSort = 30;
 
-    protected static ?string $navigationLabel = 'Zile libere';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.configuration');
+    }
 
-    protected static ?string $modelLabel = 'zi liberă';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.holidays.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Zile libere';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.holidays.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.holidays.plural');
+    }
 
     public static function canAccess(): bool
     {

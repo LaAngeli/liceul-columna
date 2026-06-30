@@ -25,21 +25,12 @@ enum UserRole: string
     case Parinte = 'parinte';
 
     /**
-     * Eticheta afișată în interfață (RO).
+     * Eticheta afișată în interfață (RO/RU/EN). Reutilizează dicționarul `site.roles.*`
+     * (deja tradus, folosit și în welcome widget/cabinet) ca să nu duplicăm denumirile rolurilor.
      */
     public function label(): string
     {
-        return match ($this) {
-            self::Admin => 'Super Administrator',
-            self::Director => 'Director',
-            self::PrimVicedirector => 'Prim-vicedirector',
-            self::AdministratorOperational => 'Administrator operațional',
-            self::AdministratorTehnic => 'Administrator tehnic',
-            self::Diriginte => 'Diriginte',
-            self::Profesor => 'Profesor',
-            self::Elev => 'Elev',
-            self::Parinte => 'Părinte',
-        };
+        return (string) trans('site.roles.'.$this->value);
     }
 
     /**

@@ -44,4 +44,16 @@ final class Locale
             static fn (string $locale): bool => $locale !== self::default(),
         ));
     }
+
+    /**
+     * Prefixează o cale publică cu limba ACTIVĂ (ro = la root, ru/en cu prefix) —
+     * pentru redirecturi care trebuie să păstreze limba (ex. după trimiterea unui formular).
+     */
+    public static function path(string $path): string
+    {
+        $locale = app()->getLocale();
+        $prefix = $locale === self::default() ? '' : "/{$locale}";
+
+        return $prefix.'/'.ltrim($path, '/');
+    }
 }

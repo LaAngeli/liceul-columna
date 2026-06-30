@@ -16,10 +16,7 @@ enum CorigentaSessionType: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Baza => 'Sesiune de bază',
-            self::Repetata => 'Sesiune repetată',
-        };
+        return (string) trans('enums.corigenta_session_type.'.$this->value);
     }
 
     public function getLabel(): string

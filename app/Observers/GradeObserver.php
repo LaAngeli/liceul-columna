@@ -2,21 +2,21 @@
 
 namespace App\Observers;
 
-use App\Actions\ComputeTermAverage;
 use App\Actions\NotifyStudentFamily;
 use App\Enums\NotificationType;
+use App\Jobs\RecomputeTermAverage;
 use App\Models\Grade;
 use App\Notifications\CatalogNotification;
 
 /**
  * Recalculează media semestrială (cache în term_averages) la fiecare schimbare a unei
- * note din panou și notifică familia la o notă NOUĂ (spec §5). Importul legacy folosește query
- * builder (fără evenimente Eloquent), deci nu declanșează nici recalculul, nici notificarea.
+ * note din panou și notifică familia la o notă NOUĂ (spec §5). Recalculul pleacă pe coadă
+ * ({@see RecomputeTermAverage}), ca salvarea să nu aștepte calculul. Importul legacy folosește
+ * query builder (fără evenimente Eloquent), deci nu declanșează nici recalculul, nici notificarea.
  */
 class GradeObserver
 {
     public function __construct(
-        private ComputeTermAverage $compute,
         private NotifyStudentFamily $notifier,
     ) {}
 
@@ -60,7 +60,7 @@ class GradeObserver
 
     private function recompute(Grade $grade): void
     {
-        $this->compute->execute(
+        RecomputeTermAverage::dispatch(
             (int) $grade->student_id,
             (int) $grade->subject_id,
             (int) $grade->term_id,

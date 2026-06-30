@@ -16,11 +16,7 @@ enum AcademicRecordPeriod: int implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::SemesterI => 'Semestrul I',
-            self::SemesterII => 'Semestrul II',
-            self::Annual => 'Media anuală',
-        };
+        return (string) trans('enums.academic_record_period.'.$this->value);
     }
 
     public function getLabel(): string

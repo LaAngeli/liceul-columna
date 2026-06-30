@@ -20,10 +20,7 @@ enum MessageType: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Direct => 'Mesaj',
-            self::Audience => 'Solicitare audiență',
-        };
+        return (string) trans('enums.message_type.'.$this->value);
     }
 
     public function getLabel(): string

@@ -15,28 +15,28 @@ class TermForm
         return $schema
             ->components([
                 Select::make('academic_year_id')
-                    ->label('An școlar')
+                    ->label(__('panel.fields.academic_year'))
                     ->relationship('academicYear', 'name')
                     ->searchable()
                     ->preload()
                     ->required(),
                 TextInput::make('number')
-                    ->label('Numărul semestrului')
+                    ->label(__('panel.forms.term.number'))
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(4)
                     ->required(),
                 TextInput::make('name')
-                    ->label('Denumire')
-                    ->placeholder('ex: Semestrul I')
+                    ->label(__('panel.forms.term.name'))
+                    ->placeholder(__('panel.forms.term.name_placeholder'))
                     ->required()
                     ->maxLength(255),
                 DatePicker::make('starts_on')
-                    ->label('Începe la'),
+                    ->label(__('panel.fields.starts_on')),
                 DatePicker::make('ends_on')
-                    ->label('Se termină la'),
+                    ->label(__('panel.fields.ends_on')),
                 Toggle::make('is_current')
-                    ->label('Semestru curent'),
+                    ->label(__('panel.forms.term.is_current')),
             ]);
     }
 }

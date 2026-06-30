@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Absences;
 
+use App\Filament\RelationManagers\AuditsRelationManager;
 use App\Filament\Resources\Absences\Pages\CreateAbsence;
 use App\Filament\Resources\Absences\Pages\EditAbsence;
 use App\Filament\Resources\Absences\Pages\ListAbsences;
@@ -23,13 +24,27 @@ class AbsenceResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDateRange;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+    protected static ?int $navigationSort = 20;
 
-    protected static ?string $navigationLabel = 'Absențe';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.catalog');
+    }
 
-    protected static ?string $modelLabel = 'absență';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.absences.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Absențe';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.absences.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.absences.plural');
+    }
 
     /**
      * Consemnează absențe: profesorii/diriginții (scoped pe server) + autoritatea academică.
@@ -55,7 +70,7 @@ class AbsenceResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            AuditsRelationManager::class,
         ];
     }
 

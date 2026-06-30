@@ -22,13 +22,27 @@ class MessageResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChatBubbleLeftRight;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Comunicare';
+    protected static ?int $navigationSort = 10;
 
-    protected static ?string $navigationLabel = 'Mesaje';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.communication');
+    }
 
-    protected static ?string $modelLabel = 'mesaj';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.messages.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Mesaje';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.messages.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.messages.plural');
+    }
 
     public static function table(Table $table): Table
     {
@@ -55,6 +69,12 @@ class MessageResource extends Resource
             ->count();
 
         return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        // Inbox necitit — info (nu cere acțiune ca aprobările, doar atrage atenția).
+        return 'info';
     }
 
     /**

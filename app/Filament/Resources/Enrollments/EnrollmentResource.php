@@ -25,13 +25,27 @@ class EnrollmentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+    protected static ?int $navigationSort = 110;
 
-    protected static ?string $navigationLabel = 'Înmatriculări';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.catalog');
+    }
 
-    protected static ?string $modelLabel = 'înmatriculare';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.enrollments.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Înmatriculări';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.enrollments.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.enrollments.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {

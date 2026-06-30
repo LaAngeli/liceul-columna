@@ -15,6 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class TeacherResource extends Resource
@@ -25,13 +26,31 @@ class TeacherResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+    protected static ?int $navigationSort = 80;
 
-    protected static ?string $navigationLabel = 'Profesori';
+    // Titlul înregistrării = numele complet (accesor pe model) — pentru titlu pagină, breadcrumb
+    // și titlul rezultatelor de căutare globală.
+    protected static ?string $recordTitleAttribute = 'full_name';
 
-    protected static ?string $modelLabel = 'profesor';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.catalog');
+    }
 
-    protected static ?string $pluralModelLabel = 'Profesori';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.teachers.label');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.teachers.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.teachers.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -65,5 +84,27 @@ class TeacherResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['last_name', 'first_name', 'email'];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        if (! $record instanceof Teacher) {
+            return [];
+        }
+
+        return [
+            __('panel.fields.email') => $record->email ?? (string) __('panel.common.dash'),
+        ];
     }
 }

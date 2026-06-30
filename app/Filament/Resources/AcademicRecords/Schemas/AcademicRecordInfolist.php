@@ -13,22 +13,22 @@ class AcademicRecordInfolist
         return $schema
             ->components([
                 TextEntry::make('student.full_name')
-                    ->label('Elev'),
+                    ->label(__('panel.fields.student')),
                 TextEntry::make('subject.name')
-                    ->label('Disciplina')
-                    ->formatStateUsing(fn (?string $state): string => $state === null ? '' : ContentTranslator::subject($state)),
+                    ->label(__('panel.fields.subject'))
+                    ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state)),
                 TextEntry::make('grade_level')
-                    ->label('Clasa'),
+                    ->label(__('panel.fields.class')),
                 TextEntry::make('period')
-                    ->label('Perioada')
+                    ->label(__('panel.fields.period'))
                     ->badge(),
                 TextEntry::make('value')
-                    ->label('Media')
+                    ->label(__('panel.forms.academic_record.value'))
                     ->numeric(2)
-                    ->placeholder('—'),
+                    ->placeholder(__('panel.common.dash')),
                 TextEntry::make('calificativ')
-                    ->label('Calificativ')
-                    ->placeholder('—'),
+                    ->label(__('panel.forms.academic_record.calificativ'))
+                    ->placeholder(__('panel.common.dash')),
             ]);
     }
 }

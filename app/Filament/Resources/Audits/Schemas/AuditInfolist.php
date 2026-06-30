@@ -14,30 +14,30 @@ class AuditInfolist
         return $schema
             ->components([
                 TextEntry::make('created_at')
-                    ->label('Data')
+                    ->label(__('panel.fields.date'))
                     ->dateTime('d.m.Y H:i:s'),
                 TextEntry::make('user.name')
-                    ->label('Autor')
-                    ->placeholder('— sistem —'),
+                    ->label(__('panel.fields.author'))
+                    ->placeholder(__('panel.common.system')),
                 TextEntry::make('event')
-                    ->label('Acțiune')
+                    ->label(__('panel.tables.audits.action'))
                     ->badge()
                     ->formatStateUsing(fn (Audit $record): string => $record->eventLabel()),
                 TextEntry::make('auditable_type')
-                    ->label('Tip date')
+                    ->label(__('panel.tables.audits.data_type'))
                     ->formatStateUsing(fn (Audit $record): string => $record->auditableLabel()),
                 TextEntry::make('auditable_id')
-                    ->label('ID înregistrare'),
+                    ->label(__('panel.forms.audit.record_id')),
                 TextEntry::make('url')
                     ->label('URL')
-                    ->placeholder('—'),
+                    ->placeholder(__('panel.common.dash')),
                 TextEntry::make('ip_address')
-                    ->label('IP')
-                    ->placeholder('—'),
+                    ->label(__('panel.forms.consent.ip'))
+                    ->placeholder(__('panel.common.dash')),
                 KeyValueEntry::make('old_values')
-                    ->label('Valori vechi'),
+                    ->label(__('panel.forms.audit.old_values')),
                 KeyValueEntry::make('new_values')
-                    ->label('Valori noi'),
+                    ->label(__('panel.forms.audit.new_values')),
             ]);
     }
 }

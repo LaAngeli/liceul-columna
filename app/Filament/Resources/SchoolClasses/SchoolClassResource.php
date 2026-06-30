@@ -6,6 +6,7 @@ use App\Filament\Concerns\ManagedByConfigurators;
 use App\Filament\Resources\SchoolClasses\Pages\CreateSchoolClass;
 use App\Filament\Resources\SchoolClasses\Pages\EditSchoolClass;
 use App\Filament\Resources\SchoolClasses\Pages\ListSchoolClasses;
+use App\Filament\Resources\SchoolClasses\RelationManagers\EnrollmentsRelationManager;
 use App\Filament\Resources\SchoolClasses\Schemas\SchoolClassForm;
 use App\Filament\Resources\SchoolClasses\Tables\SchoolClassesTable;
 use App\Models\SchoolClass;
@@ -15,6 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class SchoolClassResource extends Resource
@@ -25,13 +27,31 @@ class SchoolClassResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleGroup;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+    protected static ?int $navigationSort = 100;
 
-    protected static ?string $navigationLabel = 'Clase';
+    // Titlul înregistrării = numele clasei — pentru titlu pagină, breadcrumb și titlul
+    // rezultatelor de căutare globală.
+    protected static ?string $recordTitleAttribute = 'name';
 
-    protected static ?string $modelLabel = 'clasă';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.catalog');
+    }
 
-    protected static ?string $pluralModelLabel = 'Clase';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.school_classes.label');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.school_classes.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.school_classes.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -46,7 +66,7 @@ class SchoolClassResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            EnrollmentsRelationManager::class,
         ];
     }
 
@@ -81,5 +101,36 @@ class SchoolClassResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name'];
+    }
+
+    /**
+     * Eager-load anul școlar ca să-l afișăm fără N+1 în detalii.
+     */
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with('academicYear');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        if (! $record instanceof SchoolClass) {
+            return [];
+        }
+
+        return [
+            __('panel.fields.grade_level') => (string) $record->grade_level,
+            __('panel.fields.academic_year') => $record->academicYear->name ?? (string) __('panel.common.dash'),
+        ];
     }
 }

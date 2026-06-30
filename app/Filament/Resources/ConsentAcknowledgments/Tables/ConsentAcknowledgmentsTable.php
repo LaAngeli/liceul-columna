@@ -12,10 +12,10 @@ class ConsentAcknowledgmentsTable
         return $table
             ->defaultSort('acknowledged_at', 'desc')
             ->columns([
-                TextColumn::make('user.name')->label('Utilizator')->searchable(),
-                TextColumn::make('document_version')->label('Versiune notă')->badge(),
-                TextColumn::make('acknowledged_at')->label('Confirmat la')->dateTime('d.m.Y H:i')->sortable(),
-                TextColumn::make('ip_address')->label('IP')->placeholder('—')->toggleable(),
+                TextColumn::make('user.name')->label(__('panel.forms.consent.user'))->searchable(),
+                TextColumn::make('document_version')->label(__('panel.forms.consent.version'))->badge(),
+                TextColumn::make('acknowledged_at')->label(__('panel.forms.consent.accepted_at'))->dateTime('d.m.Y H:i')->sortable(),
+                TextColumn::make('ip_address')->label(__('panel.forms.consent.ip'))->placeholder(__('panel.common.dash'))->toggleable(),
             ]);
     }
 }

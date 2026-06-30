@@ -29,7 +29,7 @@ trait EnforcesGradeScope
 
         if (! $teacher) {
             throw ValidationException::withMessages([
-                'student_id' => 'Contul tău nu e legat de o fișă de profesor.',
+                'student_id' => __('panel.validation.scope.no_teacher_profile'),
             ]);
         }
 
@@ -42,7 +42,7 @@ trait EnforcesGradeScope
 
         if (! $teacher->canGradeClassSubject($classId, $subjectId)) {
             throw ValidationException::withMessages([
-                'subject_id' => 'Nu predai această disciplină la această clasă.',
+                'subject_id' => __('panel.validation.scope.not_your_class_subject'),
             ]);
         }
 
@@ -53,7 +53,7 @@ trait EnforcesGradeScope
 
         if (! $enrolled) {
             throw ValidationException::withMessages([
-                'student_id' => 'Elevul nu este înmatriculat în clasa selectată.',
+                'student_id' => __('panel.validation.scope.not_enrolled'),
             ]);
         }
 

@@ -17,28 +17,29 @@ class TermsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->defaultSort('starts_on', 'desc')
             ->columns([
                 TextColumn::make('academicYear.name')
-                    ->label('An școlar')
+                    ->label(__('panel.fields.academic_year'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('number')
-                    ->label('Nr.')
+                    ->label(__('panel.forms.term.number_short'))
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('name')
-                    ->label('Denumire')
+                    ->label(__('panel.forms.term.name'))
                     ->searchable(),
                 TextColumn::make('starts_on')
-                    ->label('Începe la')
+                    ->label(__('panel.fields.starts_on'))
                     ->date()
                     ->sortable(),
                 TextColumn::make('ends_on')
-                    ->label('Se termină la')
+                    ->label(__('panel.fields.ends_on'))
                     ->date()
                     ->sortable(),
                 IconColumn::make('is_current')
-                    ->label('Curent')
+                    ->label(__('panel.fields.is_current'))
                     ->boolean(),
             ])
             ->filters([

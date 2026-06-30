@@ -14,17 +14,17 @@ class AcademicYearForm
         return $schema
             ->components([
                 TextInput::make('name')
-                    ->label('Denumire')
-                    ->placeholder('ex: 2025–2026')
+                    ->label(__('panel.forms.academic_year.name'))
+                    ->placeholder(__('panel.forms.academic_year.name_placeholder'))
                     ->required()
                     ->unique(ignoreRecord: true)
                     ->maxLength(255),
                 DatePicker::make('starts_on')
-                    ->label('Începe la'),
+                    ->label(__('panel.fields.starts_on')),
                 DatePicker::make('ends_on')
-                    ->label('Se termină la'),
+                    ->label(__('panel.fields.ends_on')),
                 Toggle::make('is_current')
-                    ->label('An curent'),
+                    ->label(__('panel.forms.academic_year.is_current')),
             ]);
     }
 }

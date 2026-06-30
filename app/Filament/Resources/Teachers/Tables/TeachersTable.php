@@ -19,25 +19,25 @@ class TeachersTable
             ->defaultSort('last_name')
             ->columns([
                 TextColumn::make('last_name')
-                    ->label('Nume')
+                    ->label(__('panel.fields.last_name'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('first_name')
-                    ->label('Prenume')
+                    ->label(__('panel.fields.first_name'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('sex')
-                    ->label('Sex')
+                    ->label(__('panel.fields.sex'))
                     ->badge(),
                 TextColumn::make('email')
-                    ->label('Email')
+                    ->label(__('panel.fields.email'))
                     ->searchable(),
                 TextColumn::make('position')
-                    ->label('Funcția')
+                    ->label(__('panel.forms.teacher.position'))
                     ->searchable()
                     ->toggleable(),
                 TextColumn::make('user.name')
-                    ->label('Cont')
+                    ->label(__('panel.forms.student.account_short'))
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])

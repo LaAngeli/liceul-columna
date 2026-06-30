@@ -2,6 +2,10 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\Absences\AbsenceResource;
+use App\Filament\Resources\Grades\GradeResource;
+use App\Filament\Resources\SchoolClasses\SchoolClassResource;
+use App\Filament\Resources\Students\StudentResource;
 use App\Models\Absence;
 use App\Models\Enrollment;
 use App\Models\Grade;
@@ -14,7 +18,11 @@ use Illuminate\Database\Eloquent\Builder;
 
 class TeacherOverview extends StatsOverviewWidget
 {
-    protected static ?int $sort = -3;
+    // -4: după WelcomeWidget (-5), înaintea AccountWidget (-3, default) — fără coliziune de ordine.
+    protected static ?int $sort = -4;
+
+    // Polling intermediar (2 min): profesorul vine să introducă note ocazional, nu stă cu dashboard-ul deschis.
+    protected ?string $pollingInterval = '120s';
 
     /**
      * Personalul didactic non-administrativ (profesor/diriginte): rezumat doar pe clasele lui.
@@ -34,6 +42,9 @@ class TeacherOverview extends StatsOverviewWidget
             return [];
         }
 
+        $canCreateGrade = GradeResource::canCreate();
+        $canCreateAbsence = AbsenceResource::canCreate();
+
         $classIds = $teacher->visibleSchoolClassIds();
 
         $studentCount = Enrollment::query()
@@ -41,7 +52,8 @@ class TeacherOverview extends StatsOverviewWidget
             ->distinct()
             ->count('student_id');
 
-        $myGrades = Grade::query()->where('teacher_id', $teacher->id)->count();
+        // active(): exclude notele anulate din contor — aliniat cu chartul și mediile (§1/§3.1).
+        $myGrades = Grade::query()->active()->where('teacher_id', $teacher->id)->count();
 
         $unmotivated = Absence::query()
             ->whereIn('school_class_id', $classIds)
@@ -49,30 +61,56 @@ class TeacherOverview extends StatsOverviewWidget
             ->count();
 
         $currentTermId = Term::query()->where('is_current', true)->value('id');
+        // Sub-select în SQL (WHERE id IN (SELECT student_id FROM enrollments ...)) — fără
+        // materializarea listei de id-uri în PHP la fiecare poll.
         $corigenti = $currentTermId === null ? 0 : Student::query()
-            ->whereKey(Enrollment::query()->whereIn('school_class_id', $classIds)->pluck('student_id'))
+            ->whereIn('id', Enrollment::query()
+                ->whereIn('school_class_id', $classIds)
+                ->select('student_id'))
             ->whereHas('termAverages', fn (Builder $query) => $query
                 ->where('term_id', $currentTermId)
                 ->where('value', '<', 5))
             ->count();
 
-        return [
-            Stat::make('Clasele mele', count($classIds))
+        $stats = [
+            Stat::make(__('panel.widgets.teacher_overview.my_classes'), count($classIds))
                 ->descriptionIcon(Heroicon::OutlinedRectangleStack)
-                ->color('primary'),
-            Stat::make('Elevii mei', $studentCount)
-                ->descriptionIcon(Heroicon::OutlinedUsers),
-            Stat::make('Note introduse', $myGrades)
-                ->description('De mine, în catalog')
-                ->descriptionIcon(Heroicon::OutlinedPencilSquare),
-            Stat::make('Absențe nemotivate', $unmotivated)
-                ->description('În clasele mele')
+                ->color('primary')
+                ->url(SchoolClassResource::getUrl('index')),
+            Stat::make(__('panel.widgets.teacher_overview.my_students'), $studentCount)
+                ->descriptionIcon(Heroicon::OutlinedUsers)
+                ->url(StudentResource::getUrl('index')),
+            Stat::make(__('panel.widgets.teacher_overview.my_grades'), $myGrades)
+                ->description(__('panel.widgets.teacher_overview.my_grades_desc'))
+                ->descriptionIcon(Heroicon::OutlinedPencilSquare)
+                ->url(GradeResource::getUrl('index')),
+            Stat::make(__('panel.widgets.teacher_overview.unmotivated'), $unmotivated)
+                ->description(__('panel.widgets.teacher_overview.unmotivated_desc'))
                 ->descriptionIcon(Heroicon::OutlinedCalendarDateRange)
-                ->color('danger'),
-            Stat::make('Corigenți', $corigenti)
-                ->description('Elevii mei cu o medie < 5')
+                ->color($unmotivated > 0 ? 'danger' : 'success')
+                ->url(AbsenceResource::getUrl('index')),
+            Stat::make(__('panel.widgets.teacher_overview.corigenti'), $corigenti)
+                ->description(__('panel.widgets.teacher_overview.corigenti_desc'))
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
-                ->color($corigenti > 0 ? 'danger' : 'success'),
+                ->color($corigenti > 0 ? 'danger' : 'success')
+                ->url(StudentResource::getUrl('index')),
         ];
+
+        // Acțiuni rapide: doar dacă utilizatorul are dreptul (administrator operațional/tehnic = nu).
+        if ($canCreateGrade) {
+            $stats[] = Stat::make(__('panel.nav.items.new_grade'), __('panel.widgets.teacher_overview.quick_add'))
+                ->descriptionIcon(Heroicon::OutlinedPlusCircle)
+                ->color('primary')
+                ->url(GradeResource::getUrl('create'));
+        }
+
+        if ($canCreateAbsence) {
+            $stats[] = Stat::make(__('panel.nav.items.new_absence'), __('panel.widgets.teacher_overview.quick_add'))
+                ->descriptionIcon(Heroicon::OutlinedPlusCircle)
+                ->color('gray')
+                ->url(AbsenceResource::getUrl('create'));
+        }
+
+        return $stats;
     }
 }

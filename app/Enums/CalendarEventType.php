@@ -17,12 +17,7 @@ enum CalendarEventType: string implements HasLabel
 
     public function getLabel(): string
     {
-        return match ($this) {
-            self::SchoolEvent => 'Eveniment școlar',
-            self::Meeting => 'Ședință',
-            self::Extracurricular => 'Activitate extracurriculară',
-            self::Deadline => 'Termen-limită',
-        };
+        return (string) trans('enums.calendar_event_type.'.$this->value);
     }
 
     public function category(): CalendarCategory

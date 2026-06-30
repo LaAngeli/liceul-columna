@@ -15,19 +15,19 @@ class HolidaysTable
         return $table
             ->columns([
                 TextColumn::make('name')
-                    ->label('Denumire')
+                    ->label(__('panel.forms.holiday.name'))
                     ->searchable()
                     ->weight('medium'),
 
                 TextColumn::make('starts_on')
-                    ->label('Începe')
+                    ->label(__('panel.forms.holiday.starts'))
                     ->date('d.m.Y')
                     ->sortable(),
 
                 TextColumn::make('ends_on')
-                    ->label('Se termină')
+                    ->label(__('panel.forms.holiday.ends'))
                     ->date('d.m.Y')
-                    ->placeholder('o singură zi')
+                    ->placeholder(__('panel.forms.holiday.single_day'))
                     ->sortable(),
             ])
             ->defaultSort('starts_on', 'desc')

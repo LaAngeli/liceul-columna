@@ -13,19 +13,19 @@ class ExamCommissionsTable
         return $table
             ->columns([
                 TextColumn::make('name')
-                    ->label('Comisie')
+                    ->label(__('panel.forms.exam_commission.name'))
                     ->searchable(),
                 TextColumn::make('subject.name')
-                    ->label('Disciplina')
+                    ->label(__('panel.fields.subject'))
                     ->sortable(),
                 TextColumn::make('president.last_name')
-                    ->label('Președinte')
-                    ->placeholder('—'),
+                    ->label(__('panel.forms.exam_commission.president'))
+                    ->placeholder(__('panel.common.dash')),
                 TextColumn::make('members_count')
                     ->counts('members')
-                    ->label('Membri'),
+                    ->label(__('panel.forms.exam_commission.members_short')),
                 TextColumn::make('academicYear.name')
-                    ->label('An')
+                    ->label(__('panel.forms.corigenta_session.year'))
                     ->toggleable(),
             ])
             ->recordActions([

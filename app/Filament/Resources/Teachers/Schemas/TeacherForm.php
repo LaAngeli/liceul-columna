@@ -14,28 +14,28 @@ class TeacherForm
         return $schema
             ->components([
                 TextInput::make('last_name')
-                    ->label('Nume')
+                    ->label(__('panel.fields.last_name'))
                     ->maxLength(50),
                 TextInput::make('first_name')
-                    ->label('Prenume')
+                    ->label(__('panel.fields.first_name'))
                     ->required()
                     ->maxLength(50),
                 Select::make('sex')
-                    ->label('Sex')
+                    ->label(__('panel.fields.sex'))
                     ->options(Sex::class),
                 TextInput::make('email')
-                    ->label('Email')
+                    ->label(__('panel.fields.email'))
                     ->email()
                     ->maxLength(255),
                 TextInput::make('position')
-                    ->label('Funcția')
+                    ->label(__('panel.forms.teacher.position'))
                     ->maxLength(255),
                 Select::make('user_id')
-                    ->label('Cont utilizator')
+                    ->label(__('panel.forms.student.account'))
                     ->relationship('user', 'name')
                     ->searchable()
                     ->preload()
-                    ->helperText('Opțional — leagă profesorul de un cont de logare.'),
+                    ->helperText(__('panel.forms.teacher.account_hint')),
             ]);
     }
 }

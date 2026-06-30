@@ -17,11 +17,7 @@ enum CorigentaSessionStatus: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Draft => 'Propusă (ciornă)',
-            self::Approved => 'Aprobată (ordin)',
-            self::Published => 'Publicată',
-        };
+        return (string) trans('enums.corigenta_session_status.'.$this->value);
     }
 
     public function getLabel(): string

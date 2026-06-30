@@ -16,11 +16,7 @@ enum EvaluationType: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Curenta => 'Curentă',
-            self::Esi => 'ESI (sumativă intrasemestrială)',
-            self::Teza => 'Teză (ESS)',
-        };
+        return (string) trans('enums.evaluation_type.'.$this->value);
     }
 
     public function getLabel(): string

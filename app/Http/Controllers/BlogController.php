@@ -13,6 +13,10 @@ class BlogController extends Controller
         'blog' => 'Blog',
     ];
 
+    /**
+     * Lista de articole a unei categorii. Trimitem TOATE articolele (titlu/rezumat/imagine/dată/an)
+     * ca frontend-ul să poată căuta live, filtra pe an și încărca treptat — fără reîncărcări de pagină.
+     */
     public function index(string $category): Response
     {
         $posts = Post::query()
@@ -20,25 +24,44 @@ class BlogController extends Controller
             ->category($category)
             ->with('translations')
             ->orderByDesc('published_at')
-            ->paginate(9)
-            ->through(fn (Post $post): array => [
+            ->get()
+            ->map(fn (Post $post): array => [
                 'title' => $post->localizedTitle(),
                 'slug' => $post->slug,
                 'excerpt' => $post->localizedExcerpt(),
                 'image' => $post->image,
                 'date' => $post->published_at?->translatedFormat('d F Y'),
+                'year' => (int) $post->published_at?->format('Y'),
             ]);
 
         return Inertia::render('public/articole/index', [
             'pageTitle' => self::TITLES[$category] ?? 'Articole',
             'category' => $category,
-            'posts' => $posts,
+            'posts' => $posts->values()->all(),
         ]);
     }
 
     public function show(Post $post): Response
     {
         abort_if($post->published_at === null, 404);
+
+        $content = $post->localizedContent();
+        $words = str_word_count(strip_tags($content));
+
+        $related = Post::query()
+            ->published()
+            ->category($post->category)
+            ->whereKeyNot($post->getKey())
+            ->with('translations')
+            ->orderByDesc('published_at')
+            ->limit(3)
+            ->get()
+            ->map(fn (Post $related): array => [
+                'title' => $related->localizedTitle(),
+                'slug' => $related->slug,
+                'image' => $related->image,
+                'date' => $related->published_at?->translatedFormat('d F Y'),
+            ]);
 
         return Inertia::render('public/articole/show', [
             'post' => [
@@ -47,9 +70,11 @@ class BlogController extends Controller
                 'categoryLabel' => self::TITLES[$post->category] ?? 'Articole',
                 'categoryUrl' => $post->category === 'blog' ? '/blog' : '/actualitati-si-evenimente',
                 'image' => $post->image,
-                'content' => $post->localizedContent(),
+                'content' => $content,
                 'date' => $post->published_at->translatedFormat('d F Y'),
+                'readingMinutes' => max(1, (int) ceil($words / 200)),
             ],
+            'related' => $related->values()->all(),
         ]);
     }
 }

@@ -97,6 +97,42 @@ class ComputeStudentDynamics
     }
 
     /**
+     * Versiune UȘOARĂ folosită în cockpit (per copil): calculează DOAR tendința — ultima medie anuală din
+     * foaia matricolă vs media curentă (semestru curent). Doar 2 query-uri/copil (vs. ~6 pentru `for()`).
+     * Folosește o valoare pre-cached pentru `currentTermId` ca să elimini și acel query repetat.
+     */
+    public function trendFor(Student $student, ?int $currentTermId = null): ?string
+    {
+        $currentTermId ??= Term::query()->where('is_current', true)->value('id');
+
+        if ($currentTermId === null) {
+            return null;
+        }
+
+        $currentAvg = TermAverage::query()
+            ->where('student_id', $student->id)
+            ->where('term_id', $currentTermId)
+            ->avg('value');
+
+        if ($currentAvg === null) {
+            return null;
+        }
+
+        $lastAnnual = AcademicRecord::query()
+            ->where('student_id', $student->id)
+            ->where('period', AcademicRecordPeriod::Annual)
+            ->whereNotNull('value')
+            ->orderByDesc('grade_level')
+            ->value('value');
+
+        if ($lastAnnual === null) {
+            return null;
+        }
+
+        return $this->trendBetween((float) $lastAnnual, (float) $currentAvg);
+    }
+
+    /**
      * Media generală curentă = media mediilor semestriale calculate (term_averages) la semestrul curent.
      */
     private function currentGeneralAverage(Student $student): ?float

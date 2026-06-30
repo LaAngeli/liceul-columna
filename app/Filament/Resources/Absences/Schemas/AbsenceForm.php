@@ -7,11 +7,14 @@ use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Models\Term;
 use App\Support\ContentTranslator;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class AbsenceForm
@@ -21,31 +24,36 @@ class AbsenceForm
         return $schema
             ->components([
                 Select::make('school_class_id')
-                    ->label('Clasa')
+                    ->label(__('panel.fields.class'))
                     ->options(fn (): array => self::classOptions())
                     ->searchable()
-                    ->required(),
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(fn (Set $set): mixed => $set('student_id', null)),
                 Select::make('subject_id')
-                    ->label('Disciplina')
+                    ->label(__('panel.fields.subject'))
                     ->options(fn (): array => self::subjectOptions())
                     ->searchable(),
                 Select::make('student_id')
-                    ->label('Elev')
-                    ->options(fn (): array => self::studentOptions())
+                    ->label(__('panel.fields.student'))
+                    ->options(fn (Get $get): array => self::studentOptions(
+                        ($classId = $get('school_class_id')) !== null ? (int) $classId : null,
+                    ))
                     ->searchable()
                     ->required(),
                 Select::make('term_id')
-                    ->label('Semestrul')
+                    ->label(__('panel.fields.term'))
                     ->relationship('term', 'name')
+                    ->default(fn (): ?int => Term::query()->where('is_current', true)->value('id'))
                     ->searchable()
                     ->preload()
                     ->required(),
                 DatePicker::make('occurred_on')
-                    ->label('Data')
+                    ->label(__('panel.fields.date'))
                     ->required()
                     ->default(now()),
                 Toggle::make('is_motivated')
-                    ->label('Motivată'),
+                    ->label(__('panel.fields.is_motivated')),
                 Hidden::make('teacher_id')
                     ->default(fn (): ?int => auth()->user()?->teacher?->id),
             ]);
@@ -101,15 +109,30 @@ class AbsenceForm
     }
 
     /**
+     * Elevii selectabili. Dacă o clasă e aleasă în formular, lista se restrânge la elevii ei
+     * (cascadă). Profesorul rămâne mereu limitat la clasele lui — chiar dacă forțează în formular
+     * o clasă din afara scope-ului, intersecția dă listă goală.
+     *
      * @return array<int, string>
      */
-    private static function studentOptions(): array
+    private static function studentOptions(?int $schoolClassId = null): array
     {
         $query = Student::query()->orderBy('last_name')->orderBy('first_name');
 
-        if ($teacher = self::currentTeacher()) {
+        $teacher = self::currentTeacher();
+        $classIds = null;
+
+        if ($schoolClassId !== null) {
+            $classIds = $teacher !== null
+                ? array_values(array_intersect([$schoolClassId], $teacher->visibleSchoolClassIds()))
+                : [$schoolClassId];
+        } elseif ($teacher !== null) {
+            $classIds = $teacher->visibleSchoolClassIds();
+        }
+
+        if ($classIds !== null) {
             $studentIds = Enrollment::query()
-                ->whereIn('school_class_id', $teacher->visibleSchoolClassIds())
+                ->whereIn('school_class_id', $classIds)
                 ->pluck('student_id');
             $query->whereKey($studentIds);
         }

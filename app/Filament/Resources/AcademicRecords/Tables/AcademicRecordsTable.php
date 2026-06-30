@@ -14,40 +14,46 @@ class AcademicRecordsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->emptyStateHeading(__('panel.empty.academic_records.heading'))
+            ->emptyStateDescription(__('panel.empty.academic_records.description'))
+            ->emptyStateIcon('heroicon-o-rectangle-stack')
             ->defaultSort('grade_level')
             ->columns([
                 TextColumn::make('student.full_name')
-                    ->label('Elev')
+                    ->label(__('panel.fields.student'))
                     ->searchable(['last_name', 'first_name'])
                     ->sortable(),
                 TextColumn::make('subject.name')
-                    ->label('Disciplina')
-                    ->formatStateUsing(fn (?string $state): string => $state === null ? '' : ContentTranslator::subject($state))
+                    ->label(__('panel.fields.subject'))
+                    ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('grade_level')
-                    ->label('Clasa')
+                    ->label(__('panel.fields.class'))
                     ->sortable(),
                 TextColumn::make('period')
-                    ->label('Perioada')
-                    ->badge(),
+                    ->label(__('panel.fields.period'))
+                    ->badge()
+                    ->sortable(),
                 TextColumn::make('value')
-                    ->label('Media')
+                    ->label(__('panel.forms.academic_record.value'))
                     ->numeric(2)
                     ->sortable(),
                 TextColumn::make('calificativ')
-                    ->label('Calificativ')
-                    ->placeholder('—'),
+                    ->label(__('panel.forms.academic_record.calificativ'))
+                    ->placeholder(__('panel.common.dash'))
+                    ->searchable()
+                    ->sortable(),
             ])
             ->filters([
                 SelectFilter::make('grade_level')
-                    ->label('Clasa')
+                    ->label(__('panel.fields.class'))
                     ->options(array_combine(range(1, 12), array_map(fn (int $n): string => (string) $n, range(1, 12)))),
                 SelectFilter::make('period')
-                    ->label('Perioada')
+                    ->label(__('panel.fields.period'))
                     ->options(AcademicRecordPeriod::options()),
                 SelectFilter::make('subject_id')
-                    ->label('Disciplina')
+                    ->label(__('panel.fields.subject'))
                     ->relationship('subject', 'name')
                     ->searchable()
                     ->preload(),

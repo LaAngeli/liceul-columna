@@ -2,15 +2,21 @@
 
 namespace App\Filament\Resources\Grades\Tables;
 
+use App\Enums\EvaluationType;
+use App\Filament\Exports\GradeExporter;
+use App\Filament\Resources\Students\StudentResource;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
 use App\Support\ContentTranslator;
 use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportBulkAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 
@@ -19,50 +25,77 @@ class GradesTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->emptyStateHeading(__('panel.empty.grades.heading'))
+            ->emptyStateDescription(__('panel.empty.grades.description'))
+            ->emptyStateIcon('heroicon-o-academic-cap')
             ->defaultSort('graded_on', 'desc')
+            ->modifyQueryUsing(fn ($query) => $query->with('student'))
             ->columns([
                 TextColumn::make('student.full_name')
-                    ->label('Elev'),
+                    ->label(__('panel.fields.student'))
+                    ->searchable(['last_name', 'first_name'])
+                    ->sortable(['last_name'])
+                    // Navigație inversă: numele elevului devine link spre fișa lui (scope-protejat).
+                    ->url(fn (Grade $record): string => StudentResource::getUrl('edit', ['record' => $record->student_id]))
+                    ->color('primary'),
                 TextColumn::make('schoolClass.name')
-                    ->label('Clasa')
+                    ->label(__('panel.fields.class'))
                     ->sortable(),
                 TextColumn::make('subject.name')
-                    ->label('Disciplina')
-                    ->formatStateUsing(fn (?string $state): string => $state === null ? '' : ContentTranslator::subject($state))
+                    ->label(__('panel.fields.subject'))
+                    ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('value')
-                    ->label('Nota')
+                    ->label(__('panel.fields.value'))
                     ->numeric()
                     ->color(fn (Grade $record): ?string => $record->isAnnulled() ? 'gray' : null)
                     ->sortable(),
                 TextColumn::make('calificativ')
-                    ->label('Calif.'),
+                    ->label(__('panel.fields.calificativ_short'))
+                    ->placeholder(__('panel.common.dash')),
                 TextColumn::make('evaluation_type')
-                    ->label('Tip')
+                    ->label(__('panel.fields.type_short'))
                     ->badge(),
                 TextColumn::make('annulment_reason')
-                    ->label('Anulare')
+                    ->label(__('panel.tables.grades.annulment_col'))
                     ->badge()
                     ->color('danger')
-                    ->placeholder('—')
-                    ->formatStateUsing(fn (?string $state): string => $state ? 'Anulată — '.$state : ''),
+                    ->placeholder(__('panel.common.dash'))
+                    ->formatStateUsing(fn (?string $state): string => $state ? __('panel.tables.grades.annulled_prefix', ['reason' => $state]) : ''),
                 TextColumn::make('term.number')
-                    ->label('Sem.'),
+                    ->label(__('panel.fields.term_short')),
                 TextColumn::make('graded_on')
-                    ->label('Data')
+                    ->label(__('panel.fields.date'))
                     ->date()
                     ->sortable(),
                 TextColumn::make('teacher.full_name')
-                    ->label('Autor')
+                    ->label(__('panel.fields.author'))
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('school_class_id')
+                    ->label(__('panel.fields.class'))
+                    ->relationship('schoolClass', 'name')
+                    ->searchable()
+                    ->preload(),
+                SelectFilter::make('subject_id')
+                    ->label(__('panel.fields.subject'))
+                    ->relationship('subject', 'name')
+                    ->searchable()
+                    ->preload(),
+                SelectFilter::make('term_id')
+                    ->label(__('panel.fields.term'))
+                    ->relationship('term', 'name')
+                    ->preload(),
+                SelectFilter::make('evaluation_type')
+                    ->label(__('panel.fields.evaluation_type'))
+                    ->options(EvaluationType::options()),
                 TernaryFilter::make('annulled_at')
-                    ->label('Anulare')
-                    ->placeholder('Toate')
-                    ->trueLabel('Doar anulate')
-                    ->falseLabel('Doar active')
+                    ->label(__('panel.tables.grades.annulment_filter'))
+                    ->placeholder(__('panel.common.all'))
+                    ->trueLabel(__('panel.tables.grades.annulment_only'))
+                    ->falseLabel(__('panel.tables.grades.active_only'))
                     ->nullable(),
             ])
             ->recordActions([
@@ -73,25 +106,29 @@ class GradesTable
                     ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
                         && (auth()->user()?->canAdministerCatalog() ?? false)),
                 Action::make('requestCorrection')
-                    ->label('Solicită corecție')
+                    ->label(__('panel.actions.request_correction.label'))
                     ->icon('heroicon-o-pencil-square')
                     ->color('warning')
                     ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
                         && ! (auth()->user()?->canAdministerCatalog() ?? false)
                         && auth()->user()?->teacher !== null)
-                    ->modalHeading('Solicită corecția notei')
-                    ->modalDescription('Corecția intră la aprobarea administrației — nota nu se schimbă până la aprobare.')
+                    ->modalHeading(fn (): string => __('panel.actions.request_correction.heading'))
+                    ->modalDescription(fn (): string => __('panel.actions.request_correction.description'))
                     ->schema([
+                        // Corecția trebuie să propună o nouă valoare: cel puțin una dintre notă/calificativ
+                        // (requiredWithout reciproc → blochează „nicio modificare de valoare").
                         TextInput::make('new_value')
-                            ->label('Nota corectă (1–10)')
+                            ->label(__('panel.actions.request_correction.new_value'))
                             ->numeric()
                             ->minValue(1)
-                            ->maxValue(10),
+                            ->maxValue(10)
+                            ->requiredWithout('new_calificativ'),
                         TextInput::make('new_calificativ')
-                            ->label('Calificativ corect')
-                            ->maxLength(10),
+                            ->label(__('panel.actions.request_correction.new_calificativ'))
+                            ->maxLength(10)
+                            ->requiredWithout('new_value'),
                         Textarea::make('reason')
-                            ->label('Motivul corecției')
+                            ->label(__('panel.actions.request_correction.reason'))
                             ->required()
                             ->maxLength(255),
                     ])
@@ -108,22 +145,23 @@ class GradesTable
 
                         Notification::make()
                             ->success()
-                            ->title('Corecție solicitată')
-                            ->body('Va fi revizuită de administrație.')
+                            ->title(__('panel.actions.request_correction.success_title'))
+                            ->body(__('panel.actions.request_correction.success_body'))
                             ->send();
                     }),
                 Action::make('annul')
-                    ->label('Anulează')
+                    ->label(__('panel.actions.annul.label'))
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
+                    ->requiresConfirmation()
                     ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
                         && ((auth()->user()?->canAdministerCatalog() ?? false)
                             || auth()->user()?->teacher !== null))
-                    ->modalHeading('Anulează nota (cu motiv)')
-                    ->modalDescription('Nota nu se șterge — rămâne în istoric, dar nu va mai conta la medii și nu apare în cabinet.')
+                    ->modalHeading(fn (): string => __('panel.actions.annul.heading'))
+                    ->modalDescription(fn (): string => __('panel.actions.annul.description'))
                     ->schema([
                         Textarea::make('annulment_reason')
-                            ->label('Motivul anulării')
+                            ->label(__('panel.actions.annul.reason'))
                             ->required()
                             ->maxLength(255),
                     ])
@@ -136,9 +174,16 @@ class GradesTable
 
                         Notification::make()
                             ->success()
-                            ->title('Notă anulată')
+                            ->title(__('panel.actions.annul.success'))
                             ->send();
                     }),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    ExportBulkAction::make()
+                        ->exporter(GradeExporter::class)
+                        ->visible(fn (): bool => auth()->user()?->isAdministrator() ?? false),
+                ]),
             ]);
     }
 }

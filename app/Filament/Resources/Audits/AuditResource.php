@@ -18,7 +18,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use UnitEnum;
 
 /**
  * Viewer-ul jurnalului de audit (spec §7 / Legea 133): cine ce a modificat ȘI vizualizat. Strict
@@ -32,13 +31,27 @@ class AuditResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Administrare';
+    protected static ?int $navigationSort = 40;
 
-    protected static ?string $navigationLabel = 'Jurnal de audit';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.administration');
+    }
 
-    protected static ?string $modelLabel = 'înregistrare audit';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.audits.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Jurnal de audit';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.audits.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.audits.plural');
+    }
 
     public static function canViewAny(): bool
     {

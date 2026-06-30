@@ -19,25 +19,25 @@ class SubjectsTable
             ->defaultSort('name')
             ->columns([
                 TextColumn::make('name')
-                    ->label('Denumire')
+                    ->label(__('panel.forms.subject.name'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('abbreviation')
-                    ->label('Abreviere')
+                    ->label(__('panel.forms.subject.abbreviation'))
                     ->searchable(),
                 TextColumn::make('grading_type')
-                    ->label('Mod notare')
+                    ->label(__('panel.forms.subject.grading_type_short'))
                     ->badge(),
                 TextColumn::make('min_grade')
-                    ->label('De la clasa')
+                    ->label(__('panel.forms.subject.min_grade'))
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('max_grade')
-                    ->label('Până la clasa')
+                    ->label(__('panel.forms.subject.max_grade'))
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('report_order')
-                    ->label('Ordine')
+                    ->label(__('panel.forms.subject.report_order'))
                     ->numeric()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

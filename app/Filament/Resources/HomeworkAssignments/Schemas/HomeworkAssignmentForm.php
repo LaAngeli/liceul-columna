@@ -21,41 +21,41 @@ class HomeworkAssignmentForm
         return $schema
             ->components([
                 Select::make('subject_id')
-                    ->label('Disciplina')
+                    ->label(__('panel.fields.subject'))
                     ->options(fn (): array => self::subjectOptions())
                     ->searchable()
                     ->required(),
                 Select::make('grade_level')
-                    ->label('Clasa (treapta)')
+                    ->label(__('panel.forms.homework.class_level'))
                     ->options(fn (): array => self::gradeLevelOptions())
                     ->required(),
                 TextInput::make('section')
-                    ->label('Litera')
+                    ->label(__('panel.forms.homework.section'))
                     ->maxLength(4),
                 DatePicker::make('assigned_on')
-                    ->label('Data')
+                    ->label(__('panel.fields.date'))
                     ->required()
                     ->default(now()),
                 Textarea::make('topic')
-                    ->label('Subiectul')
+                    ->label(__('panel.forms.homework.topic'))
                     ->rows(2)
                     ->columnSpanFull(),
                 Textarea::make('required_task')
-                    ->label('Sarcina obligatorie')
+                    ->label(__('panel.forms.homework.required_task'))
                     ->rows(3)
                     ->columnSpanFull(),
                 Textarea::make('optional_task')
-                    ->label('Sarcina suplimentară')
+                    ->label(__('panel.forms.homework.optional_task'))
                     ->rows(2)
                     ->columnSpanFull(),
                 Repeater::make('links')
-                    ->label('Linkuri-resursă')
+                    ->label(__('panel.forms.homework.links'))
                     ->simple(
                         TextInput::make('url')
                             ->url()
                             ->placeholder('https://…')
                     )
-                    ->addActionLabel('Adaugă link')
+                    ->addActionLabel(fn (): string => __('panel.forms.homework.add_link'))
                     ->columnSpanFull(),
                 Hidden::make('teacher_id')
                     ->default(fn (): ?int => auth()->user()?->teacher?->id),

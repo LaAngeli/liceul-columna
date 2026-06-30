@@ -16,11 +16,7 @@ enum CalendarEventScope: string implements HasLabel
 
     public function getLabel(): string
     {
-        return match ($this) {
-            self::Global => 'Toată școala',
-            self::GradeLevel => 'O treaptă',
-            self::SchoolClass => 'O clasă',
-        };
+        return (string) trans('enums.calendar_event_scope.'.$this->value);
     }
 
     /**

@@ -18,6 +18,18 @@ class SchedulesToComplete extends StatsOverviewWidget
 {
     protected static ?int $sort = -2;
 
+    // Tipurile de orar lipsă se completează rar → poll lent (5m). Fără asta, default-ul tăcut de 5s
+    // din trait-ul CanPoll ar re-rula scanarea celor 9 enum-uri la fiecare ciclu.
+    protected ?string $pollingInterval = '5m';
+
+    // Memoizare per-request: canView() și getStats() consumă același rezultat — fără cache ar fi
+    // calculat de 2 ori. Folosim un flag boolean (NU ??= pe array) pentru că [] e o valoare validă
+    // de „toate tipurile sunt acoperite", iar ??= pe [] ar reexecuta calculul.
+    private static bool $missingTypesComputed = false;
+
+    /** @var list<ScheduleType> */
+    private static array $cachedMissingTypes = [];
+
     public static function canView(): bool
     {
         $user = auth()->user();
@@ -30,12 +42,22 @@ class SchedulesToComplete extends StatsOverviewWidget
         $createUrl = ScheduleResource::getUrl('create');
 
         return array_map(
-            static fn (ScheduleType $type): Stat => Stat::make($type->label(), 'De completat')
+            static fn (ScheduleType $type): Stat => Stat::make($type->label(), __('panel.widgets.schedules_to_complete.value'))
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
                 ->color('warning')
                 ->url($createUrl),
             self::missingTypes(),
         );
+    }
+
+    /**
+     * Resetează cache-ul intra-request. În prod nu e necesar (instanță proaspătă/cerere),
+     * dar testele care modifică starea în mijlocul aceluiași proces îl trebuie chemat manual.
+     */
+    public static function flushCache(): void
+    {
+        self::$missingTypesComputed = false;
+        self::$cachedMissingTypes = [];
     }
 
     /**
@@ -45,6 +67,10 @@ class SchedulesToComplete extends StatsOverviewWidget
      */
     private static function missingTypes(): array
     {
+        if (self::$missingTypesComputed) {
+            return self::$cachedMissingTypes;
+        }
+
         // pluck aplică cast-ul → normalizăm la valorile string ale enum-ului.
         $present = Schedule::query()
             ->where('is_public', true)
@@ -52,9 +78,12 @@ class SchedulesToComplete extends StatsOverviewWidget
             ->map(static fn ($type): string => $type instanceof ScheduleType ? $type->value : (string) $type)
             ->all();
 
-        return array_values(array_filter(
+        self::$cachedMissingTypes = array_values(array_filter(
             ScheduleType::cases(),
             static fn (ScheduleType $type): bool => ! in_array($type->value, $present, true),
         ));
+        self::$missingTypesComputed = true;
+
+        return self::$cachedMissingTypes;
     }
 }

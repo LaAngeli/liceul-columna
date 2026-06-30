@@ -79,8 +79,11 @@ class Post extends Model
     public function localizedTitle(?string $locale = null): string
     {
         $translation = $this->translation($locale);
+        $title = $translation === null ? $this->title : ($translation->title ?? $this->title);
 
-        return $translation === null ? $this->title : ($translation->title ?? $this->title);
+        // Titlurile importate din WordPress pot conține HTML rezidual (ex. `<br>`) și entități —
+        // un titlu nu e niciodată HTML, așa că îl curățăm pentru afișare (carduri, hero, breadcrumb).
+        return trim((string) preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($title), ENT_QUOTES | ENT_HTML5)));
     }
 
     public function localizedExcerpt(?string $locale = null): ?string

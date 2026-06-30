@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AdmissionRequests;
 
+use App\Enums\AdmissionStatus;
 use App\Filament\Concerns\AdministratorOnly;
 use App\Filament\Resources\AdmissionRequests\Pages\EditAdmissionRequest;
 use App\Filament\Resources\AdmissionRequests\Pages\ListAdmissionRequests;
@@ -13,7 +14,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use UnitEnum;
 
 class AdmissionRequestResource extends Resource
 {
@@ -23,13 +23,27 @@ class AdmissionRequestResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedInbox;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Admitere';
+    protected static ?int $navigationSort = 10;
 
-    protected static ?string $navigationLabel = 'Cereri de înscriere';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.admission');
+    }
 
-    protected static ?string $modelLabel = 'cerere de înscriere';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.admission_requests.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Cereri de înscriere';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.admission_requests.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.admission_requests.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -48,9 +62,14 @@ class AdmissionRequestResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $new = AdmissionRequest::query()->where('status', 'nou')->count();
+        $new = AdmissionRequest::query()->where('status', AdmissionStatus::Nou)->count();
 
         return $new > 0 ? (string) $new : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
     }
 
     public static function getRelations(): array

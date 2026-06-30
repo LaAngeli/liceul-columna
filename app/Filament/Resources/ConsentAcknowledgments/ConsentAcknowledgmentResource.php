@@ -9,7 +9,6 @@ use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use UnitEnum;
 
 /**
  * Dovada „luării la cunoștință" a notei de informare (Legea 133/2011 §7) — READ-ONLY, pentru
@@ -21,13 +20,27 @@ class ConsentAcknowledgmentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCheckBadge;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Administrare';
+    protected static ?int $navigationSort = 30;
 
-    protected static ?string $navigationLabel = 'Consimțăminte';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.administration');
+    }
 
-    protected static ?string $modelLabel = 'confirmare';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.consent_acknowledgments.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Consimțăminte';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.consent_acknowledgments.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.consent_acknowledgments.plural');
+    }
 
     public static function table(Table $table): Table
     {

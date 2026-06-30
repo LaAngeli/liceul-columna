@@ -17,40 +17,40 @@ class ScheduleForm
         return $schema
             ->components([
                 Select::make('type')
-                    ->label('Tipul orarului')
+                    ->label(__('panel.forms.schedule.type'))
                     ->options(ScheduleType::options())
                     ->native(false)
                     ->required(),
                 TextInput::make('label')
-                    ->label('Titlu (ex. clasa / grupul)')
+                    ->label(__('panel.forms.schedule.title_with_hint'))
                     ->required()
                     ->maxLength(150),
                 Select::make('school_class_id')
-                    ->label('Clasa (pentru orarul „lecții")')
+                    ->label(__('panel.forms.schedule.class_for_lessons'))
                     ->relationship('schoolClass', 'name')
                     ->getOptionLabelFromRecordUsing(fn (SchoolClass $record): string => trim($record->name.' '.($record->section ?? '')))
                     ->searchable()
                     ->preload()
-                    ->helperText('Leagă orarul de clasa reală → poate apărea în cabinetul elevilor. Opțional; gol pentru orarele globale (sunete, examene…).'),
+                    ->helperText(__('panel.forms.schedule.class_for_lessons_hint')),
                 TextInput::make('position')
-                    ->label('Ordine')
+                    ->label(__('panel.forms.schedule.position'))
                     ->numeric()
                     ->default(0)
                     ->required(),
                 Toggle::make('is_public')
-                    ->label('Publicat pe site')
-                    ->helperText('Dacă e oprit, orarul rămâne în panou (draft) și NU apare pe site-ul public.')
+                    ->label(__('panel.forms.schedule.is_public_long'))
+                    ->helperText(__('panel.forms.schedule.is_public_hint'))
                     ->default(true),
                 TextInput::make('headers')
-                    ->label('Antet (capete de coloană, separate prin „|")')
-                    ->helperText('Ex.:  | Luni | Marți | Miercuri | Joi | Vineri')
+                    ->label(__('panel.forms.schedule.headers'))
+                    ->helperText(__('panel.forms.schedule.headers_hint'))
                     ->formatStateUsing(fn ($state): string => is_array($state) ? implode(' | ', $state) : (string) $state)
                     ->dehydrateStateUsing(fn ($state): array => array_map('trim', explode('|', (string) $state)))
                     ->required()
                     ->columnSpanFull(),
                 Textarea::make('rows')
-                    ->label('Rânduri (un rând pe linie; celulele se separă prin „|")')
-                    ->helperText('Fiecare linie = un rând. Ex.:  Lecția 1 | Matematică | Limba română | Fizică | Chimie | Biologie')
+                    ->label(__('panel.forms.schedule.rows'))
+                    ->helperText(__('panel.forms.schedule.rows_hint'))
                     ->rows(14)
                     ->formatStateUsing(function ($state): string {
                         if (! is_array($state)) {

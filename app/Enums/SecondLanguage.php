@@ -15,11 +15,7 @@ enum SecondLanguage: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::French => 'Franceză',
-            self::German => 'Germană',
-            self::None => 'Fără',
-        };
+        return (string) trans('enums.second_language.'.$this->value);
     }
 
     public function getLabel(): string

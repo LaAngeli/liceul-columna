@@ -15,10 +15,7 @@ enum CorigentaSeason: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Iarna => 'Iarnă',
-            self::Vara => 'Vară',
-        };
+        return (string) trans('enums.corigenta_season.'.$this->value);
     }
 
     public function getLabel(): string

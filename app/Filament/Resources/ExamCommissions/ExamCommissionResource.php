@@ -14,7 +14,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use UnitEnum;
 
 /**
  * Comisii de examen pentru lichidarea corigenței (spec §2.5). Configurate de cei care gestionează
@@ -26,13 +25,27 @@ class ExamCommissionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Configurare';
+    protected static ?int $navigationSort = 70;
 
-    protected static ?string $navigationLabel = 'Comisii de examen';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.configuration');
+    }
 
-    protected static ?string $modelLabel = 'comisie de examen';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.exam_commissions.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Comisii de examen';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.exam_commissions.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.exam_commissions.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {

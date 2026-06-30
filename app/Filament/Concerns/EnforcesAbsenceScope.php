@@ -29,7 +29,7 @@ trait EnforcesAbsenceScope
 
         if (! $teacher) {
             throw ValidationException::withMessages([
-                'student_id' => 'Contul tău nu e legat de o fișă de profesor.',
+                'student_id' => __('panel.validation.scope.no_teacher_profile'),
             ]);
         }
 
@@ -41,7 +41,7 @@ trait EnforcesAbsenceScope
 
         if (! $teacher->canRecordAbsence($classId, $subjectId)) {
             throw ValidationException::withMessages([
-                'school_class_id' => 'Nu poți înregistra absențe pentru această clasă/disciplină.',
+                'school_class_id' => __('panel.validation.scope.cannot_record_absence'),
             ]);
         }
 
@@ -52,7 +52,7 @@ trait EnforcesAbsenceScope
 
         if (! $enrolled) {
             throw ValidationException::withMessages([
-                'student_id' => 'Elevul nu este înmatriculat în clasa selectată.',
+                'student_id' => __('panel.validation.scope.not_enrolled'),
             ]);
         }
 

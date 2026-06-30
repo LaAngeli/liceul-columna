@@ -36,6 +36,7 @@ class DocumentRequest extends Model
         'status',
         'reviewed_by_user_id',
         'reviewed_at',
+        'review_note',
     ];
 
     protected function casts(): array
@@ -57,6 +58,19 @@ class DocumentRequest extends Model
             'status' => RequestStatus::Approved,
             'reviewed_by_user_id' => $reviewerId,
             'reviewed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Secretariatul RESPINGE cererea, cu motiv opțional. Familia e notificată (observer → StatusChange).
+     */
+    public function markRejected(int $reviewerId, ?string $note = null): void
+    {
+        $this->update([
+            'status' => RequestStatus::Rejected,
+            'reviewed_by_user_id' => $reviewerId,
+            'reviewed_at' => now(),
+            'review_note' => $note,
         ]);
     }
 

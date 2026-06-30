@@ -19,13 +19,7 @@ enum DocumentRequestType: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Invoire => 'Cerere de învoire / absență planificată',
-            self::Adeverinta => 'Cerere de adeverință de elev',
-            self::Transfer => 'Cerere de transfer / retragere',
-            self::Contestatie => 'Cerere de reexaminare / contestație a unei note',
-            self::Sedinta => 'Cerere de programare a unei ședințe',
-        };
+        return (string) trans('enums.document_request_type.'.$this->value);
     }
 
     public function getLabel(): string

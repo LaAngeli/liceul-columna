@@ -14,7 +14,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
-use UnitEnum;
 
 /**
  * Anunțuri broadcast ale conducerii (spec §4): se compun aici și, la „Publică", se trimit tuturor
@@ -27,13 +26,27 @@ class AnnouncementResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedMegaphone;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Comunicare';
+    protected static ?int $navigationSort = 20;
 
-    protected static ?string $navigationLabel = 'Anunțuri';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.communication');
+    }
 
-    protected static ?string $modelLabel = 'anunț';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.announcements.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Anunțuri';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.announcements.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.announcements.plural');
+    }
 
     public static function canViewAny(): bool
     {

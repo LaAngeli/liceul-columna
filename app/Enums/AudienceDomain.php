@@ -21,10 +21,7 @@ enum AudienceDomain: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Instruire => 'Instruire',
-            self::Educatie => 'Educație',
-        };
+        return (string) trans('enums.audience_domain.'.$this->value);
     }
 
     public function getLabel(): string

@@ -17,11 +17,11 @@ class UserForm
         return $schema
             ->components([
                 TextInput::make('name')
-                    ->label('Nume')
+                    ->label(__('panel.forms.user.name'))
                     ->required()
                     ->maxLength(255),
                 TextInput::make('email')
-                    ->label('Email')
+                    ->label(__('panel.forms.user.email'))
                     ->email()
                     // Obligatoriu doar la CREARE (acolo e identificatorul de login — formularul nu setează
                     // username). La editare e opțional: mulți elevi/părinți migrați nu au e-mail (intră cu
@@ -32,16 +32,16 @@ class UserForm
                     ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? $state : null)
                     ->maxLength(255),
                 TextInput::make('password')
-                    ->label('Parolă')
+                    ->label(__('panel.forms.user.password'))
                     ->password()
                     ->revealable()
                     // Obligatorie doar la creare; la editare, lasă gol pentru a păstra parola.
                     ->required(fn (string $operation): bool => $operation === 'create')
                     ->dehydrated(fn (?string $state): bool => filled($state))
                     ->maxLength(255)
-                    ->helperText('La editare, lasă gol pentru a păstra parola actuală.'),
+                    ->helperText(__('panel.forms.user.password_hint')),
                 Select::make('role')
-                    ->label('Rol')
+                    ->label(__('panel.forms.user.role'))
                     // Un singur rol per utilizator. Opțiunile sunt limitate la ierarhie (§3.3):
                     // directorul nu atribuie super-admin/administrator tehnic; administratorul
                     // operațional doar conturi de familie + personal pedagogic.
@@ -50,8 +50,8 @@ class UserForm
                     ->live()
                     ->required(),
                 CheckboxList::make('audience_domains')
-                    ->label('Domenii de audiență')
-                    ->helperText('Audiențele părinților pe acest domeniu se rutează către acest cont (spec §4.2).')
+                    ->label(__('panel.forms.user.audience_domains'))
+                    ->helperText(__('panel.forms.user.audience_domains_hint'))
                     ->options(AudienceDomain::options())
                     ->columns(2)
                     ->visible(fn (Get $get): bool => in_array($get('role'), [

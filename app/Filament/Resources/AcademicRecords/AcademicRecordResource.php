@@ -22,13 +22,27 @@ class AcademicRecordResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+    protected static ?int $navigationSort = 60;
 
-    protected static ?string $navigationLabel = 'Foaie matricolă';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.catalog');
+    }
 
-    protected static ?string $modelLabel = 'înregistrare matricolă';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.academic_records.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Foaie matricolă';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.academic_records.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.academic_records.plural');
+    }
 
     public static function infolist(Schema $schema): Schema
     {

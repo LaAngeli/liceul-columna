@@ -14,7 +14,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
-use UnitEnum;
 
 class UserResource extends Resource
 {
@@ -22,13 +21,27 @@ class UserResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Administrare';
+    protected static ?int $navigationSort = 10;
 
-    protected static ?string $navigationLabel = 'Utilizatori';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.administration');
+    }
 
-    protected static ?string $modelLabel = 'utilizator';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.users.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Utilizatori';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.users.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.users.plural');
+    }
 
     /**
      * Gestiunea conturilor e rezervată celor care au roluri de atribuit: super-admin, director,

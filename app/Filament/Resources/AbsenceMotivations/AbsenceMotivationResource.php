@@ -13,20 +13,40 @@ use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 class AbsenceMotivationResource extends Resource
 {
+    // Cache per-request: colecția cererilor în așteptare, folosită în badge + culoare badge + widget.
+    // Fără asta, scope-ul (getEloquentQuery) rulează de 3 ori pe randarea sidebar+dashboard.
+    /** @var Collection<int, AbsenceMotivation>|null */
+    private static ?Collection $pendingCache = null;
+
     protected static ?string $model = AbsenceMotivation::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCheckBadge;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+    protected static ?int $navigationSort = 50;
 
-    protected static ?string $navigationLabel = 'Motivări absențe';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.catalog');
+    }
 
-    protected static ?string $modelLabel = 'cerere de motivare';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.absence_motivations.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Motivări absențe';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.absence_motivations.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.absence_motivations.plural');
+    }
 
     public static function table(Table $table): Table
     {
@@ -75,9 +95,52 @@ class AbsenceMotivationResource extends Resource
             return null;
         }
 
-        $pending = self::getEloquentQuery()->where('status', RequestStatus::Pending)->count();
+        $pending = self::pendingMotivations()->count();
 
         return $pending > 0 ? (string) $pending : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        // Dacă vreuna depășește termenul de 2 zile lucrătoare → escaladăm la danger.
+        $overdue = self::pendingMotivations()
+            ->filter(fn (AbsenceMotivation $m): bool => $m->isOverdue())
+            ->count();
+
+        return $overdue > 0 ? 'danger' : 'warning';
+    }
+
+    /**
+     * Resetează cache-ul intra-request al cererilor în așteptare. În prod nu e necesar;
+     * testele care schimbă starea trebuie să-l cheme manual între aserții.
+     */
+    public static function flushPendingCache(): void
+    {
+        self::$pendingCache = null;
+    }
+
+    /**
+     * Cererile în așteptare scoped pe utilizatorul curent, memoizate per request.
+     * Sursă unică pentru badge + culoare badge + widget PendingApprovalsOverview — evită rularea
+     * scope-ului (getEloquentQuery) de 3 ori pe randarea unui dashboard.
+     *
+     * Selectează doar coloanele de care depinde isOverdue() (status + created_at), ca să nu
+     * hidrateze tot rândul când singura folosire e numărarea.
+     *
+     * @return Collection<int, AbsenceMotivation>
+     */
+    public static function pendingMotivations(): Collection
+    {
+        if (self::$pendingCache !== null) {
+            return self::$pendingCache;
+        }
+
+        /** @var Collection<int, AbsenceMotivation> $cache */
+        $cache = self::getEloquentQuery()
+            ->where('status', RequestStatus::Pending)
+            ->get(['id', 'status', 'created_at']);
+
+        return self::$pendingCache = $cache;
     }
 
     /**

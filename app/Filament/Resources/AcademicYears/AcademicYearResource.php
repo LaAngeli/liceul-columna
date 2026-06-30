@@ -25,13 +25,27 @@ class AcademicYearResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Configurare';
+    protected static ?int $navigationSort = 10;
 
-    protected static ?string $navigationLabel = 'Ani școlari';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.configuration');
+    }
 
-    protected static ?string $modelLabel = 'an școlar';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.academic_years.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Ani școlari';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.academic_years.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.academic_years.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {

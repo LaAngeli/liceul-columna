@@ -14,7 +14,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use UnitEnum;
 
 /**
  * Sesiuni de lichidare a corigenței (spec §2.5 / #33): propuse de vicedirectorul pe instruire (draft)
@@ -27,13 +26,27 @@ class CorigentaSessionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Configurare';
+    protected static ?int $navigationSort = 60;
 
-    protected static ?string $navigationLabel = 'Sesiuni corigență';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.configuration');
+    }
 
-    protected static ?string $modelLabel = 'sesiune de corigență';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.corigenta_sessions.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Sesiuni corigență';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.corigenta_sessions.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.corigenta_sessions.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {

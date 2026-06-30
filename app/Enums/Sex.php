@@ -11,10 +11,7 @@ enum Sex: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Female => 'Feminin',
-            self::Male => 'Masculin',
-        };
+        return (string) trans('enums.sex.'.$this->value);
     }
 
     public function getLabel(): string

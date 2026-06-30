@@ -25,13 +25,27 @@ class TermResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendar;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Configurare';
+    protected static ?int $navigationSort = 20;
 
-    protected static ?string $navigationLabel = 'Semestre';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.configuration');
+    }
 
-    protected static ?string $modelLabel = 'semestru';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.terms.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Semestre';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.terms.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.terms.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {

@@ -2,6 +2,8 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\SchoolClasses\SchoolClassResource;
+use App\Filament\Resources\Students\StudentResource;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -18,7 +20,11 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class DirectorOverview extends StatsOverviewWidget
 {
-    protected static ?int $sort = -3;
+    // -4: după WelcomeWidget (-5), înaintea AccountWidget (-3, default) — fără coliziune de ordine.
+    protected static ?int $sort = -4;
+
+    // Reîmprospătare la 60s: dashboard-ul „de conducere" e adesea lăsat deschis pe parcursul zilei.
+    protected ?string $pollingInterval = '60s';
 
     /** Prag pentru „absențe nemotivate ridicate" (de urmărit). */
     private const HIGH_UNMOTIVATED = 30;
@@ -30,10 +36,7 @@ class DirectorOverview extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        $classesWithoutHomeroom = SchoolClass::query()
-            ->whereNull('homeroom_teacher_id')
-            ->has('enrollments')
-            ->count();
+        $classesWithoutHomeroom = SchoolClass::query()->withoutHomeroom()->count();
 
         $studentsHighAbsences = Student::query()
             ->whereHas(
@@ -52,26 +55,33 @@ class DirectorOverview extends StatsOverviewWidget
             ->count();
 
         return [
-            Stat::make('Elevi', Student::query()->count())
-                ->description('Înmatriculați')
+            Stat::make(__('panel.widgets.admin_overview.students'), Student::query()->count())
+                ->description(__('panel.widgets.director_overview.enrolled'))
                 ->descriptionIcon(Heroicon::OutlinedAcademicCap)
-                ->color('primary'),
-            Stat::make('Clase', SchoolClass::query()->count())
-                ->descriptionIcon(Heroicon::OutlinedRectangleStack),
-            Stat::make('Profesori', Teacher::query()->count())
+                ->color('primary')
+                ->url(StudentResource::getUrl('index')),
+            Stat::make(__('panel.fields.classes'), SchoolClass::query()->count())
+                ->descriptionIcon(Heroicon::OutlinedRectangleStack)
+                ->url(SchoolClassResource::getUrl('index')),
+            Stat::make(__('panel.widgets.admin_overview.teachers'), Teacher::query()->count())
                 ->descriptionIcon(Heroicon::OutlinedUserGroup),
-            Stat::make('Clase fără diriginte', $classesWithoutHomeroom)
-                ->description('Necesită numire')
+            Stat::make(__('panel.widgets.director_overview.classes_no_homeroom'), $classesWithoutHomeroom)
+                ->description(__('panel.widgets.director_overview.class_no_homeroom_hint'))
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
-                ->color($classesWithoutHomeroom > 0 ? 'warning' : 'success'),
-            Stat::make('Elevi de urmărit', $studentsHighAbsences)
-                ->description('Peste '.self::HIGH_UNMOTIVATED.' absențe nemotivate')
+                ->color($classesWithoutHomeroom > 0 ? 'warning' : 'success')
+                ->url(SchoolClassResource::getUrl('index', [
+                    'tableFilters' => ['without_homeroom' => ['value' => true]],
+                ])),
+            Stat::make(__('panel.widgets.director_overview.students_to_watch'), $studentsHighAbsences)
+                ->description(__('panel.widgets.director_overview.students_to_watch_desc', ['threshold' => self::HIGH_UNMOTIVATED]))
                 ->descriptionIcon(Heroicon::OutlinedCalendarDateRange)
-                ->color($studentsHighAbsences > 0 ? 'danger' : 'success'),
-            Stat::make('Corigenți', $corigenti)
-                ->description('Cel puțin o medie < 5 (sem. curent)')
+                ->color($studentsHighAbsences > 0 ? 'danger' : 'success')
+                ->url(StudentResource::getUrl('index')),
+            Stat::make(__('panel.widgets.director_overview.corigenti'), $corigenti)
+                ->description(__('panel.widgets.director_overview.corigenti_desc'))
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
-                ->color($corigenti > 0 ? 'danger' : 'success'),
+                ->color($corigenti > 0 ? 'danger' : 'success')
+                ->url(StudentResource::getUrl('index')),
         ];
     }
 }

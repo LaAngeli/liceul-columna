@@ -20,22 +20,22 @@ class AcademicYearsTable
             ->defaultSort('name', 'desc')
             ->columns([
                 TextColumn::make('name')
-                    ->label('Denumire')
+                    ->label(__('panel.forms.academic_year.name'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('starts_on')
-                    ->label('Începe la')
+                    ->label(__('panel.fields.starts_on'))
                     ->date()
                     ->sortable(),
                 TextColumn::make('ends_on')
-                    ->label('Se termină la')
+                    ->label(__('panel.fields.ends_on'))
                     ->date()
                     ->sortable(),
                 IconColumn::make('is_current')
-                    ->label('Curent')
+                    ->label(__('panel.fields.is_current'))
                     ->boolean(),
                 TextColumn::make('created_at')
-                    ->label('Creat la')
+                    ->label(__('panel.fields.created_at'))
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

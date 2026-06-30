@@ -15,28 +15,28 @@ class CalendarEventsTable
         return $table
             ->columns([
                 TextColumn::make('title')
-                    ->label('Titlu')
+                    ->label(__('panel.forms.calendar_event.title'))
                     ->searchable()
                     ->weight('medium')
                     ->wrap(),
 
                 TextColumn::make('type')
-                    ->label('Tip')
+                    ->label(__('panel.fields.type'))
                     ->badge(),
 
                 TextColumn::make('visibility_scope')
-                    ->label('Audiență')
+                    ->label(__('panel.forms.calendar_event.audience'))
                     ->badge()
                     ->color('gray'),
 
                 TextColumn::make('starts_on')
-                    ->label('Începe')
+                    ->label(__('panel.forms.calendar_event.starts'))
                     ->date('d.m.Y')
                     ->sortable(),
 
                 TextColumn::make('creator.name')
-                    ->label('Autor')
-                    ->placeholder('—')
+                    ->label(__('panel.fields.author'))
+                    ->placeholder(__('panel.common.dash'))
                     ->toggleable(),
             ])
             ->defaultSort('starts_on', 'desc')

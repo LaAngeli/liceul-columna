@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Students\Tables;
 use App\Actions\DetermineStudentStatus;
 use App\Actions\GenerateCorigentaExams;
 use App\Enums\StudentStatus;
+use App\Filament\Exports\StudentExporter;
 use App\Models\SemesterValidation;
 use App\Models\Student;
 use App\Models\Term;
@@ -12,6 +13,7 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportBulkAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\Select;
@@ -29,28 +31,28 @@ class StudentsTable
             ->defaultSort('last_name')
             ->columns([
                 TextColumn::make('last_name')
-                    ->label('Nume')
+                    ->label(__('panel.fields.last_name'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('first_name')
-                    ->label('Prenume')
+                    ->label(__('panel.fields.first_name'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('sex')
-                    ->label('Sex')
+                    ->label(__('panel.forms.student.sex_short'))
                     ->badge(),
                 TextColumn::make('register_number')
-                    ->label('Nr. matricol')
+                    ->label(__('panel.fields.register_number'))
                     ->searchable(),
                 TextColumn::make('second_language')
-                    ->label('Limba 2')
+                    ->label(__('panel.forms.student.second_language_short'))
                     ->badge(),
                 TextColumn::make('english_group')
-                    ->label('Gr. engleză')
+                    ->label(__('panel.forms.student.english_group_short'))
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('user.name')
-                    ->label('Cont')
+                    ->label(__('panel.forms.student.account_short'))
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -59,27 +61,27 @@ class StudentsTable
             ])
             ->recordActions([
                 Action::make('validateStatus')
-                    ->label('Validează statut')
+                    ->label(__('panel.forms.student.validate_status.label'))
                     ->icon('heroicon-o-check-badge')
                     ->color('success')
                     ->visible(fn (): bool => auth()->user()?->canValidateSemester() ?? false)
-                    ->modalHeading('Validează statutul semestrial')
-                    ->modalDescription('Decizia Consiliului profesoral + ordinul directorului. Primează asupra statutului calculat automat.')
+                    ->modalHeading(fn (): string => __('panel.forms.student.validate_status.heading'))
+                    ->modalDescription(fn (): string => __('panel.forms.student.validate_status.description'))
                     ->schema([
                         Select::make('status')
-                            ->label('Statut oficial')
+                            ->label(__('panel.forms.student.validate_status.status'))
                             ->options(StudentStatus::class)
                             ->default(fn (Student $record): ?string => self::computedStatus($record))
                             ->required(),
                         TextInput::make('order_reference')
-                            ->label('Ordin director (nr./dată)')
+                            ->label(__('panel.forms.student.validate_status.order_reference'))
                             ->maxLength(120),
                     ])
                     ->action(function (Student $record, array $data): void {
                         $termId = Term::query()->where('is_current', true)->value('id');
 
                         if ($termId === null) {
-                            Notification::make()->warning()->title('Nu există semestru curent')->send();
+                            Notification::make()->warning()->title(__('panel.forms.student.validate_status.no_current_term'))->send();
 
                             return;
                         }
@@ -103,12 +105,15 @@ class StudentsTable
                             }
                         }
 
-                        Notification::make()->success()->title('Statut validat oficial')->send();
+                        Notification::make()->success()->title(__('panel.forms.student.validate_status.success'))->send();
                     }),
                 EditAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    ExportBulkAction::make()
+                        ->exporter(StudentExporter::class)
+                        ->visible(fn (): bool => auth()->user()?->isAdministrator() ?? false),
                     DeleteBulkAction::make(),
                     ForceDeleteBulkAction::make(),
                     RestoreBulkAction::make(),

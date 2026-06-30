@@ -19,6 +19,15 @@ class AudiencesPendingAssignment extends StatsOverviewWidget
 {
     protected static ?int $sort = 90;
 
+    // Atribuirile de responsabil de domeniu se schimbă rar → poll lent (5m). Evită default-ul tăcut
+    // de 5s din trait-ul CanPoll, care ar fi re-rulat query-urile din canView+getStats la fiecare ciclu.
+    protected ?string $pollingInterval = '5m';
+
+    // Memoizare per-request: canView() și getStats() apelează amândouă pendingCount() — fără cache
+    // s-ar executa același set de query-uri de 2 ori. Cache-ul static se resetează natural la finalul
+    // cererii (instanța de widget e proaspătă per request).
+    private static ?int $cachedPendingCount = null;
+
     public static function canView(): bool
     {
         $user = auth()->user();
@@ -29,8 +38,8 @@ class AudiencesPendingAssignment extends StatsOverviewWidget
     protected function getStats(): array
     {
         return [
-            Stat::make('Audiențe fără responsabil de domeniu', (string) self::pendingCount())
-                ->description('Atribuie un responsabil din formularul de utilizator (Domenii de audiență).')
+            Stat::make(__('panel.widgets.audiences_pending.title'), (string) self::pendingCount())
+                ->description(__('panel.widgets.audiences_pending.description'))
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
                 ->color('warning'),
         ];
@@ -53,15 +62,28 @@ class AudiencesPendingAssignment extends StatsOverviewWidget
         return $unhandled;
     }
 
+    /**
+     * Resetează cache-ul intra-request. În prod nu e necesar; testele care schimbă starea
+     * (creează userii responsabili / mesaje) trebuie să-l cheme manual între aserții.
+     */
+    public static function flushCache(): void
+    {
+        self::$cachedPendingCount = null;
+    }
+
     private static function pendingCount(): int
     {
+        if (self::$cachedPendingCount !== null) {
+            return self::$cachedPendingCount;
+        }
+
         $unhandled = self::unhandledDomains();
 
         if ($unhandled === []) {
-            return 0;
+            return self::$cachedPendingCount = 0;
         }
 
-        return Message::query()
+        return self::$cachedPendingCount = Message::query()
             ->where('type', MessageType::Audience)
             ->whereIn('audience_domain', $unhandled)
             ->whereNull('read_at')

@@ -22,17 +22,7 @@ enum ScheduleType: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Lessons => 'Orarul lecțiilor',
-            self::Bells => 'Orarul sunetelor',
-            self::Exams => 'Orarul examenelor',
-            self::Ess => 'Orarul ESS (teze)',
-            self::Pretests => 'Orarul pretestărilor',
-            self::ExamPrep => 'Pregătire pentru examene',
-            self::Cpae => 'Orarul CPAE',
-            self::Recovery => 'Orar recuperări',
-            self::ParentMeetings => 'Ședințele cu părinții',
-        };
+        return (string) trans('enums.schedule_type.'.$this->value);
     }
 
     public function getLabel(): string

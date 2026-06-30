@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\AdmissionRequestType;
+use App\Enums\AdmissionStatus;
 use App\Observers\AdmissionRequestObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +11,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property AdmissionRequestType $type
  * @property string $parent_name
  * @property string $phone
  * @property string|null $email
@@ -16,7 +19,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $child_age
  * @property string|null $desired_class
  * @property string|null $preferred_time
- * @property string $status
+ * @property AdmissionStatus $status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -24,6 +27,7 @@ use Illuminate\Support\Carbon;
 class AdmissionRequest extends Model
 {
     protected $fillable = [
+        'type',
         'parent_name',
         'phone',
         'email',
@@ -34,18 +38,11 @@ class AdmissionRequest extends Model
         'status',
     ];
 
-    /**
-     * Stările posibile ale unei cereri (pentru personal).
-     *
-     * @return array<string, string>
-     */
-    public static function statuses(): array
+    protected function casts(): array
     {
         return [
-            'nou' => 'Nou',
-            'contactat' => 'Contactat',
-            'inmatriculat' => 'Înmatriculat',
-            'refuzat' => 'Refuzat',
+            'type' => AdmissionRequestType::class,
+            'status' => AdmissionStatus::class,
         ];
     }
 }

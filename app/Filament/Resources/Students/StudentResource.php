@@ -3,9 +3,14 @@
 namespace App\Filament\Resources\Students;
 
 use App\Filament\Concerns\ManagedByConfigurators;
+use App\Filament\RelationManagers\AuditsRelationManager;
 use App\Filament\Resources\Students\Pages\CreateStudent;
 use App\Filament\Resources\Students\Pages\EditStudent;
 use App\Filament\Resources\Students\Pages\ListStudents;
+use App\Filament\Resources\Students\RelationManagers\AbsencesRelationManager;
+use App\Filament\Resources\Students\RelationManagers\AcademicRecordsRelationManager;
+use App\Filament\Resources\Students\RelationManagers\EnrollmentsRelationManager;
+use App\Filament\Resources\Students\RelationManagers\GradesRelationManager;
 use App\Filament\Resources\Students\Schemas\StudentForm;
 use App\Filament\Resources\Students\Tables\StudentsTable;
 use App\Models\Student;
@@ -15,6 +20,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class StudentResource extends Resource
@@ -25,13 +31,31 @@ class StudentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+    protected static ?int $navigationSort = 70;
 
-    protected static ?string $navigationLabel = 'Elevi';
+    // Titlul înregistrării = numele complet (accesor pe model). Folosit pentru titlul paginii
+    // Edit, breadcrumb și titlul rezultatelor de căutare globală — o singură sursă.
+    protected static ?string $recordTitleAttribute = 'full_name';
 
-    protected static ?string $modelLabel = 'elev';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.catalog');
+    }
 
-    protected static ?string $pluralModelLabel = 'Elevi';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.students.label');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.students.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.students.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -46,7 +70,11 @@ class StudentResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            GradesRelationManager::class,
+            AbsencesRelationManager::class,
+            AcademicRecordsRelationManager::class,
+            EnrollmentsRelationManager::class,
+            AuditsRelationManager::class,
         ];
     }
 
@@ -83,5 +111,47 @@ class StudentResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+    }
+
+    /**
+     * Atribute pe care căutarea globală (Cmd/Ctrl+K) le scanează. Scoping-ul din
+     * getEloquentQuery() se aplică automat — un profesor NU găsește prin search elevi din afara
+     * claselor lui.
+     *
+     * @return array<int, string>
+     */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['last_name', 'first_name', 'register_number'];
+    }
+
+    /**
+     * Eager-load înrolarea cea mai recentă + clasa, ca să afișăm clasa elevului în rezultatul
+     * de căutare fără N+1 (1 query pentru lista de elevi + 1 pentru înrolări + 1 pentru clase).
+     */
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with([
+            'enrollments' => fn ($q) => $q->latest('academic_year_id')->with('schoolClass'),
+        ]);
+    }
+
+    /**
+     * Detalii afișate sub titlul rezultatului — distingerea omonimilor (Popescu Ion × 3).
+     *
+     * @return array<string, string>
+     */
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        if (! $record instanceof Student) {
+            return [];
+        }
+
+        $class = $record->enrollments->first()?->schoolClass?->name;
+
+        return [
+            __('panel.fields.school_class') => $class ?? (string) __('panel.common.dash'),
+            __('panel.fields.register_number') => $record->register_number ?? (string) __('panel.common.dash'),
+        ];
     }
 }

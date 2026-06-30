@@ -17,39 +17,39 @@ class LessonForm
         return $schema
             ->components([
                 Select::make('academic_year_id')
-                    ->label('An școlar')
+                    ->label(__('panel.fields.academic_year'))
                     ->relationship('academicYear', 'name')
                     ->default(fn (): ?int => AcademicYear::query()->latest('id')->value('id'))
                     ->required(),
                 Select::make('school_class_id')
-                    ->label('Clasa')
+                    ->label(__('panel.fields.class'))
                     ->relationship('schoolClass', 'name')
                     ->getOptionLabelFromRecordUsing(fn (SchoolClass $record): string => trim($record->name.' '.($record->section ?? '')))
                     ->searchable()
                     ->preload()
                     ->required(),
                 Select::make('subject_id')
-                    ->label('Disciplina')
+                    ->label(__('panel.fields.subject'))
                     ->relationship('subject', 'name')
                     ->searchable()
                     ->preload()
                     ->required(),
                 Select::make('teacher_id')
-                    ->label('Profesor')
+                    ->label(__('panel.forms.lesson.teacher_short'))
                     ->relationship('teacher', 'last_name')
                     ->getOptionLabelFromRecordUsing(fn (Teacher $record): string => $record->full_name)
                     ->searchable()
                     ->preload(),
                 Select::make('day_of_week')
-                    ->label('Ziua')
+                    ->label(__('panel.forms.lesson.weekday'))
                     ->options(Weekday::class)
                     ->required(),
                 Select::make('lesson_number')
-                    ->label('Lecția nr.')
+                    ->label(__('panel.forms.lesson.period_with_no'))
                     ->options(array_combine(range(1, 8), array_map(fn (int $n): string => (string) $n, range(1, 8))))
                     ->required(),
                 TextInput::make('room')
-                    ->label('Sala')
+                    ->label(__('panel.forms.lesson.room'))
                     ->maxLength(20),
             ]);
     }

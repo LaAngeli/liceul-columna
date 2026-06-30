@@ -30,13 +30,27 @@ class CalendarEventResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Comunicare';
+    protected static ?int $navigationSort = 30;
 
-    protected static ?string $navigationLabel = 'Evenimente (calendar)';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.communication');
+    }
 
-    protected static ?string $modelLabel = 'eveniment de calendar';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.calendar_events.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Evenimente de calendar';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.calendar_events.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.calendar_events.plural');
+    }
 
     public static function canViewAny(): bool
     {

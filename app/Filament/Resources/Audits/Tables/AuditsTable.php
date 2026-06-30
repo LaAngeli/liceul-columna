@@ -21,15 +21,15 @@ class AuditsTable
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('created_at')
-                    ->label('Data')
+                    ->label(__('panel.fields.date'))
                     ->dateTime('d.m.Y H:i')
                     ->sortable(),
                 TextColumn::make('user.name')
-                    ->label('Autor')
-                    ->placeholder('— sistem —')
+                    ->label(__('panel.fields.author'))
+                    ->placeholder(__('panel.common.system'))
                     ->searchable(),
                 TextColumn::make('event')
-                    ->label('Acțiune')
+                    ->label(__('panel.tables.audits.action'))
                     ->badge()
                     ->formatStateUsing(fn (Audit $record): string => $record->eventLabel())
                     ->color(fn (string $state): string => match ($state) {
@@ -40,34 +40,34 @@ class AuditsTable
                         default => 'gray',
                     }),
                 TextColumn::make('auditable_type')
-                    ->label('Tip date')
+                    ->label(__('panel.tables.audits.data_type'))
                     ->formatStateUsing(fn (Audit $record): string => $record->auditableLabel()),
                 TextColumn::make('auditable_id')
-                    ->label('ID')
+                    ->label(__('panel.tables.audits.id'))
                     ->sortable(),
                 TextColumn::make('ip_address')
-                    ->label('IP')
+                    ->label(__('panel.forms.consent.ip'))
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('event')
-                    ->label('Acțiune')
+                    ->label(__('panel.tables.audits.action'))
                     ->options([
-                        'created' => 'Creare',
-                        'updated' => 'Modificare',
-                        'deleted' => 'Ștergere',
-                        'restored' => 'Restaurare',
-                        'viewed' => 'Vizualizare',
-                        'exported' => 'Export',
+                        'created' => __('panel.tables.audits.event_created'),
+                        'updated' => __('panel.tables.audits.event_updated'),
+                        'deleted' => __('panel.tables.audits.event_deleted'),
+                        'restored' => __('panel.tables.audits.event_restored'),
+                        'viewed' => __('panel.tables.audits.event_viewed'),
+                        'exported' => __('panel.tables.audits.event_exported'),
                     ]),
                 SelectFilter::make('auditable_type')
-                    ->label('Tip date')
+                    ->label(__('panel.tables.audits.data_type'))
                     ->options([
-                        Grade::class => 'Notă',
-                        Absence::class => 'Absență',
-                        AcademicRecord::class => 'Foaie matricolă',
-                        TermAverage::class => 'Medie semestrială',
-                        Student::class => 'Elev (date personale)',
+                        Grade::class => __('panel.forms.audit.data_type_grade'),
+                        Absence::class => __('panel.forms.audit.data_type_absence'),
+                        AcademicRecord::class => __('panel.forms.audit.data_type_academic_record'),
+                        TermAverage::class => __('panel.forms.audit.data_type_term_average'),
+                        Student::class => __('panel.forms.audit.data_type_student'),
                     ]),
             ])
             ->recordActions([

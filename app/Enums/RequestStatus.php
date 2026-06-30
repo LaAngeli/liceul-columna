@@ -16,11 +16,7 @@ enum RequestStatus: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Pending => 'În așteptare',
-            self::Approved => 'Aprobată',
-            self::Rejected => 'Respinsă',
-        };
+        return (string) trans('enums.request_status.'.$this->value);
     }
 
     public function getLabel(): string

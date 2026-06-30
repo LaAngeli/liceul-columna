@@ -13,11 +13,11 @@ class AnnouncementForm
         return $schema
             ->components([
                 TextInput::make('title')
-                    ->label('Titlu')
+                    ->label(__('panel.forms.announcement.title'))
                     ->required()
                     ->maxLength(200),
                 Textarea::make('body')
-                    ->label('Conținut')
+                    ->label(__('panel.forms.announcement.body'))
                     ->required()
                     ->rows(6),
             ]);

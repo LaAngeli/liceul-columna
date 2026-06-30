@@ -14,22 +14,22 @@ class CorigentaSessionForm
     {
         return $schema->components([
             Select::make('academic_year_id')
-                ->label('An școlar')
+                ->label(__('panel.fields.academic_year'))
                 ->relationship('academicYear', 'name')
                 ->required(),
             Select::make('season')
-                ->label('Sezon')
+                ->label(__('panel.forms.corigenta_session.season'))
                 ->options(CorigentaSeason::class)
                 ->required(),
             Select::make('type')
-                ->label('Tip sesiune')
+                ->label(__('panel.forms.corigenta_session.type_long'))
                 ->options(CorigentaSessionType::class)
                 ->required(),
             DatePicker::make('starts_on')
-                ->label('Început')
+                ->label(__('panel.forms.corigenta_session.starts_on'))
                 ->required(),
             DatePicker::make('ends_on')
-                ->label('Sfârșit')
+                ->label(__('panel.forms.corigenta_session.ends_on'))
                 ->required(),
         ]);
     }

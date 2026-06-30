@@ -14,28 +14,28 @@ class SchoolClassForm
         return $schema
             ->components([
                 Select::make('academic_year_id')
-                    ->label('An școlar')
+                    ->label(__('panel.forms.school_class.academic_year'))
                     ->relationship('academicYear', 'name')
                     ->searchable()
                     ->preload()
                     ->required(),
                 TextInput::make('grade_level')
-                    ->label('Treapta (clasa)')
+                    ->label(__('panel.forms.school_class.grade_level'))
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(12)
                     ->required(),
                 TextInput::make('name')
-                    ->label('Denumire')
-                    ->placeholder('ex: VIII')
+                    ->label(__('panel.forms.school_class.name'))
+                    ->placeholder(__('panel.forms.school_class.name_placeholder'))
                     ->required()
                     ->maxLength(20),
                 TextInput::make('section')
-                    ->label('Litera/secția')
-                    ->placeholder('ex: A / 1')
+                    ->label(__('panel.forms.school_class.section'))
+                    ->placeholder(__('panel.forms.school_class.section_placeholder'))
                     ->maxLength(4),
                 Select::make('homeroom_teacher_id')
-                    ->label('Diriginte')
+                    ->label(__('panel.tables.school_classes.homeroom'))
                     ->relationship('homeroomTeacher', 'last_name')
                     ->getOptionLabelFromRecordUsing(fn (Teacher $record): string => $record->full_name)
                     ->searchable(['last_name', 'first_name'])

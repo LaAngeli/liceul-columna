@@ -25,13 +25,31 @@ class SubjectResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBookOpen;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+    protected static ?int $navigationSort = 90;
 
-    protected static ?string $navigationLabel = 'Discipline';
+    // Titlul înregistrării = numele disciplinei — pentru titlu pagină, breadcrumb și titlul
+    // rezultatelor de căutare globală.
+    protected static ?string $recordTitleAttribute = 'name';
 
-    protected static ?string $modelLabel = 'disciplină';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.catalog');
+    }
 
-    protected static ?string $pluralModelLabel = 'Discipline';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.subjects.label');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.subjects.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.subjects.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -65,5 +83,13 @@ class SubjectResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name'];
     }
 }

@@ -14,29 +14,29 @@ class SubjectForm
         return $schema
             ->components([
                 TextInput::make('name')
-                    ->label('Denumire')
+                    ->label(__('panel.forms.subject.name'))
                     ->required()
                     ->maxLength(255),
                 TextInput::make('abbreviation')
-                    ->label('Abreviere')
+                    ->label(__('panel.forms.subject.abbreviation'))
                     ->maxLength(30),
                 Select::make('grading_type')
-                    ->label('Mod de notare')
+                    ->label(__('panel.forms.subject.grading_type'))
                     ->options(GradingType::class)
                     ->default(GradingType::Numeric->value)
                     ->required(),
                 TextInput::make('min_grade')
-                    ->label('De la clasa')
+                    ->label(__('panel.forms.subject.min_grade'))
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(12),
                 TextInput::make('max_grade')
-                    ->label('Până la clasa')
+                    ->label(__('panel.forms.subject.max_grade'))
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(12),
                 TextInput::make('report_order')
-                    ->label('Ordine în foaia matricolă')
+                    ->label(__('panel.forms.subject.report_order_long'))
                     ->numeric(),
             ]);
     }

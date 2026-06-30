@@ -9,6 +9,7 @@ use App\Actions\GenerateRequestPdf;
 use App\Actions\LogStudentAccess;
 use App\Enums\AcademicRecordPeriod;
 use App\Enums\DocumentRequestType;
+use App\Enums\RequestStatus;
 use App\Enums\StudentStatus;
 use App\Enums\UserRole;
 use App\Models\Absence;
@@ -18,6 +19,7 @@ use App\Models\CorigentaExam;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
 use App\Models\HomeworkAssignment;
+use App\Models\Message;
 use App\Models\SchoolClass;
 use App\Models\SemesterValidation;
 use App\Models\StatusAcknowledgement;
@@ -42,7 +44,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class CabinetController extends Controller
 {
     /**
-     * Cabinetul personal: copiii (părinte) și/sau propriul profil (elev).
+     * Cabinetul personal — COCKPIT: bandă de alerte cross-copil + carduri-copil îmbogățite
+     * (status, medie+tendință, ultima notă, absențe recente). Pentru elevul însuși: cockpit personal.
+     *
+     * Optimizat vs. versiunea veche (N+1 fix): un singur query bulk pentru term_averages și pentru
+     * absențele recente, un singur Term::current. Vezi audit § N+1 — fix-uri pe summary()/index().
      */
     public function index(Request $request): Response|RedirectResponse
     {
@@ -53,18 +59,210 @@ class CabinetController extends Controller
             return redirect()->to($user->homePath());
         }
 
-        $children = $user->students()->get()
-            ->map(fn (Student $student): array => $this->summary($student))
-            ->all();
+        $currentTermId = Term::query()->where('is_current', true)->value('id');
 
         $self = Student::query()->where('user_id', $user->id)->first();
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Student> $children */
+        $children = $user->students()->get();
+
+        // EloquentCollection (NU Support\Collection) ca să avem loadMissing() pentru eager-load bulk.
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Student> $allStudents */
+        $allStudents = new \Illuminate\Database\Eloquent\Collection;
+        if ($self !== null) {
+            $allStudents->push($self);
+        }
+        foreach ($children as $child) {
+            $allStudents->push($child);
+        }
+
+        $studentIds = $allStudents->pluck('id')->all();
+
+        // Bulk: mediile semestriale pentru TOȚI elevii într-un singur query (înlocuiește N+1 din summary()).
+        /** @var Collection<int, Collection<int, TermAverage>> $termAveragesByStudent */
+        $termAveragesByStudent = $currentTermId !== null && count($studentIds) > 0
+            ? TermAverage::query()
+                ->whereIn('student_id', $studentIds)
+                ->where('term_id', $currentTermId)
+                ->get()
+                ->groupBy('student_id')
+            : collect();
+
+        // Bulk: absențele recente nemotivate (ultimele 7 zile) numărate pe elev (1 query).
+        /** @var Collection<int|string, int> $recentAbsenceCounts */
+        $recentAbsenceCounts = count($studentIds) > 0
+            ? Absence::query()
+                ->whereIn('student_id', $studentIds)
+                ->where('occurred_on', '>=', now()->subDays(7)->toDateString())
+                ->where('is_motivated', false)
+                ->selectRaw('student_id, count(*) as cnt')
+                ->groupBy('student_id')
+                ->pluck('cnt', 'student_id')
+            : collect();
+
+        // Bulk: motivări în așteptare (status pending) numărate pe elev (1 query). Afișate PER-COPIL pe
+        // card (nu agregat în banda de alerte): contorul agregat cross-copil nu corespundea unui singur
+        // profil → confuz. Per-copil, numărul se potrivește mereu cu ce vezi când deschizi copilul.
+        /** @var Collection<int|string, int> $pendingMotivationCounts */
+        $pendingMotivationCounts = count($studentIds) > 0
+            ? AbsenceMotivation::query()
+                ->whereIn('student_id', $studentIds)
+                ->where('status', RequestStatus::Pending)
+                ->selectRaw('student_id, count(*) as cnt')
+                ->groupBy('student_id')
+                ->pluck('cnt', 'student_id')
+            : collect();
+
+        // Eager-load înmatriculările (cu clasa) UNA SINGURĂ DATĂ pentru TOȚI copiii (1 query bulk, nu N).
+        $allStudents->loadMissing(['enrollments.schoolClass']);
+
+        // Status + tendință calculate O SINGURĂ DATĂ pe copil (audit § cockpit perf #1). Refolosite atât
+        // de cockpitCard cât și de cockpitAlerts → eliminăm calculul dublu de status și apelul costisitor
+        // ComputeStudentDynamics::for() folosit doar pentru `current.trend`.
+        $dynamicsAction = app(ComputeStudentDynamics::class);
+        /** @var Collection<int|string, array<string, mixed>> $statusByStudent */
+        $statusByStudent = $allStudents->mapWithKeys(
+            fn (Student $s): array => [$s->id => $this->currentStatus($s)]
+        );
+        /** @var Collection<int|string, string|null> $trendByStudent */
+        $trendByStudent = $allStudents->mapWithKeys(
+            fn (Student $s): array => [$s->id => $dynamicsAction->trendFor($s, $currentTermId !== null ? (int) $currentTermId : null)]
+        );
+
+        // Bulk: ultima notă activă pe elev (1 query — selectează doar id-urile maxime per copil, apoi
+        // hidratează cu subject). Înlocuiește N+1 din cockpitCard.
+        /** @var Collection<int, Grade> $lastGradeByStudent */
+        $lastGradeByStudent = count($studentIds) > 0
+            ? Grade::query()
+                ->whereIn('student_id', $studentIds)
+                ->whereNull('annulled_at')
+                ->whereIn('id', function ($sub) use ($studentIds): void {
+                    $sub->selectRaw('MAX(id)')
+                        ->from('grades')
+                        ->whereIn('student_id', $studentIds)
+                        ->whereNull('annulled_at')
+                        ->groupBy('student_id');
+                })
+                ->with('subject')
+                ->get()
+                ->keyBy('student_id')
+            : collect();
+
+        // Helper inline care construiește datele complete pentru un card (extragem din colecții bulk
+        // valori scalare/obiect simple → cockpitCard primește doar tipuri fără generic, mulțumită PHPStan).
+        $buildCard = function (Student $s) use (
+            $termAveragesByStudent, $recentAbsenceCounts, $pendingMotivationCounts,
+            $statusByStudent, $trendByStudent, $lastGradeByStudent
+        ): array {
+            /** @var \Illuminate\Database\Eloquent\Collection<int, TermAverage> $avgs */
+            $avgs = $termAveragesByStudent->get($s->id, new \Illuminate\Database\Eloquent\Collection);
+            $overall = $avgs->isNotEmpty()
+                ? round($avgs->avg(fn (TermAverage $a): float => (float) $a->value), 2)
+                : null;
+
+            return $this->cockpitCard(
+                $s,
+                $overall,
+                (int) ($recentAbsenceCounts->get($s->id, 0)),
+                (int) ($pendingMotivationCounts->get($s->id, 0)),
+                $statusByStudent->get($s->id),
+                $trendByStudent->get($s->id),
+                $lastGradeByStudent->get($s->id),
+            );
+        };
 
         return Inertia::render('dashboard', [
             'cabinet' => [
-                'children' => $children,
-                'self' => $self ? $this->summary($self) : null,
+                'children' => $children->map($buildCard)->all(),
+                'self' => $self !== null ? $buildCard($self) : null,
+                'alerts' => $this->cockpitAlerts($user, $allStudents, $statusByStudent),
             ],
         ]);
+    }
+
+    /**
+     * Card de cockpit pentru un elev: identitate + medie + tendință + status + „ce-i nou".
+     *
+     * IMPORTANT: primește TOATE valorile pre-calculate din `index()` (audit § perf cockpit #1). Nu mai
+     * recalculează status/trend/lastGrade/medie (cost ~6 query-uri/copil înainte). Înmatricularea e citită
+     * din relația eager-loaded (`$student->enrollments->...`), nu re-cerută.
+     *
+     * @param  array<string, mixed>|null  $status  shape: status, label, failingSubjects, official, orderReference (vezi currentStatus())
+     * @return array<string, mixed>
+     */
+    private function cockpitCard(Student $student, ?float $overallAverage, int $recentAbsences, int $pendingMotivations, ?array $status, ?string $trend, ?Grade $lastGrade): array
+    {
+        // Enrollment-urile sunt eager-loaded în index(): citire în memorie, fără query suplimentar.
+        $class = $student->enrollments->sortByDesc('id')->first()?->schoolClass;
+
+        $statusValue = $status['status'] ?? null;
+
+        return [
+            'id' => $student->id,
+            'name' => $student->full_name,
+            'class' => $class !== null ? trim($class->name.' '.($class->section ?? '')) : null,
+            'average' => $overallAverage,
+            'trend' => $trend,
+            'statusValue' => $statusValue,
+            'isAtRisk' => in_array(
+                $statusValue,
+                [StudentStatus::Corigent->value, StudentStatus::Amanat->value],
+                true,
+            ),
+            'lastGrade' => $lastGrade !== null ? [
+                'value' => $lastGrade->value !== null
+                    ? (string) (int) $lastGrade->value
+                    : ($lastGrade->calificativ ?? '—'),
+                'subject' => ContentTranslator::subject((string) $lastGrade->subject->name),
+                'date' => $lastGrade->graded_on->format('d.m.Y'),
+            ] : null,
+            'recentAbsences' => $recentAbsences,
+            'pendingMotivations' => $pendingMotivations,
+        ];
+    }
+
+    /**
+     * Agregat de alerte cross-copil pentru banda cockpit: lucruri care îți cer ATENȚIA și care nu
+     * aparțin unui singur copil — mesaje + notificări necitite, nr. copii cu risc corigent/amânat.
+     * (Motivările în așteptare NU sunt aici: sunt status per-copil, afișat pe cardul fiecărui copil —
+     * vezi `cockpitCard`. Un agregat cross-copil nu corespundea unui singur profil → confuz.)
+     * Toate query-urile sunt bulk — fără N+1.
+     *
+     * Statusul fiecărui copil e PRE-CALCULAT în `index()` și pasat aici (audit § perf cockpit #1) — nu mai
+     * reapelăm `currentStatus()` pentru aceiași copii deja procesați de cockpitCard.
+     *
+     * `at_risk_student_id` = id-ul PRIMULUI copil cu risc, pentru link direct la profilul lui (tab Prezentare,
+     * unde apare confirmarea „am luat cunoștință").
+     *
+     * @param  \Illuminate\Database\Eloquent\Collection<int, Student>  $allStudents
+     * @param  Collection<int|string, array<string, mixed>>  $statusByStudent
+     * @return array{unread_messages: int, unread_notifications: int, at_risk: int, at_risk_student_id: int|null}
+     */
+    private function cockpitAlerts(User $user, \Illuminate\Database\Eloquent\Collection $allStudents, Collection $statusByStudent): array
+    {
+        $unreadMessages = Message::query()->forRecipient($user->id)->unread()->count();
+        $unreadNotifications = $user->unreadNotifications()->count();
+
+        $atRisk = 0;
+        $atRiskStudentId = null;
+        foreach ($allStudents as $student) {
+            $statusValue = $statusByStudent->get($student->id)['status'] ?? null;
+            $isAtRisk = in_array(
+                $statusValue,
+                [StudentStatus::Corigent->value, StudentStatus::Amanat->value],
+                true,
+            );
+            if ($isAtRisk) {
+                $atRisk++;
+                $atRiskStudentId ??= $student->id;
+            }
+        }
+
+        return [
+            'unread_messages' => $unreadMessages,
+            'unread_notifications' => $unreadNotifications,
+            'at_risk' => $atRisk,
+            'at_risk_student_id' => $atRiskStudentId,
+        ];
     }
 
     /**
@@ -117,6 +315,11 @@ class CabinetController extends Controller
 
     /**
      * Profilul unui elev: note, absențe, foaie matricolă și teme. Acces via StudentPolicy.
+     *
+     * Folosește `Inertia::defer()` pentru blocurile grele (taburi) → prima încărcare aduce DOAR identitatea
+     * + statusul (care pictează headerul + banda de alerte). Restul (note/absențe/orar/teme/dinamică/cereri)
+     * vine progresiv într-un al 2-lea request automat. Frontend-ul afișează skeleton pe taburi până sosesc.
+     * Vezi audit § eager-loading în `student()` — fix prin defer.
      */
     public function student(Student $student, LogStudentAccess $accessLog): Response
     {
@@ -134,29 +337,53 @@ class CabinetController extends Controller
 
         $class = $student->currentSchoolClass();
         $status = $this->currentStatus($student);
+        $canRequestMotivation = $viewer instanceof User && $this->isFamilyOf($viewer, $student);
+
+        // Audit § profil #6 — comutator copil din interiorul profilului (părinte cu mai mulți copii).
+        // Lista frați se trimite DOAR familiei (nu personalului). Profesorul vede `siblings = []`.
+        /** @var array<int, array{id: int, name: string}> $siblings */
+        $siblings = $viewer instanceof User && $this->isFamilyOf($viewer, $student)
+            ? $viewer->students()->orderBy('first_name')->get()
+                ->map(fn (Student $s): array => ['id' => $s->id, 'name' => $s->full_name])
+                ->all()
+            : [];
 
         return Inertia::render('cabinet/student-profile', [
+            // === Eager (vin la prima încărcare — pictează identitatea + alerte) ===
             'student' => $this->summary($student),
-            'subjects' => $this->gradesBySubject($student),
-            'absencesBySubject' => $this->absencesBySubject($student),
+            'status' => $status,
+            'statusAck' => $this->statusAcknowledgement($student, $viewer, $status),
             'absencesTotal' => $student->absences->count(),
             'absencesMotivated' => $student->absences->where('is_motivated', true)->count(),
             'absencesUnmotivated' => $student->absences->where('is_motivated', false)->count(),
-            'transcript' => $this->transcript($student),
-            'homework' => $this->homeworkForStudent($student),
-            'status' => $status,
-            'statusAck' => $this->statusAcknowledgement($student, $viewer, $status),
-            'dynamics' => app(ComputeStudentDynamics::class)->for($student),
-            'timetable' => $class !== null ? app(Timetable::class)->forClass($class) : null,
-            'lessonsSchedule' => $this->lessonsSchedule($class),
-            'deferralRisk' => app(ComputeDeferralRisk::class)->for($student),
-            'motivations' => $this->motivations($student),
-            'corigentaExams' => $this->corigentaExams($student),
-            'documentRequests' => $this->documentRequests($student),
             'requestTypes' => DocumentRequestType::options(),
             // Doar familia (tutore/elev) poate depune cereri de motivare/tipice — personalul vede
             // pagina, dar nu și formularele (ar primi 403 la trimitere).
-            'canRequestMotivation' => $viewer instanceof User && $this->isFamilyOf($viewer, $student),
+            'canRequestMotivation' => $canRequestMotivation,
+            'siblings' => $siblings,
+
+            // === Defer (vin progresiv într-un al 2-lea request după mount) ===
+            // Tab „Situație" — note + absențe + motivări
+            'subjects' => Inertia::defer(fn (): array => $this->gradesBySubject($student)),
+            'absencesBySubject' => Inertia::defer(fn (): array => $this->absencesBySubject($student)),
+            'deferralRisk' => Inertia::defer(fn (): array => app(ComputeDeferralRisk::class)->for($student)),
+            'motivations' => Inertia::defer(fn (): array => $this->motivations($student)),
+
+            // Tab „Orar & teme"
+            'timetable' => Inertia::defer(fn (): ?array => $class !== null
+                ? app(Timetable::class)->forClass($class)
+                : null
+            ),
+            'lessonsSchedule' => Inertia::defer(fn (): ?array => $this->lessonsSchedule($class)),
+            'homework' => Inertia::defer(fn (): array => $this->homeworkForStudent($student)),
+
+            // Tab „Istoric" — dinamică multi-an + foaia matricolă
+            'dynamics' => Inertia::defer(fn (): array => app(ComputeStudentDynamics::class)->for($student)),
+            'transcript' => Inertia::defer(fn (): array => $this->transcript($student)),
+
+            // Tab „Cereri" — cereri tipice + lichidare corigență
+            'documentRequests' => Inertia::defer(fn (): array => $this->documentRequests($student)),
+            'corigentaExams' => Inertia::defer(fn (): array => $this->corigentaExams($student)),
         ]);
     }
 
@@ -205,9 +432,12 @@ class CabinetController extends Controller
             'is_exception' => $isException,
         ]);
 
-        return back()->with('success', $isException
-            ? 'Cererea (excepție, după termen) a fost transmisă vicedirectorului pe educație.'
-            : 'Cererea de motivare a fost trimisă dirigintelui.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => __($isException ? 'cabinet_flash.motivation_sent_exception' : 'cabinet_flash.motivation_sent'),
+        ]);
+
+        return back();
     }
 
     /**
@@ -238,7 +468,12 @@ class CabinetController extends Controller
             ],
         );
 
-        return back()->with('success', 'Confirmarea a fost înregistrată.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => __('cabinet_flash.status_acknowledged'),
+        ]);
+
+        return back();
     }
 
     /**
@@ -272,7 +507,12 @@ class CabinetController extends Controller
 
         app(GenerateRequestPdf::class)->generate($documentRequest);
 
-        return back()->with('success', 'Cererea a fost generată și transmisă secretariatului.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => __('cabinet_flash.request_generated'),
+        ]);
+
+        return back();
     }
 
     /**
@@ -412,7 +652,7 @@ class CabinetController extends Controller
     /**
      * Statutul preliminar al elevului în semestrul curent (§2.5), din mediile calculate.
      *
-     * @return array{status: string|null, label: string|null, failingSubjects: array<int, string>}
+     * @return array{status: string|null, label: string|null, failingSubjects: array<int, string>, official: bool, orderReference: string|null}
      */
     private function currentStatus(Student $student): array
     {

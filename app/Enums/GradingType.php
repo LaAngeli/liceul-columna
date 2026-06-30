@@ -16,12 +16,7 @@ enum GradingType: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Numeric => 'Notă numerică',
-            self::Calificativ => 'Calificativ',
-            self::CalificativDescriptiv => 'Calificativ descriptiv',
-            self::Descriptiv => 'Descriptiv',
-        };
+        return (string) trans('enums.grading_type.'.$this->value);
     }
 
     public function getLabel(): string

@@ -18,13 +18,27 @@ class GradeCorrectionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPencilSquare;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Catalog';
+    protected static ?int $navigationSort = 40;
 
-    protected static ?string $navigationLabel = 'Corecții note';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.catalog');
+    }
 
-    protected static ?string $modelLabel = 'corecție';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.grade_corrections.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Corecții note';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.grade_corrections.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.grade_corrections.plural');
+    }
 
     public static function table(Table $table): Table
     {
@@ -54,6 +68,11 @@ class GradeCorrectionResource extends Resource
         $pending = GradeCorrection::query()->where('status', CorrectionStatus::Pending)->count();
 
         return $pending > 0 ? (string) $pending : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
     }
 
     /**

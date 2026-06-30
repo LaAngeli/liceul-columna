@@ -18,33 +18,33 @@ class AnnouncementsTable
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('title')
-                    ->label('Titlu')
+                    ->label(__('panel.forms.announcement.title'))
                     ->searchable()
                     ->limit(60),
                 TextColumn::make('published_at')
-                    ->label('Publicat')
+                    ->label(__('panel.forms.announcement.published_at'))
                     ->dateTime('d.m.Y H:i')
-                    ->placeholder('Ciornă')
+                    ->placeholder(__('panel.forms.announcement.draft'))
                     ->sortable(),
                 TextColumn::make('read')
-                    ->label('Citit')
+                    ->label(__('panel.forms.announcement.read'))
                     ->state(fn (Announcement $record): string => $record->isPublished()
                         ? $record->readCount().' / '.$record->recipients_count
                         : '—'),
             ])
             ->recordActions([
                 Action::make('publish')
-                    ->label('Publică')
+                    ->label(__('panel.forms.announcement.publish.label'))
                     ->icon('heroicon-o-paper-airplane')
                     ->color('success')
                     ->visible(fn (Announcement $record): bool => ! $record->isPublished())
                     ->requiresConfirmation()
-                    ->modalHeading('Publică anunțul')
-                    ->modalDescription('Anunțul va fi trimis tuturor familiilor (inbox + email/social, după preferințe). Acțiune ireversibilă.')
+                    ->modalHeading(fn (): string => __('panel.forms.announcement.publish.heading'))
+                    ->modalDescription(fn (): string => __('panel.forms.announcement.publish.description'))
                     ->action(function (Announcement $record): void {
                         app(BroadcastAnnouncement::class)->publish($record);
 
-                        Notification::make()->success()->title('Anunț publicat')->send();
+                        Notification::make()->success()->title(__('panel.forms.announcement.publish.success'))->send();
                     }),
                 EditAction::make()
                     ->visible(fn (Announcement $record): bool => ! $record->isPublished()),

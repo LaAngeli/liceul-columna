@@ -21,13 +21,27 @@ class DocumentRequestResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Administrare';
+    protected static ?int $navigationSort = 20;
 
-    protected static ?string $navigationLabel = 'Cereri';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.administration');
+    }
 
-    protected static ?string $modelLabel = 'cerere';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.document_requests.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Cereri';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.document_requests.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.document_requests.plural');
+    }
 
     public static function canAccess(): bool
     {
@@ -60,5 +74,10 @@ class DocumentRequestResource extends Resource
         $pending = DocumentRequest::query()->where('status', RequestStatus::Pending)->count();
 
         return $pending > 0 ? (string) $pending : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
     }
 }

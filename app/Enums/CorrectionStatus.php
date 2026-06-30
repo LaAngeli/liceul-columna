@@ -16,11 +16,7 @@ enum CorrectionStatus: string implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Pending => 'În așteptare',
-            self::Approved => 'Aprobată',
-            self::Rejected => 'Respinsă',
-        };
+        return (string) trans('enums.correction_status.'.$this->value);
     }
 
     public function getLabel(): string

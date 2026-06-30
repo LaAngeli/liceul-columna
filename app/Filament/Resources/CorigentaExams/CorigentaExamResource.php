@@ -12,7 +12,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use UnitEnum;
 
 /**
  * Examenele de corigență per-elev (spec §2.5). Intrările se GENEREAZĂ automat la marcarea statutului
@@ -24,13 +23,27 @@ class CorigentaExamResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Configurare';
+    protected static ?int $navigationSort = 80;
 
-    protected static ?string $navigationLabel = 'Examene corigență';
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.configuration');
+    }
 
-    protected static ?string $modelLabel = 'examen de corigență';
+    public static function getNavigationLabel(): string
+    {
+        return __('panel.resources.corigenta_exams.label');
+    }
 
-    protected static ?string $pluralModelLabel = 'Examene corigență';
+    public static function getModelLabel(): string
+    {
+        return __('panel.resources.corigenta_exams.single');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('panel.resources.corigenta_exams.plural');
+    }
 
     public static function form(Schema $schema): Schema
     {

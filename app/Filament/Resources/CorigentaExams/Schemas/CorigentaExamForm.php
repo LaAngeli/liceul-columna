@@ -13,20 +13,23 @@ class CorigentaExamForm
     {
         return $schema->components([
             Select::make('corigenta_session_id')
-                ->label('Sesiune')
+                ->label(__('panel.forms.corigenta_exam.session'))
                 ->relationship('session', 'id')
                 ->getOptionLabelFromRecordUsing(fn (CorigentaSession $record): string => $record->season->label().' · '.$record->type->label().' ('.$record->starts_on->format('d.m.Y').')')
                 ->searchable(),
             Select::make('exam_commission_id')
-                ->label('Comisie')
+                ->label(__('panel.forms.corigenta_exam.commission'))
                 ->relationship('commission', 'name')
                 ->searchable(),
             DatePicker::make('scheduled_on')
-                ->label('Data examenului'),
+                ->label(__('panel.forms.corigenta_exam.scheduled_on_long')),
             Select::make('passed')
-                ->label('Rezultat')
-                ->options(['1' => 'Promovat (a luat)', '0' => 'Respins'])
-                ->placeholder('Programat / neexaminat'),
+                ->label(__('panel.forms.corigenta_exam.result'))
+                ->options([
+                    '1' => __('panel.forms.corigenta_exam.result_pass'),
+                    '0' => __('panel.forms.corigenta_exam.result_fail'),
+                ])
+                ->placeholder(__('panel.forms.corigenta_exam.result_pending')),
         ]);
     }
 }

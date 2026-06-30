@@ -12,24 +12,24 @@ class ExamCommissionForm
     {
         return $schema->components([
             Select::make('academic_year_id')
-                ->label('An școlar')
+                ->label(__('panel.fields.academic_year'))
                 ->relationship('academicYear', 'name')
                 ->required(),
             Select::make('subject_id')
-                ->label('Disciplina')
+                ->label(__('panel.fields.subject'))
                 ->relationship('subject', 'name')
                 ->searchable()
                 ->required(),
             TextInput::make('name')
-                ->label('Denumire comisie')
+                ->label(__('panel.forms.exam_commission.name_long'))
                 ->required()
                 ->maxLength(255),
             Select::make('president_teacher_id')
-                ->label('Președinte')
+                ->label(__('panel.forms.exam_commission.president'))
                 ->relationship('president', 'last_name')
                 ->searchable(),
             Select::make('members')
-                ->label('Membri')
+                ->label(__('panel.forms.exam_commission.members'))
                 ->relationship('members', 'last_name')
                 ->multiple()
                 ->searchable(),

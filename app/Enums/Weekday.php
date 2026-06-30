@@ -19,14 +19,7 @@ enum Weekday: int implements HasLabel
 
     public function label(): string
     {
-        return match ($this) {
-            self::Monday => 'Luni',
-            self::Tuesday => 'Marți',
-            self::Wednesday => 'Miercuri',
-            self::Thursday => 'Joi',
-            self::Friday => 'Vineri',
-            self::Saturday => 'Sâmbătă',
-        };
+        return (string) trans('enums.weekday.'.$this->value);
     }
 
     public function short(): string

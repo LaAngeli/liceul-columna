@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\AdmissionRequests\Tables;
 
-use App\Models\AdmissionRequest;
+use App\Enums\AdmissionRequestType;
+use App\Enums\AdmissionStatus;
+use Carbon\Carbon;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -17,23 +19,32 @@ class AdmissionRequestsTable
         return $table
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('created_at')->label('Primit')->dateTime('d.m.Y H:i')->sortable(),
-                TextColumn::make('child_name')->label('Copil')->searchable(),
-                TextColumn::make('parent_name')->label('Părinte')->searchable(),
-                TextColumn::make('phone')->label('Telefon'),
-                TextColumn::make('desired_class')->label('Clasa')->placeholder('—'),
-                TextColumn::make('status')->label('Status')->badge()
-                    ->formatStateUsing(fn (string $state): string => AdmissionRequest::statuses()[$state] ?? $state)
-                    ->color(fn (string $state): string => match ($state) {
-                        'nou' => 'warning',
-                        'contactat' => 'info',
-                        'inmatriculat' => 'success',
-                        'refuzat' => 'danger',
-                        default => 'gray',
+                TextColumn::make('created_at')->label(__('panel.fields.received_at'))->dateTime('d.m.Y H:i')->sortable(),
+                TextColumn::make('type')->label(__('panel.fields.type'))->badge()
+                    ->color(fn (AdmissionRequestType $state): string => $state->color()),
+                TextColumn::make('child_name')->label(__('panel.tables.admissions.child'))->searchable(),
+                TextColumn::make('parent_name')->label(__('panel.tables.admissions.parent'))->searchable(),
+                TextColumn::make('phone')->label(__('panel.fields.phone')),
+                TextColumn::make('desired_class')->label(__('panel.fields.class'))->placeholder(__('panel.common.dash')),
+                TextColumn::make('preferred_time')->label(__('panel.tables.admissions.visit_date'))
+                    ->placeholder(__('panel.common.dash'))
+                    ->formatStateUsing(function (?string $state): string {
+                        if (! $state) {
+                            return '—';
+                        }
+
+                        try {
+                            return Carbon::parse($state)->translatedFormat('d.m.Y · H:i');
+                        } catch (\Throwable) {
+                            return $state;
+                        }
                     }),
+                TextColumn::make('status')->label(__('panel.fields.status_label'))->badge()
+                    ->color(fn (AdmissionStatus $state): string => $state->color()),
             ])
             ->filters([
-                SelectFilter::make('status')->label('Status')->options(AdmissionRequest::statuses()),
+                SelectFilter::make('type')->label(__('panel.fields.type'))->options(AdmissionRequestType::class),
+                SelectFilter::make('status')->label(__('panel.fields.status_label'))->options(AdmissionStatus::class),
             ])
             ->recordActions([
                 EditAction::make(),
