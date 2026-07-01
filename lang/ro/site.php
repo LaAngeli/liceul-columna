@@ -243,6 +243,51 @@ return [
         'home' => 'Acasă',
     ],
 
+    'error_page' => [
+        'eyebrow' => 'Eroare',
+        'home' => 'Pagina principală',
+        'back' => 'Pagina anterioară',
+        'helpful' => 'Sau continuă spre',
+        'explore' => [
+            'title' => 'Sau explorează liceul',
+            'lead' => 'Câteva pagini care te-ar putea ajuta să găsești ce căutai.',
+            'home' => 'Pagina principală a liceului',
+            'admission' => 'Pași, acte necesare și înscriere online',
+            'gallery' => 'Momente din viața școlii noastre',
+            'contact' => 'Adresă, telefon și formular de contact',
+        ],
+        'status' => [
+            '403' => [
+                'title' => 'Acces restricționat',
+                'body' => 'Nu ai permisiunea de a accesa această pagină. Dacă crezi că este o eroare, contactează-ne.',
+            ],
+            '404' => [
+                'title' => 'Pagina nu a fost găsită',
+                'body' => 'Pagina căutată nu există sau a fost mutată. Verifică adresa sau revino la pagina principală.',
+            ],
+            '419' => [
+                'title' => 'Sesiune expirată',
+                'body' => 'Sesiunea ta a expirat din motive de securitate. Reîncarcă pagina și încearcă din nou.',
+            ],
+            '429' => [
+                'title' => 'Prea multe cereri',
+                'body' => 'Ai trimis prea multe cereri într-un timp scurt. Te rugăm să aștepți câteva momente și să încerci din nou.',
+            ],
+            '500' => [
+                'title' => 'Eroare neașteptată',
+                'body' => 'A apărut o problemă de partea noastră. Am fost notificați și lucrăm la remediere — încearcă din nou în scurt timp.',
+            ],
+            '503' => [
+                'title' => 'În mentenanță',
+                'body' => 'Site-ul este temporar indisponibil pentru lucrări de mentenanță. Revenim cât de curând. Îți mulțumim pentru înțelegere.',
+            ],
+            'generic' => [
+                'title' => 'A apărut o eroare',
+                'body' => 'Ceva nu a funcționat cum trebuie. Revino la pagina principală sau încearcă din nou.',
+            ],
+        ],
+    ],
+
     'home' => [
         'badge' => 'IPL „Liceul Columna” · Chișinău',
         'tagline' => 'Studii de CALITATE pentru un viitor de CALITATE',

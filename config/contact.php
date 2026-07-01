@@ -15,5 +15,6 @@ return [
     'name' => 'IPL „Liceul Columna"',
     'address' => 'str. Alba Iulia 5/2, Chișinău, Republica Moldova',
     'phone' => '(+373) 22 74 28 52',
+    'website' => env('CONTACT_WEBSITE', 'columna.md'),
 
 ];

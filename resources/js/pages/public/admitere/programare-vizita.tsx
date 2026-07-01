@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -26,6 +26,9 @@ type VisitData = ContactChildData & { preferred_time: string };
 export default function ProgramareVizita() {
     const t = useTranslations();
     const locale = useLocale();
+    /* URL-ul curent păstrează prefixul de limbă (/ru/, /en/), ca SetPublicLocale să pună locale-ul
+       corect pe POST → confirmarea de mulțumire ajunge în limba pe care a navigat utilizatorul. */
+    const postUrl = usePage().url.split('?')[0];
     const { data, setData, errors, processing, wasSuccessful, post, reset } = useForm<VisitData>({
         parent_name: '',
         phone: '',
@@ -129,7 +132,7 @@ export default function ProgramareVizita() {
             return;
         }
 
-        post('/programeaza-vizita', {
+        post(postUrl, {
             preserveScroll: true,
             onSuccess: () => {
                 pushDataLayer({ event: 'visit_form_submit', form_id: 'visit_request', form_name: 'Programare vizită' });

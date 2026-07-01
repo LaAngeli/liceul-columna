@@ -9,11 +9,14 @@ use App\Calendar\Projectors\DeadlineProjector;
 use App\Calendar\Projectors\HomeworkProjector;
 use App\Calendar\Projectors\ManualEventProjector;
 use App\Calendar\Projectors\StructureProjector;
+use App\Support\Locale;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Inertia\ExceptionResponse;
+use Inertia\Inertia;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -40,6 +43,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureErrorPages();
     }
 
     /**
@@ -62,5 +66,49 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null,
         );
+    }
+
+    /**
+     * Randează o pagină de eroare UNICĂ, brand-uită (Inertia → `public/error`) pentru codurile
+     * HTTP uzuale, în locul paginilor generice Laravel/Symfony. Se aplică și accesărilor directe
+     * (non-Inertia), fiindcă Inertia înregistrează callback-ul prin `respondUsing()` al handler-ului.
+     */
+    protected function configureErrorPages(): void
+    {
+        Inertia::handleExceptionsUsing(function (ExceptionResponse $response): mixed {
+            $request = $response->request;
+
+            // API → rămâne JSON (consecvent cu `shouldRenderJsonWhen` din bootstrap/app.php).
+            if ($request->is('api/*')) {
+                return null;
+            }
+
+            // Zonele autentificate (panou staff Filament + cabinet) păstrează comportamentul nativ —
+            // pagina brand-uită folosește chrome-ul SITE-ULUI PUBLIC, nepotrivit în interiorul panoului.
+            if ($request->is('admin', 'admin/*', 'dashboard', 'dashboard/*', 'cabinet', 'cabinet/*')) {
+                return null;
+            }
+
+            $status = $response->statusCode();
+
+            // Doar codurile cu pagină dedicată; restul → randarea implicită.
+            if (! in_array($status, [403, 404, 419, 429, 500, 503], true)) {
+                return null;
+            }
+
+            // În dev păstrăm pagina de debug pentru erorile reale de server (stack trace util).
+            if ($status === 500 && app()->isLocal()) {
+                return null;
+            }
+
+            // Limba paginii = prefixul URL. `SetPublicLocale` NU rulează când nicio rută nu se
+            // potrivește (404), deci o rezolvăm aici identic cu middleware-ul.
+            $segment = $response->request->segment(1);
+            app()->setLocale(in_array($segment, Locale::prefixed(), true) ? $segment : Locale::default());
+
+            return $response->render('public/error', [
+                'status' => $status,
+            ])->withSharedData();
+        });
     }
 }

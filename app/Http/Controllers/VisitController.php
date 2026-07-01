@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\AdmissionRequestType;
 use App\Http\Requests\StoreVisitRequest;
+use App\Mail\AdmissionRequestConfirmation;
 use App\Mail\AdmissionRequestNotification;
 use App\Models\AdmissionRequest;
 use Illuminate\Http\RedirectResponse;
@@ -32,6 +33,13 @@ class VisitController extends Controller
         Mail::to((string) config('contact.mailbox'))
             ->locale('ro')
             ->queue(new AdmissionRequestNotification($visit));
+
+        /* E-mail de confirmare către părinte (DOAR dacă a oferit email) — în limba activă a vizitatorului. */
+        if ($visit->email) {
+            Mail::to($visit->email, $visit->parent_name)
+                ->locale(app()->getLocale())
+                ->queue(new AdmissionRequestConfirmation($visit));
+        }
 
         return back()->with('success', 'Programarea vizitei a fost trimisă. Vă vom contacta în curând.');
     }

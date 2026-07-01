@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, ShieldCheck } from 'lucide-react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -21,6 +21,9 @@ import { cn } from '@/lib/utils';
 
 export default function Inregistrare() {
     const t = useTranslations();
+    /* URL-ul curent păstrează prefixul de limbă (/ru/, /en/), ca SetPublicLocale să pună locale-ul
+       corect pe POST → confirmarea de mulțumire ajunge în limba pe care a navigat utilizatorul. */
+    const postUrl = usePage().url.split('?')[0];
     const { data, setData, errors, processing, wasSuccessful, post, reset } = useForm<ContactChildData>({
         parent_name: '',
         phone: '',
@@ -96,7 +99,7 @@ export default function Inregistrare() {
             return;
         }
 
-        post('/inregistrarea-student', {
+        post(postUrl, {
             preserveScroll: true,
             onSuccess: () => {
                 pushDataLayer({ event: 'enrollment_form_submit', form_id: 'enrollment_request', form_name: 'Cerere de înmatriculare' });

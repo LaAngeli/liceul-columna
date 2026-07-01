@@ -243,6 +243,51 @@ return [
         'home' => 'Home',
     ],
 
+    'error_page' => [
+        'eyebrow' => 'Error',
+        'home' => 'Home page',
+        'back' => 'Previous page',
+        'helpful' => 'Or continue to',
+        'explore' => [
+            'title' => 'Or explore the lyceum',
+            'lead' => 'A few pages that might help you find what you were looking for.',
+            'home' => 'The lyceum’s main page',
+            'admission' => 'Steps, documents and online enrolment',
+            'gallery' => 'Moments from our school life',
+            'contact' => 'Address, phone and contact form',
+        ],
+        'status' => [
+            '403' => [
+                'title' => 'Access denied',
+                'body' => 'You don’t have permission to access this page. If you believe this is a mistake, please contact us.',
+            ],
+            '404' => [
+                'title' => 'Page not found',
+                'body' => 'The page you’re looking for doesn’t exist or has been moved. Check the address or return to the home page.',
+            ],
+            '419' => [
+                'title' => 'Session expired',
+                'body' => 'Your session expired for security reasons. Please reload the page and try again.',
+            ],
+            '429' => [
+                'title' => 'Too many requests',
+                'body' => 'You’ve sent too many requests in a short time. Please wait a moment and try again.',
+            ],
+            '500' => [
+                'title' => 'Unexpected error',
+                'body' => 'Something went wrong on our side. We’ve been notified and are working on a fix — please try again shortly.',
+            ],
+            '503' => [
+                'title' => 'Under maintenance',
+                'body' => 'The site is temporarily unavailable for maintenance. We’ll be back soon. Thank you for your patience.',
+            ],
+            'generic' => [
+                'title' => 'Something went wrong',
+                'body' => 'An unexpected error occurred. Return to the home page or try again.',
+            ],
+        ],
+    ],
+
     'home' => [
         'badge' => 'IPL “Liceul Columna” · Chișinău',
         'tagline' => 'QUALITY education for a QUALITY future',

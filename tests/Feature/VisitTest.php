@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AdmissionRequestType;
+use App\Mail\AdmissionRequestConfirmation;
 use App\Mail\AdmissionRequestNotification;
 use App\Models\AdmissionRequest;
 use Illuminate\Support\Facades\Mail;
@@ -32,7 +33,49 @@ it('salvează o programare de vizită validă cu data aleasă și trimite e-mail
     ]);
 
     Mail::assertQueued(AdmissionRequestNotification::class, fn (AdmissionRequestNotification $mail) => $mail->admission->type === AdmissionRequestType::Visit);
+
+    /* Confirmare către expeditor — pe email-ul oferit, cu același payload. */
+    Mail::assertQueued(AdmissionRequestConfirmation::class, function (AdmissionRequestConfirmation $mail) {
+        return $mail->hasTo('maria@example.com') && $mail->admission->type === AdmissionRequestType::Visit;
+    });
 });
+
+it('nu trimite confirmare către expeditor dacă vizita a fost depusă fără email', function () {
+    Mail::fake();
+
+    $this->post('/programeaza-vizita', [
+        'parent_name' => 'Maria Popescu',
+        'phone' => '069 123 456',
+        'child_name' => 'Ion Popescu',
+        'preferred_time' => now()->addWeek()->format('Y-m-d').'T14:30',
+    ])->assertRedirect();
+
+    Mail::assertQueued(AdmissionRequestNotification::class);
+    Mail::assertNotQueued(AdmissionRequestConfirmation::class);
+});
+
+it('confirmarea vizitei pleacă în limba paginii de pe care s-a făcut POST', function (string $uri, string $expectedLocale, string $expectedSubjectFragment) {
+    Mail::fake();
+
+    $this->post($uri, [
+        'parent_name' => 'Maria Popescu',
+        'phone' => '069 123 456',
+        'email' => 'maria@example.com',
+        'child_name' => 'Ion Popescu',
+        'child_age' => 7,
+        'desired_class' => 'Clasa I',
+        'preferred_time' => now()->addWeek()->format('Y-m-d').'T14:30',
+    ])->assertRedirect();
+
+    Mail::assertQueued(AdmissionRequestConfirmation::class, function (AdmissionRequestConfirmation $mail) use ($expectedLocale, $expectedSubjectFragment) {
+        return $mail->locale === $expectedLocale
+            && str_contains($mail->envelope()->subject, $expectedSubjectFragment);
+    });
+})->with([
+    'RO root → confirmare în RO' => ['/programeaza-vizita', 'ro', 'Am primit programarea'],
+    'RU prefix → confirmare în RU' => ['/ru/programeaza-vizita', 'ru', 'Мы получили'],
+    'EN prefix → confirmare în EN' => ['/en/programeaza-vizita', 'en', 'We received'],
+]);
 
 it('respinge programarea fără dată/oră aleasă', function () {
     $this->post('/programeaza-vizita', [

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\AdmissionRequestType;
 use App\Http\Requests\StoreAdmissionRequest;
+use App\Mail\AdmissionRequestConfirmation;
 use App\Mail\AdmissionRequestNotification;
 use App\Models\AdmissionRequest;
 use Illuminate\Http\RedirectResponse;
@@ -29,6 +30,13 @@ class AdmissionController extends Controller
         Mail::to((string) config('contact.mailbox'))
             ->locale('ro')
             ->queue(new AdmissionRequestNotification($admission));
+
+        /* E-mail de confirmare către părinte (DOAR dacă a oferit email) — în limba activă a vizitatorului. */
+        if ($admission->email) {
+            Mail::to($admission->email, $admission->parent_name)
+                ->locale(app()->getLocale())
+                ->queue(new AdmissionRequestConfirmation($admission));
+        }
 
         return back()->with('success', 'Cererea de înmatriculare a fost trimisă. Vă vom contacta în curând.');
     }

@@ -58,3 +58,25 @@ it('pagina de mulțumim se afișează după trimitere (flash din sesiune)', func
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('public/contact-multumim')->where('name', 'Maria'));
 });
+
+it('confirmarea de contact pleacă în limba paginii (POST păstrează prefixul de URL)', function (string $uri, string $expectedLocale, string $expectedSubjectFragment) {
+    Mail::fake();
+
+    $this->post($uri, [
+        'name' => 'Maria Popescu',
+        'email' => 'maria@example.com',
+        'phone' => '069123456',
+        'subject' => 'Test',
+        'message' => 'Mesaj de test cu suficiente caractere pentru validare.',
+        'consent' => true,
+    ])->assertRedirect();
+
+    Mail::assertQueued(ContactConfirmation::class, function (ContactConfirmation $mail) use ($expectedLocale, $expectedSubjectFragment) {
+        return $mail->locale === $expectedLocale
+            && str_contains($mail->envelope()->subject, $expectedSubjectFragment);
+    });
+})->with([
+    'RO root' => ['/contacte', 'ro', 'Am primit mesajul'],
+    'RU prefix' => ['/ru/contacte', 'ru', 'Мы получили'],
+    'EN prefix' => ['/en/contacte', 'en', 'We received'],
+]);
