@@ -12,7 +12,7 @@ export function PageBanner({ title, breadcrumbs = [], description }: { title: st
     const t = useTranslations();
 
     return (
-        <section className="relative overflow-hidden border-b keyline bg-background">
+        <section className="relative overflow-hidden border-b keyline bg-card">
             {/* Altitudine FIXĂ pe toate paginile (h-[13rem] = 208px) pentru consistență vizuală absolută.
                Lead-urile trebuie să încapă pe UN SINGUR RÂND — vezi reformulările din i18n. */}
             <Container className="relative flex h-[13rem] flex-col justify-center">

@@ -34,7 +34,7 @@ export function Band({
             id={id}
             className={cn(
                 'relative py-[clamp(3.5rem,8vw,8rem)]',
-                navy ? 'on-navy bg-brand-navy text-[color:var(--brand-navy-foreground)]' : 'bg-background text-[color:var(--brand-dark)]',
+                navy ? 'on-navy bg-surface-navy text-[color:var(--brand-navy-foreground)]' : 'bg-background text-[color:var(--brand-dark)]',
                 className,
             )}
         >
@@ -131,8 +131,8 @@ export function Rhombus({ className }: { className?: string }) {
 type BtnVariant = 'primary' | 'ghost' | 'ghost-navy' | 'link' | 'link-navy';
 
 const BTN: Record<BtnVariant, string> = {
-    primary: 'bg-brand-green text-[color:var(--brand-dark)] font-semibold shadow-sm hover:brightness-[1.04]',
-    ghost: 'border border-brand-navy text-brand-navy font-semibold hover:bg-brand-navy hover:text-[color:var(--brand-navy-foreground)]',
+    primary: 'bg-brand-green text-[color:var(--brand-green-foreground)] font-semibold shadow-sm hover:brightness-[1.04]',
+    ghost: 'border border-brand-navy text-brand-navy font-semibold hover:bg-surface-navy hover:text-[color:var(--brand-navy-foreground)]',
     'ghost-navy': 'border border-white/70 text-[color:var(--brand-navy-foreground)] font-semibold hover:bg-white/10',
     link: 'text-brand-navy font-semibold underline decoration-brand-green decoration-2 underline-offset-4 hover:decoration-[3px]',
     'link-navy': 'text-[color:var(--brand-navy-foreground)] font-semibold underline decoration-brand-green decoration-2 underline-offset-4',
@@ -255,9 +255,9 @@ export function ValueChips({ t, className }: { t: (k: string, f?: string) => str
                 const fill = i % 3;
                 const chip =
                     fill === 0
-                        ? 'bg-brand-navy text-[color:var(--brand-navy-foreground)]'
+                        ? 'bg-surface-navy text-[color:var(--brand-navy-foreground)]'
                         : fill === 1
-                          ? 'bg-brand-green text-[color:var(--brand-dark)]'
+                          ? 'bg-brand-green text-[color:var(--brand-green-foreground)]'
                           : 'border border-white/60 text-[color:var(--brand-navy-foreground)]';
                 return (
                     <li key={key} className="flex items-center gap-2">
@@ -295,7 +295,7 @@ export function StatRibbon({ items, className }: { items: StatItem[]; className?
                         'flex flex-col gap-2 p-6 sm:p-8',
                         i % 2 === 1 && 'border-t keyline sm:border-t-0 sm:border-l',
                         i >= 2 && 'border-t keyline lg:border-t-0 lg:border-l',
-                        s.accent && 'bg-brand-green text-[color:var(--brand-dark)]',
+                        s.accent ? 'bg-brand-green text-[color:var(--brand-green-foreground)]' : 'bg-card',
                     )}
                 >
                     <div className="flex items-end gap-2">
@@ -304,10 +304,10 @@ export function StatRibbon({ items, className }: { items: StatItem[]; className?
                                 <Rhombus className="size-3" /> <Rhombus className="size-3.5" /> <Rhombus className="size-3" />
                             </span>
                         )}
-                        <CountUp value={s.value} className={cn('numeral text-[clamp(2.5rem,6vw,4.5rem)]', s.accent ? 'text-[color:var(--brand-dark)]' : 'text-brand-navy')} />
+                        <CountUp value={s.value} className={cn('numeral text-[clamp(2.5rem,6vw,4.5rem)]', s.accent ? 'text-[color:var(--brand-green-foreground)]' : 'text-brand-navy')} />
                         {s.suffix && <span className="numeral mb-2 text-[clamp(1.5rem,3vw,2.25rem)] text-brand-green">{s.suffix}</span>}
                     </div>
-                    <span className={cn('text-sm', s.accent ? 'text-[color:var(--brand-dark)]/80' : 'text-brand-gray')}>{s.label}</span>
+                    <span className={cn('text-sm', s.accent ? 'text-[color:var(--brand-green-foreground)]/80' : 'text-brand-gray')}>{s.label}</span>
                 </div>
             ))}
         </Reveal>

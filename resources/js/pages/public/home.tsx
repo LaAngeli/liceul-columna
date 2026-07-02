@@ -64,7 +64,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             </Head>
 
             {/* ───────────────────────── 00 — HERO (Funnel Blazon) ───────────────────────── */}
-            <section className="on-navy relative overflow-hidden bg-brand-navy text-[color:var(--brand-navy-foreground)]">
+            <section className="on-navy relative overflow-hidden bg-surface-navy text-[color:var(--brand-navy-foreground)]">
                 <div className="dotgrid pointer-events-none absolute inset-0 opacity-[0.12]" aria-hidden="true" />
                 <Container className="relative grid items-center gap-10 py-[clamp(3rem,7vw,6rem)] lg:grid-cols-[1.55fr_1fr]">
                     <Reveal className="flex flex-col gap-6">

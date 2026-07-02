@@ -83,11 +83,11 @@ export default function StructuraScolii() {
                                 <div
                                     aria-hidden="true"
                                     className="pointer-events-none absolute inset-0"
-                                    style={{ background: 'linear-gradient(135deg, color-mix(in oklch, var(--brand-navy) 70%, transparent) 0%, transparent 45%)' }}
+                                    style={{ background: 'linear-gradient(135deg, color-mix(in oklch, var(--surface-navy) 70%, transparent) 0%, transparent 45%)' }}
                                 />
                                 <span
                                     className="numeral absolute top-3 left-4 text-[clamp(2.25rem,4vw,3rem)] leading-none text-white sm:top-5 sm:left-6"
-                                    style={{ textShadow: '0 2px 14px color-mix(in oklch, var(--brand-navy) 75%, transparent)' }}
+                                    style={{ textShadow: '0 2px 14px color-mix(in oklch, var(--surface-navy) 75%, transparent)' }}
                                 >
                                     {s.numeral}
                                 </span>

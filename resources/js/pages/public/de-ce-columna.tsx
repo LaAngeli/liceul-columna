@@ -111,7 +111,7 @@ function ValuesConstellation({ t }: { t: Tr }) {
                             transition: 'opacity 0.7s ease, transform 0.7s ease',
                         }}
                     >
-                        <span className="grid place-items-center rounded-full bg-brand-navy p-3 ring-1 ring-white/20 shadow-[0_0_40px_-10px_rgba(155,195,30,0.35)]">
+                        <span className="grid place-items-center rounded-full bg-surface-navy p-3 ring-1 ring-white/20 shadow-[0_0_40px_-10px_rgba(155,195,30,0.35)]">
                             <img src="/images/logo/columna-crest-white.png" alt="" aria-hidden="true" className="h-20 w-auto opacity-95 lg:h-24" />
                         </span>
                     </div>
@@ -128,7 +128,7 @@ function ValuesConstellation({ t }: { t: Tr }) {
                                 onMouseEnter={() => setActive(key)}
                                 onFocus={() => setActive(key)}
                                 onClick={() => setActive(key)}
-                                className="absolute flex size-11 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--brand-navy)]"
+                                className="absolute flex size-11 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--surface-navy)]"
                                 style={{
                                     left: `${x}%`,
                                     top: `${y}%`,
@@ -154,7 +154,7 @@ function ValuesConstellation({ t }: { t: Tr }) {
                                 key={`label-${key}`}
                                 className={cn(
                                     'pointer-events-none absolute rounded-md px-2 py-0.5 text-[0.8rem] font-semibold tracking-[0.12em] whitespace-nowrap uppercase transition-colors',
-                                    isActive ? 'bg-brand-green text-[color:var(--brand-dark)]' : 'text-white/85',
+                                    isActive ? 'bg-brand-green text-[color:var(--brand-green-foreground)]' : 'text-white/85',
                                 )}
                                 style={{
                                     left: `${x}%`,
@@ -182,7 +182,7 @@ function ValuesConstellation({ t }: { t: Tr }) {
             {/* Fallback mobil / reduced-motion: emblemă + lista heraldică completă */}
             <div className="md:hidden">
                 <div className="mb-6 flex justify-center">
-                    <span className="grid place-items-center rounded-full bg-brand-navy p-2 ring-1 ring-white/20">
+                    <span className="grid place-items-center rounded-full bg-surface-navy p-2 ring-1 ring-white/20">
                         <img src="/images/logo/columna-crest-white.png" alt="" aria-hidden="true" className="h-16 w-auto opacity-90" />
                     </span>
                 </div>
@@ -228,7 +228,7 @@ export default function DeCeColumna() {
             </Head>
 
             {/* HERO — fundal: campusul aerian (g15) cu scrim navy direcțional; conținut single-column pe stânga */}
-            <section className="on-navy relative isolate overflow-hidden bg-brand-navy text-[color:var(--brand-navy-foreground)]">
+            <section className="on-navy relative isolate overflow-hidden bg-surface-navy text-[color:var(--brand-navy-foreground)]">
                 {/* Fundal — g15 transparentizat: campusul respiră în dreapta, navy domină stânga (unde stă textul) */}
                 <img
                     src="/images/galerie/general/g15.jpg"
@@ -248,14 +248,14 @@ export default function DeCeColumna() {
                     className="pointer-events-none absolute inset-0"
                     style={{
                         background:
-                            'linear-gradient(100deg, var(--brand-navy) 0%, color-mix(in oklch, var(--brand-navy) 88%, transparent) 30%, color-mix(in oklch, var(--brand-navy) 55%, transparent) 65%, color-mix(in oklch, var(--brand-navy) 30%, transparent) 100%)',
+                            'linear-gradient(100deg, var(--surface-navy) 0%, color-mix(in oklch, var(--surface-navy) 88%, transparent) 30%, color-mix(in oklch, var(--surface-navy) 55%, transparent) 65%, color-mix(in oklch, var(--surface-navy) 30%, transparent) 100%)',
                     }}
                 />
                 {/* Talpă: navy plin spre baza secțiunii (lizibilitate linie legală + tranziție curată către §01) */}
                 <div
                     aria-hidden="true"
                     className="pointer-events-none absolute inset-x-0 bottom-0 h-32"
-                    style={{ background: 'linear-gradient(to top, var(--brand-navy) 0%, transparent 100%)' }}
+                    style={{ background: 'linear-gradient(to top, var(--surface-navy) 0%, transparent 100%)' }}
                 />
                 <div className="dotgrid pointer-events-none absolute inset-0 opacity-[0.10]" aria-hidden="true" />
 
@@ -326,7 +326,7 @@ export default function DeCeColumna() {
                     <span className="hidden h-px w-12 bg-white/15 sm:block" aria-hidden="true" />
                     <p
                         className="px-2 text-center text-xs tracking-wide text-white/85"
-                        style={{ textShadow: '0 1px 3px color-mix(in oklch, var(--brand-navy) 75%, transparent)' }}
+                        style={{ textShadow: '0 1px 3px color-mix(in oklch, var(--surface-navy) 75%, transparent)' }}
                     >
                         {t('why.cta.legal', 'IPL „Liceul Columna", Chișinău · fondat 1998.')}
                     </p>
@@ -415,11 +415,11 @@ export default function DeCeColumna() {
                                 <div
                                     aria-hidden="true"
                                     className="pointer-events-none absolute inset-0"
-                                    style={{ background: 'linear-gradient(135deg, color-mix(in oklch, var(--brand-navy) 70%, transparent) 0%, transparent 45%)' }}
+                                    style={{ background: 'linear-gradient(135deg, color-mix(in oklch, var(--surface-navy) 70%, transparent) 0%, transparent 45%)' }}
                                 />
                                 <span
                                     className="numeral absolute top-3 left-4 text-[clamp(2.25rem,4.5vw,3.5rem)] leading-none text-white sm:top-5 sm:left-6"
-                                    style={{ textShadow: '0 2px 14px color-mix(in oklch, var(--brand-navy) 75%, transparent)' }}
+                                    style={{ textShadow: '0 2px 14px color-mix(in oklch, var(--surface-navy) 75%, transparent)' }}
                                 >
                                     {step.numeral}
                                 </span>
@@ -444,7 +444,7 @@ export default function DeCeColumna() {
                 <SectionHeader index="04" variant="navy" align="center" label={t('why.cambridge.eyebrow', 'Standard internațional')} title={t('why.cambridge.title', 'Engleza, la nivel recunoscut în lume')} className="mb-10" />
                 <Reveal className="mx-auto grid max-w-4xl items-center gap-8 sm:grid-cols-[auto_1fr] sm:gap-12">
                     {/* sigiliu „2019" — medalion circular */}
-                    <div className="mx-auto flex flex-col items-center justify-center rounded-full border-2 border-brand-green/45 ring-4 ring-white/5 p-6 sm:p-8" style={{ background: 'radial-gradient(circle at center, color-mix(in oklch, var(--brand-navy) 55%, transparent) 0%, transparent 70%)' }}>
+                    <div className="mx-auto flex flex-col items-center justify-center rounded-full border-2 border-brand-green/45 ring-4 ring-white/5 p-6 sm:p-8" style={{ background: 'radial-gradient(circle at center, color-mix(in oklch, var(--surface-navy) 55%, transparent) 0%, transparent 70%)' }}>
                         <FourStar className="size-5 text-brand-green" />
                         <span className="numeral mt-2 text-[clamp(2.75rem,5vw,4rem)] leading-none text-brand-green">2019</span>
                         <span className="eyebrow mt-2 block text-center text-white/80">Cambridge English</span>

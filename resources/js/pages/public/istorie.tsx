@@ -58,7 +58,7 @@ export default function Istorie() {
                                 className="absolute top-0 left-0 flex size-9 items-center justify-center rounded-full bg-brand-green ring-4 ring-brand-navy sm:size-11"
                                 aria-hidden="true"
                             >
-                                <FourStar className="size-4 text-[color:var(--brand-dark)]" />
+                                <FourStar className="size-4 text-[color:var(--brand-green-foreground)]" />
                             </span>
                             {/* eticheta: an (numeral mare verde) sau fază (eyebrow verde) */}
                             <span

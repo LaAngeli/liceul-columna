@@ -55,7 +55,7 @@ function Lightbox({ entries, index, onClose, onNav, t }: { entries: Entry[]; ind
     const btn = 'inline-flex size-11 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20';
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-brand-navy/95 p-4 backdrop-blur-sm sm:p-8" role="dialog" aria-modal="true" onClick={onClose}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-surface-navy/95 p-4 backdrop-blur-sm sm:p-8" role="dialog" aria-modal="true" onClick={onClose}>
             <button type="button" onClick={onClose} className={cn(btn, 'absolute top-4 right-4 z-10')} aria-label={t('gallery.close', 'Închide')}>
                 <X className="size-5" />
             </button>
@@ -157,7 +157,7 @@ export default function Galerie({ title, description, breadcrumbs = [], albums, 
                                             onClick={() => selectAlbum(c.key)}
                                             className={cn(
                                                 'inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors',
-                                                isActive ? 'border-brand-navy bg-brand-navy text-[color:var(--brand-navy-foreground)]' : 'keyline bg-card text-brand-navy hover:border-brand-navy',
+                                                isActive ? 'border-brand-navy bg-surface-navy text-[color:var(--brand-navy-foreground)]' : 'keyline bg-card text-brand-navy hover:border-brand-navy',
                                             )}
                                         >
                                             {c.label}

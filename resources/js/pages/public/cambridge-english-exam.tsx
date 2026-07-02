@@ -130,7 +130,7 @@ export default function CambridgeEnglishExam() {
                             )}
                         >
                             {c.featured && (
-                                <span className="absolute top-5 right-5 inline-flex items-center gap-1.5 rounded-full bg-brand-green px-2.5 py-0.5 text-[0.65rem] font-bold tracking-wide text-[color:var(--brand-dark)] uppercase">
+                                <span className="absolute top-5 right-5 inline-flex items-center gap-1.5 rounded-full bg-brand-green px-2.5 py-0.5 text-[0.65rem] font-bold tracking-wide text-[color:var(--brand-green-foreground)] uppercase">
                                     <Star className="size-3" /> Recomandat
                                 </span>
                             )}

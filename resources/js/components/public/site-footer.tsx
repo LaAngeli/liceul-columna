@@ -39,7 +39,7 @@ export function SiteFooter() {
     ] as const;
 
     return (
-        <footer className="on-navy relative mt-auto overflow-hidden bg-brand-navy text-[color:var(--brand-navy-foreground)]">
+        <footer className="on-navy relative mt-auto overflow-hidden bg-surface-navy text-[color:var(--brand-navy-foreground)]">
             {/* Watermark crest */}
             <img
                 src="/images/logo/columna-white.png"

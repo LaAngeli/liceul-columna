@@ -31,7 +31,13 @@
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
+}
 
+/* Culorile sunt mapate `inline` ca utilitarele (bg-card, bg-background…) să refere DIRECT
+   var(--token), nu o copie rezolvată pe :root. Doar așa tokenii pot fi re-declarați pe un
+   scope descendent (`.site-shell`) — mecanismul sistemului de suprafețe al site-ului public.
+   Pentru panouri (unde tokenii se schimbă doar pe :root/.dark) comportamentul e identic. */
+@theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
 
@@ -81,6 +87,7 @@
     --color-brand-navy-foreground: var(--brand-navy-foreground);
     --color-brand-dark: var(--brand-dark);
     --color-brand-gray: var(--brand-gray);
+    --color-surface-navy: var(--surface-navy);
 }
 
 :root {
@@ -128,6 +135,11 @@
     --brand-navy-foreground: oklch(0.999 0.004 106.5);
     --brand-dark: oklch(0.23 0.002 106.5);
     --brand-gray: oklch(0.517 0.002 106.5);
+
+    /* SUPRAFAȚA navy (benzi, header, footer, pastile solide) — separată de --brand-navy
+       (rol de text/accent) pentru că dark-ul le mișcă în direcții OPUSE: textul se
+       deschide ca să rămână lizibil, suprafața coboară ca să stea în registrul întunecat. */
+    --surface-navy: oklch(0.405 0.092 244.4);
 }
 
 .dark {
@@ -170,6 +182,10 @@
     --brand-navy-foreground: oklch(0.985 0.001 106.5);
     --brand-dark: oklch(0.985 0.001 106.5);
     --brand-gray: oklch(0.715 0.002 106.5);
+
+    /* DARK = „modul navy": benzile coboară SUB pagină (mai adânci decât ea), păstrând
+       raportul din light unde benzile sunt mai închise decât fundalul. */
+    --surface-navy: oklch(0.215 0.048 244.4);
 }
 
 @layer base {
@@ -352,9 +368,46 @@
 /* Container editorial */
 .site-shell .site-container {
     width: 100%;
+    /* SISTEMUL DE SUPRAFEȚE (doar site-ul public; panourile neatinse).
+       LIGHT: pagina = „gheață" navy foarte pală (aceeași FAMILIE de nuanță cu albastrul
+       de brand — nu bej!), cardurile RĂMÂN pe albul de brand → alb + albastru-pal se
+       armonizează natural, iar straturile se separă tonal, nu doar prin keyline. */
+    --background: oklch(0.9735 0.0075 235);
     max-width: var(--container);
     margin-inline: auto;
     padding-inline: 1rem;
+    /* DARK = „MODUL NAVY" al brandului — altă logică decât un dark generic:
+       (1) NU există negru: pagina însăși e albastrul Columna adânc, cardurile o treaptă
+           mai sus, benzile/footer-ul coboară SUB pagină → același ritm ca în light;
+       (2) rolul tipografic «navy» (titluri, link-uri, borduri albastre pe light)
+           devine off-white — niciun albastru deschis de text pe albastru;
+       (3) controalele active și link-urile de conținut trec pe verdele de brand
+           (pe întuneric verdele e lizibil ca text — interzis doar pe alb);
+       (4) fotografiile se sting ușor, gri-urile calde devin albăstrui-pale (aceeași
+           familie cu fundalul), harta Google se inversează. */
+    --background: oklch(0.272 0.046 244.4);
+    --card: oklch(0.322 0.05 244.4);
+    --popover: oklch(0.322 0.05 244.4);
+    --border: oklch(0.39 0.045 244.4);
+    --input: oklch(0.39 0.045 244.4);
+    --brand-navy: oklch(0.96 0.005 240);
+    --brand-gray: oklch(0.8 0.026 240);
+    --muted-foreground: oklch(0.78 0.026 240);
+    --ring: oklch(0.96 0.005 240);
+    --primary: var(--brand-green);
+    --primary-foreground: var(--brand-green-foreground);
+    --accent: oklch(0.36 0.05 244.4);
+    --accent-foreground: oklch(0.96 0.005 240);
+    --keyline: color-mix(in oklch, oklch(0.99 0.003 240) 16%, transparent);
+}
+/* Fotografiile reale (nu logo-urile) se sting ușor pe cerneală, ca să nu ardă. */
+.dark .site-shell :is(.photo-frame img, figure img, .prose-columna img) {
+    filter: brightness(0.88) saturate(0.96);
+}
+/* Harta Google (iframe extern, nestilizabil din interior) intră și ea în registrul
+   întunecat: inversare + rotire de nuanță = „dark map" cu etichete lizibile. */
+.dark .site-shell iframe[src*='google.com/maps'] {
+    filter: invert(0.92) hue-rotate(180deg) contrast(0.95);
 }
 @media (min-width: 640px) {
     .site-shell .site-container { padding-inline: 1.5rem; }
@@ -546,7 +599,7 @@
     left: 1rem;
     top: -3rem;
     z-index: 100;
-    background: var(--brand-navy);
+    background: var(--surface-navy);
     color: var(--brand-navy-foreground);
     padding: 0.5rem 0.9rem;
     border-radius: 0.5rem;

@@ -313,7 +313,7 @@ export function Stepper({ step, total = 3 }: { step: number; total?: number }) {
                         className={cn(
                             'grid size-9 shrink-0 place-items-center rounded-full border-2 text-sm font-semibold transition-colors',
                             step > n
-                                ? 'border-brand-green bg-brand-green text-[color:var(--brand-dark)]'
+                                ? 'border-brand-green bg-brand-green text-[color:var(--brand-green-foreground)]'
                                 : step === n
                                   ? 'border-brand-green bg-card text-brand-navy'
                                   : 'border-brand-navy/15 bg-card text-brand-gray',
@@ -504,7 +504,7 @@ export function VisitScheduler({
                                     disabled && 'cursor-not-allowed text-brand-gray/30',
                                     !disabled && outside && 'text-brand-gray/60 hover:bg-brand-navy/5',
                                     !disabled && !outside && !isSelected && 'text-brand-navy hover:bg-brand-navy/8',
-                                    isSelected && 'bg-brand-green font-semibold text-[color:var(--brand-dark)]',
+                                    isSelected && 'bg-brand-green font-semibold text-[color:var(--brand-green-foreground)]',
                                     isToday && !isSelected && 'ring-1 ring-brand-green/50',
                                 )}
                                 aria-label={formatLongDate(d, locale)}
@@ -542,7 +542,7 @@ export function VisitScheduler({
                                     className={cn(
                                         'numeral min-h-10 rounded-full border text-sm transition-colors',
                                         isSelected
-                                            ? 'border-brand-green bg-brand-green font-semibold text-[color:var(--brand-dark)]'
+                                            ? 'border-brand-green bg-brand-green font-semibold text-[color:var(--brand-green-foreground)]'
                                             : 'border-brand-navy/15 bg-card text-brand-navy hover:border-brand-green hover:bg-brand-green/10',
                                     )}
                                 >

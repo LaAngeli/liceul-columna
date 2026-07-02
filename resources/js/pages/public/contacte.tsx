@@ -190,7 +190,7 @@ export default function Contacte() {
                             <button
                                 type="submit"
                                 disabled={form.processing}
-                                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[12px] bg-brand-green px-6 font-semibold text-[color:var(--brand-dark)] shadow-sm transition-all hover:brightness-[1.04] active:scale-[0.99] disabled:opacity-60 sm:w-auto"
+                                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[12px] bg-brand-green px-6 font-semibold text-[color:var(--brand-green-foreground)] shadow-sm transition-all hover:brightness-[1.04] active:scale-[0.99] disabled:opacity-60 sm:w-auto"
                             >
                                 {form.processing ? t('contact.sending', 'Se trimite…') : t('contact.send', 'Trimite mesajul')}
                                 <Send className="size-4" />

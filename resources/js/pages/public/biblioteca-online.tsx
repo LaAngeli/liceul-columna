@@ -74,9 +74,9 @@ function Spine({ label, seed, glyph }: { label: string; seed: string; glyph?: bo
     const variant = hash(seed) % 3;
     const cls =
         variant === 0
-            ? 'bg-brand-navy text-white'
+            ? 'bg-surface-navy text-white'
             : variant === 1
-              ? 'bg-brand-green text-[color:var(--brand-dark)]'
+              ? 'bg-brand-green text-[color:var(--brand-green-foreground)]'
               : 'bg-brand-navy/8 text-brand-navy border keyline';
     return (
         <span className={cn('relative flex h-14 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[5px]', cls)} aria-hidden="true">
@@ -289,7 +289,7 @@ export default function BibliotecaOnline({ title, description, breadcrumbs = [],
                                     className={cn(
                                         'inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors',
                                         active
-                                            ? 'border-brand-navy bg-brand-navy text-[color:var(--brand-navy-foreground)]'
+                                            ? 'border-brand-navy bg-surface-navy text-[color:var(--brand-navy-foreground)]'
                                             : 'keyline bg-card text-brand-navy hover:border-brand-navy',
                                     )}
                                 >
@@ -359,7 +359,7 @@ export default function BibliotecaOnline({ title, description, breadcrumbs = [],
                                         onClick={() => selectLetter(null)}
                                         className={cn(
                                             'inline-flex min-h-8 items-center rounded-md px-2.5 text-sm font-semibold transition-colors',
-                                            !letter ? 'bg-brand-navy text-[color:var(--brand-navy-foreground)]' : 'text-brand-navy hover:bg-brand-navy/8',
+                                            !letter ? 'bg-surface-navy text-[color:var(--brand-navy-foreground)]' : 'text-brand-navy hover:bg-brand-navy/8',
                                         )}
                                     >
                                         {t('biblioteca.all_authors', 'Toți')}
@@ -371,7 +371,7 @@ export default function BibliotecaOnline({ title, description, breadcrumbs = [],
                                             onClick={() => selectLetter(l)}
                                             className={cn(
                                                 'inline-flex size-8 items-center justify-center rounded-md text-sm font-semibold transition-colors',
-                                                letter === l ? 'bg-brand-green text-[color:var(--brand-dark)]' : 'text-brand-navy hover:bg-brand-navy/8',
+                                                letter === l ? 'bg-brand-green text-[color:var(--brand-green-foreground)]' : 'text-brand-navy hover:bg-brand-navy/8',
                                             )}
                                             style={{ fontFamily: 'var(--font-display)' }}
                                         >

@@ -67,7 +67,7 @@ export function SiteHeader() {
     return (
         <header className="sticky top-0 z-40 w-full">
             {/* Bara utilitară (navy) */}
-            <div className="on-navy hidden border-b keyline bg-brand-navy text-[color:var(--brand-navy-foreground)] lg:block">
+            <div className="on-navy hidden border-b keyline bg-surface-navy text-[color:var(--brand-navy-foreground)] lg:block">
                 <Container className="flex items-center justify-between gap-6 py-1.5 text-[0.78rem]">
                     <nav className="flex items-center gap-5">
                         {utilityNav.map((item) => (
@@ -167,7 +167,7 @@ export function SiteHeader() {
 
             {/* Navigare mobil — overlay full-screen (navy imersiv, ca secțiunile de brand) */}
             {mobileOpen && (
-                <div className="on-navy fixed inset-0 z-50 flex flex-col bg-brand-navy text-[color:var(--brand-navy-foreground)] duration-200 animate-in fade-in-0 slide-in-from-top-3 xl:hidden">
+                <div className="on-navy fixed inset-0 z-50 flex flex-col bg-surface-navy text-[color:var(--brand-navy-foreground)] duration-200 animate-in fade-in-0 slide-in-from-top-3 xl:hidden">
                     <div className="dotgrid pointer-events-none absolute inset-0 opacity-[0.1]" aria-hidden="true" />
 
                     {/* Bara overlay: logo + închidere */}
@@ -249,7 +249,7 @@ export function SiteHeader() {
                     </nav>
 
                     {/* Subsol fix: CTA + contact + limbă/temă */}
-                    <div className="relative border-t border-white/15 bg-brand-navy/80 backdrop-blur" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                    <div className="relative border-t border-white/15 bg-surface-navy/80 backdrop-blur" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
                         <Container className="space-y-4 py-4">
                             <div className="grid grid-cols-2 gap-2">
                                 <BrandButton href={cabinetHref} variant="ghost-navy" icon={LayoutDashboard} className="w-full text-sm">

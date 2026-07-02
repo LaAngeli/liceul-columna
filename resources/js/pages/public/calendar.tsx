@@ -48,11 +48,11 @@ function ScheduleTable({ table, todayCol, todayLabel }: { table: Table; todayCol
         <div className="overflow-x-auto rounded-[12px] border keyline">
             <table className="w-full border-collapse text-sm">
                 <thead>
-                    <tr className="bg-brand-navy text-[color:var(--brand-navy-foreground)]">
+                    <tr className="bg-surface-navy text-[color:var(--brand-navy-foreground)]">
                         {table.headers.map((h, i) => (
                             <th
                                 key={i}
-                                className={cn('px-3 py-2.5 text-left font-semibold whitespace-nowrap', i === todayCol && 'bg-brand-green text-[color:var(--brand-dark)]')}
+                                className={cn('px-3 py-2.5 text-left font-semibold whitespace-nowrap', i === todayCol && 'bg-brand-green text-[color:var(--brand-green-foreground)]')}
                             >
                                 {h}
                                 {i === todayCol && <span className="ml-1.5 text-[0.65rem] font-bold tracking-wide uppercase opacity-80">· {todayLabel}</span>}
@@ -145,7 +145,7 @@ export default function Calendar({ title, description, breadcrumbs = [], schedul
                                 onClick={() => selectType(ty.key)}
                                 className={cn(
                                     'inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors',
-                                    isActive ? 'border-brand-navy bg-brand-navy text-[color:var(--brand-navy-foreground)]' : 'keyline bg-card text-brand-navy hover:border-brand-navy',
+                                    isActive ? 'border-brand-navy bg-surface-navy text-[color:var(--brand-navy-foreground)]' : 'keyline bg-card text-brand-navy hover:border-brand-navy',
                                     empty && !isActive && 'opacity-55',
                                 )}
                             >
@@ -193,7 +193,7 @@ export default function Calendar({ title, description, breadcrumbs = [], schedul
                                                     className={cn(
                                                         'inline-flex min-h-9 min-w-11 items-center justify-center rounded-md border px-2.5 text-sm font-semibold transition-colors',
                                                         classIdx === c.idx
-                                                            ? 'border-brand-green bg-brand-green text-[color:var(--brand-dark)]'
+                                                            ? 'border-brand-green bg-brand-green text-[color:var(--brand-green-foreground)]'
                                                             : 'keyline bg-card text-brand-navy hover:border-brand-navy',
                                                     )}
                                                     style={{ fontFamily: 'var(--font-display)' }}

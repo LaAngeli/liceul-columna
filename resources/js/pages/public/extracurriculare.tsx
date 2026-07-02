@@ -144,7 +144,7 @@ export default function Extracurriculare() {
 
                     {/* Direcții strategice */}
                     <Reveal as="div" className="h-full">
-                        <div className="flex h-full flex-col rounded-[18px] border keyline bg-brand-navy p-6 sm:p-8">
+                        <div className="flex h-full flex-col rounded-[18px] border keyline bg-surface-navy p-6 sm:p-8">
                             <h3 className="display text-xl text-[color:var(--brand-navy-foreground)]">{t('cpae.dir_title', 'Direcții strategice')}</h3>
                             <ol className="mt-5 space-y-4">
                                 {DIRECTIONS.map((k, i) => (
@@ -192,14 +192,14 @@ export default function Extracurriculare() {
                     <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
                         <LocaleLink
                             href="/orarul-cpae"
-                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-brand-navy px-6 text-sm font-semibold text-[color:var(--brand-navy-foreground)] transition-colors hover:bg-brand-navy/90"
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-surface-navy px-6 text-sm font-semibold text-[color:var(--brand-navy-foreground)] transition-colors hover:bg-surface-navy/90"
                         >
                             <CalendarClock className="size-4 text-brand-green" />
                             {t('cpae.cta_primary', 'Vezi orarul CPAE')}
                         </LocaleLink>
                         <LocaleLink
                             href="/contacte"
-                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border keyline bg-card px-6 text-sm font-semibold text-brand-navy transition-colors hover:bg-brand-navy hover:text-[color:var(--brand-navy-foreground)]"
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border keyline bg-card px-6 text-sm font-semibold text-brand-navy transition-colors hover:bg-surface-navy hover:text-[color:var(--brand-navy-foreground)]"
                         >
                             {t('cpae.cta_secondary', 'Contactează-ne')}
                             <ArrowRight className="size-4 text-brand-green" />

@@ -46,7 +46,7 @@ export default function ArticolShow({ post, related = [] }: { post: PostShow; re
                         </span>
                         <LocaleLink
                             href={post.categoryUrl}
-                            className="inline-flex items-center rounded-full bg-brand-navy/8 px-3 py-1 text-xs font-semibold text-brand-navy transition-colors hover:bg-brand-navy hover:text-[color:var(--brand-navy-foreground)]"
+                            className="inline-flex items-center rounded-full bg-brand-navy/8 px-3 py-1 text-xs font-semibold text-brand-navy transition-colors hover:bg-surface-navy hover:text-[color:var(--brand-navy-foreground)]"
                         >
                             {categoryLabel}
                         </LocaleLink>

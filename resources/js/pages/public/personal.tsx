@@ -58,7 +58,7 @@ export default function Personal({ groups }: { groups: Group[] }) {
             <PageBanner title={staffTitle} breadcrumbs={[{ title: staffTitle }]} description={t('staff.description')} />
 
             {/* Jump-nav — sari direct la un grup (bandă navy) */}
-            <nav className="on-navy border-y border-white/10 bg-brand-navy text-[color:var(--brand-navy-foreground)]" aria-label={t('staff.jump_label', 'Sari la:')}>
+            <nav className="on-navy border-y border-white/10 bg-surface-navy text-[color:var(--brand-navy-foreground)]" aria-label={t('staff.jump_label', 'Sari la:')}>
                 <Container className="flex flex-wrap items-center gap-x-2 gap-y-2 py-3">
                     <span className="eyebrow mr-1 hidden text-white/70 sm:inline">{t('staff.jump_label', 'Sari la:')}</span>
                     {groups.map((group, gi) => (

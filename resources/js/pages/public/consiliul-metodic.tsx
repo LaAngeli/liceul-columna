@@ -33,7 +33,7 @@ function FnBadge({ t, fn, className }: { t: Tr; fn: string; className?: string }
         <span
             className={cn(
                 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase',
-                lead ? 'bg-brand-green text-[color:var(--brand-dark)]' : 'bg-brand-navy/8 text-brand-navy',
+                lead ? 'bg-brand-green text-[color:var(--brand-green-foreground)]' : 'bg-brand-navy/8 text-brand-navy',
                 className,
             )}
         >
@@ -168,7 +168,7 @@ export default function ConsiliulMetodic() {
                         <LocaleLink
                             key={r.href}
                             href={r.href}
-                            className="group inline-flex min-h-9 items-center gap-1.5 rounded-full border keyline bg-card px-3.5 text-sm font-semibold text-brand-navy transition-colors hover:bg-brand-navy hover:text-[color:var(--brand-navy-foreground)]"
+                            className="group inline-flex min-h-9 items-center gap-1.5 rounded-full border keyline bg-card px-3.5 text-sm font-semibold text-brand-navy transition-colors hover:bg-surface-navy hover:text-[color:var(--brand-navy-foreground)]"
                         >
                             {t(r.labelKey)}
                             <ArrowRight className="size-3.5 text-brand-green transition-transform group-hover:translate-x-0.5" />

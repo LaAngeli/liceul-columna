@@ -99,7 +99,7 @@ export default function ArticoleIndex({ pageTitle, category, posts }: { pageTitl
                                         <h2 className="display text-[clamp(1.5rem,3vw,2.25rem)] text-brand-navy">{featured.title}</h2>
                                         {featured.date && <span className="text-sm text-brand-gray">{featured.date}</span>}
                                         {featured.excerpt && <p className="line-clamp-3 leading-relaxed text-brand-gray">{featured.excerpt}</p>}
-                                        <span className="mt-2 inline-flex w-fit items-center gap-2 rounded-[12px] bg-brand-green px-5 py-2.5 font-semibold text-[color:var(--brand-dark)] shadow-sm transition-all group-hover:brightness-[1.04]">
+                                        <span className="mt-2 inline-flex w-fit items-center gap-2 rounded-[12px] bg-brand-green px-5 py-2.5 font-semibold text-[color:var(--brand-green-foreground)] shadow-sm transition-all group-hover:brightness-[1.04]">
                                             {t('article.read_article', 'Citește articolul')} <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                                         </span>
                                     </div>
@@ -151,7 +151,7 @@ export default function ArticoleIndex({ pageTitle, category, posts }: { pageTitl
                                                 }}
                                                 className={cn(
                                                     'inline-flex min-h-9 items-center rounded-full border px-3.5 text-sm font-semibold transition-colors',
-                                                    active ? 'border-brand-navy bg-brand-navy text-[color:var(--brand-navy-foreground)]' : 'keyline bg-card text-brand-navy hover:border-brand-navy',
+                                                    active ? 'border-brand-navy bg-surface-navy text-[color:var(--brand-navy-foreground)]' : 'keyline bg-card text-brand-navy hover:border-brand-navy',
                                                 )}
                                             >
                                                 {y === 'all' ? t('article.all_years', 'Toți anii') : <span className="numeral">{y}</span>}
@@ -189,7 +189,7 @@ export default function ArticoleIndex({ pageTitle, category, posts }: { pageTitl
                                 <button
                                     type="button"
                                     onClick={() => setLimit((l) => l + PAGE)}
-                                    className="inline-flex min-h-11 items-center gap-2 rounded-[12px] border border-brand-navy px-6 font-semibold text-brand-navy transition-colors hover:bg-brand-navy hover:text-[color:var(--brand-navy-foreground)]"
+                                    className="inline-flex min-h-11 items-center gap-2 rounded-[12px] border border-brand-navy px-6 font-semibold text-brand-navy transition-colors hover:bg-surface-navy hover:text-[color:var(--brand-navy-foreground)]"
                                 >
                                     {t('article.load_more', 'Arată mai multe')}
                                     <span className="numeral text-sm opacity-70">
