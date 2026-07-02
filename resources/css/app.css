@@ -93,8 +93,10 @@
 :root {
     /* Brand „Liceul Columna" — sursă: brandbook (LOGO & CULORI / LOGO SET CULORI).
        navy #0f4d77 (primar) · verde #9bc31e (accent) · negru #1d1d1c · gri #686867 ·
-       alb #fffffc · warm-dark #2e2d2c. Valori convertite în oklch. */
-    --background: oklch(0.999 0.004 106.5);
+       alb #fffffc · warm-dark #2e2d2c. Valori convertite în oklch.
+       LIGHT global (site + dashboards + auth) = „gheață & coli albe": pagina e o
+       gheață navy-pală din familia brandului, cardurile rămân pe albul de brand. */
+    --background: oklch(0.9735 0.0075 235);
     --foreground: oklch(0.23 0.002 106.5);
     --card: oklch(0.999 0.004 106.5);
     --card-foreground: oklch(0.23 0.002 106.5);
@@ -104,7 +106,7 @@
     --primary-foreground: oklch(0.999 0.004 106.5);
     --secondary: oklch(0.965 0.006 244.4);
     --secondary-foreground: oklch(0.405 0.092 244.4);
-    --muted: oklch(0.967 0.001 106.5);
+    --muted: oklch(0.955 0.009 235);
     --muted-foreground: oklch(0.517 0.002 106.5);
     --accent: oklch(0.955 0.013 232);
     --accent-foreground: oklch(0.405 0.092 244.4);
@@ -143,38 +145,42 @@
 }
 
 .dark {
-    --background: oklch(0.205 0.002 106.5);
+    /* DARK global (dashboards + auth; site-ul public își rafinează scopul propriu
+       sub `.dark .site-shell`) = „MODUL NAVY": nu există negru — pagina e albastrul
+       Columna adânc, colile o treaptă mai sus, sidebar-ul coboară SUB pagină (rolul
+       „benzii"), activele trec pe verdele de brand, gri-urile devin albăstrui-pale. */
+    --background: oklch(0.272 0.046 244.4);
     --foreground: oklch(0.985 0.001 106.5);
-    --card: oklch(0.27 0.002 106.5);
+    --card: oklch(0.322 0.05 244.4);
     --card-foreground: oklch(0.985 0.001 106.5);
-    --popover: oklch(0.27 0.002 106.5);
+    --popover: oklch(0.322 0.05 244.4);
     --popover-foreground: oklch(0.985 0.001 106.5);
-    --primary: oklch(0.52 0.11 244.4);
-    --primary-foreground: oklch(0.985 0.001 106.5);
-    --secondary: oklch(0.3 0.003 106.5);
+    --primary: oklch(0.761 0.18 123.6);
+    --primary-foreground: oklch(0.23 0.002 106.5);
+    --secondary: oklch(0.35 0.045 244.4);
     --secondary-foreground: oklch(0.985 0.001 106.5);
-    --muted: oklch(0.3 0.003 106.5);
-    --muted-foreground: oklch(0.715 0.002 106.5);
-    --accent: oklch(0.33 0.02 240);
+    --muted: oklch(0.34 0.045 244.4);
+    --muted-foreground: oklch(0.78 0.026 240);
+    --accent: oklch(0.36 0.05 244.4);
     --accent-foreground: oklch(0.985 0.001 106.5);
     --destructive: oklch(0.396 0.141 25.723);
     --destructive-foreground: oklch(0.985 0.001 106.5);
-    --border: oklch(0.315 0.004 240);
-    --input: oklch(0.33 0.004 240);
-    --ring: oklch(0.6 0.105 244.4);
-    --chart-1: oklch(0.6 0.105 244.4);
+    --border: oklch(0.39 0.045 244.4);
+    --input: oklch(0.39 0.045 244.4);
+    --ring: oklch(0.96 0.005 240);
+    --chart-1: oklch(0.72 0.11 244.4);
     --chart-2: oklch(0.761 0.18 123.6);
-    --chart-3: oklch(0.715 0.002 106.5);
-    --chart-4: oklch(0.5 0.1 244.4);
+    --chart-3: oklch(0.8 0.026 240);
+    --chart-4: oklch(0.55 0.09 244.4);
     --chart-5: oklch(0.83 0.15 123.6);
-    --sidebar: oklch(0.23 0.002 106.5);
+    --sidebar: oklch(0.215 0.048 244.4);
     --sidebar-foreground: oklch(0.985 0.001 106.5);
-    --sidebar-primary: oklch(0.52 0.11 244.4);
-    --sidebar-primary-foreground: oklch(0.985 0.001 106.5);
-    --sidebar-accent: oklch(0.3 0.003 106.5);
+    --sidebar-primary: oklch(0.761 0.18 123.6);
+    --sidebar-primary-foreground: oklch(0.23 0.002 106.5);
+    --sidebar-accent: oklch(0.28 0.05 244.4);
     --sidebar-accent-foreground: oklch(0.985 0.001 106.5);
-    --sidebar-border: oklch(0.315 0.004 240);
-    --sidebar-ring: oklch(0.6 0.105 244.4);
+    --sidebar-border: oklch(0.31 0.05 244.4);
+    --sidebar-ring: oklch(0.96 0.005 240);
 
     --brand-green: oklch(0.761 0.18 123.6);
     --brand-green-foreground: oklch(0.23 0.002 106.5);
@@ -360,22 +366,14 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-synthesis: none;
-}
-.dark .site-shell {
-    color: var(--foreground);
-}
-
-/* Container editorial */
-.site-shell .site-container {
-    width: 100%;
     /* SISTEMUL DE SUPRAFEȚE (doar site-ul public; panourile neatinse).
        LIGHT: pagina = „gheață" navy foarte pală (aceeași FAMILIE de nuanță cu albastrul
        de brand — nu bej!), cardurile RĂMÂN pe albul de brand → alb + albastru-pal se
        armonizează natural, iar straturile se separă tonal, nu doar prin keyline. */
     --background: oklch(0.9735 0.0075 235);
-    max-width: var(--container);
-    margin-inline: auto;
-    padding-inline: 1rem;
+}
+.dark .site-shell {
+    color: var(--foreground);
     /* DARK = „MODUL NAVY" al brandului — altă logică decât un dark generic:
        (1) NU există negru: pagina însăși e albastrul Columna adânc, cardurile o treaptă
            mai sus, benzile/footer-ul coboară SUB pagină → același ritm ca în light;
@@ -417,6 +415,14 @@
 .site-shell .display {
     font-family: var(--font-display);
     font-weight: 800;
+
+/* Container editorial */
+.site-shell .site-container {
+    width: 100%;
+    max-width: var(--container);
+    margin-inline: auto;
+    padding-inline: 1rem;
+}
     line-height: 1.02;
     letter-spacing: -0.01em;
     text-wrap: balance;

@@ -67,6 +67,33 @@
 }
 
 /* ============================================================================
+   SISTEMUL LIGHT/DARK „gheață & modul navy" — același ca pe site-ul public.
+   Panoul își construiește TOATE suprafețele/neutrele din scala `--gray-*`
+   (body = gray-50/950, coli = white/gray-900, borduri = gray-800…), deci logica
+   se aplică integral prin remaparea scalei; `html:root` / `:root.dark` bat ca
+   specificitate variabilele injectate de Filament pe `:root`.
+   LIGHT: pagina = „gheață" navy-pală (familia albastrului de brand), colile albe.
+   DARK: nu există negru — scala neutră devine albastrul Columna (pagina adâncă,
+   colile o treaptă mai sus); primary-ul navy al panoului rămâne, tone-on-tone.
+   ============================================================================ */
+html:root {
+    --gray-50: oklch(0.9735 0.0075 235);
+}
+html:root.dark {
+    --gray-50: oklch(0.985 0.002 240);
+    --gray-100: oklch(0.93 0.01 240);
+    --gray-200: oklch(0.87 0.016 240);
+    --gray-300: oklch(0.8 0.026 240);
+    --gray-400: oklch(0.72 0.035 242);
+    --gray-500: oklch(0.62 0.04 243);
+    --gray-600: oklch(0.52 0.045 244);
+    --gray-700: oklch(0.45 0.048 244.4);
+    --gray-800: oklch(0.39 0.045 244.4);
+    --gray-900: oklch(0.322 0.05 244.4);
+    --gray-950: oklch(0.272 0.046 244.4);
+}
+
+/* ============================================================================
    Pagina Calendar (modul Calendar) — sistem vizual + accesibilitate.
    Mutat din stiluri INLINE în temă: Filament nu scanează `resources/views` pentru
    clase Tailwind, dar CLASELE CSS dintr-o temă COMPILATĂ funcționează — inclusiv
@@ -85,12 +112,14 @@
     --cal-focus: #0f4d77;
 }
 .dark .cal {
-    --cal-border: rgba(255, 255, 255, 0.12);
-    --cal-surface: rgba(255, 255, 255, 0.04);
+    --cal-border: rgba(255, 255, 255, 0.14);
+    --cal-surface: rgba(255, 255, 255, 0.05);
     --cal-empty: rgba(255, 255, 255, 0.04);
-    --cal-modal-bg: #1a1d21;
-    --cal-modal-fg: #e5e7eb;
-    --cal-focus: #7fb1d6;
+    /* Modul navy: modalul e o „coală" din aceeași cerneală, focusul = verdele de brand
+       (albastru-deschis pe navy = interzis de sistem). */
+    --cal-modal-bg: oklch(0.322 0.05 244.4);
+    --cal-modal-fg: oklch(0.93 0.01 240);
+    --cal-focus: #9bc31e;
 }
 
 /* Paleta categoriilor: --cal-dot (punct), --cal-bg (fundal chip/pastilă),
