@@ -52,4 +52,10 @@ class Subject extends Model
     {
         return $this->hasMany(Grade::class);
     }
+
+    /** @return HasMany<SummativeDesignation, $this> */
+    public function summativeDesignations(): HasMany
+    {
+        return $this->hasMany(SummativeDesignation::class);
+    }
 }

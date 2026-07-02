@@ -69,6 +69,12 @@ class SchoolClass extends Model
         return $this->hasMany(Grade::class);
     }
 
+    /** @return HasMany<SummativeDesignation, $this> */
+    public function summativeDesignations(): HasMany
+    {
+        return $this->hasMany(SummativeDesignation::class);
+    }
+
     /**
      * Orarul „lecții" publicabil al clasei (legat prin canonizare). Permite cabinetului să refere
      * orarul public al clasei elevului fără a depinde de eticheta-text.
