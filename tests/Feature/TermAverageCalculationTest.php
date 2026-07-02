@@ -143,3 +143,46 @@ it('nota anulată nu contează la medie', function () {
 
     expect(termAvg($ctx))->toBe(10.0); // doar nota activă contează
 });
+
+it('mai multe sumative → media lor (nu doar prima)', function () {
+    $ctx = avgSetup(7);
+    addGrade($ctx, 8);
+    addGrade($ctx, 10); // MC = 9
+    addGrade($ctx, 6, EvaluationType::Teza);
+    addGrade($ctx, 8, EvaluationType::Teza); // sumativă = (6+8)/2 = 7 → MS = (9+7)/2 = 8
+
+    expect(termAvg($ctx))->toBe(8.0);
+});
+
+it('persistă componentele MC și sumativă alături de MS', function () {
+    $ctx = avgSetup(7);
+    addGrade($ctx, 8);
+    addGrade($ctx, 10); // MC = 9
+    addGrade($ctx, 7, EvaluationType::Teza); // sumativă = 7 → MS = 8
+
+    $row = TermAverage::query()
+        ->where('student_id', $ctx['student']->id)
+        ->where('subject_id', $ctx['subject']->id)
+        ->where('term_id', $ctx['term']->id)
+        ->first();
+
+    expect((float) $row->mc_value)->toBe(9.0)
+        ->and((float) $row->summative_value)->toBe(7.0)
+        ->and((float) $row->value)->toBe(8.0);
+});
+
+it('primar nu are sumativă — o teză aberantă nu se stochează ca sumativă', function () {
+    $ctx = avgSetup(3);
+    addGrade($ctx, 9);
+    addGrade($ctx, 8); // MC = 8.5
+    addGrade($ctx, 4, EvaluationType::Teza); // la primar: ignorată (nici în MC, nici sumativă)
+
+    $row = TermAverage::query()
+        ->where('student_id', $ctx['student']->id)
+        ->where('subject_id', $ctx['subject']->id)
+        ->where('term_id', $ctx['term']->id)
+        ->first();
+
+    expect((float) $row->value)->toBe(8.5)
+        ->and($row->summative_value)->toBeNull();
+});

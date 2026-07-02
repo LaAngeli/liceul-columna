@@ -65,3 +65,22 @@ it('e idempotent — rerularea nu dublează intrările', function () {
 
     expect(CorigentaExam::query()->where('student_id', $student->id)->count())->toBe(1);
 });
+
+it('generează corigență și când o componentă (sumativă) < 5, deși MS ≥ 5', function () {
+    $student = Student::factory()->create();
+    $term = Term::factory()->create(['number' => 2]);
+    $math = Subject::factory()->create();
+
+    TermAverage::factory()->create([
+        'student_id' => $student->id,
+        'term_id' => $term->id,
+        'subject_id' => $math->id,
+        'value' => 5,
+        'mc_value' => 8,
+        'summative_value' => 3,
+    ]);
+
+    $created = app(GenerateCorigentaExams::class)->forStudentTerm($student, $term);
+
+    expect($created)->toBe(1);
+});

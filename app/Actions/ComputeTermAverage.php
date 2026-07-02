@@ -7,12 +7,14 @@ use App\Enums\SchoolCycle;
 use App\Models\Grade;
 use App\Models\SchoolClass;
 use App\Models\TermAverage;
+use App\Support\Grades;
 
 /**
- * Calculează media semestrială (MS) pentru (elev, disciplină, semestru) după regulile
- * pe cicluri (§2.4): gimnaziu/liceu cu teză → MS=(MC+teză)/2; altfel MS=MC. Sutimi,
- * FĂRĂ rotunjire (trunchiere). Persistă rezultatul în `term_averages` (cache).
- * MC = media aritmetică a notelor CURENTE (curentă + ESI); teza e ponderată separat 50%.
+ * Calculează media semestrială (MS) pentru (elev, disciplină, semestru) după regulile pe cicluri
+ * (§1.3): gimnaziu/liceu cu sumativă → MS = MC·(1−pondere) + sumativă·pondere (pondere din tip_nota,
+ * 0,50 → (MC+sumativă)/2); primar → MS = MC. Sutimi, FĂRĂ rotunjire (trunchiere). Persistă MS și
+ * componentele (MC, sumativă) în `term_averages` (cache). MC = media notelor curente (curentă + ESI);
+ * sumativa (ESS/teză) e media notelor sumative semestriale, ponderată separat.
  */
 class ComputeTermAverage
 {
@@ -39,15 +41,22 @@ class ComputeTermAverage
         $schoolClassId = (int) $grades->first()->school_class_id;
         $gradeLevel = (int) (SchoolClass::query()->whereKey($schoolClassId)->value('grade_level') ?? 0);
 
+        $cycle = SchoolCycle::fromGradeLevel($gradeLevel);
+
         $current = $grades->filter(fn (Grade $g): bool => $g->evaluation_type->countsAsCurrent());
-        $tezaGrade = $grades->first(fn (Grade $g): bool => $g->evaluation_type === EvaluationType::Teza);
+        $weighted = $grades->filter(fn (Grade $g): bool => $g->evaluation_type->isWeighted());
 
         $mc = $current->isNotEmpty()
-            ? (float) $current->avg(fn (Grade $g): float => (float) $g->value)
+            ? Grades::truncate2((float) $current->avg(fn (Grade $g): float => (float) $g->value))
             : null;
-        $teza = $tezaGrade !== null ? (float) $tezaGrade->value : null;
 
-        $ms = $this->semesterAverage(SchoolCycle::fromGradeLevel($gradeLevel), $mc, $teza);
+        // Sumativa semestrială (ESS/teză) există doar la gimnaziu/liceu; primarul nu are sumativă.
+        // Mai multe sumative → media lor (nu se pierde nici una, spre deosebire de „prima teză").
+        $summative = ($cycle !== SchoolCycle::Primar && $weighted->isNotEmpty())
+            ? Grades::truncate2((float) $weighted->avg(fn (Grade $g): float => (float) $g->value))
+            : null;
+
+        $ms = $this->semesterAverage($cycle, $mc, $summative);
 
         if ($ms === null) {
             return null;
@@ -55,36 +64,33 @@ class ComputeTermAverage
 
         return TermAverage::updateOrCreate(
             ['student_id' => $studentId, 'subject_id' => $subjectId, 'term_id' => $termId],
-            ['school_class_id' => $schoolClassId, 'value' => $ms],
+            [
+                'school_class_id' => $schoolClassId,
+                'value' => $ms,
+                'mc_value' => $mc,
+                'summative_value' => $summative,
+            ],
         );
     }
 
     /**
-     * Primar: MS = MC (media notelor curente). Gimnaziu/Liceu: teza ponderată 50%.
+     * Primar: MS = MC (fără sumativă). Gimnaziu/Liceu: MS = MC·(1−pondere) + sumativă·pondere
+     * (pondere din tip_nota, 0,50 → (MC+sumativă)/2), când există ambele; altfel componenta
+     * prezentă. Pragul „ambele ≥ 5" e aplicat la statut (TermAverage::isFailing), nu aici.
+     * MC și sumativa vin deja trunchiate la sutimi.
      */
-    private function semesterAverage(SchoolCycle $cycle, ?float $mc, ?float $teza): ?float
+    private function semesterAverage(SchoolCycle $cycle, ?float $mc, ?float $summative): ?float
     {
         if ($cycle === SchoolCycle::Primar) {
-            return $mc !== null ? $this->truncate2($mc) : null;
+            return $mc;
         }
 
-        if ($mc !== null && $teza !== null) {
-            return $this->truncate2(($mc + $teza) / 2);
+        if ($mc !== null && $summative !== null) {
+            $weight = EvaluationType::Teza->weight() ?? 0.5;
+
+            return Grades::truncate2($mc * (1 - $weight) + $summative * $weight);
         }
 
-        if ($teza !== null) {
-            return $this->truncate2($teza);
-        }
-
-        return $mc !== null ? $this->truncate2($mc) : null;
-    }
-
-    /**
-     * Trunchiere la 2 zecimale, fără rotunjire (8,567 → 8,56). Epsilonul compensează
-     * eroarea de reprezentare în virgulă mobilă, fără a afecta granularitatea notelor.
-     */
-    private function truncate2(float $value): float
-    {
-        return floor(($value + 1e-9) * 100) / 100;
+        return $summative ?? $mc;
     }
 }

@@ -4,6 +4,7 @@ use App\Enums\CalendarCategory;
 use App\Enums\EvaluationType;
 use App\Enums\RequestStatus;
 use App\Enums\ScheduleType;
+use App\Enums\SchoolCycle;
 use App\Enums\Sex;
 use App\Enums\StudentStatus;
 use App\Enums\UserRole;
@@ -17,7 +18,7 @@ it('eticheta enum în RO rămâne neschimbată (istoric)', function () {
 
     expect(RequestStatus::Pending->getLabel())->toBe('În așteptare')
         ->and(StudentStatus::Corigent->label())->toBe('Corigent')
-        ->and(EvaluationType::Teza->getLabel())->toBe('Teză (ESS)')
+        ->and(EvaluationType::Teza->getLabel())->toBe('Teză')
         ->and(Sex::from('f')->getLabel())->toBe('Feminin')
         ->and(CalendarCategory::Homework->getLabel())->toBe('Teme');
 });
@@ -27,7 +28,7 @@ it('eticheta enum se traduce în RU', function () {
 
     expect(RequestStatus::Pending->getLabel())->toBe('В ожидании')
         ->and(StudentStatus::Corigent->label())->toBe('На переэкзаменовке')
-        ->and(EvaluationType::Teza->getLabel())->toBe('Контрольная (СОС)')
+        ->and(EvaluationType::Teza->getLabel())->toBe('Контрольная')
         ->and(ScheduleType::cases()[0]->getLabel())->toBe('Расписание уроков');
 });
 
@@ -36,8 +37,18 @@ it('eticheta enum se traduce în EN', function () {
 
     expect(RequestStatus::Pending->getLabel())->toBe('Pending')
         ->and(StudentStatus::Corigent->label())->toBe('Make-up exam')
-        ->and(EvaluationType::Teza->getLabel())->toBe('Term paper (ESS)')
+        ->and(EvaluationType::Teza->getLabel())->toBe('Term paper')
         ->and(CalendarCategory::Homework->getLabel())->toBe('Homework');
+});
+
+it('eticheta sumativei semestriale diferă pe ciclu (ESS gimnaziu / teză liceu)', function () {
+    app()->setLocale('ro');
+
+    expect(EvaluationType::Teza->labelForCycle(SchoolCycle::Gimnaziu))->toBe('ESS (sumativă semestrială)')
+        ->and(EvaluationType::Teza->labelForCycle(SchoolCycle::Liceu))->toBe('Teză')
+        ->and(EvaluationType::Teza->labelForCycle(SchoolCycle::Primar))->toBe('Teză')
+        ->and(EvaluationType::Teza->labelForCycle(null))->toBe('Teză')
+        ->and(EvaluationType::Curenta->labelForCycle(SchoolCycle::Gimnaziu))->toBe('Curentă');
 });
 
 it('UserRole reutilizează dicționarul site.roles (RO/RU/EN)', function () {

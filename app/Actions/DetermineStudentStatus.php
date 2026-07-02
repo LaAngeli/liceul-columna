@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Enums\StudentStatus;
 use App\Models\TermAverage;
+use App\Support\Grades;
 
 /**
  * Determină statutul PRELIMINAR al elevului pentru un semestru, din mediile calculate (§2.5):
@@ -12,8 +13,6 @@ use App\Models\TermAverage;
  */
 class DetermineStudentStatus
 {
-    private const PASS = 5.0;
-
     /**
      * @return array{status: StudentStatus|null, failingSubjects: array<int, string>, average: float|null}
      */
@@ -30,7 +29,7 @@ class DetermineStudentStatus
         }
 
         $failingSubjects = $averages
-            ->filter(fn (TermAverage $average): bool => (float) $average->value < self::PASS)
+            ->filter(fn (TermAverage $average): bool => $average->isFailing())
             ->map(fn (TermAverage $average): string => $average->subject->name)
             ->values()
             ->all();
@@ -38,7 +37,7 @@ class DetermineStudentStatus
         return [
             'status' => $failingSubjects !== [] ? StudentStatus::Corigent : StudentStatus::Promovat,
             'failingSubjects' => $failingSubjects,
-            'average' => round($averages->avg(fn (TermAverage $average): float => (float) $average->value), 2),
+            'average' => Grades::truncate2((float) $averages->avg(fn (TermAverage $average): float => (float) $average->value)),
         ];
     }
 }

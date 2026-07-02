@@ -15,8 +15,6 @@ use App\Models\TermAverage;
  */
 class GenerateCorigentaExams
 {
-    private const PASS = 5.0;
-
     public function forStudentTerm(Student $student, Term $term): int
     {
         $season = $term->number === 1 ? CorigentaSeason::Iarna : CorigentaSeason::Vara;
@@ -25,7 +23,7 @@ class GenerateCorigentaExams
             ->where('student_id', $student->id)
             ->where('term_id', $term->id)
             ->get()
-            ->filter(fn (TermAverage $average): bool => (float) $average->value < self::PASS);
+            ->filter(fn (TermAverage $average): bool => $average->isFailing());
 
         $created = 0;
 

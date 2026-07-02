@@ -47,7 +47,8 @@ return [
     'evaluation_type' => [
         'curenta' => 'Current',
         'esi' => 'ISA (intra-semester summative)',
-        'teza' => 'Term paper (ESS)',
+        'teza' => 'Term paper',
+        'ess' => 'ESS (semester summative)',
     ],
     'sex' => [
         'f' => 'Female',

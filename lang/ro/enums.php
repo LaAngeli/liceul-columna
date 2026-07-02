@@ -50,7 +50,8 @@ return [
     'evaluation_type' => [
         'curenta' => 'Curentă',
         'esi' => 'ESI (sumativă intrasemestrială)',
-        'teza' => 'Teză (ESS)',
+        'teza' => 'Teză',
+        'ess' => 'ESS (sumativă semestrială)',
     ],
     'sex' => [
         'f' => 'Feminin',

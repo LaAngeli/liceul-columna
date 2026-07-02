@@ -46,3 +46,40 @@ it('nedeterminabil (null) când nu există medii', function () {
     expect($result['status'])->toBeNull()
         ->and($result['average'])->toBeNull();
 });
+
+it('prag pe componente: sumativă < 5 → corigent chiar dacă MS ≥ 5', function () {
+    $student = Student::factory()->create();
+    $term = Term::factory()->create();
+    $math = Subject::factory()->create(['name' => 'Matematică']);
+
+    // MC = 7, sumativă = 3 → MS = 5,00; dar sumativa < 5 ⇒ nu se compensează, elevul e restant.
+    TermAverage::factory()->create([
+        'student_id' => $student->id,
+        'subject_id' => $math->id,
+        'term_id' => $term->id,
+        'value' => 5,
+        'mc_value' => 7,
+        'summative_value' => 3,
+    ]);
+
+    $result = statusFor($student, $term);
+
+    expect($result['status'])->toBe(StudentStatus::Corigent)
+        ->and($result['failingSubjects'])->toBe(['Matematică']);
+});
+
+it('prag pe componente: ambele componente ≥ 5 → promovat', function () {
+    $student = Student::factory()->create();
+    $term = Term::factory()->create();
+
+    TermAverage::factory()->create([
+        'student_id' => $student->id,
+        'subject_id' => Subject::factory()->create()->id,
+        'term_id' => $term->id,
+        'value' => 6,
+        'mc_value' => 7,
+        'summative_value' => 5,
+    ]);
+
+    expect(statusFor($student, $term)['status'])->toBe(StudentStatus::Promovat);
+});
