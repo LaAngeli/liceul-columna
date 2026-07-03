@@ -12,7 +12,11 @@ export const meta = {
 // Împarte un array în bucăți de dimensiune n (pentru a limita concurența → rezilient la rate-limit).
 function chunk(arr, n) {
   const out = []
-  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n))
+
+  for (let i = 0; i < arr.length; i += n) {
+out.push(arr.slice(i, i + n))
+}
+
   return out
 }
 
@@ -141,6 +145,7 @@ const DIMENSIONS = [
 
 phase('Analiză')
 const finderResults = []
+
 for (const group of chunk(DIMENSIONS, 3)) {
   const batch = await parallel(
     group.map((d) => () =>
@@ -161,6 +166,7 @@ for (const group of chunk(DIMENSIONS, 3)) {
 phase('Verificare')
 const flatFindings = finderResults.flatMap((fr) => (fr.findings || []).map((f) => ({ ...f, dimension: fr.dimension })))
 const verified = []
+
 for (const group of chunk(flatFindings, 4)) {
   const batch = await parallel(
     group.map((f) => () =>
