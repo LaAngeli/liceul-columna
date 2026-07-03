@@ -46,14 +46,16 @@ final class Locale
     }
 
     /**
-     * Prefixează o cale publică cu limba ACTIVĂ (ro = la root, ru/en cu prefix) —
-     * pentru redirecturi care trebuie să păstreze limba (ex. după trimiterea unui formular).
+     * Prefixează o cale publică cu limba ACTIVĂ (ro = la root, ru/en cu prefix) și traduce
+     * slug-ul (vezi RouteSlugs) — pentru redirecturi care trebuie să păstreze limba
+     * (ex. după trimiterea unui formular). `$path` e mereu calea canonică RO.
      */
     public static function path(string $path): string
     {
         $locale = app()->getLocale();
         $prefix = $locale === self::default() ? '' : "/{$locale}";
+        $translated = RouteSlugs::translatePath('/'.ltrim($path, '/'), $locale);
 
-        return $prefix.'/'.ltrim($path, '/');
+        return $prefix.$translated;
     }
 }

@@ -68,9 +68,9 @@ export default function ConsiliulMetodic() {
                     <FourStar className="size-3 text-brand-green" />
                 </Reveal>
                 <Reveal className="mx-auto mt-6 max-w-2xl space-y-5">
-                    <p className="text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-white/85">{t('council.intro_p1')}</p>
-                    <p className="text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-white/85">{t('council.intro_p2')}</p>
-                    <p className="text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-white/85">{t('council.intro_p3')}</p>
+                    <p className="text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-white/85">{t('council.intro_p1')}</p>
+                    <p className="text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-white/85">{t('council.intro_p2')}</p>
+                    <p className="text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-white/85">{t('council.intro_p3')}</p>
                 </Reveal>
                 <Reveal className="mt-8 flex justify-center">
                     <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/[0.05] px-4 py-2 text-sm text-white/85">
@@ -130,7 +130,7 @@ export default function ConsiliulMetodic() {
                                     />
                                 </span>
                                 <FnBadge t={t} fn={m.fn} className="mt-4" />
-                                <span className="display mt-2 text-[1.0625rem] leading-tight text-brand-navy">{m.name}</span>
+                                <span className="display mt-2 text-[1.125rem] leading-tight text-brand-navy">{m.name}</span>
                                 <span className="mt-1 text-sm leading-snug text-balance text-brand-gray">{t(`council.${m.role}`)}</span>
                             </LocaleLink>
                         </Reveal>

@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
-import { type ComponentProps } from 'react';
-import { localizePath, useLocale } from '@/lib/i18n';
+import type { ComponentProps } from 'react';
+import { localizePath, useLocale, useRouteSlugs } from '@/lib/i18n';
 
 /** Rute de sistem/auth — NU se prefixează cu limba (nu există sub /ru, /en). */
 const SYSTEM_PREFIXES = [
@@ -38,7 +38,8 @@ function isLocalizable(href: string): boolean {
  */
 export function LocaleLink({ href, ...props }: ComponentProps<typeof Link>) {
     const locale = useLocale();
-    const target = typeof href === 'string' && isLocalizable(href) ? localizePath(href, locale) : href;
+    const routeSlugs = useRouteSlugs();
+    const target = typeof href === 'string' && isLocalizable(href) ? localizePath(href, locale, routeSlugs) : href;
 
     return <Link href={target} {...props} />;
 }

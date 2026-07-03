@@ -184,7 +184,7 @@ export default function IntrebariFrecvente() {
                             <span className="grid size-11 place-items-center rounded-[10px] bg-brand-green/20 text-brand-green ring-1 ring-brand-green/40">
                                 <r.Icon className="size-5" aria-hidden="true" />
                             </span>
-                            <h3 className="display mt-4 text-[1.0625rem] leading-snug text-[color:var(--brand-navy-foreground)]">{t(r.title)}</h3>
+                            <h3 className="display mt-4 text-[1.125rem] leading-snug text-[color:var(--brand-navy-foreground)]">{t(r.title)}</h3>
                             <p className="mt-2 text-sm leading-relaxed text-white/80">{t(r.body)}</p>
                             <LocaleLink
                                 href={r.href}

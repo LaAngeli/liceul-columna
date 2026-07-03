@@ -83,7 +83,7 @@ export default function Sponsorizare() {
                                         {t(act.type)}
                                     </span>
                                     <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
-                                        <span className="display text-[1.0625rem] font-bold text-[color:var(--brand-navy-foreground)]">{t(act.number)}</span>
+                                        <span className="display text-[1.125rem] font-bold text-[color:var(--brand-navy-foreground)]">{t(act.number)}</span>
                                         <span className="text-xs text-white/70">· {t(act.date)}</span>
                                     </div>
                                     <p className="mt-1 text-xs leading-relaxed text-white/75">{t(act.body)}</p>
@@ -112,7 +112,7 @@ export default function Sponsorizare() {
                                 </span>
                                 <span className="font-display text-2xl font-bold text-brand-green/60 tabular-nums">{String(i + 1).padStart(2, '0')}</span>
                             </div>
-                            <h3 className="display mt-4 text-[1.0625rem] leading-snug text-brand-navy">{t(s.title)}</h3>
+                            <h3 className="display mt-4 text-[1.125rem] leading-snug text-brand-navy">{t(s.title)}</h3>
                             <p className="mt-2 text-sm leading-relaxed text-brand-dark/85">{t(s.body)}</p>
                         </Reveal>
                     ))}

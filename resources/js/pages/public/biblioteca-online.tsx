@@ -8,6 +8,9 @@ import { cn } from '@/lib/utils';
 
 interface Book {
     title: string;
+    /** Autor livrat din DB (când e completat în Studio). Frontendul cade pe parsing „Autor — Titlu"
+     *  doar pentru materialele legacy importate din columna.org.md, unde autorul e concatenat în titlu. */
+    author?: string | null;
     url: string;
 }
 interface Category {
@@ -46,26 +49,45 @@ const DIACRITICS: Record<string, string> = { Ă: 'A', Â: 'A', Á: 'A', À: 'A',
 
 function foldLetter(ch: string): string {
     const up = ch.toUpperCase();
+
     return DIACRITICS[up] ?? up;
 }
 
 function detectLevel(raw: string): Entry['level'] {
     const s = raw.toLowerCase();
-    if (/\bprimar/.test(s)) return 'primar';
-    if (/gimnaziu|clasele v|v-ix|vi-ix|vii-ix|a v-a/.test(s)) return 'gimnaziu';
-    if (/liceu|clasele x|x-xii/.test(s)) return 'liceu';
+
+    if (/\bprimar/.test(s)) {
+return 'primar';
+}
+
+    if (/gimnaziu|clasele v|v-ix|vi-ix|vii-ix|a v-a/.test(s)) {
+return 'gimnaziu';
+}
+
+    if (/liceu|clasele x|x-xii/.test(s)) {
+return 'liceu';
+}
+
     return 'other';
 }
 
 function initialsOf(text: string): string {
     const parts = text.replace(/[,.]/g, ' ').trim().split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+
+    if (parts.length >= 2) {
+return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
     return text.trim().slice(0, 2).toUpperCase();
 }
 
 function hash(s: string): number {
     let h = 0;
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+
+    for (let i = 0; i < s.length; i++) {
+h = (h * 31 + s.charCodeAt(i)) | 0;
+}
+
     return Math.abs(h);
 }
 
@@ -78,6 +100,7 @@ function Spine({ label, seed, glyph }: { label: string; seed: string; glyph?: bo
             : variant === 1
               ? 'bg-brand-green text-[color:var(--brand-green-foreground)]'
               : 'bg-brand-navy/8 text-brand-navy border keyline';
+
     return (
         <span className={cn('relative flex h-14 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[5px]', cls)} aria-hidden="true">
             <span className="absolute inset-y-1.5 left-1.5 w-px bg-current opacity-30" />
@@ -96,6 +119,7 @@ function BookCard({ entry, catLabel, t }: { entry: Entry; catLabel?: string; t: 
     const isLit = entry.kind === 'literature';
     const cover = isLit ? initialsOf(entry.author || entry.work) : initialsOf(entry.work);
     const meta = isLit ? entry.author : entry.level !== 'other' ? t(`biblioteca.level.${entry.level}`) : (catLabel ?? '');
+
     return (
         <a
             href={entry.url}
@@ -141,23 +165,35 @@ export default function BibliotecaOnline({ title, description, breadcrumbs = [],
 
     const catLabel = (key: string) => {
         const cat = categories.find((c) => c.key === key);
+
         return t(`biblioteca.cat.${key}`, cat?.title ?? key);
     };
 
     // Aplatizăm o singură dată catalogul în „intrări" îmbogățite.
     const entries = useMemo<Entry[]>(() => {
         const out: Entry[] = [];
+
         for (const cat of categories) {
             cat.books.forEach((b, i) => {
                 let author = '';
                 let work = b.title;
+
                 if (cat.kind === 'literature') {
-                    const parts = b.title.split(' — ');
-                    if (parts.length >= 2) {
-                        author = parts[0].trim();
-                        work = parts.slice(1).join(' — ').trim();
+                    // Sursă preferată: câmpul `author` din DB (materiale adăugate prin Studio).
+                    // Fallback pentru legacy (import columna.org.md): parsare „Autor — Titlu".
+                    if (b.author && b.author.trim() !== '') {
+                        author = b.author.trim();
+                        work = b.title.trim();
+                    } else {
+                        const parts = b.title.split(' — ');
+
+                        if (parts.length >= 2) {
+                            author = parts[0].trim();
+                            work = parts.slice(1).join(' — ').trim();
+                        }
                     }
                 }
+
                 const letterSource = cat.kind === 'literature' ? author || work : work;
                 out.push({
                     id: `${cat.key}-${i}`,
@@ -172,6 +208,7 @@ export default function BibliotecaOnline({ title, description, breadcrumbs = [],
                 });
             });
         }
+
         return out;
     }, [categories]);
 
@@ -181,9 +218,13 @@ export default function BibliotecaOnline({ title, description, breadcrumbs = [],
     const letters = useMemo(() => Array.from(new Set(litEntries.map((e) => e.letter))).sort((a, b) => a.localeCompare(b, 'ro')), [litEntries]);
     const featured = useMemo(() => {
         const counts = new Map<string, number>();
+
         for (const e of litEntries) {
-            if (e.author) counts.set(e.author, (counts.get(e.author) ?? 0) + 1);
+            if (e.author) {
+counts.set(e.author, (counts.get(e.author) ?? 0) + 1);
+}
         }
+
         return [...counts.entries()]
             .sort((a, b) => b[1] - a[1])
             .slice(0, 8)
@@ -201,25 +242,44 @@ export default function BibliotecaOnline({ title, description, breadcrumbs = [],
 
     // Vizualizarea de răsfoire (fără căutare): intrările categoriei active, eventual filtrate pe literă.
     const browseEntries = useMemo(() => {
-        if (searching || !activeCategory) return [];
+        if (searching || !activeCategory) {
+return [];
+}
+
         const inCat = entries.filter((e) => e.catKey === activeCat);
-        if (isLiteratureView && letter) return inCat.filter((e) => e.letter === letter);
+
+        if (isLiteratureView && letter) {
+return inCat.filter((e) => e.letter === letter);
+}
+
         return inCat;
     }, [searching, activeCategory, entries, activeCat, isLiteratureView, letter]);
 
     // Grupare: literatură pe literă; documente pe treaptă (dacă există mai multe).
     const groups = useMemo(() => {
-        if (searching || !activeCategory) return [];
+        if (searching || !activeCategory) {
+return [];
+}
+
         if (isLiteratureView) {
-            if (letter) return [{ key: letter, label: letter, items: browseEntries }];
+            if (letter) {
+return [{ key: letter, label: letter, items: browseEntries }];
+}
+
             return letters.map((l) => ({ key: l, label: l, items: browseEntries.filter((e) => e.letter === l) })).filter((g) => g.items.length > 0);
         }
+
         // Grupăm pe treaptă DOAR când categoria are și liceu, și gimnaziu (curriculum/ghiduri);
         // altfel (ex. reperele metodologice) rămâne o listă plată.
         const hasLevelSplit = browseEntries.some((e) => e.level === 'liceu') && browseEntries.some((e) => e.level === 'gimnaziu');
-        if (!hasLevelSplit) return [{ key: 'all', label: '', items: browseEntries }];
+
+        if (!hasLevelSplit) {
+return [{ key: 'all', label: '', items: browseEntries }];
+}
+
         const order: Entry['level'][] = ['liceu', 'gimnaziu', 'primar', 'other'];
         const present = order.filter((lv) => browseEntries.some((e) => e.level === lv));
+
         return present.map((lv) => ({ key: lv, label: t(`biblioteca.level.${lv}`, lv), items: browseEntries.filter((e) => e.level === lv) }));
     }, [searching, activeCategory, isLiteratureView, letter, letters, browseEntries, t]);
 
@@ -281,6 +341,7 @@ export default function BibliotecaOnline({ title, description, breadcrumbs = [],
                     <div className="mt-4 flex flex-wrap gap-2">
                         {categories.map((c) => {
                             const active = !searching && c.key === activeCat;
+
                             return (
                                 <button
                                     key={c.key}

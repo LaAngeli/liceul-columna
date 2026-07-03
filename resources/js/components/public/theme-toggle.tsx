@@ -1,6 +1,8 @@
 import { Monitor, Moon, Smartphone, Sun } from 'lucide-react';
-import { type ComponentType, useEffect, useRef, useState } from 'react';
-import { type Appearance, useAppearance } from '@/hooks/use-appearance';
+import {  useEffect, useRef, useState } from 'react';
+import type {ComponentType} from 'react';
+import {  useAppearance } from '@/hooks/use-appearance';
+import type {Appearance} from '@/hooks/use-appearance';
 import { useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +27,7 @@ export function ThemeToggle({ className, variant = 'icon' }: { className?: strin
         if (!open) {
             return;
         }
+
         const onPointer = (event: MouseEvent) => {
             if (ref.current && !ref.current.contains(event.target as Node)) {
                 setOpen(false);
@@ -37,6 +40,7 @@ export function ThemeToggle({ className, variant = 'icon' }: { className?: strin
         };
         document.addEventListener('mousedown', onPointer);
         document.addEventListener('keydown', onKey);
+
         return () => {
             document.removeEventListener('mousedown', onPointer);
             document.removeEventListener('keydown', onKey);
@@ -56,6 +60,7 @@ export function ThemeToggle({ className, variant = 'icon' }: { className?: strin
             0,
             options.findIndex((option) => option.value === appearance),
         );
+
         return (
             <div
                 className={cn('relative inline-flex rounded-full border border-border bg-background/60 p-0.5 backdrop-blur', className)}
@@ -71,6 +76,7 @@ export function ThemeToggle({ className, variant = 'icon' }: { className?: strin
                     const Icon = option.icon;
                     const active = appearance === option.value;
                     const optionLabel = t(option.tKey, option.fallback);
+
                     return (
                         <button
                             key={option.value}
@@ -117,6 +123,7 @@ export function ThemeToggle({ className, variant = 'icon' }: { className?: strin
                 {options.map((option) => {
                     const Icon = option.icon;
                     const active = appearance === option.value;
+
                     return (
                         <button
                             key={option.value}

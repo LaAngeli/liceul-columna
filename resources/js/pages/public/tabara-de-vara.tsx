@@ -55,7 +55,7 @@ export default function TabaraDeVara() {
                             {t('summer_camp.about_title', 'O vară activă, în comunitatea în care copilul crește')}
                         </h2>
                         <span data-rule className="mt-5 block h-1 w-20 origin-left rounded-full bg-brand-green" aria-hidden="true" />
-                        <p className="mt-5 text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-white/90">{t('summer_camp.about_body')}</p>
+                        <p className="mt-5 text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-white/90">{t('summer_camp.about_body')}</p>
                     </div>
                     <figure className="relative aspect-[16/10] overflow-hidden rounded-[18px] border border-white/15 shadow-[0_30px_70px_-45px_rgba(0,0,0,0.5)]">
                         <img
@@ -87,7 +87,7 @@ export default function TabaraDeVara() {
                             <span className="grid size-11 place-items-center rounded-[10px] bg-brand-green/15 text-brand-green">
                                 <a.Icon className="size-5" aria-hidden="true" />
                             </span>
-                            <h3 className="display mt-4 text-[1.0625rem] leading-snug text-brand-navy">{t(a.title)}</h3>
+                            <h3 className="display mt-4 text-[1.125rem] leading-snug text-brand-navy">{t(a.title)}</h3>
                             <p className="mt-2 text-sm leading-relaxed text-brand-dark/85">{t(a.body)}</p>
                         </Reveal>
                     ))}

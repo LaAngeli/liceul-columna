@@ -49,7 +49,7 @@ export function PageBanner({ title, breadcrumbs = [], description }: { title: st
                 <h1 className="display mt-3 max-w-[20ch] text-[clamp(1.875rem,4vw,3rem)] text-brand-navy">{title}</h1>
                 <span className="mt-4 block h-1 w-20 rounded-full bg-brand-green" aria-hidden="true" />
                 {description && (
-                    <p className="mt-4 max-w-[62ch] text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-brand-gray">{description}</p>
+                    <p className="mt-4 max-w-[62ch] text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-brand-gray">{description}</p>
                 )}
             </Container>
         </section>

@@ -401,7 +401,7 @@ export default function ErrorPage({ status }: { status: number }) {
                                 <c.Icon className="size-5" aria-hidden="true" />
                             </span>
                             <span className="mt-4 flex items-center justify-between gap-2">
-                                <h3 className="display text-[1.1875rem] text-brand-navy">
+                                <h3 className="display text-[1.25rem] text-brand-navy">
                                     {t(c.titleKey, c.titleFallback)}
                                 </h3>
                                 <ArrowRight

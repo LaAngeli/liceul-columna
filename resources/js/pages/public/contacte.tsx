@@ -102,6 +102,7 @@ export default function Contacte() {
                                     </>
                                 );
                                 const cls = 'flex items-center gap-3 rounded-[10px] border keyline border-l-[5px] border-l-brand-navy bg-card p-3';
+
                                 return (
                                     <li key={row.label}>
                                         {row.href ? (

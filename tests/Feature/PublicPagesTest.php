@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\GalleryAlbum;
+use App\Models\LibraryCategory;
+use App\Models\LibraryItem;
 use Inertia\Testing\AssertableInertia as Assert;
 
 it('afișează pagina principală publică', function () {
@@ -28,6 +31,11 @@ it('randează paginile migrate cu secțiuni de conținut', function (string $uri
 ]);
 
 it('afișează biblioteca online interactivă cu catalogul structurat', function () {
+    LibraryCategory::factory()
+        ->literature()
+        ->has(LibraryItem::factory()->count(101), 'items')
+        ->create(['sort_order' => 1]);
+
     $this->get('/biblioteca-online')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -158,6 +166,10 @@ it('afișează pagina de contacte bespoke', function () {
 });
 
 it('afișează galeria foto interactivă cu albume', function () {
+    GalleryAlbum::factory()
+        ->withImages(['/images/galerie/general/a.jpg', '/images/galerie/general/b.jpg'])
+        ->create(['slug' => 'general']);
+
     $this->get('/galerie')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page

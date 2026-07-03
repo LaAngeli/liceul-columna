@@ -77,6 +77,6 @@ it('confirmarea de contact pleacă în limba paginii (POST păstrează prefixul 
     });
 })->with([
     'RO root' => ['/contacte', 'ro', 'Am primit mesajul'],
-    'RU prefix' => ['/ru/contacte', 'ru', 'Мы получили'],
-    'EN prefix' => ['/en/contacte', 'en', 'We received'],
+    'RU prefix' => ['/ru/kontakty', 'ru', 'Мы получили'],
+    'EN prefix' => ['/en/contact', 'en', 'We received'],
 ]);

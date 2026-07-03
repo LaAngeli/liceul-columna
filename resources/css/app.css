@@ -355,13 +355,21 @@
    ============================================================================ */
 .site-shell {
     font-family: var(--font-brand);
-    font-size: 1.0625rem; /* 17px */
-    line-height: 1.65;
+    /* 18px — deliberat NU 17px (nici 19px, in alte reguli din acest fisier). Fonturile de brand
+       (Proxima Nova, Cervino) sunt CFF/PostScript FARA hinting; masurat direct in canvas (acelasi
+       rasterizator ca DOM-ul): la 17px si 19px dotul lui "i"/"j" se lipeste de tija (0/12 pozitii
+       cu dot separat), la 16/18/20px randeaza curat (12/12). Testat: text-rendering nu are niciun
+       efect asupra bug-ului (identic pe auto/optimizeLegibility/optimizeSpeed) — cauza e strict
+       hinting-ul lipsa la acele doua dimensiuni intregi impare. NU REVENI la 1.0625rem/1.1875rem
+       aici sau in clamp()-urile din resources/js/pages/public/** — regresia asta e prinsa de
+       tests/Unit/FontHintingRegressionTest.php (ruleaza in orice `php artisan test`). Vezi memoria
+       "Font hinting — dotul lui «i»" pentru diagnosticul complet (masuratori, fisiere, capturi). */
+    font-size: 1.125rem;
+    line-height: 1.6;
     color: var(--brand-dark);
     --container: 75rem; /* 1200px */
     --keyline: color-mix(in oklch, var(--brand-navy) 14%, transparent);
-    /* Igienă de randare a textului (diacritice RO): kerning/ligaturi + AA gri pe macOS,
-       fără sinteză de stiluri „false" care ar deforma semnele subțiri (i, î, ț, ș). */
+    /* Kerning/ligaturi + AA gri pe macOS, fara sinteza de stiluri „false". */
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -402,10 +410,22 @@
 .dark .site-shell :is(.photo-frame img, figure img, .prose-columna img) {
     filter: brightness(0.88) saturate(0.96);
 }
+/* Fotografia-eroină din hero (full-bleed, fără .photo-frame — nu vrem hover-zoom). */
+.dark .site-shell .hero-photo img {
+    filter: brightness(0.88) saturate(0.96);
+}
 /* Harta Google (iframe extern, nestilizabil din interior) intră și ea în registrul
    întunecat: inversare + rotire de nuanță = „dark map" cu etichete lizibile. */
 .dark .site-shell iframe[src*='google.com/maps'] {
     filter: invert(0.92) hue-rotate(180deg) contrast(0.95);
+}
+
+/* Container editorial */
+.site-shell .site-container {
+    width: 100%;
+    max-width: var(--container);
+    margin-inline: auto;
+    padding-inline: 1rem;
 }
 @media (min-width: 640px) {
     .site-shell .site-container { padding-inline: 1.5rem; }
@@ -415,14 +435,6 @@
 .site-shell .display {
     font-family: var(--font-display);
     font-weight: 800;
-
-/* Container editorial */
-.site-shell .site-container {
-    width: 100%;
-    max-width: var(--container);
-    margin-inline: auto;
-    padding-inline: 1rem;
-}
     line-height: 1.02;
     letter-spacing: -0.01em;
     text-wrap: balance;
@@ -502,6 +514,65 @@
 @media (prefers-reduced-motion: no-preference) {
     .site-shell .photo-frame img { transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
     .site-shell .photo-frame:hover img { transform: scale(1.03); }
+}
+
+/* Hero „Cadrul & Drumul" (home): obturatorul navy se deschide o singură dată pe
+   sesiune (guard sessionStorage → atributul [data-hero-intro] lipsește la revenire),
+   tipografia intră în trepte (--stage), apoi firul verde al admiterii se desenează
+   01→03 și se termină în steluța-terminus. TOATE from-state-urile (opacity:0,
+   scaleX(0)) trăiesc DOAR aici, sub no-preference — la reduced-motion hero-ul e
+   static și complet vizibil de la primul frame, iar panourile obturatorului dispar. */
+@media (prefers-reduced-motion: no-preference) {
+    .site-shell [data-hero-intro] .hero-shutter-top {
+        animation: site-hero-shutter-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards;
+    }
+    .site-shell [data-hero-intro] .hero-shutter-bottom {
+        animation: site-hero-shutter-down 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards;
+    }
+    /* LCP: imaginea se animă DOAR pe transform, niciodată pe opacity/visibility. */
+    .site-shell [data-hero-intro] .hero-photo img {
+        animation: site-hero-settle 1.1s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+    }
+    .site-shell [data-hero-intro] .hero-stage {
+        opacity: 0;
+        animation: site-hero-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) calc(0.26s + var(--stage, 0) * 0.13s) both;
+    }
+    .site-shell [data-hero-intro] .hero-stage-rule {
+        transform: scaleX(0);
+        transform-origin: left;
+        animation: site-hero-rule 0.32s ease-out 0.5s both;
+    }
+    .site-shell [data-hero-intro] .hero-ruler {
+        animation: site-hero-ruler 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.72s both;
+    }
+    .site-shell [data-hero-intro] .hero-path {
+        transform: scaleX(0);
+        transform-origin: left;
+        animation: site-hero-path 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.95s both;
+    }
+    .site-shell [data-hero-intro] .hero-star {
+        animation: site-hero-star 0.35s cubic-bezier(0.22, 1, 0.36, 1) 1.35s both;
+    }
+    .site-shell .hero-pulse { animation: site-hero-pulse 2.4s ease-in-out 0.2s 3; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .site-shell .hero-shutter-top,
+    .site-shell .hero-shutter-bottom { display: none; }
+}
+@keyframes site-hero-shutter-up { to { transform: translateY(-101%); } }
+@keyframes site-hero-shutter-down { to { transform: translateY(101%); } }
+@keyframes site-hero-settle { from { transform: scale(1.045) translateY(6px); } }
+@keyframes site-hero-rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes site-hero-rule { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes site-hero-ruler { from { transform: translateY(100%); } }
+@keyframes site-hero-path { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes site-hero-star { from { opacity: 0; transform: scale(0.5) rotate(-90deg); } }
+@keyframes site-hero-pulse {
+    0%, 100% { opacity: 0.9; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.78); }
 }
 
 /* Pagina de eroare (public/error) — motion editorial cu temă educațională: intrare

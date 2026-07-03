@@ -51,7 +51,7 @@ function CoordinatorCard({ t, name, photo }: { t: Tr; name: string; photo: strin
                         </span>
                     )}
                 </span>
-                <span className="display mt-4 text-[1.0625rem] leading-tight text-balance text-brand-navy">{name}</span>
+                <span className="display mt-4 text-[1.125rem] leading-tight text-balance text-brand-navy">{name}</span>
                 <span className="mt-1 text-sm text-brand-gray">{t('cpae.role_coordinator', 'Coordonator de atelier')}</span>
             </div>
         </Reveal>
@@ -97,7 +97,7 @@ export default function Extracurriculare() {
                         />
                     </figure>
                     <div>
-                        <p className="text-[clamp(1.0625rem,1.7vw,1.25rem)] leading-relaxed text-white/90">{t('cpae.vision_p1')}</p>
+                        <p className="text-[clamp(1.125rem,1.7vw,1.25rem)] leading-relaxed text-white/90">{t('cpae.vision_p1')}</p>
                         <p className="mt-5 leading-relaxed text-white/80">{t('cpae.vision_p2')}</p>
                         <span data-rule className="mt-7 block h-1 w-20 origin-left rounded-full bg-brand-green" aria-hidden="true" />
                         <span className="mt-7 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/[0.05] px-4 py-2 text-sm text-white/85">

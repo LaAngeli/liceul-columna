@@ -173,7 +173,7 @@ function ValuesConstellation({ t }: { t: Tr }) {
                 </div>
 
                 {/* Glosă (caption) — se schimbă la valoarea activă */}
-                <p className="mx-auto mt-6 min-h-[2.5rem] max-w-xl text-center text-[clamp(1.0625rem,1.6vw,1.25rem)] leading-relaxed text-white/85" aria-live="polite">
+                <p className="mx-auto mt-6 min-h-[2.5rem] max-w-xl text-center text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-white/85" aria-live="polite">
                     {active && <span className="font-semibold text-brand-green">{name(active)} — </span>}
                     {gloss}
                 </p>
@@ -272,7 +272,7 @@ export default function DeCeColumna() {
                                 {t('why.hero.title', 'Aici copilul tău nu e un număr. E un nume pe care îl rostim cu drag.')}
                             </Display>
                             <span data-rule className="mt-5 block h-1 w-24 origin-left rounded-full bg-brand-green" aria-hidden="true" />
-                            <p className="mt-5 max-w-[54ch] text-[clamp(1.0625rem,1.7vw,1.25rem)] leading-relaxed text-white/90">{t('why.hero.lead')}</p>
+                            <p className="mt-5 max-w-[54ch] text-[clamp(1.125rem,1.7vw,1.25rem)] leading-relaxed text-white/90">{t('why.hero.lead')}</p>
                             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                                 <BrandButton href="/admitere" variant="primary" icon={GraduationCap} className="w-full justify-center sm:w-auto">
                                     {t('why.hero.cta_primary', 'Vino la admitere')}
@@ -310,7 +310,7 @@ export default function DeCeColumna() {
                                 </div>
                                 {/* Jos: citatul directorului */}
                                 <div className="border-t border-white/15 pt-5">
-                                    <p className="flex items-start gap-2 text-[1.0625rem] leading-snug text-white/95">
+                                    <p className="flex items-start gap-2 text-[1.125rem] leading-snug text-white/95">
                                         <FourStar className="mt-1 size-4 shrink-0 text-brand-green" />
                                         <span className="italic">{t('why.hero.card_signature', '„Vă așteptăm cu drag!"')}</span>
                                     </p>
@@ -362,7 +362,7 @@ export default function DeCeColumna() {
                                         <FourStar className="size-3 text-brand-green" />
                                     </div>
                                     <h3 className="display mt-5 text-[clamp(1.4rem,2.6vw,2rem)] text-balance text-brand-navy">{t(`why.reasons.${r.key}.head`)}</h3>
-                                    <p className="mt-4 text-[clamp(1.0625rem,1.55vw,1.1875rem)] leading-relaxed text-brand-dark/85">{t(`why.reasons.${r.key}.body`)}</p>
+                                    <p className="mt-4 text-[clamp(1.125rem,1.55vw,1.25rem)] leading-relaxed text-brand-dark/85">{t(`why.reasons.${r.key}.body`)}</p>
                                     {r.href && (
                                         <span className="mt-6 inline-block">
                                             <BrandButton href={r.href} variant="link">
@@ -432,7 +432,7 @@ export default function DeCeColumna() {
                                 </div>
                                 <h3 className="display mt-4 text-[clamp(1.3rem,2.4vw,1.875rem)] text-balance text-brand-navy">{t(step.label)}</h3>
                                 <span data-rule className="mt-4 block h-px w-16 origin-left bg-brand-green" aria-hidden="true" />
-                                <p className="mt-4 text-[clamp(1.0625rem,1.55vw,1.1875rem)] leading-relaxed text-brand-dark/85">{t(step.body)}</p>
+                                <p className="mt-4 text-[clamp(1.125rem,1.55vw,1.25rem)] leading-relaxed text-brand-dark/85">{t(step.body)}</p>
                             </div>
                         </Reveal>
                     ))}
@@ -452,7 +452,7 @@ export default function DeCeColumna() {
                     </div>
                     {/* text + numeral 20 000 inline + CTA */}
                     <div>
-                        <p className="text-[clamp(1.0625rem,1.55vw,1.1875rem)] leading-relaxed text-white/90">{t('why.cambridge.body')}</p>
+                        <p className="text-[clamp(1.125rem,1.55vw,1.25rem)] leading-relaxed text-white/90">{t('why.cambridge.body')}</p>
                         <div className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-2">
                             <span className="numeral text-[clamp(1.75rem,3.5vw,2.5rem)] leading-none text-[color:var(--brand-navy-foreground)]">20 000</span>
                             <span className="eyebrow text-white/70">{t('why.cambridge.recognized', 'universități, colegii și angajatori')}</span>
@@ -486,7 +486,7 @@ export default function DeCeColumna() {
                         <div className="flex flex-col justify-center gap-4 p-7 sm:p-9 lg:p-11">
                             <span className="display text-[3.5rem] leading-[0.5] text-brand-green/35" aria-hidden="true">„</span>
                             <blockquote>
-                                <p className="text-[clamp(1.0625rem,1.55vw,1.3125rem)] leading-relaxed text-brand-dark/90">{t('why.letter.body')}</p>
+                                <p className="text-[clamp(1.125rem,1.55vw,1.3125rem)] leading-relaxed text-brand-dark/90">{t('why.letter.body')}</p>
                             </blockquote>
                             <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-3 border-t keyline pt-5">
                                 <span className="border-l-[3px] border-l-brand-green pl-3">

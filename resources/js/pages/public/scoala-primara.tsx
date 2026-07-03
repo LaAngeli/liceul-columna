@@ -71,7 +71,7 @@ export default function ScoalaPrimara() {
                             <Rhombus className="size-4" />
                             <span className="numeral text-sm text-white/80">I–IV</span>
                         </div>
-                        <p className="mt-5 text-[clamp(1.0625rem,1.7vw,1.25rem)] leading-relaxed text-white/90">{t('primary_page.identity_body')}</p>
+                        <p className="mt-5 text-[clamp(1.125rem,1.7vw,1.25rem)] leading-relaxed text-white/90">{t('primary_page.identity_body')}</p>
                         <span data-rule className="mt-7 block h-1 w-20 origin-left rounded-full bg-brand-green" aria-hidden="true" />
                     </div>
                 </Reveal>
@@ -89,7 +89,7 @@ export default function ScoalaPrimara() {
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                     {CURRICULAR_AREAS.map((a) => (
                         <Reveal as="article" key={a.area} className="rounded-[14px] border keyline border-l-[5px] border-l-brand-green bg-card p-5 sm:p-6">
-                            <h3 className="display text-[1.0625rem] leading-snug text-brand-navy">{t(a.area)}</h3>
+                            <h3 className="display text-[1.125rem] leading-snug text-brand-navy">{t(a.area)}</h3>
                             <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-brand-dark/85">
                                 {a.subjects.map((s) => (
                                     <li key={s} className="flex gap-2">
@@ -113,7 +113,7 @@ export default function ScoalaPrimara() {
                             <FileText className="size-7" />
                         </span>
                         <div className="flex-1">
-                            <span className="display block text-[1.0625rem] leading-snug text-brand-navy">{t('primary_page.download_curriculum', 'Descarcă Curriculumul Național · învățământul primar (PDF)')}</span>
+                            <span className="display block text-[1.125rem] leading-snug text-brand-navy">{t('primary_page.download_curriculum', 'Descarcă Curriculumul Național · învățământul primar (PDF)')}</span>
                             <span className="mt-1 block text-sm text-brand-gray">{t('primary_page.download_note')}</span>
                         </div>
                         <Download className="size-5 shrink-0 text-brand-navy transition-transform group-hover:translate-y-0.5" />
@@ -133,7 +133,7 @@ export default function ScoalaPrimara() {
                             {t('primary_page.facilities_title', 'Un mediu pregătit pentru primii ani de școală')}
                         </h2>
                         <span data-rule className="mt-5 block h-1 w-20 origin-left rounded-full bg-brand-green" aria-hidden="true" />
-                        <p className="mt-5 text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-white/90">{t('primary_page.facilities_body')}</p>
+                        <p className="mt-5 text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-white/90">{t('primary_page.facilities_body')}</p>
                     </div>
                     <figure className="relative aspect-[16/10] overflow-hidden rounded-[18px] border border-white/15 shadow-[0_30px_70px_-45px_rgba(0,0,0,0.5)]">
                         <img

@@ -31,10 +31,12 @@ const START_DELAY_MS = 2500; // întârziere inițială (lasă pagina să se aș
 
 function shuffle<T>(arr: T[]): T[] {
     const r = [...arr];
+
     for (let i = r.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [r[i], r[j]] = [r[j], r[i]];
     }
+
     return r;
 }
 
@@ -58,6 +60,7 @@ function Plate({ m }: { m: LeadershipMember }) {
         </>
     );
     const cls = 'flex h-full flex-col border-l-[5px] border-l-brand-navy pl-4 transition-colors';
+
     return m.slug ? (
         <LocaleLink href={`/${m.slug}`} className={cn(cls, 'group hover:border-l-brand-green')}>
             {inner}
@@ -91,10 +94,14 @@ export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
         bagRef.current = deck.slice(ROTATE_SLOTS);
 
         const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (reduce || pool.length <= ROTATE_SLOTS) return;
+
+        if (reduce || pool.length <= ROTATE_SLOTS) {
+return;
+}
 
         const el = rootRef.current;
         let io: IntersectionObserver | undefined;
+
         if (el) {
             io = new IntersectionObserver((entries) => {
                 inViewRef.current = entries[0]?.isIntersecting ?? false;
@@ -114,18 +121,23 @@ export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
                 const shownNames = new Set(shownRef.current.map((m) => m.name));
                 bagRef.current = shuffle(pool.filter((m) => !shownNames.has(m.name)));
             }
+
             return bagRef.current.shift();
         };
 
         const swapSlot = (slot: number) => {
             const next = nextFromBag();
-            if (!next) return;
+
+            if (!next) {
+return;
+}
 
             setOp((prev) => prev.map((v, i) => (i === slot ? 0 : v))); // fade-out
             fadeTimer = window.setTimeout(() => {
                 setShown((prev) => {
                     const arr = prev.map((m, i) => (i === slot ? next : m));
                     shownRef.current = arr;
+
                     return arr;
                 });
                 setOp((prev) => prev.map((v, i) => (i === slot ? 1 : v))); // fade-in
@@ -135,8 +147,10 @@ export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
         const step = () => {
             if (!inViewRef.current || pausedRef.current) {
                 stepTimer = window.setTimeout(step, 700); // amânăm fără să avansăm ciclul
+
                 return;
             }
+
             const slot = cursor;
             swapSlot(slot);
             const wasLast = slot === ROTATE_SLOTS - 1;
@@ -154,7 +168,9 @@ export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    if (!director) return null;
+    if (!director) {
+return null;
+}
 
     return (
         <div

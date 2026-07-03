@@ -38,13 +38,18 @@ type Tr = (k: string, f?: string) => string;
 function Lightbox({ entries, index, onClose, onNav, t }: { entries: Entry[]; index: number; onClose: () => void; onNav: (delta: number) => void; t: Tr }) {
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-            else if (e.key === 'ArrowLeft') onNav(-1);
-            else if (e.key === 'ArrowRight') onNav(1);
+            if (e.key === 'Escape') {
+onClose();
+} else if (e.key === 'ArrowLeft') {
+onNav(-1);
+} else if (e.key === 'ArrowRight') {
+onNav(1);
+}
         };
         window.addEventListener('keydown', onKey);
         const prev = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
+
         return () => {
             window.removeEventListener('keydown', onKey);
             document.body.style.overflow = prev;
@@ -108,12 +113,15 @@ export default function Galerie({ title, description, breadcrumbs = [], albums, 
 
     const entries = useMemo<Entry[]>(() => {
         const out: Entry[] = [];
+
         for (const a of albums) {
             const label = t(`gallery.album.${a.key}`, a.label);
+
             for (const img of a.images) {
                 out.push({ ...img, albumKey: a.key, albumLabel: label });
             }
         }
+
         return out;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [albums]);
@@ -150,6 +158,7 @@ export default function Galerie({ title, description, breadcrumbs = [], albums, 
                             <div className="mb-7 flex flex-wrap gap-2">
                                 {chips.map((c) => {
                                     const isActive = c.key === active;
+
                                     return (
                                         <button
                                             key={c.key}

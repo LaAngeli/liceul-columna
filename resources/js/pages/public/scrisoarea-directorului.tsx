@@ -49,7 +49,7 @@ export default function ScrisoareaDirectorului() {
                             <span className="display mt-5 block text-xl text-[color:var(--brand-navy-foreground)]">{t('letter.author_name', 'Daniță Ghenadie')}</span>
                             <span className="mt-1 block text-sm text-white/75">{t('letter.author_role', 'Director · grad managerial superior')}</span>
                             <div className="mt-5 border-t border-white/15 pt-5">
-                                <p className="display text-[clamp(1.0625rem,1.5vw,1.25rem)] text-balance text-[color:var(--brand-navy-foreground)] italic">
+                                <p className="display text-[clamp(1.125rem,1.5vw,1.25rem)] text-balance text-[color:var(--brand-navy-foreground)] italic">
                                     {t('letter.slogan', 'Succesul copilului începe aici.')}
                                 </p>
                             </div>
@@ -80,7 +80,7 @@ export default function ScrisoareaDirectorului() {
                                 <p
                                     key={key}
                                     className={cn(
-                                        'text-[clamp(1.0625rem,1.55vw,1.1875rem)] leading-relaxed text-brand-dark/85',
+                                        'text-[clamp(1.125rem,1.55vw,1.25rem)] leading-relaxed text-brand-dark/85',
                                         i === 0 &&
                                             'first-letter:float-left first-letter:mt-1 first-letter:mr-3 first-letter:text-[clamp(3rem,6vw,4.25rem)] first-letter:leading-[0.7] first-letter:font-bold first-letter:text-brand-navy first-letter:[font-family:var(--font-display)]',
                                     )}

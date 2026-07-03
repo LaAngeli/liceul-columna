@@ -21,7 +21,7 @@ export default function ContactMultumim({ name }: { name: string }) {
                         <FourStar className="size-3 text-brand-green" /> {t('contact.heading', 'Contacte')}
                     </span>
                     <h1 className="display mt-2 text-[clamp(1.75rem,4vw,2.75rem)] text-brand-navy">{heading}</h1>
-                    <p className="mt-4 text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-brand-gray">{t('contact.thanks_text')}</p>
+                    <p className="mt-4 text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-brand-gray">{t('contact.thanks_text')}</p>
 
                     <div className="mt-8 flex flex-wrap justify-center gap-3">
                         <BrandButton href="/" variant="ghost" icon={Home}>

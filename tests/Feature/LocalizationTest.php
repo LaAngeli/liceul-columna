@@ -51,8 +51,8 @@ it('servește paginile cu prefix /ru și /en', function (string $url, string $lo
 })->with([
     'ru — acasă' => ['/ru', 'ru'],
     'en — acasă' => ['/en', 'en'],
-    'ru — pagină' => ['/ru/de-ce-columna', 'ru'],
-    'en — pagină' => ['/en/contacte', 'en'],
+    'ru — pagină' => ['/ru/pochemu-columna', 'ru'],
+    'en — pagină' => ['/en/contact', 'en'],
 ]);
 
 it('partajează limbile și traducerile către frontend', function () {

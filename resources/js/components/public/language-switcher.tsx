@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { localizePath, useLocale } from '@/lib/i18n';
+import { localizePath, useLocale, useRouteSlugs } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 const LOCALES = ['ro', 'ru', 'en'] as const;
@@ -12,6 +12,7 @@ const LOCALES = ['ro', 'ru', 'en'] as const;
 export function LanguageSwitcher({ className }: { className?: string }) {
     const { url } = usePage();
     const locale = useLocale();
+    const routeSlugs = useRouteSlugs();
     const activeIndex = Math.max(0, LOCALES.indexOf(locale as (typeof LOCALES)[number]));
 
     return (
@@ -31,7 +32,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
             {LOCALES.map((code) => (
                 <a
                     key={code}
-                    href={`/set-locale/${code}?redirect=${encodeURIComponent(localizePath(url, code))}`}
+                    href={`/set-locale/${code}?redirect=${encodeURIComponent(localizePath(url, code, routeSlugs))}`}
                     aria-current={code === locale ? 'true' : undefined}
                     className={cn(
                         'relative z-10 inline-flex min-h-10 w-9 items-center justify-center rounded-full py-2 text-center uppercase transition-colors md:min-h-0 md:py-1',

@@ -51,11 +51,11 @@ function SectionBlock({ section }: { section: PageSection }) {
 
     switch (section.type) {
         case 'lead':
-            return <p className="max-w-[60ch] text-[clamp(1.0625rem,1.6vw,1.25rem)] leading-relaxed font-medium text-brand-navy/90">{section.text}</p>;
+            return <p className="max-w-[60ch] text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed font-medium text-brand-navy/90">{section.text}</p>;
 
         case 'prose':
             return (
-                <div className="max-w-[66ch] space-y-4 text-[1.0625rem] leading-[1.7] text-brand-dark/90">
+                <div className="max-w-[66ch] space-y-4 text-[1.125rem] leading-[1.7] text-brand-dark/90">
                     {section.paragraphs.map((p, i) => (
                         <p key={i}>{p}</p>
                     ))}
@@ -64,6 +64,7 @@ function SectionBlock({ section }: { section: PageSection }) {
 
         case 'heading': {
             const Tag = section.level === 3 ? 'h3' : 'h2';
+
             return (
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
@@ -115,6 +116,7 @@ function SectionBlock({ section }: { section: PageSection }) {
                             </>
                         );
                         const base = 'flex h-full flex-col rounded-[12px] border keyline border-l-[5px] border-l-brand-navy bg-card p-6';
+
                         return card.href ? (
                             <LocaleLink key={card.title} href={card.href} className={cn(base, 'group transition-all hover:-translate-y-0.5 hover:border-l-brand-green')}>
                                 {inner}
@@ -148,6 +150,7 @@ function SectionBlock({ section }: { section: PageSection }) {
                     </div>
                 );
             }
+
             return (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                     {Array.from({ length: section.count ?? 6 }).map((_, i) => (
@@ -186,6 +189,7 @@ function SectionBlock({ section }: { section: PageSection }) {
                 { icon: Phone, label: t('contact.phone', 'Telefon'), value: siteContact.phone, href: 'tel:+37322742852', external: false },
                 { icon: Mail, label: t('contact.email', 'E-mail'), value: siteContact.email, href: `mailto:${siteContact.email}`, external: false },
             ];
+
             return (
                 <div className="grid max-w-4xl gap-4 sm:grid-cols-3">
                     {rows.map(({ icon: Icon, label, value, href, external }) => (

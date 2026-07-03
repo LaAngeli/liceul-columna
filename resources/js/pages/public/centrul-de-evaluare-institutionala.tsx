@@ -39,7 +39,7 @@ export default function CentrulDeEvaluareInstitutionala() {
                     </p>
                     <p className="mt-3 text-sm text-white/70 italic">{t('cei.motto_meaning')}</p>
                     <span data-rule className="mx-auto mt-6 block h-1 w-20 origin-left rounded-full bg-brand-green" aria-hidden="true" />
-                    <p className="mx-auto mt-6 max-w-[62ch] text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-white/85">{t('cei.mission')}</p>
+                    <p className="mx-auto mt-6 max-w-[62ch] text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-white/85">{t('cei.mission')}</p>
                 </Reveal>
             </Band>
 
@@ -88,7 +88,7 @@ export default function CentrulDeEvaluareInstitutionala() {
                             </span>
                             <div>
                                 <span className="eyebrow text-brand-green">{t('cei.doc_label', 'Document instituțional')}</span>
-                                <h3 className="mt-1 text-[1.0625rem] leading-snug font-semibold text-[color:var(--brand-navy-foreground)]">{t(doc)}</h3>
+                                <h3 className="mt-1 text-[1.125rem] leading-snug font-semibold text-[color:var(--brand-navy-foreground)]">{t(doc)}</h3>
                             </div>
                         </Reveal>
                     ))}
@@ -105,7 +105,7 @@ export default function CentrulDeEvaluareInstitutionala() {
                         title={t('cei.ben_title', 'Informarea beneficiarilor')}
                         className="mb-8"
                     />
-                    <div className="space-y-5 text-[clamp(1.0625rem,1.5vw,1.1875rem)] leading-relaxed text-brand-dark/85">
+                    <div className="space-y-5 text-[clamp(1.125rem,1.5vw,1.25rem)] leading-relaxed text-brand-dark/85">
                         {BENEFICIARIES.map((p) => (
                             <p key={p}>{t(p)}</p>
                         ))}

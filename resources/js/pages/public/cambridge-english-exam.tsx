@@ -61,7 +61,7 @@ export default function CambridgeEnglishExam() {
                     className="mb-10"
                 />
                 <Reveal className="grid items-center gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
-                    <div className="space-y-5 text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-white/90">
+                    <div className="space-y-5 text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-white/90">
                         <p>{t('cambridge_page.identity_p1')}</p>
                         <p>{t('cambridge_page.identity_p2')}</p>
                     </div>
@@ -103,7 +103,7 @@ export default function CambridgeEnglishExam() {
                     title={t('cambridge_page.benefits_title', 'Un certificat recunoscut peste tot')}
                     className="mb-8"
                 />
-                <Reveal className="mx-auto max-w-[68ch] space-y-5 text-[clamp(1.0625rem,1.55vw,1.1875rem)] leading-relaxed text-brand-dark/85">
+                <Reveal className="mx-auto max-w-[68ch] space-y-5 text-[clamp(1.125rem,1.55vw,1.25rem)] leading-relaxed text-brand-dark/85">
                     <p>{t('cambridge_page.benefits_p1')}</p>
                     <p>{t('cambridge_page.benefits_p2')}</p>
                 </Reveal>

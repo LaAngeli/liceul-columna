@@ -26,6 +26,7 @@ function Thumb({ image, title }: { image: string | null; title: string }) {
             </div>
         );
     }
+
     return (
         <div className="flex aspect-video w-full items-center justify-center bg-brand-navy/5 text-brand-navy/40">
             <CalendarDays className="size-8" />
@@ -141,6 +142,7 @@ export default function ArticoleIndex({ pageTitle, category, posts }: { pageTitl
                                 <div className="flex flex-wrap gap-2">
                                     {(['all', ...years] as const).map((y) => {
                                         const active = year === y;
+
                                         return (
                                             <button
                                                 key={y}

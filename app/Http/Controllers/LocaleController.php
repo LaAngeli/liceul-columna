@@ -17,7 +17,7 @@ class LocaleController extends Controller
     {
         abort_unless(Locale::isSupported($locale), 404);
 
-        if ($user = $request->user()) {
+        if ($user = $request->user('web')) {
             $user->update(['locale' => $locale]);
         }
 

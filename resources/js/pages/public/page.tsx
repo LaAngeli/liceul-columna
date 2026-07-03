@@ -2,7 +2,8 @@ import { Head } from '@inertiajs/react';
 import { Construction, Download } from 'lucide-react';
 import { Container } from '@/components/public/brand';
 import { PageBanner } from '@/components/public/page-banner';
-import { PageSections, type PageSection } from '@/components/public/page-sections';
+import { PageSections  } from '@/components/public/page-sections';
+import type {PageSection} from '@/components/public/page-sections';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface Crumb {

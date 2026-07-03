@@ -25,11 +25,19 @@ export interface CookieConsentValue {
 }
 
 export function getCookieConsent(): CookieConsentValue | null {
-    if (typeof window === 'undefined') return null;
+    if (typeof window === 'undefined') {
+return null;
+}
+
     try {
         const raw = localStorage.getItem(CONSENT_KEY);
-        if (!raw) return null;
+
+        if (!raw) {
+return null;
+}
+
         const c = JSON.parse(raw) as CookieConsentValue;
+
         return c && c.v === CONSENT_VERSION ? c : null;
     } catch {
         return null;
@@ -63,30 +71,42 @@ export function CookieConsent() {
     const [prefs, setPrefs] = useState({ preferences: true, analytics: false, marketing: false });
 
     useEffect(() => {
-        if (!getCookieConsent()) setOpen(true);
+        if (!getCookieConsent()) {
+setOpen(true);
+}
+
         const reopen = () => {
             const c = getCookieConsent();
-            if (c) setPrefs({ preferences: c.preferences, analytics: c.analytics, marketing: c.marketing });
+
+            if (c) {
+setPrefs({ preferences: c.preferences, analytics: c.analytics, marketing: c.marketing });
+}
+
             setShowPrefs(true);
             setOpen(true);
         };
         window.addEventListener('cookie-settings:open', reopen);
+
         return () => window.removeEventListener('cookie-settings:open', reopen);
     }, []);
 
     const persist = (vals: { preferences: boolean; analytics: boolean; marketing: boolean }) => {
         const value: CookieConsentValue = { v: CONSENT_VERSION, necessary: true, ...vals, ts: Date.now() };
+
         try {
             localStorage.setItem(CONSENT_KEY, JSON.stringify(value));
         } catch {
             /* ignore */
         }
+
         window.dispatchEvent(new CustomEvent('cookie-consent:updated', { detail: value }));
         setOpen(false);
         setShowPrefs(false);
     };
 
-    if (!open) return null;
+    if (!open) {
+return null;
+}
 
     const categories = [
         { key: 'necessary' as const, locked: true, on: true, title: t('cookies.necessary_t', 'Strict necesare'), desc: t('cookies.necessary_d', 'Esențiale pentru funcționarea site-ului (sesiune, securitate, limbă). Mereu active.') },

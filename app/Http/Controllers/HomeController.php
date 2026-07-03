@@ -15,14 +15,17 @@ class HomeController extends Controller
             ->published()
             ->category('actualitati')
             ->with('translations')
+            // `published_at` nu are componentă de oră (mereu miezul nopții) — `id` desparte
+            // articolele publicate în aceeași zi, păstrând ordinea reală de creare.
             ->orderByDesc('published_at')
+            ->orderByDesc('id')
             ->limit(3)
             ->get()
             ->map(fn (Post $post): array => [
                 'title' => $post->localizedTitle(),
                 'slug' => $post->slug,
                 'excerpt' => $post->localizedExcerpt(),
-                'image' => $post->image,
+                'image' => $post->imageUrl(),
                 'date' => $post->published_at?->translatedFormat('d F Y'),
             ]);
 

@@ -16,6 +16,8 @@ declare module '@inertiajs/core' {
             locale: string;
             locales: Record<string, string>;
             messages: Record<string, Record<string, unknown>>;
+            /** Traduceri de slug URL (RU/EN) pe segment canonic RO — vezi App\Support\RouteSlugs. */
+            routeSlugs: Record<string, Partial<Record<'ru' | 'en', string>>>;
             [key: string]: unknown;
         };
     }

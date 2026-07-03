@@ -50,7 +50,9 @@ export function AppSidebar() {
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        {/* Buton „logo" mai înalt (h-14) ca să încapă lockup-ul de 42px cu spațiu de respirație,
+                            și `justify-center` ca logo-ul să fie CENTRAT orizontal (nu aliniat stânga). */}
+                        <SidebarMenuButton size="lg" className="h-14 justify-center" asChild>
                             <Link href="/" aria-label="Liceul Columna">
                                 <AppLogo />
                             </Link>

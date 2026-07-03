@@ -69,7 +69,7 @@ export default function ScoalaLiceala() {
                             <Rhombus className="size-2" />
                             <span className="numeral ml-2 text-sm text-white/80">X–XII</span>
                         </div>
-                        <p className="mt-5 text-[clamp(1.0625rem,1.7vw,1.25rem)] leading-relaxed text-white/90">{t('high_page.identity_body')}</p>
+                        <p className="mt-5 text-[clamp(1.125rem,1.7vw,1.25rem)] leading-relaxed text-white/90">{t('high_page.identity_body')}</p>
                         <span data-rule className="mt-7 block h-1 w-20 origin-left rounded-full bg-brand-green" aria-hidden="true" />
                     </div>
                 </Reveal>
@@ -87,7 +87,7 @@ export default function ScoalaLiceala() {
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     {CURRICULAR_AREAS.map((a) => (
                         <Reveal as="article" key={a.area} className="rounded-[14px] border keyline border-l-[5px] border-l-brand-green bg-card p-5 sm:p-6">
-                            <h3 className="display text-[1.0625rem] leading-snug text-brand-navy">{t(a.area)}</h3>
+                            <h3 className="display text-[1.125rem] leading-snug text-brand-navy">{t(a.area)}</h3>
                             <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-brand-dark/85">
                                 {a.subjects.map((s) => (
                                     <li key={s} className="flex gap-2">
@@ -118,7 +118,7 @@ export default function ScoalaLiceala() {
                             {t('high_page.facilities_title', 'Săli specializate pentru discipline reale')}
                         </h2>
                         <span data-rule className="mt-5 block h-1 w-20 origin-left rounded-full bg-brand-green" aria-hidden="true" />
-                        <p className="mt-5 text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-white/90">{t('high_page.facilities_body')}</p>
+                        <p className="mt-5 text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-white/90">{t('high_page.facilities_body')}</p>
                     </div>
                     <figure className="relative aspect-[16/10] overflow-hidden rounded-[18px] border border-white/15 shadow-[0_30px_70px_-45px_rgba(0,0,0,0.5)]">
                         <img
@@ -144,7 +144,7 @@ export default function ScoalaLiceala() {
                         {t('high_page.cambridge_title', 'Centru autorizat Cambridge English · din 2019')}
                     </h2>
                     <span data-rule className="mx-auto mt-5 block h-1 w-20 origin-left rounded-full bg-brand-green" aria-hidden="true" />
-                    <p className="mx-auto mt-6 max-w-[60ch] text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-brand-dark/85">{t('high_page.cambridge_lead')}</p>
+                    <p className="mx-auto mt-6 max-w-[60ch] text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-brand-dark/85">{t('high_page.cambridge_lead')}</p>
                     <div className="mt-7 flex justify-center">
                         <BrandButton href="/cambridge-english-exam" variant="primary" icon={Globe}>
                             {t('high_page.cambridge_cta', 'Despre Cambridge English')}

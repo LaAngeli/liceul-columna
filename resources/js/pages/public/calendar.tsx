@@ -39,6 +39,7 @@ function classInfo(label: string): { short: string; grade: number; level: Level 
     const stripped = label.replace(/^clasa\s+/i, '').trim();
     const grade = ROMAN[stripped.split(/\s+/)[0]?.toUpperCase()] ?? 0;
     const level: Level = grade <= 4 ? 'primar' : grade <= 9 ? 'gimnaziu' : 'liceu';
+
     return { short: stripped || label, grade, level };
 }
 
@@ -98,8 +99,12 @@ export default function Calendar({ title, description, breadcrumbs = [], schedul
 
     // Clasele grupate pe treaptă (doar pentru orarul lecțiilor).
     const classGroups = useMemo(() => {
-        if (!isLessons || !active) return [];
+        if (!isLessons || !active) {
+return [];
+}
+
         const withIdx = active.tables.map((tbl, idx) => ({ idx, label: tbl.label, ...classInfo(tbl.label) }));
+
         return LEVELS.map((lvl) => ({
             level: lvl,
             classes: withIdx.filter((c) => c.level === lvl).sort((a, b) => a.grade - b.grade || a.short.localeCompare(b.short, 'ro')),
@@ -138,6 +143,7 @@ export default function Calendar({ title, description, breadcrumbs = [], schedul
                     {scheduleTypes.map((ty) => {
                         const isActive = ty.key === activeKey;
                         const empty = ty.count === 0;
+
                         return (
                             <button
                                 key={ty.key}

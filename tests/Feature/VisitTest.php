@@ -73,8 +73,8 @@ it('confirmarea vizitei pleacă în limba paginii de pe care s-a făcut POST', f
     });
 })->with([
     'RO root → confirmare în RO' => ['/programeaza-vizita', 'ro', 'Am primit programarea'],
-    'RU prefix → confirmare în RU' => ['/ru/programeaza-vizita', 'ru', 'Мы получили'],
-    'EN prefix → confirmare în EN' => ['/en/programeaza-vizita', 'en', 'We received'],
+    'RU prefix → confirmare în RU' => ['/ru/zapis-na-vizit', 'ru', 'Мы получили'],
+    'EN prefix → confirmare în EN' => ['/en/book-a-visit', 'en', 'We received'],
 ]);
 
 it('respinge programarea fără dată/oră aleasă', function () {

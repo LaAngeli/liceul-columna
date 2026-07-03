@@ -1,10 +1,13 @@
 import { Head } from '@inertiajs/react';
-import { ArrowRight, BookOpen, Award, GraduationCap, Heart, Mail, MapPin, Newspaper, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowRight, BookOpen, Award, GraduationCap, DoorOpen, Heart, Mail, MapPin, Newspaper, Phone, ShieldCheck, Wallet } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { LocaleLink } from '@/components/locale-link';
-import { Band, BrandButton, Container, Display, FourStar, Reveal, Rhombus, SectionHeader, StatRibbon, ValueChips, type StatItem } from '@/components/public/brand';
+import { Band, BrandButton, Container, Display, FourStar, Reveal, Rhombus, SectionHeader, StatRibbon, ValueChips  } from '@/components/public/brand';
+import type {StatItem} from '@/components/public/brand';
 import { LeadershipGrid } from '@/components/public/leadership-grid';
 import { useTranslations } from '@/lib/i18n';
 import { siteContact } from '@/lib/public-navigation';
+import { cn } from '@/lib/utils';
 
 interface NewsCard {
     title: string;
@@ -25,6 +28,29 @@ const ENROLL = '/inregistrarea-student';
 export default function Home({ latestNews, leadership }: { latestNews: NewsCard[]; leadership: LeadershipMember[] }) {
     const t = useTranslations();
     const years = new Date().getFullYear() - siteContact.founded;
+
+    // Obturatorul hero rulează o singură dată pe sesiune; la revenire (SPA/refresh)
+    // atributul data-hero-intro lipsește și hero-ul e static de la primul frame.
+    const [shutter] = useState(() => {
+        if (typeof window === 'undefined') {
+            return false;
+        }
+
+        try {
+            return !window.sessionStorage.getItem('columna-hero-intro');
+        } catch {
+            return false;
+        }
+    });
+    useEffect(() => {
+        if (shutter) {
+            try {
+                window.sessionStorage.setItem('columna-hero-intro', '1');
+            } catch {
+                // sessionStorage indisponibil — intro-ul va rula la fiecare vizită
+            }
+        }
+    }, [shutter]);
 
     const stats: StatItem[] = [
         { value: String(years), suffix: '+', label: t('home.stat_years', 'ani de experiență, din 1998') },
@@ -50,6 +76,15 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
         { n: '03', title: t('home.step3', 'Înmatriculare'), desc: t('home.step3_desc', 'Semnați contractul și începeți.') },
     ];
 
+    // Rigla hero → paginile pe care un părinte le cercetează înainte de a se hotărî
+    // (funnel-ul propriu-zis de admitere rămâne în secțiunea 04). Terminusul cu steluța
+    // verde = „De ce Columna?", capătul firului.
+    const heroLinks = [
+        { title: t('menu.mission', 'Misiune și valori'), href: '/filosofia-liceului', icon: Heart },
+        { title: t('nav.admission', 'Admitere'), href: '/admitere', icon: DoorOpen },
+        { title: t('menu.fees', 'Taxe și costuri'), href: '/taxe', icon: Wallet },
+    ];
+
     const proof = [
         { title: t('about.accreditation', 'Acreditări și autorizare'), href: '/acreditari', icon: ShieldCheck },
         { title: t('utility.cambridge', 'Cambridge English'), href: '/cambridge-english-exam', icon: Award },
@@ -61,57 +96,133 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             <Head>
                 <title>{t('home.seo_title', 'Liceul „Columna” Chișinău — Înscrie copilul din 1998')}</title>
                 <meta name="description" content={t('home.seo_desc', 'Liceu privat în Chișinău din 1998: primar, gimnazial, liceal, centru Cambridge. Programează o vizită și înscrie-ți copilul. Succesul copilului începe aici.')} />
+                <link
+                    rel="preload"
+                    as="image"
+                    imageSrcSet="/images/hero/g15-hero-900.webp 900w, /images/hero/g15-hero-1440.webp 1440w, /images/hero/g15-hero-1800.webp 1800w"
+                    imageSizes="(min-width: 1024px) 54vw, 100vw"
+                    fetchPriority="high"
+                />
             </Head>
 
-            {/* ───────────────────────── 00 — HERO (Funnel Blazon) ───────────────────────── */}
-            <section className="on-navy relative overflow-hidden bg-surface-navy text-[color:var(--brand-navy-foreground)]">
-                <div className="dotgrid pointer-events-none absolute inset-0 opacity-[0.12]" aria-hidden="true" />
-                <Container className="relative grid items-center gap-10 py-[clamp(3rem,7vw,6rem)] lg:grid-cols-[1.55fr_1fr]">
-                    <Reveal className="flex flex-col gap-6">
-                        <span className="eyebrow text-white/70">00 — {t('breadcrumb.home', 'Acasă')}</span>
-                        <Display as="h1" className="max-w-[14ch] text-[clamp(2.125rem,6.4vw,4rem)] leading-[0.98] text-[color:var(--brand-navy-foreground)]">
+            {/* ───────────────────────── 00 — HERO („Cadrul & Drumul") ─────────────────────────
+                Un singur cadru real: fotografia aeriană cu elevii care salută camera. Obturatorul
+                navy se deschide o dată pe sesiune, apoi firul verde al admiterii se desenează
+                01→03 și se termină în steluța-terminus — semnătura persistentă a paginii. */}
+            <section
+                data-hero-intro={shutter ? '' : undefined}
+                className="on-navy relative isolate overflow-hidden bg-surface-navy text-[color:var(--brand-navy-foreground)]"
+            >
+                {/* Foto-eroină: mobil = bloc în flux sus (100vw); desktop = panou pe dreapta
+                    (~54vw) unde imaginea de 900px e afișată aproape la mărimea nativă = clară,
+                    nu întinsă full-bleed la 2× (unde s-ar înmuia). Textul stă pe navy solid. */}
+                <div className="hero-photo relative h-[min(38vh,290px)] w-full lg:absolute lg:inset-y-0 lg:right-0 lg:left-[46%] lg:h-full lg:w-auto">
+                    <img
+                        src="/images/hero/g15-hero-1440.webp"
+                        srcSet="/images/hero/g15-hero-900.webp 900w, /images/hero/g15-hero-1440.webp 1440w, /images/hero/g15-hero-1800.webp 1800w"
+                        sizes="(min-width: 1024px) 54vw, 100vw"
+                        alt={t('home.hero_photo_caption', 'Campusul liceului, văzut de sus')}
+                        loading="eager"
+                        fetchPriority="high"
+                        decoding="async"
+                        className="h-full w-full object-cover object-[50%_42%]"
+                    />
+                    {/* fuziune mobilă foto→navy */}
+                    <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[color:var(--surface-navy)] to-transparent lg:hidden" />
+                    {/* desktop: cusătura stângă se topește în panoul navy (blend, nu tăietură) */}
+                    <div aria-hidden="true" className="absolute inset-y-0 left-0 hidden w-40 bg-gradient-to-r from-[color:var(--surface-navy)] to-transparent lg:block" />
+                    {/* scrim de jos desktop — lizibilitatea riglei peste foto */}
+                    <div aria-hidden="true" className="absolute inset-x-0 bottom-0 hidden h-40 bg-gradient-to-t from-[color:var(--surface-navy)]/85 to-transparent lg:block" />
+                </div>
+                {/* dotgrid doar pe panoul de text din stânga, doar desktop */}
+                <div aria-hidden="true" className="dotgrid pointer-events-none absolute inset-y-0 left-0 hidden w-[42%] opacity-[0.10] [mask-image:linear-gradient(to_right,black,transparent)] lg:block" />
+                <Container className="relative z-10 -mt-10 lg:mt-0 lg:flex lg:min-h-[clamp(560px,76vh,800px)] lg:items-center">
+                    <div className="flex flex-col gap-5 pb-10 lg:max-w-[42%] lg:gap-6 lg:pb-44">
+                        <span className="hero-stage eyebrow text-white/70 [--stage:0]">{t('home.hero_eyebrow', 'Liceu privat · Chișinău · din 1998')}</span>
+                        <Display as="h1" className="hero-stage max-w-[14ch] text-[clamp(2.125rem,6.4vw,4rem)] leading-[0.98] text-[color:var(--brand-navy-foreground)] [--stage:1]">
                             {t('home.hero_title', 'Succesul copilului începe aici.')}
                         </Display>
-                        <span data-rule className="h-1 w-24 origin-left rounded-full bg-brand-green" aria-hidden="true" />
-                        <p className="max-w-[40ch] text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed font-medium text-white/85">
+                        <span aria-hidden="true" className="hero-stage-rule h-1 w-24 origin-left rounded-full bg-brand-green" />
+                        <p className="hero-stage max-w-[40ch] text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed font-medium text-white/85 [--stage:2]">
                             {t('home.hero_lead', 'Educație de calitate de la clasele primare până la liceu — într-un mediu sigur și inspirat, din 1998.')}
                         </p>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <BrandButton href={ENROLL} variant="primary" icon={GraduationCap}>
+                        <div className="hero-stage flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center [--stage:3]">
+                            <BrandButton href={ENROLL} variant="primary" icon={GraduationCap} className="w-full sm:w-auto">
                                 {t('menu.enroll', 'Înscrie copilul')}
                             </BrandButton>
-                            <BrandButton href="/contacte" variant="ghost-navy">
+                            <BrandButton href="/programeaza-vizita" variant="ghost-navy" className="w-full sm:w-auto">
                                 {t('home.visit', 'Vizitează liceul')}
                             </BrandButton>
                         </div>
-                    </Reveal>
-
-                    {/* Card-proof: 3 pași admitere (fără foto stock — panou navy + crest) */}
-                    <Reveal className="relative">
-                        <img src="/images/logo/columna-white.png" alt="" aria-hidden="true" className="pointer-events-none absolute -top-10 -right-6 w-40 opacity-[0.07]" />
-                        <div className="relative rounded-[14px] border border-white/15 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-sm">
-                            <span className="eyebrow text-brand-green">{t('home.how_enroll', 'Cum te înscrii')}</span>
-                            <ol className="mt-5 space-y-4">
-                                {steps.map((s) => (
-                                    <li key={s.n} className="flex items-start gap-3">
-                                        <span className="numeral text-xl text-brand-green">{s.n}</span>
-                                        <span>
-                                            <span className="block font-semibold text-[color:var(--brand-navy-foreground)]">{s.title}</span>
-                                            <span className="block text-sm text-white/70">{s.desc}</span>
-                                        </span>
-                                    </li>
-                                ))}
-                            </ol>
-                            <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-white/15" aria-hidden="true">
-                                <span className="block h-full w-1/3 rounded-full bg-brand-green" />
-                            </div>
-                            <p className="mt-2 text-xs text-white/55">{t('home.step_progress', 'Pasul 1 din 3 · 100% online')}</p>
-                            <BrandButton href={ENROLL} variant="primary" icon={ArrowRight} className="mt-5 w-full">
-                                {t('menu.enroll', 'Înscrie copilul')}
-                            </BrandButton>
-                        </div>
-                    </Reveal>
+                    </div>
                 </Container>
+                {/* Chip de proveniență — decorativ (alt-ul imaginii poartă textul pentru SR) */}
+                <div
+                    aria-hidden="true"
+                    className="hero-stage pointer-events-none absolute right-6 bottom-24 z-10 hidden items-center gap-2 rounded-full border border-white/25 bg-[color:var(--surface-navy)]/60 px-3 py-1.5 text-xs text-white/80 supports-[backdrop-filter]:backdrop-blur-sm lg:inline-flex [--stage:6]"
+                >
+                    <span className="hero-pulse size-2 rounded-full bg-brand-green" />
+                    {t('home.hero_photo_caption', 'Campusul liceului, văzut de sus')}
+                </div>
+                {/* Rigla de destinații-cheie + drumul verde care se termină în steluța „De ce Columna?" */}
+                <nav
+                    aria-label={t('home.hero_links_label', 'Pagini importante')}
+                    className="hero-ruler relative z-10 border-t border-white/15 bg-[color:var(--surface-navy)]/70 supports-[backdrop-filter]:bg-[color:var(--surface-navy)]/55 supports-[backdrop-filter]:backdrop-blur-sm lg:absolute lg:inset-x-0 lg:bottom-0"
+                >
+                    <span aria-hidden="true" className="hero-path absolute inset-x-0 -top-px h-[2px] origin-left bg-brand-green" />
+                    <Container>
+                        {/* desktop: 3 destinații + terminus „De ce Columna?" */}
+                        <div className="hidden min-h-[76px] items-stretch lg:grid lg:grid-cols-[1fr_1fr_1fr_auto]">
+                            {heroLinks.map((l, i) => {
+                                const Icon = l.icon;
+
+                                return (
+                                    <LocaleLink
+                                        key={l.href}
+                                        href={l.href}
+                                        className={cn('flex min-w-0 items-center gap-3 px-5 transition-colors hover:bg-white/10', i > 0 && 'border-l border-white/15')}
+                                    >
+                                        <Icon className="size-5 shrink-0 text-brand-green" />
+                                        <span className="leading-tight font-semibold">{l.title}</span>
+                                    </LocaleLink>
+                                );
+                            })}
+                            <LocaleLink href="/de-ce-columna" className="flex items-center gap-2.5 border-l border-white/15 px-6 font-semibold transition-colors hover:bg-white/10">
+                                <FourStar className="hero-star size-4 shrink-0 text-brand-green" />
+                                {t('about.why', 'De ce Columna?')}
+                                <ArrowRight className="size-4 shrink-0" />
+                            </LocaleLink>
+                        </div>
+                        {/* mobil: 2×2 destinații; steluța „De ce Columna?" rămâne capătul drumului */}
+                        <div className="grid grid-cols-2 lg:hidden">
+                            {heroLinks.map((l, i) => {
+                                const Icon = l.icon;
+
+                                return (
+                                    <LocaleLink
+                                        key={l.href}
+                                        href={l.href}
+                                        className={cn('flex items-center gap-2.5 px-4 py-3.5', i % 2 === 1 && 'border-l border-white/15', i >= 2 && 'border-t border-white/15')}
+                                    >
+                                        <Icon className="size-4 shrink-0 text-brand-green" />
+                                        <span className="text-sm font-semibold">{l.title}</span>
+                                    </LocaleLink>
+                                );
+                            })}
+                            <LocaleLink href="/de-ce-columna" className="flex items-center gap-2.5 border-l border-t border-white/15 px-4 py-3.5">
+                                <FourStar className="hero-star size-4 shrink-0 text-brand-green" />
+                                <span className="text-sm font-semibold">{t('about.why', 'De ce Columna?')}</span>
+                            </LocaleLink>
+                        </div>
+                    </Container>
+                </nav>
+                {/* Panourile obturatorului — doar la prima vizită pe sesiune, deasupra a tot */}
+                {shutter && (
+                    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20">
+                        <div className="hero-shutter-top absolute inset-x-0 top-0 h-[42%] bg-[color:var(--surface-navy)]" />
+                        <div className="hero-shutter-bottom absolute inset-x-0 top-[42%] bottom-0 bg-[color:var(--surface-navy)]" />
+                    </div>
+                )}
             </section>
 
             {/* ───────────────────────── 01 — PRESTIGIU (stat ribbon) ───────────────────────── */}
@@ -123,20 +234,21 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             </Band>
 
             {/* ───────────────────────── 02 — INSTITUȚIA (hub cards) ───────────────────────── */}
-            <Band variant="light" className="!pt-0">
-                <SectionHeader index="02" label={t('home.k_institution', 'INSTITUȚIA')} title={t('home.institution_title', 'Instituția Privată Liceul „Columna”')} />
+            <Band variant="navy">
+                <SectionHeader variant="navy" index="02" label={t('home.k_institution', 'INSTITUȚIA')} title={t('home.institution_title', 'Instituția Privată Liceul „Columna”')} />
                 <div className="mt-8 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
                     {institution.map((c) => {
                         const Icon = c.icon;
+
                         return (
                             <Reveal key={c.href} as="article">
-                                <LocaleLink href={c.href} className="group flex h-full flex-col gap-3 rounded-[12px] border keyline border-l-[5px] border-l-brand-navy bg-card p-6 transition-all hover:-translate-y-0.5 hover:border-l-brand-green sm:p-8">
-                                    <span className="flex size-11 items-center justify-center rounded-md bg-brand-navy/8 text-brand-navy">
+                                <LocaleLink href={c.href} className="group flex h-full flex-col gap-3 rounded-[12px] border border-white/15 bg-white/[0.04] p-6 transition-all hover:-translate-y-0.5 hover:border-brand-green/60 sm:p-8">
+                                    <span className="flex size-11 items-center justify-center rounded-md bg-white/10 text-brand-green">
                                         <Icon className="size-5" />
                                     </span>
-                                    <Display as="h3" className="text-[1.375rem] text-brand-navy">{c.title}</Display>
-                                    <p className="text-brand-gray">{c.desc}</p>
-                                    <span className="mt-auto inline-flex items-center gap-1.5 pt-2 font-semibold text-brand-navy underline decoration-brand-green decoration-2 underline-offset-4">
+                                    <Display as="h3" className="text-[1.375rem] text-[color:var(--brand-navy-foreground)]">{c.title}</Display>
+                                    <p className="text-white/70">{c.desc}</p>
+                                    <span className="mt-auto inline-flex items-center gap-1.5 pt-2 font-semibold text-[color:var(--brand-navy-foreground)] underline decoration-brand-green decoration-2 underline-offset-4">
                                         {t('action.details', 'Detalii')} <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                                     </span>
                                 </LocaleLink>
@@ -147,7 +259,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             </Band>
 
             {/* ───────────────────────── 03 — PROGRAME (trei trepte) ───────────────────────── */}
-            <Band variant="light" className="border-t keyline !pt-[clamp(3.5rem,8vw,8rem)]">
+            <Band variant="light">
                 <SectionHeader index="03" label={t('home.k_programs', 'PROGRAME')} title={t('home.programs_title', 'Cele trei trepte de școlaritate')} lead={t('home.programs_lead', 'Un parcurs continuu, de la primii pași până la examenele de bacalaureat.')} />
                 <div className="mt-8 grid gap-5 sm:grid-cols-3">
                     {programs.map((p, i) => (
@@ -170,7 +282,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             </Band>
 
             {/* ───────────────────────── 04 — ADMITERE (funnel) ───────────────────────── */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="dotgrid" id="admitere" className="scroll-mt-28">
                 <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.1fr]">
                     <SectionHeader
                         variant="navy"
@@ -242,6 +354,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                 <div className="mt-10 grid gap-4 sm:grid-cols-3">
                     {proof.map((p) => {
                         const Icon = p.icon;
+
                         return (
                             <LocaleLink key={p.href} href={p.href} className="group flex items-center gap-3 rounded-[12px] border border-white/15 bg-white/[0.04] p-5 transition-colors hover:border-brand-green/60">
                                 <Icon className="size-6 shrink-0 text-brand-green" />
@@ -264,21 +377,23 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                 </Band>
             )}
 
-            {/* ───────────────────────── CTA final ───────────────────────── */}
-            <Band variant="navy" pattern="dotgrid">
+            {/* ───────────────────────── CTA final ─────────────────────────
+                Bandă DESCHISĂ, fără cusătură cu ECHIPA de deasupra: împreună formează
+                zona deschisă finală înainte de footerul navy (ritmul navy↔deschis). */}
+            <Band variant="light">
                 <div className="flex flex-col items-center gap-6 text-center">
                     <FourStar className="size-6 text-brand-green" />
-                    <Display as="h2" className="max-w-[18ch] text-[clamp(1.75rem,4vw,3rem)] text-[color:var(--brand-navy-foreground)]">
+                    <Display as="h2" className="max-w-[18ch] text-[clamp(1.75rem,4vw,3rem)] text-brand-navy">
                         {t('home.cta_title', 'Programează o vizită la Liceul Columna')}
                     </Display>
-                    <div className="flex flex-col items-center gap-2 text-sm text-white/85 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-5">
-                        <a href="tel:+37322742852" className="inline-flex items-center gap-2 py-2 hover:text-white sm:py-0"><Phone className="size-4 text-brand-green" /> {siteContact.phone}</a>
-                        <a href={`mailto:${siteContact.email}`} className="inline-flex items-center gap-2 py-2 hover:text-white sm:py-0"><Mail className="size-4 text-brand-green" /> {siteContact.email}</a>
+                    <div className="flex flex-col items-center gap-2 text-sm text-brand-gray sm:flex-row sm:flex-wrap sm:justify-center sm:gap-5">
+                        <a href="tel:+37322742852" className="inline-flex items-center gap-2 py-2 hover:text-brand-navy sm:py-0"><Phone className="size-4 text-brand-green" /> {siteContact.phone}</a>
+                        <a href={`mailto:${siteContact.email}`} className="inline-flex items-center gap-2 py-2 hover:text-brand-navy sm:py-0"><Mail className="size-4 text-brand-green" /> {siteContact.email}</a>
                         <span className="inline-flex items-center gap-2"><MapPin className="size-4 text-brand-green" /> {siteContact.address}</span>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-3">
                         <BrandButton href={ENROLL} variant="primary" icon={GraduationCap}>{t('menu.enroll', 'Înscrie copilul')}</BrandButton>
-                        <BrandButton href="/contacte" variant="ghost-navy">{t('utility.contact', 'Contacte')}</BrandButton>
+                        <BrandButton href="/contacte" variant="ghost">{t('utility.contact', 'Contacte')}</BrandButton>
                     </div>
                 </div>
             </Band>

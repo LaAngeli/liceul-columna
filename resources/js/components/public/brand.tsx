@@ -4,7 +4,8 @@
  * verdele DOAR ca fill/accent (niciodată text pe alb). Toate trăiesc sub `.site-shell`.
  */
 import { Link } from '@inertiajs/react';
-import { type ComponentType, type ReactNode, useEffect, useRef, useState } from 'react';
+import {   useEffect, useRef, useState } from 'react';
+import type {ComponentType, ReactNode} from 'react';
 import { LocaleLink } from '@/components/locale-link';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +30,7 @@ export function Band({
     id?: string;
 }) {
     const navy = variant === 'navy';
+
     return (
         <section
             id={id}
@@ -67,6 +69,7 @@ export function SectionHeader({
     className?: string;
 }) {
     const navy = variant === 'navy';
+
     return (
         <Reveal className={cn('flex flex-col gap-4', align === 'center' && 'items-center text-center', className)}>
             <div className={cn('flex items-center gap-3', align === 'center' && 'justify-center')}>
@@ -82,7 +85,7 @@ export function SectionHeader({
                 </h2>
             )}
             {lead && (
-                <p className={cn('max-w-[60ch] text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed', navy ? 'text-white/85' : 'text-brand-gray')}>
+                <p className={cn('max-w-[60ch] text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed', navy ? 'text-white/85' : 'text-brand-gray')}>
                     {lead}
                 </p>
             )}
@@ -170,6 +173,7 @@ export function BrandButton({
             {Icon && <Icon className="size-4 shrink-0" />}
         </>
     );
+
     if (href) {
         if (external || href.startsWith('http') || href.startsWith('tel:') || href.startsWith('mailto:') || href.startsWith('/admin')) {
             return (
@@ -178,6 +182,7 @@ export function BrandButton({
                 </a>
             );
         }
+
         if (href.startsWith('/dashboard') || href.startsWith('/login')) {
             return (
                 <Link href={href} className={cls}>
@@ -185,12 +190,14 @@ export function BrandButton({
                 </Link>
             );
         }
+
         return (
             <LocaleLink href={href} className={cls}>
                 {inner}
             </LocaleLink>
         );
     }
+
     return (
         <button type={type} onClick={onClick} disabled={disabled} className={cls}>
             {inner}
@@ -216,7 +223,11 @@ export function Reveal({
     const [seen, setSeen] = useState(false);
     useEffect(() => {
         const el = ref.current;
-        if (!el || seen) return;
+
+        if (!el || seen) {
+return;
+}
+
         const io = new IntersectionObserver(
             (entries) => {
                 for (const e of entries) {
@@ -231,8 +242,10 @@ export function Reveal({
             { threshold: 0.15, rootMargin: '0px 0px -8% 0px' },
         );
         io.observe(el);
+
         return () => io.disconnect();
     }, [seen]);
+
     return (
         <As ref={ref as never} data-reveal="" {...(rule ? { 'data-rule': '' } : {})} className={className}>
             {children}
@@ -259,6 +272,7 @@ export function ValueChips({ t, className }: { t: (k: string, f?: string) => str
                         : fill === 1
                           ? 'bg-brand-green text-[color:var(--brand-green-foreground)]'
                           : 'border border-white/60 text-[color:var(--brand-navy-foreground)]';
+
                 return (
                     <li key={key} className="flex items-center gap-2">
                         <span className={cn('rounded-md px-3 py-1.5 text-[0.8125rem] font-semibold tracking-[0.12em] uppercase', chip)} style={{ fontFamily: 'var(--font-display)' }}>
@@ -322,13 +336,22 @@ function CountUp({ value, className }: { value: string; className?: string }) {
     const numeric = !isYear && /^\d+$/.test(value) ? parseInt(value, 10) : null;
     const [display, setDisplay] = useState(numeric === null ? value : '0');
     useEffect(() => {
-        if (numeric === null) return;
+        if (numeric === null) {
+return;
+}
+
         const el = ref.current;
-        if (!el) return;
+
+        if (!el) {
+return;
+}
+
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
             setDisplay(String(numeric));
+
             return;
         }
+
         const io = new IntersectionObserver((entries) => {
             for (const e of entries) {
                 if (e.isIntersecting) {
@@ -338,7 +361,10 @@ function CountUp({ value, className }: { value: string; className?: string }) {
                         const p = Math.min(1, (now - start) / dur);
                         const eased = 1 - Math.pow(1 - p, 3);
                         setDisplay(String(Math.round(eased * numeric)));
-                        if (p < 1) requestAnimationFrame(tick);
+
+                        if (p < 1) {
+requestAnimationFrame(tick);
+}
                     };
                     requestAnimationFrame(tick);
                     io.disconnect();
@@ -346,8 +372,10 @@ function CountUp({ value, className }: { value: string; className?: string }) {
             }
         });
         io.observe(el);
+
         return () => io.disconnect();
     }, [numeric]);
+
     return (
         <span ref={ref} className={className}>
             {display}

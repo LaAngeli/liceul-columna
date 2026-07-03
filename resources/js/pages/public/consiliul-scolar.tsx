@@ -38,7 +38,7 @@ export default function ConsiliulScolar() {
                             {t('school_council.intro_title', 'Trei voci, o singură comunitate')}
                         </Display>
                         <span data-rule className="mt-5 block h-1 w-20 origin-left rounded-full bg-brand-green" aria-hidden="true" />
-                        <p className="mt-5 max-w-[56ch] text-[clamp(1.0625rem,1.6vw,1.1875rem)] leading-relaxed text-white/85">
+                        <p className="mt-5 max-w-[56ch] text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-white/85">
                             {t('school_council.intro_lead')}
                         </p>
                     </Reveal>

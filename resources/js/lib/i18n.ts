@@ -23,6 +23,13 @@ export function useLocale(): string {
     return usePage().props.locale;
 }
 
+export type RouteSlugMap = Record<string, Partial<Record<'ru' | 'en', string>>>;
+
+/** Harta de traducere a slug-urilor (RU/EN pe segment canonic RO) — vezi App\Support\RouteSlugs. */
+export function useRouteSlugs(): RouteSlugMap {
+    return usePage().props.routeSlugs ?? {};
+}
+
 /**
  * Returnează `t(key, fallback?)` pentru limba curentă.
  * Cheile vin din `lang/{locale}/site.php`, partajate prin Inertia.
@@ -47,16 +54,60 @@ export function pluralKey(baseKey: string, count: number): string {
     return `${baseKey}_${count === 1 ? 'one' : 'other'}`;
 }
 
-/**
- * Prefixează o cale internă cu limba dată (ro = fără prefix, la root).
- * Elimină întâi un eventual prefix existent (/ru, /en).
- */
-export function localizePath(path: string, locale: string): string {
-    const stripped = path.replace(/^\/(ru|en)(?=\/|$)/, '') || '/';
+/** Construiește harta inversă (locale → slug tradus → segment canonic RO) dintr-un RouteSlugMap. */
+function reverseSlugMap(slugMap: RouteSlugMap): Record<string, Record<string, string>> {
+    const reverse: Record<string, Record<string, string>> = { ru: {}, en: {} };
 
-    if (locale === 'ro') {
-        return stripped;
+    for (const [roSegment, translations] of Object.entries(slugMap)) {
+        for (const locale of ['ru', 'en'] as const) {
+            const translated = translations[locale];
+
+            if (translated) {
+                reverse[locale][translated] = roSegment;
+            }
+        }
     }
 
-    return stripped === '/' ? `/${locale}` : `/${locale}${stripped}`;
+    return reverse;
+}
+
+/**
+ * Prefixează o cale internă cu limba dată (ro = fără prefix, la root) și traduce slug-ul
+ * segment cu segment via `slugMap` (App\Support\RouteSlugs, partajat prin Inertia).
+ *
+ * Simetric: `path` poate fi FIE un path canonic RO scris literal în cod (href="/scoala-primara"
+ * din JSX — fără prefix, deci „limba curentă" detectată e RO, iar traducerea RO→RO e identitate),
+ * FIE URL-ul curent din browser, deja localizat (ex. /ru/nachalnaya-shkola, la comutarea de
+ * limbă) — prefixul e detectat, segmentele sunt „reverse-mapate" spre canonicul RO, apoi
+ * „forward-mapate" spre limba țintă. Un segment fără intrare în hartă rămâne neschimbat
+ * (fallback sigur — pagini încă netraduse).
+ */
+export function localizePath(path: string, locale: string, slugMap: RouteSlugMap = {}): string {
+    const [pathname, rest] = splitPathnameFromRest(path);
+    const match = pathname.match(/^\/(ru|en)(?=\/|$)/);
+    const currentLocale = match ? match[1] : 'ro';
+    const stripped = pathname.replace(/^\/(ru|en)(?=\/|$)/, '') || '/';
+
+    if (stripped === '/') {
+        return (locale === 'ro' ? '/' : `/${locale}`) + rest;
+    }
+
+    const reverse = reverseSlugMap(slugMap);
+    const canonicalSegments = stripped
+        .slice(1)
+        .split('/')
+        .map((segment) => (currentLocale === 'ro' ? segment : (reverse[currentLocale]?.[segment] ?? segment)));
+
+    const targetSegments = canonicalSegments.map((segment) => (locale === 'ro' ? segment : (slugMap[segment]?.[locale as 'ru' | 'en'] ?? segment)));
+
+    const targetPath = `/${targetSegments.join('/')}`;
+
+    return (locale === 'ro' ? targetPath : `/${locale}${targetPath}`) + rest;
+}
+
+/** Desparte un path de query string/hash (translatăm doar segmentele de pathname). */
+function splitPathnameFromRest(path: string): [pathname: string, rest: string] {
+    const idx = path.search(/[?#]/);
+
+    return idx === -1 ? [path, ''] : [path.slice(0, idx), path.slice(idx)];
 }

@@ -18,6 +18,7 @@ use App\Http\Controllers\VisitController;
 use App\Http\Middleware\SetPublicLocale;
 use App\Http\Middleware\SetUserLocale;
 use App\Support\Locale;
+use App\Support\RouteSlugs;
 use App\Support\TeacherDirectory;
 use Illuminate\Support\Facades\Route;
 
@@ -26,8 +27,12 @@ use Illuminate\Support\Facades\Route;
 | Site public (Inertia/React) — migrare de pe columna.org.md
 |--------------------------------------------------------------------------
 | Multilingv: RO la root (păstrează URL-urile migrate), RU/EN cu prefix de
-| URL (/ru, /en). Rutele publice se înregistrează o dată în `$publicRoutes`
-| și se montează pentru fiecare limbă. Conținutul se rezolvă la cerere.
+| URL (/ru, /en) ȘI slug tradus (vezi App\Support\RouteSlugs — traducere pe
+| segment, completată treptat). Rutele publice se înregistrează o dată în
+| `$publicRoutes` (parametrizat cu limba curentă) și se montează pentru
+| fiecare limbă; URI-urile literale trec prin `$p()`, care traduce fiecare
+| segment pentru limba activă (identitate pt. RO și pt. segmentele fără
+| traducere încă în hartă). Conținutul se rezolvă la cerere.
 */
 
 if (! function_exists('publicPage')) {
@@ -51,30 +56,35 @@ if (! function_exists('publicPage')) {
 // Comutarea limbii (cookie + preferința userului) — sursă unică pentru site, panou, cabinet.
 Route::get('set-locale/{locale}', [LocaleController::class, 'switch'])->name('set-locale');
 
-$publicRoutes = function (): void {
+$publicRoutes = function (string $locale): void {
+    // Traduce un path canonic RO în slug-ul limbii curent montate (identitate pt. RO
+    // și pt. segmentele fără traducere încă în App\Support\RouteSlugs).
+    $p = fn (string $path): string => RouteSlugs::translatePath($path, $locale);
+
     Route::get('/', [HomeController::class, 'index'])->name('home');
 
     // Despre liceu
-    Route::inertia('/scrisoarea-directorului', 'public/scrisoarea-directorului')->name('scrisoarea-directorului'); // bespoke: scrisoare editorial cu portret + signature ceremonial
-    Route::inertia('/de-ce-columna', 'public/de-ce-columna')->name('de-ce-columna'); // pagină-fanion bespoke (hero + constelația valorilor)
-    Route::inertia('/filosofia-liceului', 'public/filosofia-liceului')->name('filosofia-liceului'); // bespoke: manifest editorial (principii pe navy + convingere cu foto)
-    Route::inertia('/acreditari', 'public/acreditari')->name('acreditari'); // bespoke: certificatele reale (înregistrare + acreditare ANACEC) ca documente
-    Route::inertia('/istorie', 'public/istorie')->name('istorie'); // bespoke: timeline editorial „Din 1998 până azi"
+    Route::inertia($p('/scrisoarea-directorului'), 'public/scrisoarea-directorului')->name('scrisoarea-directorului'); // bespoke: scrisoare editorial cu portret + signature ceremonial
+    Route::inertia($p('/de-ce-columna'), 'public/de-ce-columna')->name('de-ce-columna'); // pagină-fanion bespoke (hero + constelația valorilor)
+    Route::inertia($p('/filosofia-liceului'), 'public/filosofia-liceului')->name('filosofia-liceului'); // bespoke: manifest editorial (principii pe navy + convingere cu foto)
+    Route::inertia($p('/acreditari'), 'public/acreditari')->name('acreditari'); // bespoke: certificatele reale (înregistrare + acreditare ANACEC) ca documente
+    Route::inertia($p('/istorie'), 'public/istorie')->name('istorie'); // bespoke: timeline editorial „Din 1998 până azi"
 
     // Structura școlii
-    Route::inertia('/structura-scolii', 'public/structura-scolii')->name('structura-scolii'); // bespoke: 3 trepte (foto reală + numeral roman + body verbatim)
-    Route::inertia('/scoala-primara', 'public/scoala-primara')->name('scoala-primara'); // bespoke: identitate + 7 arii curriculare (Curriculum Național) + PDF descărcabil + dotări + galerie
-    Route::inertia('/scoala-gimnaziala', 'public/scoala-gimnaziala')->name('scoala-gimnaziala'); // bespoke: identitate + 13 discipline (PDF curriculum descărcabil local) + dotări + galerie
-    publicPage('/scoala-gimnaziala/curriculum', 'scoala-gimnaziala.curriculum', 'Curriculum — gimnaziu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala gimnazială', 'href' => '/scoala-gimnaziala'], ['title' => 'Curriculum']]);
-    publicPage('/scoala-gimnaziala/dotari', 'scoala-gimnaziala.dotari', 'Dotări — gimnaziu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala gimnazială', 'href' => '/scoala-gimnaziala'], ['title' => 'Dotări']]);
-    publicPage('/scoala-gimnaziala/galerie', 'scoala-gimnaziala.galerie', 'Galerie — gimnaziu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala gimnazială', 'href' => '/scoala-gimnaziala'], ['title' => 'Galerie']]);
-    Route::inertia('/scoala-liceala', 'public/scoala-liceala')->name('scoala-liceala'); // bespoke: identitate + 10 discipline pe arii + Cambridge English + dotări + galerie
-    publicPage('/scoala-liceala/curriculum', 'scoala-liceala.curriculum', 'Curriculum — liceu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala liceală', 'href' => '/scoala-liceala'], ['title' => 'Curriculum']]);
-    publicPage('/scoala-liceala/dotari', 'scoala-liceala.dotari', 'Dotări — liceu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala liceală', 'href' => '/scoala-liceala'], ['title' => 'Dotări']]);
-    publicPage('/scoala-liceala/galerie', 'scoala-liceala.galerie', 'Galerie — liceu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala liceală', 'href' => '/scoala-liceala'], ['title' => 'Galerie']]);
+    Route::inertia($p('/structura-scolii'), 'public/structura-scolii')->name('structura-scolii'); // bespoke: 3 trepte (foto reală + numeral roman + body verbatim)
+    Route::inertia($p('/scoala-primara'), 'public/scoala-primara')->name('scoala-primara'); // bespoke: identitate + 7 arii curriculare (Curriculum Național) + PDF descărcabil + dotări + galerie
+    Route::inertia($p('/scoala-gimnaziala'), 'public/scoala-gimnaziala')->name('scoala-gimnaziala'); // bespoke: identitate + 13 discipline (PDF curriculum descărcabil local) + dotări + galerie
+    publicPage($p('/scoala-gimnaziala/curriculum'), 'scoala-gimnaziala.curriculum', 'Curriculum — gimnaziu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala gimnazială', 'href' => '/scoala-gimnaziala'], ['title' => 'Curriculum']]);
+    publicPage($p('/scoala-gimnaziala/dotari'), 'scoala-gimnaziala.dotari', 'Dotări — gimnaziu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala gimnazială', 'href' => '/scoala-gimnaziala'], ['title' => 'Dotări']]);
+    publicPage($p('/scoala-gimnaziala/galerie'), 'scoala-gimnaziala.galerie', 'Galerie — gimnaziu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala gimnazială', 'href' => '/scoala-gimnaziala'], ['title' => 'Galerie']]);
+    Route::inertia($p('/scoala-liceala'), 'public/scoala-liceala')->name('scoala-liceala'); // bespoke: identitate + 10 discipline pe arii + Cambridge English + dotări + galerie
+    publicPage($p('/scoala-liceala/curriculum'), 'scoala-liceala.curriculum', 'Curriculum — liceu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala liceală', 'href' => '/scoala-liceala'], ['title' => 'Curriculum']]);
+    publicPage($p('/scoala-liceala/dotari'), 'scoala-liceala.dotari', 'Dotări — liceu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala liceală', 'href' => '/scoala-liceala'], ['title' => 'Dotări']]);
+    publicPage($p('/scoala-liceala/galerie'), 'scoala-liceala.galerie', 'Galerie — liceu', [['title' => 'Structura școlii', 'href' => '/structura-scolii'], ['title' => 'Școala liceală', 'href' => '/scoala-liceala'], ['title' => 'Galerie']]);
 
-    // Personal — pagină-listă + fișe individuale (URL-uri vechi păstrate)
-    Route::inertia('/personal', 'public/personal', [
+    // Personal — pagină-listă + fișe individuale (URL-uri vechi păstrate; numele de persoane
+    // NU se traduc — slug-ul rămâne identic pe toate limbile, la fel ca înainte).
+    Route::inertia($p('/personal'), 'public/personal', [
         'groups' => TeacherDirectory::groups(),
     ])->name('personal');
 
@@ -87,52 +97,53 @@ $publicRoutes = function (): void {
         ])->name('personal.'.$teacherSlug);
     }
 
-    // Actualități + Blog (articole din DB) și galerie
-    Route::get('/actualitati-si-evenimente', [BlogController::class, 'index'])->defaults('category', 'actualitati')->name('actualitati-si-evenimente');
-    Route::get('/blog', [BlogController::class, 'index'])->defaults('category', 'blog')->name('blog');
+    // Actualități + Blog (articole din DB) și galerie — slug-urile articolelor (DB) rămân
+    // neschimbate pe toate limbile (conținut, nu structură de site; scope separat).
+    Route::get($p('/actualitati-si-evenimente'), [BlogController::class, 'index'])->defaults('category', 'actualitati')->name('actualitati-si-evenimente');
+    Route::get($p('/blog'), [BlogController::class, 'index'])->defaults('category', 'blog')->name('blog');
     Route::get('/articol/{post:slug}', [BlogController::class, 'show'])->name('articol');
-    Route::get('/galerie', [GalleryController::class, 'index'])->name('galerie'); // galerie foto interactivă (lightbox)
+    Route::get($p('/galerie'), [GalleryController::class, 'index'])->name('galerie'); // galerie foto interactivă (lightbox)
 
     // Calendar / Orare
-    Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar'); // explorator interactiv de orare
-    publicPage('/orarul-lectiilor', 'orarul-lectiilor', 'Orarul lecțiilor', [['title' => 'Calendar', 'href' => '/calendar'], ['title' => 'Orarul lecțiilor']]);
-    publicPage('/orarul-sunetelor', 'orarul-sunetelor', 'Orarul sunetelor', [['title' => 'Calendar'], ['title' => 'Orarul sunetelor']]);
-    publicPage('/orarul-examenelor', 'orarul-examenelor', 'Orarul examenelor', [['title' => 'Calendar'], ['title' => 'Orarul examenelor']]);
-    publicPage('/orarul-ess', 'orarul-ess', 'Orarul ESS (teze semestriale)', [['title' => 'Calendar'], ['title' => 'Orarul ESS']]);
-    publicPage('/orarul-pretestarilor', 'orarul-pretestarilor', 'Orarul pretestărilor', [['title' => 'Calendar'], ['title' => 'Orarul pretestărilor']]);
-    publicPage('/cursuri-de-pregatire-pentru-examene', 'cursuri-de-pregatire-pentru-examene', 'Pregătire pentru examene', [['title' => 'Calendar'], ['title' => 'Pregătire pentru examene']]);
-    publicPage('/orarul-cpae', 'orarul-cpae', 'Orarul CPAE', [['title' => 'Calendar'], ['title' => 'Orarul CPAE']]);
-    publicPage('/orar-recuperari', 'orar-recuperari', 'Orar recuperări', [['title' => 'Calendar'], ['title' => 'Orar recuperări']]);
-    publicPage('/sedintele-cu-parintii', 'sedintele-cu-parintii', 'Ședințele cu părinții', [['title' => 'Calendar'], ['title' => 'Ședințele cu părinții']]);
+    Route::get($p('/calendar'), [CalendarController::class, 'index'])->name('calendar'); // explorator interactiv de orare
+    publicPage($p('/orarul-lectiilor'), 'orarul-lectiilor', 'Orarul lecțiilor', [['title' => 'Calendar', 'href' => '/calendar'], ['title' => 'Orarul lecțiilor']]);
+    publicPage($p('/orarul-sunetelor'), 'orarul-sunetelor', 'Orarul sunetelor', [['title' => 'Calendar'], ['title' => 'Orarul sunetelor']]);
+    publicPage($p('/orarul-examenelor'), 'orarul-examenelor', 'Orarul examenelor', [['title' => 'Calendar'], ['title' => 'Orarul examenelor']]);
+    publicPage($p('/orarul-ess'), 'orarul-ess', 'Orarul ESS (teze semestriale)', [['title' => 'Calendar'], ['title' => 'Orarul ESS']]);
+    publicPage($p('/orarul-pretestarilor'), 'orarul-pretestarilor', 'Orarul pretestărilor', [['title' => 'Calendar'], ['title' => 'Orarul pretestărilor']]);
+    publicPage($p('/cursuri-de-pregatire-pentru-examene'), 'cursuri-de-pregatire-pentru-examene', 'Pregătire pentru examene', [['title' => 'Calendar'], ['title' => 'Pregătire pentru examene']]);
+    publicPage($p('/orarul-cpae'), 'orarul-cpae', 'Orarul CPAE', [['title' => 'Calendar'], ['title' => 'Orarul CPAE']]);
+    publicPage($p('/orar-recuperari'), 'orar-recuperari', 'Orar recuperări', [['title' => 'Calendar'], ['title' => 'Orar recuperări']]);
+    publicPage($p('/sedintele-cu-parintii'), 'sedintele-cu-parintii', 'Ședințele cu părinții', [['title' => 'Calendar'], ['title' => 'Ședințele cu părinții']]);
 
     // Admitere + formular de înscriere
-    Route::inertia('/admitere', 'public/admitere')->name('admitere'); // bespoke: 2 etape (verbatim) + telefon programare + 8 FAQ accordion + CTA înscriere
-    Route::inertia('/taxe', 'public/taxe')->name('taxe'); // bespoke: cadru (fără cifre publicate) + ce include taxa + 2 pași pentru grila oficială + 3 principii (reducere 15% / plată / fără taxă înmatriculare)
-    Route::inertia('/intrebari-frecvente', 'public/intrebari-frecvente')->name('intrebari-frecvente'); // bespoke: HUB FAQ (3 categorii + 6 întrebări verbatim accordion + 4 linkuri pagini dedicate + CTA)
-    Route::get('/inregistrarea-student', [AdmissionController::class, 'create'])->name('inregistrarea-student'); // cerere de înmatriculare (date familie + copil, fără calendar)
-    Route::post('/inregistrarea-student', [AdmissionController::class, 'store']);
-    Route::get('/programeaza-vizita', [VisitController::class, 'create'])->name('programeaza-vizita'); // programare vizită (calendar + oră) — CTA principal navbar
-    Route::post('/programeaza-vizita', [VisitController::class, 'store']);
+    Route::inertia($p('/admitere'), 'public/admitere')->name('admitere'); // bespoke: 2 etape (verbatim) + telefon programare + 8 FAQ accordion + CTA înscriere
+    Route::inertia($p('/taxe'), 'public/taxe')->name('taxe'); // bespoke: cadru (fără cifre publicate) + ce include taxa + 2 pași pentru grila oficială + 3 principii (reducere 15% / plată / fără taxă înmatriculare)
+    Route::inertia($p('/intrebari-frecvente'), 'public/intrebari-frecvente')->name('intrebari-frecvente'); // bespoke: HUB FAQ (3 categorii + 6 întrebări verbatim accordion + 4 linkuri pagini dedicate + CTA)
+    Route::get($p('/inregistrarea-student'), [AdmissionController::class, 'create'])->name('inregistrarea-student'); // cerere de înmatriculare (date familie + copil, fără calendar)
+    Route::post($p('/inregistrarea-student'), [AdmissionController::class, 'store']);
+    Route::get($p('/programeaza-vizita'), [VisitController::class, 'create'])->name('programeaza-vizita'); // programare vizită (calendar + oră) — CTA principal navbar
+    Route::post($p('/programeaza-vizita'), [VisitController::class, 'store']);
 
     // Meniu secundar
-    Route::inertia('/centrul-de-evaluare-institutionala', 'public/centrul-de-evaluare-institutionala')->name('centrul-de-evaluare-institutionala'); // bespoke: SIERȘ (motto + 4 carduri-listă + documente + transparență)
-    Route::inertia('/extracurriculare', 'public/extracurriculare')->name('extracurriculare'); // bespoke: CPAE (viziune + citat + obiective/direcții + 9 coordonatori de ateliere)
-    Route::inertia('/consiliul-metodic', 'public/consiliul-metodic')->name('consiliul-metodic'); // bespoke: rol + componența nominală (7 membri) + atribuții
-    Route::inertia('/consiliul-scolar', 'public/consiliul-scolar')->name('consiliul-scolar'); // bespoke: cele trei voci (elevi/părinți/cadre) + componența în curând
-    Route::inertia('/cambridge-english-exam', 'public/cambridge-english-exam')->name('cambridge-english-exam'); // bespoke: centru autorizat din 2019 + 3 pachete de curs (tarife verbatim)
-    Route::get('/biblioteca-online', [BibliotecaController::class, 'index'])->name('biblioteca-online'); // pagină interactivă dedicată
-    Route::inertia('/tabara-de-vara', 'public/tabara-de-vara')->name('tabara-de-vara'); // bespoke placeholder: concept + 6 categorii orientative + status „în pregătire" + CTA secretariat
-    Route::inertia('/sponsorizare', 'public/sponsorizare')->name('sponsorizare'); // bespoke: Mecanism 2% (verbatim + IDNO 1004600000818 evidențiat) + 3 pași concreți + 4 link-uri oficiale + Donații directe + downloads CET18/Contract
-    Route::inertia('/contacte', 'public/contacte')->name('contacte'); // pagină de contact bespoke (split + hartă + formular)
-    Route::post('/contacte', [ContactController::class, 'store'])->middleware('throttle:6,1')->name('contacte.store');
-    Route::get('/contacte/multumim', [ContactController::class, 'thanks'])->name('contacte.thanks');
-    publicPage('/confidentialitate', 'confidentialitate', 'Politica de confidențialitate', [['title' => 'Confidențialitate']], 'Cum protejăm datele cu caracter personal, conform Legii 133/2011.');
+    Route::inertia($p('/centrul-de-evaluare-institutionala'), 'public/centrul-de-evaluare-institutionala')->name('centrul-de-evaluare-institutionala'); // bespoke: SIERȘ (motto + 4 carduri-listă + documente + transparență)
+    Route::inertia($p('/extracurriculare'), 'public/extracurriculare')->name('extracurriculare'); // bespoke: CPAE (viziune + citat + obiective/direcții + 9 coordonatori de ateliere)
+    Route::inertia($p('/consiliul-metodic'), 'public/consiliul-metodic')->name('consiliul-metodic'); // bespoke: rol + componența nominală (7 membri) + atribuții
+    Route::inertia($p('/consiliul-scolar'), 'public/consiliul-scolar')->name('consiliul-scolar'); // bespoke: cele trei voci (elevi/părinți/cadre) + componența în curând
+    Route::inertia($p('/cambridge-english-exam'), 'public/cambridge-english-exam')->name('cambridge-english-exam'); // bespoke: centru autorizat din 2019 + 3 pachete de curs (tarife verbatim)
+    Route::get($p('/biblioteca-online'), [BibliotecaController::class, 'index'])->name('biblioteca-online'); // pagină interactivă dedicată
+    Route::inertia($p('/tabara-de-vara'), 'public/tabara-de-vara')->name('tabara-de-vara'); // bespoke placeholder: concept + 6 categorii orientative + status „în pregătire" + CTA secretariat
+    Route::inertia($p('/sponsorizare'), 'public/sponsorizare')->name('sponsorizare'); // bespoke: Mecanism 2% (verbatim + IDNO 1004600000818 evidențiat) + 3 pași concreți + 4 link-uri oficiale + Donații directe + downloads CET18/Contract
+    Route::inertia($p('/contacte'), 'public/contacte')->name('contacte'); // pagină de contact bespoke (split + hartă + formular)
+    Route::post($p('/contacte'), [ContactController::class, 'store'])->middleware('throttle:6,1')->name('contacte.store');
+    Route::get($p('/contacte/multumim'), [ContactController::class, 'thanks'])->name('contacte.thanks');
+    publicPage($p('/confidentialitate'), 'confidentialitate', 'Politica de confidențialitate', [['title' => 'Confidențialitate']], 'Cum protejăm datele cu caracter personal, conform Legii 133/2011.');
 };
 
-// RO la root + RU/EN cu prefix de URL.
-Route::middleware(SetPublicLocale::class)->group($publicRoutes);
+// RO la root + RU/EN cu prefix de URL (+ slug tradus, vezi RouteSlugs).
+Route::middleware(SetPublicLocale::class)->group(fn () => $publicRoutes(Locale::default()));
 foreach (Locale::prefixed() as $prefix) {
-    Route::prefix($prefix)->name($prefix.'.')->middleware(SetPublicLocale::class)->group($publicRoutes);
+    Route::prefix($prefix)->name($prefix.'.')->middleware(SetPublicLocale::class)->group(fn () => $publicRoutes($prefix));
 }
 
 /*

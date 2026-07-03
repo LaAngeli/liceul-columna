@@ -1,6 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import { CalendarDays, ChevronDown, LayoutDashboard, Menu, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { LocaleLink } from '@/components/locale-link';
 import { BrandButton, Container, FourStar } from '@/components/public/brand';
 import { LanguageSwitcher } from '@/components/public/language-switcher';
@@ -14,9 +14,16 @@ import { dashboard, login } from '@/routes';
 function useIsActive() {
     const { url } = usePage();
     const path = url.replace(/^\/(ru|en)(?=\/|$)/, '') || '/';
+
     return (href?: string) => {
-        if (!href) return false;
-        if (href === '/') return path === '/';
+        if (!href) {
+return false;
+}
+
+        if (href === '/') {
+return path === '/';
+}
+
         return path === href || path.startsWith(`${href}/`);
     };
 }
@@ -33,6 +40,7 @@ export function SiteHeader() {
         const onScroll = () => setScrolled(window.scrollY > 8);
         onScroll();
         window.addEventListener('scroll', onScroll, { passive: true });
+
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
@@ -42,6 +50,7 @@ export function SiteHeader() {
         if (!mobileOpen) {
             return;
         }
+
         const close = () => setMobileOpen(false);
         const onKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
@@ -52,6 +61,7 @@ export function SiteHeader() {
         document.body.style.overflow = 'hidden';
         window.addEventListener('keydown', onKey);
         const stopVisit = router.on('start', close);
+
         return () => {
             document.body.style.overflow = prevOverflow;
             window.removeEventListener('keydown', onKey);
@@ -69,11 +79,18 @@ export function SiteHeader() {
             {/* Bara utilitară (navy) */}
             <div className="on-navy hidden border-b keyline bg-surface-navy text-[color:var(--brand-navy-foreground)] lg:block">
                 <Container className="flex items-center justify-between gap-6 py-1.5 text-[0.78rem]">
-                    <nav className="flex items-center gap-5">
-                        {utilityNav.map((item) => (
-                            <LocaleLink key={item.href} href={item.href} className="font-medium text-white/80 transition-colors hover:text-white">
-                                {label(item.tKey, item.title)}
-                            </LocaleLink>
+                    <nav className="flex items-center gap-[8.4px]">
+                        {utilityNav.map((item, i) => (
+                            <Fragment key={item.href}>
+                                {i > 0 && (
+                                    <span className="text-white/30" aria-hidden="true">
+                                        ·
+                                    </span>
+                                )}
+                                <LocaleLink href={item.href} className="font-medium text-white/80 transition-colors hover:text-white">
+                                    {label(item.tKey, item.title)}
+                                </LocaleLink>
+                            </Fragment>
                         ))}
                     </nav>
                     <div className="flex items-center gap-3">
@@ -93,9 +110,24 @@ export function SiteHeader() {
                     scrolled && 'shadow-[0_8px_24px_-18px_rgba(15,77,119,0.55)]',
                 )}
             >
-                <Container className={cn('flex items-center justify-between gap-4 transition-all', scrolled ? 'py-2' : 'py-2.5')}>
+                {/* Înălțime FIXĂ a barei + logo cu footprint CONSTANT: cutia de layout a
+                    logo-ului rămâne la dimensiunea mare (h-[54px]/h-[60px]), iar micșorarea la
+                    scroll se face DOAR vizual prin `transform: scale()` ancorat pe stânga.
+                    Transform-ul se aplică după layout → nici bara (vertical), nici nav-ul din
+                    mijloc (orizontal) nu se mai deplasează. Stil INLINE, nu clase Tailwind:
+                    utilitarul arbitrar `scale-[…]` nu se genera în v4. NU reveni la schimbarea de
+                    `h-[…]`: aceea modifică lățimea `w-auto` → `justify-between` reașază nav-ul. */}
+                <Container className="flex h-[64px] items-center justify-between gap-4 sm:h-[76px]">
                     <LocaleLink href="/" aria-label="Liceul Columna" className="shrink-0">
-                        <LogoLockup imgClassName={cn('w-auto transition-all', scrolled ? 'h-[48px] sm:h-[54px]' : 'h-[54px] sm:h-[60px]')} />
+                        <LogoLockup
+                            imgClassName="h-[54px] w-auto sm:h-[60px]"
+                            imgStyle={{
+                                transformOrigin: 'left center',
+                                transform: scrolled ? 'scale(0.867)' : 'none',
+                                transition: 'transform 300ms',
+                                willChange: 'transform',
+                            }}
+                        />
                     </LocaleLink>
 
                     {/* Navigare desktop */}
@@ -193,6 +225,7 @@ export function SiteHeader() {
                             <ul className="divide-y divide-white/10">
                                 {mainNav.map((item, i) => {
                                     const index = String(i + 1).padStart(2, '0');
+
                                     return item.children ? (
                                         <li key={item.title}>
                                             <details className="group">

@@ -70,7 +70,7 @@ export default function Taxe() {
                             <span className="grid size-11 place-items-center rounded-[10px] bg-brand-green/15 text-brand-green">
                                 <item.Icon className="size-5" aria-hidden="true" />
                             </span>
-                            <h3 className="display mt-4 text-[1.0625rem] leading-snug text-brand-navy">{t(item.title)}</h3>
+                            <h3 className="display mt-4 text-[1.125rem] leading-snug text-brand-navy">{t(item.title)}</h3>
                             <p className="mt-2 text-sm leading-relaxed text-brand-dark/85">{t(item.body)}</p>
                         </Reveal>
                     ))}
@@ -111,7 +111,7 @@ export default function Taxe() {
                                 <span className="eyebrow text-[0.65rem] text-brand-green">{t('tuition_page.phone_label', 'Programare la secretariat')}</span>
                                 <a
                                     href="tel:+37322742852"
-                                    className="display mt-1 block text-[clamp(1.0625rem,1.7vw,1.25rem)] font-bold text-[color:var(--brand-navy-foreground)] underline-offset-4 transition-colors hover:underline"
+                                    className="display mt-1 block text-[clamp(1.125rem,1.7vw,1.25rem)] font-bold text-[color:var(--brand-navy-foreground)] underline-offset-4 transition-colors hover:underline"
                                 >
                                     {t('tuition_page.phone_value', '(022) 74 28 52')}
                                 </a>

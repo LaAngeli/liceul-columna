@@ -46,7 +46,7 @@ export default function FilosofiaLiceului() {
                                     <span className="numeral shrink-0 text-[clamp(2rem,4vw,3rem)] leading-none text-brand-green/80" aria-hidden="true">
                                         {String(i + 1).padStart(2, '0')}
                                     </span>
-                                    <p className="text-[clamp(1.0625rem,1.55vw,1.25rem)] leading-relaxed text-white/90">{t(key)}</p>
+                                    <p className="text-[clamp(1.125rem,1.55vw,1.25rem)] leading-relaxed text-white/90">{t(key)}</p>
                                 </Reveal>
                             ))}
                         </ol>

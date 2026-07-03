@@ -89,8 +89,8 @@ it('confirmarea pleacă în limba paginii de pe care s-a făcut POST', function 
     });
 })->with([
     'RO root → confirmare în RO' => ['/inregistrarea-student', 'ro', 'Am primit cererea'],
-    'RU prefix → confirmare în RU' => ['/ru/inregistrarea-student', 'ru', 'Мы получили'],
-    'EN prefix → confirmare în EN' => ['/en/inregistrarea-student', 'en', 'We received'],
+    'RU prefix → confirmare în RU' => ['/ru/registratsiya-uchenika', 'ru', 'Мы получили'],
+    'EN prefix → confirmare în EN' => ['/en/student-registration', 'en', 'We received'],
 ]);
 
 it('respinge înmatricularea cu nume care conține cifre și cu vârstă incoerentă cu clasa', function () {

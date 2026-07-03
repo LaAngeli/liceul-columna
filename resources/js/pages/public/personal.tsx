@@ -28,7 +28,7 @@ function MemberCard({ member, initials }: { member: Member; initials: string }) 
                     <span className="display flex h-full w-full items-center justify-center bg-brand-navy/8 text-xl text-brand-navy">{initials}</span>
                 )}
             </span>
-            <span className="display mt-4 text-[1.0625rem] leading-tight text-balance text-brand-navy">{member.name}</span>
+            <span className="display mt-4 text-[1.125rem] leading-tight text-balance text-brand-navy">{member.name}</span>
             <span className="mt-1 text-sm leading-snug text-balance text-brand-gray">{member.role}</span>
         </>
     );

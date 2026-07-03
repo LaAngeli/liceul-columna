@@ -148,7 +148,7 @@ export default function Admitere() {
                                 <span className="eyebrow text-[0.65rem] text-brand-green">{t('admission_page.stage_phone_label', 'Programare la secretariat')}</span>
                                 <a
                                     href="tel:+37322742852"
-                                    className="display mt-1 block text-[clamp(1.0625rem,1.7vw,1.25rem)] font-bold text-[color:var(--brand-navy-foreground)] underline-offset-4 transition-colors hover:underline"
+                                    className="display mt-1 block text-[clamp(1.125rem,1.7vw,1.25rem)] font-bold text-[color:var(--brand-navy-foreground)] underline-offset-4 transition-colors hover:underline"
                                 >
                                     {t('admission_page.stage_phone_value', '(022) 74 28 52')}
                                 </a>
