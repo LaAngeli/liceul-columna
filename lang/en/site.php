@@ -832,6 +832,11 @@ return [
         'twofa_email_cooldown' => 'A code was sent recently — wait a minute before requesting another.',
         'twofa_email_invalid_code' => 'The provided code is invalid or has expired.',
 
+        'twofa_setup_title' => 'Enable two-factor authentication',
+        'twofa_setup_subtitle' => 'For your account\'s safety, choose a method: the authenticator app or the email code',
+        'twofa_setup_done' => 'Two-factor authentication is active. From now on, every sign-in asks for the second step.',
+        'twofa_setup_continue' => 'Continue to your account',
+
         'must_title' => 'Change password',
         'must_subtitle' => 'For security reasons, please set a new password to continue',
         'privacy_title' => 'Information notice',

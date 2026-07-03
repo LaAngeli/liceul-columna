@@ -665,6 +665,11 @@ return [
             'password_set' => 'Setată',
             'password_filter' => 'Parolă',
             'created_at_short' => 'Creat',
+            'twofa_reset' => 'Resetează 2FA',
+            'twofa_reset_heading' => 'Resetezi autentificarea în doi pași?',
+            'twofa_reset_description' => 'Ambele metode (aplicație + e-mail) vor fi golite; utilizatorul va reconfigura 2FA la următoarea logare. Acțiunea rămâne în audit.',
+            'twofa_reset_reason' => 'Motivul resetării',
+            'twofa_reset_success' => '2FA a fost resetat. Utilizatorul va configura din nou la următoarea logare.',
         ],
         'audit' => [
             'data_type_grade' => 'Notă',

@@ -652,6 +652,11 @@ return [
             'password_set' => 'Set',
             'password_filter' => 'Password',
             'created_at_short' => 'Created',
+            'twofa_reset' => 'Reset 2FA',
+            'twofa_reset_heading' => 'Reset two-factor authentication?',
+            'twofa_reset_description' => 'Both methods (app + email) will be cleared; the user will set up 2FA again at the next sign-in. The action is kept in the audit log.',
+            'twofa_reset_reason' => 'Reset reason',
+            'twofa_reset_success' => '2FA has been reset. The user will set it up again at the next sign-in.',
         ],
         'audit' => [
             'data_type_grade' => 'Grade',

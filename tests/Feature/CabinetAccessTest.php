@@ -29,7 +29,8 @@ it('elevul își vede profilul de cabinet (doar vizualizare)', function () {
     $user->assignRole(UserRole::Elev->value);
     Student::factory()->create(['user_id' => $user->id]);
 
-    $this->actingAs($user)
+    // Profilul stă sub password.confirm; la login flag-ul se setează automat (AppServiceProvider).
+    $this->actingAs($user)->withSession(['auth.password_confirmed_at' => time()])
         ->get(route('cabinet.profile'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -46,7 +47,7 @@ it('memberSince este formatat cu tokeni PHP `date()`, nu ICU (regresie: „iunie
     $user->assignRole(UserRole::Elev->value);
     Student::factory()->create(['user_id' => $user->id]);
 
-    $this->actingAs($user)
+    $this->actingAs($user)->withSession(['auth.password_confirmed_at' => time()])
         ->get(route('cabinet.profile'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -64,7 +65,8 @@ it('redirecționează personalul de la profilul de cabinet către panou', functi
     $staff = User::factory()->create();
     $staff->assignRole(UserRole::Profesor->value);
 
-    $this->actingAs($staff)->get(route('cabinet.profile'))->assertRedirect('/admin');
+    $this->actingAs($staff)->withSession(['auth.password_confirmed_at' => time()])
+        ->get(route('cabinet.profile'))->assertRedirect('/admin');
 });
 
 it('cabinetul nu mai expune rute de modificare/ștergere a contului (doar vizualizare)', function (string $name) {

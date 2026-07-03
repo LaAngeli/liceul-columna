@@ -11,8 +11,10 @@ use App\Calendar\Projectors\ManualEventProjector;
 use App\Calendar\Projectors\StructureProjector;
 use App\Support\Locale;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Inertia\ExceptionResponse;
@@ -44,6 +46,13 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureErrorPages();
+
+        // La login parola tocmai a fost dovedită → marcăm confirmarea în sesiune. Fără asta,
+        // gate-ul obligatoriu de 2FA (care duce imediat la endpoint-uri sub password.confirm)
+        // ar cere parola A DOUA oară la câteva secunde după autentificare.
+        Event::listen(Login::class, function (): void {
+            session(['auth.password_confirmed_at' => time()]);
+        });
     }
 
     /**

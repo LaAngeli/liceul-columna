@@ -6,6 +6,7 @@ use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Resources\Absences\AbsenceResource;
 use App\Filament\Resources\Grades\GradeResource;
 use App\Http\Middleware\EnsurePasswordChanged;
+use App\Http\Middleware\EnsureTwoFactorEnrolled;
 use App\Http\Middleware\SetUserLocale;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -131,6 +132,7 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
                 EnsurePasswordChanged::class,
+                EnsureTwoFactorEnrolled::class,
             ]);
     }
 }

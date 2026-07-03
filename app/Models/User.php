@@ -36,6 +36,9 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
  * @property Carbon|null $two_factor_email_enabled_at
+ * @property Carbon|null $two_factor_reset_at
+ * @property int|null $two_factor_reset_by_user_id
+ * @property string|null $two_factor_reset_reason
  * @property string|null $remember_token
  * @property string|null $locale
  * @property string|null $notification_locale
@@ -628,6 +631,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
             'must_change_password' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
             'two_factor_email_enabled_at' => 'datetime',
+            'two_factor_reset_at' => 'datetime',
             'notification_contacts' => 'array',
             'notification_preferences' => 'array',
             'audience_domains' => 'array',

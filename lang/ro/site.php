@@ -832,6 +832,11 @@ return [
         'twofa_email_cooldown' => 'Un cod a fost trimis recent — așteaptă un minut înainte de a cere altul.',
         'twofa_email_invalid_code' => 'Codul introdus nu este valid sau a expirat.',
 
+        'twofa_setup_title' => 'Activează autentificarea în doi pași',
+        'twofa_setup_subtitle' => 'Pentru siguranța contului, alege o metodă: aplicația de autentificare sau codul pe e-mail',
+        'twofa_setup_done' => 'Autentificarea în doi pași e activă. De acum, la fiecare logare ți se va cere al doilea pas.',
+        'twofa_setup_continue' => 'Continuă către cont',
+
         'must_title' => 'Schimbă parola',
         'must_subtitle' => 'Din motive de securitate, setează o parolă nouă pentru a continua',
         'privacy_title' => 'Notă de informare',

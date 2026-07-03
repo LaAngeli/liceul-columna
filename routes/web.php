@@ -7,6 +7,7 @@ use App\Http\Controllers\CabinetController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ForcedPasswordController;
+use App\Http\Controllers\ForcedTwoFactorController;
 use App\Http\Controllers\GalleryController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocaleController;
@@ -180,7 +181,11 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
 
     // Profil (DOAR vizualizare): datele contului + situația elevului/copiilor. Fără editare/ștergere
     // a contului din cabinet — gestiunea conturilor revine personalului (UserResource, după ierarhie).
-    Route::get('cabinet/profil', [CabinetController::class, 'profile'])->name('cabinet.profile');
+    // `password.confirm`: profilul e și suprafața de securitate (2FA); cu flag-ul setat la login
+    // (AppServiceProvider) confirmarea e de regulă tăcută, iar „intended"-ul rămâne o pagină GET.
+    Route::get('cabinet/profil', [CabinetController::class, 'profile'])
+        ->middleware('password.confirm')
+        ->name('cabinet.profile');
 });
 
 // Schimbarea obligatorie a parolei (userii migrați) — doar `auth`.
@@ -191,6 +196,13 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
     // Luare la cunoștință a notei de informare (Legea 133/2011 §7) — blocant pentru elev/părinte.
     Route::get('consimtamant', [PrivacyConsentController::class, 'show'])->name('privacy.consent');
     Route::post('consimtamant', [PrivacyConsentController::class, 'store'])->name('privacy.consent.store');
+});
+
+// Configurarea OBLIGATORIE a 2FA (gate-ul EnsureTwoFactorEnrolled trimite aici; ruta e exceptată
+// în gate). Sub password.confirm ca „intended"-ul confirmării să fie mereu ACEASTĂ pagină GET —
+// confirmarea e de regulă tăcută: flag-ul se setează la login (vezi AppServiceProvider).
+Route::middleware(['auth', 'password.confirm', SetUserLocale::class])->group(function () {
+    Route::get('configurare-2fa', [ForcedTwoFactorController::class, 'show'])->name('two-factor.setup');
 });
 
 // 2FA pe email — ACTIVARE (autentificat + parola confirmată, ca endpoint-urile 2FA Fortify).

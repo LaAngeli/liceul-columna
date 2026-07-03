@@ -125,7 +125,8 @@ it('fără 2FA, login-ul intră direct (fără challenge)', function () {
 it('profilul cabinet expune starea 2FA (prop twoFactor)', function () {
     $user = cabinetUser();
 
-    $this->actingAs($user)
+    // Profilul stă sub password.confirm; la login flag-ul se setează automat (AppServiceProvider).
+    $this->actingAs($user)->withSession(['auth.password_confirmed_at' => time()])
         ->get('/cabinet/profil')
         ->assertOk()
         ->assertInertia(fn ($page) => $page
