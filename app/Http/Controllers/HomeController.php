@@ -29,15 +29,19 @@ class HomeController extends Controller
                 'date' => $post->published_at?->translatedFormat('d F Y'),
             ]);
 
-        // Conducerea pentru secțiunea „Echipa" de pe homepage: Daniță Ghenadie (mereu primul) +
-        // un bazin de membri din grupul „Administrație" (primii 6, fără bucătarul-șef) din care
-        // 3 sloturi rotesc live pe frontend. Vezi `leadership-grid.tsx`.
+        // Personalul pentru secțiunea „Echipa" de pe homepage: Daniță Ghenadie (mereu primul,
+        // pinned) + TOT restul personalului liceului, din toate grupurile de pe /personal
+        // (administrație, învățători, profesori, activități extrașcolare) — 3 sloturi rotesc
+        // live pe frontend, aleatoriu, fără repetare până nu a fost afișată toată echipa.
+        // Vezi `leadership-grid.tsx`.
         $leadership = collect(TeacherDirectory::groups())
-            ->first()['members'] ?? [];
+            ->flatMap(fn (array $group): array => $group['members'])
+            ->values()
+            ->all();
 
         return Inertia::render('public/home', [
             'latestNews' => $latestNews,
-            'leadership' => array_slice($leadership, 0, 6),
+            'leadership' => $leadership,
         ]);
     }
 }

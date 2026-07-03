@@ -366,11 +366,11 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                 </div>
             </Band>
 
-            {/* ───────────────────────── 07 — ECHIPA (conducerea) ───────────────────────── */}
+            {/* ───────────────────────── 07 — ECHIPA (tot personalul) ───────────────────────── */}
             {leadership.length > 0 && (
                 <Band variant="light">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                        <SectionHeader index="07" label={t('home.k_team', 'ECHIPA')} title={t('home.staff_title', 'Conducerea liceului')} />
+                        <SectionHeader index="07" label={t('home.k_team', 'ECHIPA')} title={t('home.staff_title', 'Personal')} />
                         <BrandButton href="/personal" variant="link" icon={ArrowRight}>{t('home.staff_see_all', 'Vezi toată echipa')}</BrandButton>
                     </div>
                     <LeadershipGrid members={leadership} />

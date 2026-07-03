@@ -1,13 +1,16 @@
 /**
- * Grila „Conducerea liceului" (homepage, secțiunea 07).
+ * Grila „Personal" (homepage, secțiunea 07).
  * - 4 plăci pe orizontală, cu bare (spine) de înălțime EGALĂ (grid items-stretch + h-full;
- *   rolul e plafonat la 2 rânduri, deci înălțimea e fixată de director).
- * - Daniță Ghenadie (members[0]) e PINNED mereu pe prima poziție; celelalte 3 sloturi
- *   rotesc LIVE membri aleși random din restul echipei, fiecare adus în loc al unuia ascuns
- *   (fără dubluri vizibile).
- * - Animație: crossfade SECVENȚIAL — slotul 1 dispare treptat și apare altul, apoi slotul 2,
- *   apoi slotul 3; după ce ciclul se închide se așteaptă ~5s și se reia. Doar tranziții de
- *   `opacity` pe sloturi FIXE (compozit GPU, fără reflow/layout shift → performant).
+ *   rolul e plafonat la 2 rânduri → înălțime consistentă indiferent de membru).
+ * - TOATE cele 4 sloturi rotesc LIVE, aleatoriu, din TOT personalul liceului (toate grupurile
+ *   de pe /personal — administrație, învățători, profesori, activități extrașcolare). Nimeni
+ *   nu e fixat pe o poziție (nici directorul) — fiecare swap aduce un membru nou în loc al
+ *   unuia ascuns (fără dubluri vizibile).
+ * - Animație: cross-fade SECVENȚIAL cu transform, nu doar opacity — ieșire rapidă și ușor
+ *   „retrasă" (ease-in), intrare mai lentă cu aterizare fină (ease-out expo), ca o placă ce
+ *   se așază la loc. Slotul 1 tranziționează, apoi slotul 2, ... apoi slotul 4; după ce ciclul
+ *   se închide se așteaptă ~CYCLE_PAUSE_MS și se reia. Doar `opacity`+`transform` pe sloturi
+ *   FIXE (compozit GPU, fără reflow/layout shift → performant).
  * - Bune practici: rulează DOAR în viewport (IntersectionObserver), se oprește la hover/focus,
  *   respectă `prefers-reduced-motion` (un singur amestec, fără rotație).
  */
@@ -23,9 +26,18 @@ export interface LeadershipMember {
     photo: string | null;
 }
 
-const ROTATE_SLOTS = 3;
-const FADE_MS = 380; // durata fade-out / fade-in
-const STAGGER_MS = 1100; // pauză între sloturi în cadrul unui ciclu (> 2× FADE → secvențial)
+interface Frame {
+    opacity: number;
+    phase: 'out' | 'in';
+}
+
+const ROTATE_SLOTS = 4;
+const OUT_MS = 260; // ieșire — rapidă, ease-in (placa „se retrage")
+const IN_MS = 480; // intrare — mai lentă, aterizare fină (ease-out)
+const OUT_EASE = 'cubic-bezier(.4,0,1,1)';
+const IN_EASE = 'cubic-bezier(.16,1,.3,1)';
+const HIDDEN_TRANSFORM = 'translateY(6px) scale(0.97)';
+const STAGGER_MS = 1100; // pauză între sloturi în cadrul unui ciclu (> OUT_MS+IN_MS → secvențial)
 const CYCLE_PAUSE_MS = 6000; // pauză după închiderea ciclului
 const START_DELAY_MS = 2500; // întârziere inițială (lasă pagina să se așeze)
 
@@ -71,12 +83,11 @@ function Plate({ m }: { m: LeadershipMember }) {
 }
 
 export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
-    const director = members[0];
-    const pool = members.slice(1);
+    const pool = members;
 
     // Init determinist (SSR-safe); randomizăm după montare ca să evităm hydration mismatch.
     const [shown, setShown] = useState<LeadershipMember[]>(() => pool.slice(0, ROTATE_SLOTS));
-    const [op, setOp] = useState<number[]>(() => Array(ROTATE_SLOTS).fill(1));
+    const [frames, setFrames] = useState<Frame[]>(() => Array.from({ length: ROTATE_SLOTS }, () => ({ opacity: 1, phase: 'in' as const })));
     const shownRef = useRef<LeadershipMember[]>(pool.slice(0, ROTATE_SLOTS));
     // „Sac" de membri de introdus în ciclul curent = cei care NU sunt vizibili acum. Nimeni nu
     // reapare până nu a fost afișată toată echipa; la golirea sacului se reumple (ciclu nou).
@@ -86,7 +97,7 @@ export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
     const rootRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Primul amestec: 3 vizibili + restul în „sac" (de introdus în ciclul curent, fără repetare).
+        // Primul amestec: ROTATE_SLOTS vizibili + restul în „sac" (de introdus în ciclul curent, fără repetare).
         const deck = shuffle(pool);
         const first = deck.slice(0, ROTATE_SLOTS);
         shownRef.current = first;
@@ -132,7 +143,7 @@ return;
 return;
 }
 
-            setOp((prev) => prev.map((v, i) => (i === slot ? 0 : v))); // fade-out
+            setFrames((prev) => prev.map((f, i) => (i === slot ? { opacity: 0, phase: 'out' } : f))); // ieșire
             fadeTimer = window.setTimeout(() => {
                 setShown((prev) => {
                     const arr = prev.map((m, i) => (i === slot ? next : m));
@@ -140,8 +151,8 @@ return;
 
                     return arr;
                 });
-                setOp((prev) => prev.map((v, i) => (i === slot ? 1 : v))); // fade-in
-            }, FADE_MS);
+                setFrames((prev) => prev.map((f, i) => (i === slot ? { opacity: 1, phase: 'in' } : f))); // intrare
+            }, OUT_MS);
         };
 
         const step = () => {
@@ -168,7 +179,7 @@ return;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    if (!director) {
+    if (!pool.length) {
 return null;
 }
 
@@ -189,14 +200,28 @@ return null;
                 pausedRef.current = false;
             }}
         >
-            <article className="h-full">
-                <Plate m={director} />
-            </article>
-            {shown.map((m, i) => (
-                <article key={i} className="h-full" style={{ opacity: op[i], transition: `opacity ${FADE_MS}ms ease`, willChange: 'opacity' }}>
-                    <Plate m={m} />
-                </article>
-            ))}
+            {shown.map((m, i) => {
+                const f = frames[i];
+                const hidden = f.opacity === 0;
+
+                return (
+                    <article
+                        key={i}
+                        className="h-full"
+                        style={{
+                            opacity: f.opacity,
+                            transform: hidden ? HIDDEN_TRANSFORM : 'translateY(0) scale(1)',
+                            transition:
+                                f.phase === 'out'
+                                    ? `opacity ${OUT_MS}ms ${OUT_EASE}, transform ${OUT_MS}ms ${OUT_EASE}`
+                                    : `opacity ${IN_MS}ms ${IN_EASE}, transform ${IN_MS}ms ${IN_EASE}`,
+                            willChange: 'opacity, transform',
+                        }}
+                    >
+                        <Plate m={m} />
+                    </article>
+                );
+            })}
         </div>
     );
 }
