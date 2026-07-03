@@ -20,6 +20,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -46,10 +48,26 @@ use Spatie\Permission\Traits\HasRoles;
  */
 #[Fillable(['name', 'username', 'email', 'password', 'must_change_password', 'locale', 'notification_locale', 'notification_contacts', 'notification_preferences', 'audience_domains', 'privacy_acknowledged_version', 'privacy_acknowledged_at'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements Auditable, FilamentUser
 {
+    use AuditableTrait;
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
+
+    /**
+     * Contul e auditat (L133 §7) — evenimentele de securitate (schimbare email/parolă, activare/
+     * dezactivare/resetare 2FA) lasă urmă. Secretele NU se stochează în valorile auditului:
+     * rămâne doar FAPTUL că s-au schimbat (dirty keys excluse), nu conținutul lor.
+     *
+     * @var list<string>
+     */
+    protected $auditExclude = [
+        'password',
+        'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+    ];
 
     /**
      * Doar personalul școlii (admin/director/profesor/diriginte) accesează panoul Filament.
