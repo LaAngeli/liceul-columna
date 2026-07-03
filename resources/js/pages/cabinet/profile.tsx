@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { SectionHeading } from '@/components/cabinet/section-heading';
+import ManageTwoFactor from '@/components/manage-two-factor';
 import { StudentStatusBadge  } from '@/components/cabinet/student-status-badge';
 import type {StudentStatusValue} from '@/components/cabinet/student-status-badge';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +45,7 @@ interface Account {
 
 interface Props {
     account: Account;
+    twoFactor?: { enabled: boolean; requiresConfirmation: boolean };
     self: StudentCard | null;
     children: StudentCard[];
 }
@@ -93,7 +95,7 @@ function ChildCard({ student }: { student: StudentCard }) {
     );
 }
 
-export default function CabinetProfile({ account, self, children: students = [] }: Props) {
+export default function CabinetProfile({ account, twoFactor, self, children: students = [] }: Props) {
     const t = useTranslations();
     const getInitials = useInitials();
 
@@ -145,6 +147,18 @@ export default function CabinetProfile({ account, self, children: students = [] 
                             <Lock className="mt-0.5 size-3.5 shrink-0" />
                             {t('profile.readonly_note', 'Datele contului sunt gestionate de administrația liceului. Pentru orice modificare, contactează secretariatul.')}
                         </p>
+                    </CardContent>
+                </Card>
+
+                {/* Securitate — 2FA e singura zonă self-service a contului; restul datelor
+                    rămân gestionate de administrație (nota read-only din cardul de mai sus). */}
+                <Card>
+                    <CardContent>
+                        <ManageTwoFactor
+                            canManageTwoFactor
+                            requiresConfirmation={twoFactor?.requiresConfirmation}
+                            twoFactorEnabled={twoFactor?.enabled}
+                        />
                     </CardContent>
                 </Card>
 

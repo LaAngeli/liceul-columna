@@ -40,6 +40,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Enum;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Fortify\Features;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CabinetController extends Controller
@@ -294,6 +295,12 @@ class CabinetController extends Controller
                 // Pentru sintaxă ICU folosește `isoFormat('D MMMM YYYY')`.
                 'memberSince' => $user->created_at?->translatedFormat('d F Y'),
                 'locale' => $user->locale,
+            ],
+            // Secțiunea „Securitate" (2FA) — singura zonă self-service a contului; restul datelor
+            // rămân gestionate de staff (cabinet read-only).
+            'twoFactor' => [
+                'enabled' => $user->hasEnabledTwoFactorAuthentication(),
+                'requiresConfirmation' => Features::optionEnabled(Features::twoFactorAuthentication(), 'confirm'),
             ],
             'self' => $self !== null ? $this->profileCard($self) : null,
             'children' => $user->students()->get()
