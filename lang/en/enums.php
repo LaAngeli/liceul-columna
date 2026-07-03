@@ -21,6 +21,7 @@ return [
     'student_status' => [
         'promovat' => 'Promoted',
         'corigent' => 'Make-up exam',
+        'repetent' => 'Held back',
         'amanat' => 'Deferred',
     ],
     'admission_status' => [

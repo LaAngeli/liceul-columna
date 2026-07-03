@@ -21,6 +21,7 @@ return [
     'student_status' => [
         'promovat' => 'Переведён',
         'corigent' => 'На переэкзаменовке',
+        'repetent' => 'Оставлен на второй год',
         'amanat' => 'Отложен',
     ],
     'admission_status' => [

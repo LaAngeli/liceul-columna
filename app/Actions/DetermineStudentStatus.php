@@ -3,13 +3,15 @@
 namespace App\Actions;
 
 use App\Enums\StudentStatus;
+use App\Models\CorigentaExam;
 use App\Models\TermAverage;
 use App\Support\Grades;
 
 /**
- * Determină statutul PRELIMINAR al elevului pentru un semestru, din mediile calculate (§2.5):
- * corigent dacă o medie < 5; altfel promovat. Statutul oficial e validat de Consiliul profesoral
- * + ordinul directorului (pas administrativ ulterior); aici e situația curentă din catalog.
+ * Determină statutul elevului pentru un semestru din mediile calculate + rezultatele corigenței
+ * (§2.5): promovat (toate mediile ≥ 5 SAU corigențele trecute), corigent (mai are corigențe de dat),
+ * repetent (toate corigențele date, cel puțin una picată). Statutul OFICIAL rămâne validat
+ * administrativ (Consiliul profesoral + ordin); aici e situația curentă din catalog.
  */
 class DetermineStudentStatus
 {
@@ -28,16 +30,42 @@ class DetermineStudentStatus
             return ['status' => null, 'failingSubjects' => [], 'average' => null];
         }
 
-        $failingSubjects = $averages
-            ->filter(fn (TermAverage $average): bool => $average->isFailing())
-            ->map(fn (TermAverage $average): string => $average->subject->name)
-            ->values()
-            ->all();
+        $average = Grades::truncate2((float) $averages->avg(fn (TermAverage $ta): float => (float) $ta->value));
+        $failing = $averages->filter(fn (TermAverage $ta): bool => $ta->isFailing());
 
-        return [
-            'status' => $failingSubjects !== [] ? StudentStatus::Corigent : StudentStatus::Promovat,
-            'failingSubjects' => $failingSubjects,
-            'average' => Grades::truncate2((float) $averages->avg(fn (TermAverage $average): float => (float) $average->value)),
-        ];
+        if ($failing->isEmpty()) {
+            return ['status' => StudentStatus::Promovat, 'failingSubjects' => [], 'average' => $average];
+        }
+
+        // Disciplinele restante se rezolvă prin corigență (§2.5): trecută → lichidată; picată →
+        // repetent; neexaminată → încă restantă. „Repetent" doar când TOATE corigențele sunt date
+        // și cel puțin una e picată; cât timp mai sunt corigențe nedate, elevul rămâne „corigent".
+        $examResults = CorigentaExam::query()
+            ->where('student_id', $studentId)
+            ->where('term_id', $termId)
+            ->get()
+            ->keyBy('subject_id');
+
+        $unresolved = [];
+        $anyPending = false;
+
+        foreach ($failing as $ta) {
+            $passed = $examResults->get($ta->subject_id)?->isPassed();
+
+            if ($passed === true) {
+                continue;
+            }
+
+            $unresolved[] = $ta->subject->name;
+            $anyPending = $anyPending || $passed === null;
+        }
+
+        $status = match (true) {
+            $unresolved === [] => StudentStatus::Promovat,
+            $anyPending => StudentStatus::Corigent,
+            default => StudentStatus::Repetent,
+        };
+
+        return ['status' => $status, 'failingSubjects' => $unresolved, 'average' => $average];
     }
 }

@@ -592,6 +592,8 @@ return [
             'result_pass' => 'Promovat (a luat)',
             'result_fail' => 'Respins',
             'result_pending' => 'Programat / neexaminat',
+            'mark' => 'Nota de corigență',
+            'mark_hint' => 'Nota obținută la examen (1–10). Promovat = nota ≥ 5; devine media finală a disciplinei în foaia matricolă.',
         ],
         'exam_commission' => [
             'name' => 'Comisie',

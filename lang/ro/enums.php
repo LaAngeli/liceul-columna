@@ -24,6 +24,7 @@ return [
     'student_status' => [
         'promovat' => 'Promovat',
         'corigent' => 'Corigent',
+        'repetent' => 'Repetent',
         'amanat' => 'Amânat',
     ],
     'admission_status' => [

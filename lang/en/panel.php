@@ -579,6 +579,8 @@ return [
             'result_pass' => 'Passed',
             'result_fail' => 'Failed',
             'result_pending' => 'Scheduled / not examined',
+            'mark' => 'Make-up mark',
+            'mark_hint' => 'Mark obtained at the exam (1–10). Passed = mark ≥ 5; becomes the subject\'s final annual average in the transcript.',
         ],
         'exam_commission' => [
             'name' => 'Commission',

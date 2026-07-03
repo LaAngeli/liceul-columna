@@ -5,6 +5,7 @@ namespace App\Filament\Resources\CorigentaExams\Schemas;
 use App\Models\CorigentaSession;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
 class CorigentaExamForm
@@ -23,12 +24,13 @@ class CorigentaExamForm
                 ->searchable(),
             DatePicker::make('scheduled_on')
                 ->label(__('panel.forms.corigenta_exam.scheduled_on_long')),
-            Select::make('passed')
-                ->label(__('panel.forms.corigenta_exam.result'))
-                ->options([
-                    '1' => __('panel.forms.corigenta_exam.result_pass'),
-                    '0' => __('panel.forms.corigenta_exam.result_fail'),
-                ])
+            TextInput::make('mark')
+                ->label(__('panel.forms.corigenta_exam.mark'))
+                ->numeric()
+                ->minValue(1)
+                ->maxValue(10)
+                ->step(0.01)
+                ->helperText(__('panel.forms.corigenta_exam.mark_hint'))
                 ->placeholder(__('panel.forms.corigenta_exam.result_pending')),
         ]);
     }

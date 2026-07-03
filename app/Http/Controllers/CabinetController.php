@@ -927,7 +927,8 @@ class CabinetController extends Controller
                 'scheduledOn' => $exam->scheduled_on?->format('d.m.Y'),
                 'commission' => $exam->commission?->name,
                 'sessionType' => $exam->session?->type->label(),
-                'passed' => $exam->passed,
+                'mark' => $exam->mark,
+                'passed' => $exam->isPassed(),
             ])
             ->all();
     }

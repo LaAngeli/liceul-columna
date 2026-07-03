@@ -5,7 +5,6 @@ namespace App\Filament\Resources\CorigentaExams\Tables;
 use App\Enums\CorigentaSeason;
 use App\Support\ContentTranslator;
 use Filament\Actions\EditAction;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -25,7 +24,9 @@ class CorigentaExamsTable
                 TextColumn::make('season')->label(__('panel.forms.corigenta_session.season'))->badge(),
                 TextColumn::make('scheduled_on')->label(__('panel.forms.corigenta_exam.scheduled_on'))->date('d.m.Y')->placeholder(__('panel.forms.corigenta_exam.unscheduled')),
                 TextColumn::make('commission.name')->label(__('panel.forms.corigenta_exam.commission'))->placeholder(__('panel.common.dash'))->toggleable(),
-                IconColumn::make('passed')->label(__('panel.forms.corigenta_exam.result'))->boolean()->placeholder(__('panel.common.dash')),
+                TextColumn::make('mark')->label(__('panel.forms.corigenta_exam.mark'))->numeric()->badge()
+                    ->color(fn (?string $state): string => $state === null ? 'gray' : ((float) $state >= 5 ? 'success' : 'danger'))
+                    ->placeholder(__('panel.forms.corigenta_exam.result_pending')),
             ])
             ->filters([
                 SelectFilter::make('season')->label(__('panel.forms.corigenta_session.season'))->options(CorigentaSeason::class),

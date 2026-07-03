@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use App\Enums\CorigentaSeason;
+use App\Observers\CorigentaExamObserver;
+use App\Support\Grades;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -15,8 +18,9 @@ use OwenIt\Auditing\Contracts\Auditable;
  *
  * @property CorigentaSeason $season
  * @property Carbon|null $scheduled_on
- * @property bool|null $passed
+ * @property numeric-string|null $mark
  */
+#[ObservedBy(CorigentaExamObserver::class)]
 class CorigentaExam extends Model implements Auditable
 {
     use AuditableTrait;
@@ -29,7 +33,7 @@ class CorigentaExam extends Model implements Auditable
         'corigenta_session_id',
         'exam_commission_id',
         'scheduled_on',
-        'passed',
+        'mark',
     ];
 
     protected function casts(): array
@@ -37,8 +41,16 @@ class CorigentaExam extends Model implements Auditable
         return [
             'season' => CorigentaSeason::class,
             'scheduled_on' => 'date',
-            'passed' => 'boolean',
+            'mark' => 'decimal:2',
         ];
+    }
+
+    /**
+     * Rezultatul examenului derivat din notă: promovat = notă ≥ 5. Null = neexaminat (fără notă).
+     */
+    public function isPassed(): ?bool
+    {
+        return $this->mark === null ? null : (float) $this->mark >= Grades::PASS;
     }
 
     /** @return BelongsTo<Student, $this> */
