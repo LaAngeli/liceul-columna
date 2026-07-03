@@ -17,7 +17,7 @@ trait EnforcesAbsenceScope
      */
     protected function enforceAbsenceScope(array $data): array
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         // Autoritatea academică (super-admin / director / prim-vicedirector) nu e limitată.
         // Administratorul operațional/tehnic NU consemnează absențe → cade pe ramura „fără fișă".

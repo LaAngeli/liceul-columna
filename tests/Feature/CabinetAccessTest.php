@@ -38,6 +38,28 @@ it('elevul își vede profilul de cabinet (doar vizualizare)', function () {
         );
 });
 
+it('memberSince este formatat cu tokeni PHP `date()`, nu ICU (regresie: „iunieiunieiunie 26262626")', function () {
+    // Bug istoric: `translatedFormat('d MMMM yyyy')` folosea tokeni ICU într-o funcție care așteaptă
+    // tokeni PHP `date()` — `M` = numele lunii (translated) → 4×`M` = 4× numele lunii; `y` = an 2
+    // cifre → 4×`y` = an repetat de 4 ori. Fix: `translatedFormat('d F Y')`.
+    $user = User::factory()->create(['created_at' => '2026-06-25 10:00:00']);
+    $user->assignRole(UserRole::Elev->value);
+    Student::factory()->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->get(route('cabinet.profile'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('cabinet/profile')
+            ->where('account.memberSince', function (string $value): bool {
+                // Formatul corect: „25 <lună> 2026" — o singură lună + an de 4 cifre.
+                // Regresia (bug-ul de reparat) dădea „25 iunieiunieiunie 26262626".
+                return preg_match('/^25 [A-Za-zĂÎÂȚȘăîâțș]+ 2026$/u', $value) === 1
+                    && ! str_contains($value, '2626');
+            })
+        );
+});
+
 it('redirecționează personalul de la profilul de cabinet către panou', function () {
     $staff = User::factory()->create();
     $staff->assignRole(UserRole::Profesor->value);

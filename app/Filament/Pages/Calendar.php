@@ -23,7 +23,14 @@ class Calendar extends Page
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static ?int $navigationSort = -2;
+    // Grupul „Comunicare", între Mesaje (10) și Evenimente (30) — vederea agregată a calendarului
+    // stă alături de sursa lui (CalendarEvents = intrări individuale).
+    protected static ?int $navigationSort = 20;
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('panel.nav.groups.communication');
+    }
 
     public function getTitle(): string
     {
@@ -156,7 +163,7 @@ class Calendar extends Page
      */
     public function canAddEvent(): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return $user instanceof User && $user->canManageCalendarEvents();
     }
@@ -263,7 +270,7 @@ class Calendar extends Page
      */
     public function byDay(): array
     {
-        $viewer = auth()->user();
+        $viewer = auth('web')->user();
 
         if (! $viewer instanceof User) {
             return [];

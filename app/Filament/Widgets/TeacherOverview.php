@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class TeacherOverview extends StatsOverviewWidget
 {
-    // -4: după WelcomeWidget (-5), înaintea AccountWidget (-3, default) — fără coliziune de ordine.
+    // -4: imediat după WelcomeWidget (-5), înaintea widget-urilor de statistici — fără coliziune de ordine.
     protected static ?int $sort = -4;
 
     // Polling intermediar (2 min): profesorul vine să introducă note ocazional, nu stă cu dashboard-ul deschis.
@@ -29,14 +29,14 @@ class TeacherOverview extends StatsOverviewWidget
      */
     public static function canView(): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return $user !== null && ! $user->isAdministrator() && $user->teacher !== null;
     }
 
     protected function getStats(): array
     {
-        $teacher = auth()->user()?->teacher;
+        $teacher = auth('web')->user()?->teacher;
 
         if (! $teacher) {
             return [];
@@ -93,7 +93,8 @@ class TeacherOverview extends StatsOverviewWidget
                 ->description(__('panel.widgets.teacher_overview.corigenti_desc'))
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
                 ->color($corigenti > 0 ? 'danger' : 'success')
-                ->url(StudentResource::getUrl('index')),
+                // ?corigenti=1 → StudentsTable citește query param via TernaryFilter->default() (§v4).
+                ->url(StudentResource::getUrl('index').'?corigenti=1'),
         ];
 
         // Acțiuni rapide: doar dacă utilizatorul are dreptul (administrator operațional/tehnic = nu).

@@ -49,7 +49,7 @@ class ConsentAcknowledgmentResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->canViewAuditLog() ?? false;
+        return auth('web')->user()?->canViewAuditLog() ?? false;
     }
 
     public static function canCreate(): bool

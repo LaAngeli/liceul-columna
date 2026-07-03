@@ -25,28 +25,31 @@ class AbsenceMotivationsTable
             ->emptyStateIcon('heroicon-o-check-badge')
             ->defaultSort('created_at', 'desc')
             ->poll('30s') // coadă de aprobare — aliniat cu badge-ul de sidebar.
+            // Restructurat pentru eliminarea scroll-ului orizontal: 5 coloane vizibile default (față
+            // de 9 înainte). Info secundară trece în `description()` (sub-text pe rândul 2 al celulei),
+            // ceea ce condensează coloanele fără a pierde date. „Validată de" e ascunsă default, dar
+            // reactivabilă din toggle-ul de coloane. Vezi memoria filament-table-width-compaction.
             ->columns([
+                // ELEV + perioada (fost coloană „Perioada" separată).
                 TextColumn::make('student.full_name')
                     ->label(__('panel.fields.student'))
-                    ->searchable(['last_name', 'first_name']),
-                TextColumn::make('period')
-                    ->label(__('panel.fields.period'))
-                    ->state(fn (AbsenceMotivation $record): string => $record->period_start->format('d.m.Y').' – '.$record->period_end->format('d.m.Y')),
+                    ->searchable(['last_name', 'first_name'])
+                    ->description(fn (AbsenceMotivation $record): string => $record->period_start->format('d.m.Y').' – '.$record->period_end->format('d.m.Y')),
+                // MOTIV — wrap cu limit + tooltip pentru textul complet.
                 TextColumn::make('reason')
                     ->label(__('panel.fields.reason'))
                     ->wrap()
-                    ->limit(60),
+                    ->limit(60)
+                    ->tooltip(fn (AbsenceMotivation $record): ?string => mb_strlen((string) $record->reason) > 60 ? $record->reason : null),
+                // STARE + tip (Normală/Excepție ca sub-text — fost coloană „Tip" separată).
                 TextColumn::make('status')
                     ->label(__('panel.fields.status'))
                     ->badge()
-                    ->color(fn (RequestStatus $state): string => $state->color()),
-                TextColumn::make('is_exception')
-                    ->label(__('panel.fields.type'))
-                    ->badge()
-                    ->state(fn (AbsenceMotivation $record): string => $record->is_exception
-                        ? __('panel.tables.absence_motivations.type_exception')
-                        : __('panel.tables.absence_motivations.type_normal'))
-                    ->color(fn (AbsenceMotivation $record): string => $record->is_exception ? 'warning' : 'gray'),
+                    ->color(fn (RequestStatus $state): string => $state->color())
+                    ->description(fn (AbsenceMotivation $record): string => $record->is_exception
+                        ? (string) __('panel.tables.absence_motivations.type_exception')
+                        : (string) __('panel.tables.absence_motivations.type_normal')),
+                // TERMEN validare — badge doar pentru cererile în așteptare.
                 TextColumn::make('validation_deadline')
                     ->label(__('panel.tables.absence_motivations.validation_deadline'))
                     ->state(fn (AbsenceMotivation $record): string => $record->isPending()
@@ -57,17 +60,17 @@ class AbsenceMotivationsTable
                     ->tooltip(fn (AbsenceMotivation $record): ?string => $record->isOverdue()
                         ? (string) __('panel.tables.absence_motivations.overdue_tooltip')
                         : null),
-                TextColumn::make('requestedBy.name')
-                    ->label(__('panel.fields.requested_by'))
-                    ->toggleable(),
-                TextColumn::make('reviewedBy.name')
-                    ->label(__('panel.fields.validated_by'))
-                    ->placeholder(__('panel.common.dash'))
-                    ->toggleable(),
+                // DEPUSĂ (data) + solicitant ca sub-text (fost coloană „Solicitată de" separată).
                 TextColumn::make('created_at')
                     ->label(__('panel.fields.submitted_at'))
                     ->dateTime('d.m.Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn (AbsenceMotivation $record): string => $record->requestedBy->name ?? (string) __('panel.common.dash')),
+                // VALIDATĂ DE — ascunsă default (activabilă din toggle-ul de coloane).
+                TextColumn::make('reviewedBy.name')
+                    ->label(__('panel.fields.validated_by'))
+                    ->placeholder(__('panel.common.dash'))
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -148,7 +151,7 @@ class AbsenceMotivationsTable
                             self::reviewBulk($records, $data['review_note'] ?? null, approve: false);
                         })
                         ->deselectRecordsAfterCompletion(),
-                ])->visible(fn (): bool => ($user = auth()->user()) instanceof User
+                ])->visible(fn (): bool => ($user = auth('web')->user()) instanceof User
                     && ($user->isManagement() || $user->teacher !== null)),
             ]);
     }
@@ -159,7 +162,7 @@ class AbsenceMotivationsTable
      */
     private static function canReview(AbsenceMotivation $record): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return $user instanceof User && $record->canBeReviewedBy($user);
     }

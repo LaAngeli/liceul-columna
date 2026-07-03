@@ -3,10 +3,35 @@ import { MailX } from 'lucide-react';
 import { useState } from 'react';
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { useTranslations } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 // Importăm sub-namespace-ul COMPLET (send/reply/read) — `cabinet/index.ts` re-exportă doar funcția
 // `messages` (GET inbox), nu și acțiunile de sub-rută.
 import * as messageRoutes from '@/routes/cabinet/messages';
+
+// Limite aliniate cu backend (`MessagesController::send()`): subject required 120, body required 2000.
+const SUBJECT_MAX = 120;
+const BODY_MAX = 2000;
+
+/**
+ * Contor „X/N" cu culoare gradată: neutru sub 80%, amber între 80–99%, destructive la limită.
+ * Are `aria-live="polite"` ca screen-reader-ul să anunțe apropierea de limită.
+ */
+function CharCount({ id, current, max }: { id: string; current: number; max: number }) {
+    const ratio = current / max;
+    const cls =
+        current >= max
+            ? 'text-destructive'
+            : ratio >= 0.8
+                ? 'text-amber-700 dark:text-amber-300'
+                : 'text-muted-foreground';
+
+    return (
+        <p id={id} aria-live="polite" className={cn('mt-1 text-right text-[11px] tabular-nums', cls)}>
+            {current}/{max}
+        </p>
+    );
+}
 
 interface Recipient {
     id: number;
@@ -208,26 +233,35 @@ export default function MessagesPage({ threads, compose }: Props) {
                             )}
                         </div>
 
-                        <input
-                            type="text"
-                            value={form.data.subject}
-                            onChange={(e) => form.setData('subject', e.target.value)}
-                            placeholder={t('cabinet.messages_subject')}
-                            className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            maxLength={150}
-                        />
-                        {form.errors.subject && <p className="mt-1 text-xs text-destructive">{form.errors.subject}</p>}
+                        <div className="mt-3">
+                            <input
+                                type="text"
+                                value={form.data.subject}
+                                onChange={(e) => form.setData('subject', e.target.value)}
+                                placeholder={t('cabinet.messages_subject')}
+                                required
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                maxLength={SUBJECT_MAX}
+                                aria-describedby="msg-subject-count"
+                            />
+                            <CharCount id="msg-subject-count" current={form.data.subject.length} max={SUBJECT_MAX} />
+                            {form.errors.subject && <p className="mt-1 text-xs text-destructive">{form.errors.subject}</p>}
+                        </div>
 
-                        <textarea
-                            value={form.data.body}
-                            onChange={(e) => form.setData('body', e.target.value)}
-                            placeholder={t('cabinet.messages_body')}
-                            rows={3}
-                            required
-                            className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            maxLength={2000}
-                        />
-                        {form.errors.body && <p className="mt-1 text-xs text-destructive">{form.errors.body}</p>}
+                        <div className="mt-3">
+                            <textarea
+                                value={form.data.body}
+                                onChange={(e) => form.setData('body', e.target.value)}
+                                placeholder={t('cabinet.messages_body')}
+                                rows={3}
+                                required
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                maxLength={BODY_MAX}
+                                aria-describedby="msg-body-count"
+                            />
+                            <CharCount id="msg-body-count" current={form.data.body.length} max={BODY_MAX} />
+                            {form.errors.body && <p className="mt-1 text-xs text-destructive">{form.errors.body}</p>}
+                        </div>
 
                         {recipients.length === 0 && form.data.type === 'direct' && (
                             <p className="mt-2 text-xs text-muted-foreground">{t('cabinet.messages_no_recipients')}</p>
@@ -237,6 +271,8 @@ export default function MessagesPage({ threads, compose }: Props) {
                             type="submit"
                             disabled={
                                 form.processing ||
+                                form.data.subject.trim() === '' ||
+                                form.data.body.trim() === '' ||
                                 (form.data.type === 'direct' && form.data.recipient_user_id === '') ||
                                 (form.data.type === 'audience' && form.data.domain === '')
                             }
@@ -296,17 +332,19 @@ export default function MessagesPage({ threads, compose }: Props) {
                                         ))}
                                     </div>
 
-                                    <form onSubmit={(e) => submitReply(e, thread.id)} className="mt-3 flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={replyBody[thread.id] ?? ''}
-                                            onChange={(e) =>
-                                                setReplyBody((prev) => ({ ...prev, [thread.id]: e.target.value }))
-                                            }
-                                            placeholder={t('cabinet.messages_reply_ph')}
-                                            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                            maxLength={2000}
-                                        />
+                                    <form onSubmit={(e) => submitReply(e, thread.id)} className="mt-3">
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={replyBody[thread.id] ?? ''}
+                                                onChange={(e) =>
+                                                    setReplyBody((prev) => ({ ...prev, [thread.id]: e.target.value }))
+                                                }
+                                                placeholder={t('cabinet.messages_reply_ph')}
+                                                className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                maxLength={BODY_MAX}
+                                                aria-describedby={`msg-reply-count-${thread.id}`}
+                                            />
                                         <button
                                             type="submit"
                                             disabled={replying.has(thread.id) || (replyBody[thread.id] ?? '').trim() === ''}
@@ -316,6 +354,12 @@ export default function MessagesPage({ threads, compose }: Props) {
                                                 ? t('cabinet.motivation_sending')
                                                 : t('cabinet.messages_reply')}
                                         </button>
+                                        </div>
+                                        <CharCount
+                                            id={`msg-reply-count-${thread.id}`}
+                                            current={(replyBody[thread.id] ?? '').length}
+                                            max={BODY_MAX}
+                                        />
                                     </form>
                                 </div>
                             )}

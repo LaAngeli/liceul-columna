@@ -17,7 +17,7 @@ trait EnforcesGradeScope
      */
     protected function enforceGradeScope(array $data): array
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         // Autoritatea academică (super-admin / director / prim-vicedirector) nu e limitată.
         // Administratorul operațional/tehnic NU scrie note → cade pe ramura „fără fișă" și e blocat.

@@ -55,13 +55,13 @@ class AbsenceForm
                 Toggle::make('is_motivated')
                     ->label(__('panel.fields.is_motivated')),
                 Hidden::make('teacher_id')
-                    ->default(fn (): ?int => auth()->user()?->teacher?->id),
+                    ->default(fn (): ?int => auth('web')->user()?->teacher?->id),
             ]);
     }
 
     private static function currentTeacher(): ?Teacher
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return ($user && ! $user->isAdministrator()) ? $user->teacher : null;
     }

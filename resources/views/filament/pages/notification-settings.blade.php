@@ -4,7 +4,7 @@
 
         <div>
             <x-filament::button type="submit">
-                {{ __('site.notif_save') }}
+                {{ __('site.cabinet.notif_save') }}
             </x-filament::button>
         </div>
     </form>

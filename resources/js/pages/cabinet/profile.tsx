@@ -129,7 +129,12 @@ export default function CabinetProfile({ account, self, children: students = [] 
                         </div>
 
                         <dl className="mt-4 grid gap-x-8 sm:grid-cols-2">
-                            <InfoRow icon={UserRound} label={t('profile.username', 'Utilizator')} value={account.username ?? '—'} />
+                            {/* „Utilizator" (login-name) apare DOAR pentru conturile migrate din sistemul vechi,
+                                care se pot autentifica și fără email. Pentru conturile create direct pe email
+                                (majoritatea), câmpul rămâne null → ascundem rândul complet ca să nu afișăm „—". */}
+                            {account.username !== null && account.username !== '' && (
+                                <InfoRow icon={UserRound} label={t('profile.username', 'Utilizator')} value={account.username} />
+                            )}
                             <InfoRow icon={Mail} label={t('profile.email', 'E-mail')} value={account.email ?? '—'} />
                             <InfoRow icon={Shield} label={t('profile.role', 'Rol')} value={account.role ? t(`roles.${account.role}`, account.role) : '—'} />
                             <InfoRow icon={CalendarDays} label={t('profile.member_since', 'Membru din')} value={account.memberSince ?? '—'} />

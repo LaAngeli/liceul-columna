@@ -71,7 +71,7 @@ class AbsenceMotivationResource extends Resource
      */
     public static function canAccess(): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if (! $user instanceof User) {
             return false;
@@ -149,7 +149,7 @@ class AbsenceMotivationResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if (! $user instanceof User || $user->isAdministrator()) {
             return $query;

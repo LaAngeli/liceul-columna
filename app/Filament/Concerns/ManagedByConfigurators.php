@@ -14,21 +14,21 @@ trait ManagedByConfigurators
 {
     public static function canCreate(): bool
     {
-        return auth()->user()?->canConfigureSchool() ?? false;
+        return auth('web')->user()?->canConfigureSchool() ?? false;
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()?->canConfigureSchool() ?? false;
+        return auth('web')->user()?->canConfigureSchool() ?? false;
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()?->canConfigureSchool() ?? false;
+        return auth('web')->user()?->canConfigureSchool() ?? false;
     }
 
     public static function canDeleteAny(): bool
     {
-        return auth()->user()?->canConfigureSchool() ?? false;
+        return auth('web')->user()?->canConfigureSchool() ?? false;
     }
 }

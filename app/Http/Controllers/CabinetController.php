@@ -28,6 +28,7 @@ use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
 use App\Support\ContentTranslator;
+use App\Support\Grades;
 use App\Support\Timetable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -52,7 +53,7 @@ class CabinetController extends Controller
      */
     public function index(Request $request): Response|RedirectResponse
     {
-        $user = $request->user();
+        $user = $request->user('web');
 
         // Personalul folosește exclusiv panoul Filament — niciodată cabinetul Inertia.
         if ($user->hasAnyRole(UserRole::panelRoleValues())) {
@@ -272,7 +273,7 @@ class CabinetController extends Controller
      */
     public function profile(Request $request): Response|RedirectResponse
     {
-        $user = $request->user();
+        $user = $request->user('web');
 
         // Personalul folosește panoul Filament — niciodată cabinetul Inertia.
         if ($user->hasAnyRole(UserRole::panelRoleValues())) {
@@ -287,7 +288,11 @@ class CabinetController extends Controller
                 'username' => $user->username,
                 'email' => $user->email,
                 'role' => $user->getRoleNames()->first(),
-                'memberSince' => $user->created_at?->translatedFormat('d MMMM yyyy'),
+                // `translatedFormat` folosește tokeni PHP `date()` (F = lună întreagă, Y = an 4
+                // cifre), NU tokeni ICU (MMMM/yyyy). Cu tokeni ICU luna se dublează pe fiecare
+                // literă suplimentară (`MMMM` → 4×lună) și `y` = an 2 cifre × 4 → „26262626".
+                // Pentru sintaxă ICU folosește `isoFormat('D MMMM YYYY')`.
+                'memberSince' => $user->created_at?->translatedFormat('d F Y'),
                 'locale' => $user->locale,
             ],
             'self' => $self !== null ? $this->profileCard($self) : null,
@@ -327,7 +332,7 @@ class CabinetController extends Controller
 
         $student->load(['grades.subject', 'grades.term', 'absences.subject', 'academicRecords.subject']);
 
-        $viewer = auth()->user();
+        $viewer = auth('web')->user();
 
         // Jurnalizarea accesului (L133 §7): personalul care vizualizează dosarul unui elev care NU
         // e copilul lui. Familia care-și vede propriul copil nu intră în jurnal (e dreptul ei).
@@ -393,7 +398,7 @@ class CabinetController extends Controller
      */
     public function requestMotivation(Request $request, Student $student): RedirectResponse
     {
-        $user = $request->user();
+        $user = $request->user('web');
         abort_unless($user instanceof User && $this->isFamilyOf($user, $student), 403);
 
         $data = $request->validate([
@@ -447,7 +452,7 @@ class CabinetController extends Controller
      */
     public function acknowledgeStatus(Request $request, Student $student): RedirectResponse
     {
-        $user = $request->user();
+        $user = $request->user('web');
         abort_unless($user instanceof User && $this->isFamilyOf($user, $student), 403);
 
         $status = $this->currentStatus($student);
@@ -482,7 +487,7 @@ class CabinetController extends Controller
      */
     public function requestDocument(Request $request, Student $student): RedirectResponse
     {
-        $user = $request->user();
+        $user = $request->user('web');
         abort_unless($user instanceof User && $this->isFamilyOf($user, $student), 403);
 
         $data = $request->validate([
@@ -521,7 +526,7 @@ class CabinetController extends Controller
      */
     public function downloadRequest(Request $request, DocumentRequest $documentRequest, LogStudentAccess $accessLog): StreamedResponse
     {
-        $user = $request->user();
+        $user = $request->user('web');
         abort_unless(
             $user instanceof User
                 && ($this->isFamilyOf($user, $documentRequest->student) || $user->isAdministrator()),
@@ -547,7 +552,7 @@ class CabinetController extends Controller
      */
     public function downloadMotivationDocument(Request $request, AbsenceMotivation $absenceMotivation, LogStudentAccess $accessLog): StreamedResponse
     {
-        $user = $request->user();
+        $user = $request->user('web');
         abort_unless($user instanceof User, 403);
 
         $student = $absenceMotivation->student;
@@ -876,7 +881,7 @@ class CabinetController extends Controller
         // Media generală = media mediilor semestriale calculate (nu a notelor brute).
         $averages = $this->semesterAverages($student);
         $overall = $averages->isNotEmpty()
-            ? round($averages->avg(fn (string $value): float => (float) $value), 2)
+            ? Grades::truncate2((float) $averages->avg(fn (string $value): float => (float) $value))
             : null;
 
         return [

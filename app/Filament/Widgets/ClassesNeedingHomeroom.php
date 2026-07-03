@@ -25,7 +25,7 @@ class ClassesNeedingHomeroom extends TableWidget
 
     public static function canView(): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return $user !== null
             && $user->isAdministrator()

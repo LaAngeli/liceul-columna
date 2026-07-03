@@ -21,7 +21,7 @@ trait PreparesHomeworkData
             $data['subject_name'] = Subject::query()->whereKey($subjectId)->value('name') ?? '';
         }
 
-        $teacher = auth()->user()?->teacher;
+        $teacher = auth('web')->user()?->teacher;
         if ($teacher) {
             $data['teacher_id'] = $teacher->id;
             $data['author_name'] = $teacher->full_name;

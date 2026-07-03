@@ -50,27 +50,27 @@ class HolidayResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->canManageSchedules() ?? false;
+        return auth('web')->user()?->canManageSchedules() ?? false;
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->canManageSchedules() ?? false;
+        return auth('web')->user()?->canManageSchedules() ?? false;
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()?->canManageSchedules() ?? false;
+        return auth('web')->user()?->canManageSchedules() ?? false;
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()?->canManageSchedules() ?? false;
+        return auth('web')->user()?->canManageSchedules() ?? false;
     }
 
     public static function canDeleteAny(): bool
     {
-        return auth()->user()?->canManageSchedules() ?? false;
+        return auth('web')->user()?->canManageSchedules() ?? false;
     }
 
     public static function form(Schema $schema): Schema

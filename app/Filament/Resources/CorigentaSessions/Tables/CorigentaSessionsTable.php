@@ -75,14 +75,14 @@ class CorigentaSessionsTable
 
     private static function canApprove(): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return $user instanceof User && ($user->isSuperAdmin() || $user->hasRole(UserRole::Director->value));
     }
 
     private static function canPublish(): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return $user instanceof User && ($user->isSuperAdmin() || $user->isOperationalAdmin());
     }

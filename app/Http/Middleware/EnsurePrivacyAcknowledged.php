@@ -17,7 +17,7 @@ class EnsurePrivacyAcknowledged
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
+        $user = $request->user('web');
 
         if ($user instanceof User
             && $user->hasAnyRole([UserRole::Elev->value, UserRole::Parinte->value])

@@ -70,7 +70,7 @@ class UserForm
     private static function roleOptions(): array
     {
         $options = [];
-        foreach (auth()->user()?->manageableRoleValues() ?? [] as $value) {
+        foreach (auth('web')->user()?->manageableRoleValues() ?? [] as $value) {
             $options[$value] = UserRole::tryFrom($value)?->label() ?? $value;
         }
 

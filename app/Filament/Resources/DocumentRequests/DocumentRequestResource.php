@@ -45,7 +45,7 @@ class DocumentRequestResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->isAdministrator() ?? false;
+        return auth('web')->user()?->isAdministrator() ?? false;
     }
 
     public static function canCreate(): bool
@@ -67,7 +67,7 @@ class DocumentRequestResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        if (! (auth()->user()?->isAdministrator() ?? false)) {
+        if (! (auth('web')->user()?->isAdministrator() ?? false)) {
             return null;
         }
 

@@ -31,7 +31,7 @@ class PendingApprovalsOverview extends StatsOverviewWidget
 
     public static function canView(): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if (! $user instanceof User) {
             return false;
@@ -44,7 +44,7 @@ class PendingApprovalsOverview extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if (! $user instanceof User) {
             return [];

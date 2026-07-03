@@ -25,7 +25,7 @@ class GradesRelationManager extends RelationManager
 
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return $user instanceof User
             && ($user->isAdministrator() || $user->teacher !== null);

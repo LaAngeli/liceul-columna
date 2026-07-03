@@ -58,13 +58,13 @@ class HomeworkAssignmentForm
                     ->addActionLabel(fn (): string => __('panel.forms.homework.add_link'))
                     ->columnSpanFull(),
                 Hidden::make('teacher_id')
-                    ->default(fn (): ?int => auth()->user()?->teacher?->id),
+                    ->default(fn (): ?int => auth('web')->user()?->teacher?->id),
             ]);
     }
 
     private static function currentTeacher(): ?Teacher
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return ($user && ! $user->isAdministrator()) ? $user->teacher : null;
     }

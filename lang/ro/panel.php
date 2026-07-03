@@ -360,6 +360,11 @@ return [
             'homeroom_only_no' => 'Fără diriginte',
             'homeroom_only_yes' => 'Cu diriginte',
         ],
+        'students' => [
+            'corigenti_filter' => 'Corigenți',
+            'corigenti_only' => 'Doar corigenți',
+            'corigenti_none' => 'Fără corigenți',
+        ],
         'grade_corrections' => [
             'change' => 'Modificare',
         ],
@@ -413,6 +418,12 @@ return [
             'second_language_short' => 'Limba 2',
             'english_group_short' => 'Gr. engleză',
             'account_short' => 'Cont',
+            'section_personal' => 'Date personale',
+            'section_situation' => 'Situația curentă',
+            'section_situation_hint' => 'Statutul preliminar calculat din mediile semestrului în curs — orientativ, statutul oficial se validează de Consiliul profesoral.',
+            'average' => 'Media generală',
+            'failing_subjects' => 'Discipline restante (medie < 5)',
+            'no_failing' => 'Nicio disciplină restantă',
             'validate_status' => [
                 'label' => 'Validează statut',
                 'heading' => 'Validează statutul semestrial',

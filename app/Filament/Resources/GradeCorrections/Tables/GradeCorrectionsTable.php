@@ -26,18 +26,22 @@ class GradeCorrectionsTable
             ->emptyStateIcon('heroicon-o-pencil-square')
             ->defaultSort('created_at', 'desc')
             ->poll('30s') // coadă de aprobare — aliniat cu badge-ul de sidebar.
-            ->modifyQueryUsing(fn ($query) => $query->with('grade.student'))
+            // Restructurat: 5 coloane vizibile default (față de 8 înainte). Vezi memoria
+            // filament-table-width-compaction.
+            ->modifyQueryUsing(fn ($query) => $query->with(['grade.student', 'grade.subject', 'requestedBy']))
             ->columns([
+                // ELEV + disciplina (fost coloană „Disciplina" separată).
                 TextColumn::make('grade.student.full_name')
                     ->label(__('panel.fields.student'))
                     ->searchable(['last_name', 'first_name'])
                     ->url(fn (GradeCorrection $record): ?string => $record->grade?->student_id !== null
-                        ? StudentResource::getUrl('edit', ['record' => $record->grade->student_id])
+                        ? StudentResource::getUrl('view', ['record' => $record->grade->student_id])
                         : null)
-                    ->color('primary'),
-                TextColumn::make('grade.subject.name')
-                    ->label(__('panel.fields.subject'))
-                    ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state)),
+                    ->color('primary')
+                    ->description(fn (GradeCorrection $record): ?string => $record->grade?->subject?->name !== null
+                        ? ContentTranslator::subject($record->grade->subject->name)
+                        : null),
+                // MODIFICARE (old → new)
                 TextColumn::make('change')
                     ->label(__('panel.tables.grade_corrections.change'))
                     ->state(fn (GradeCorrection $record): string => trim(
@@ -45,25 +49,28 @@ class GradeCorrectionsTable
                         .' → '
                         .($record->new_value ?? $record->new_calificativ ?? '—')
                     )),
+                // MOTIV + tooltip pentru textul complet.
                 TextColumn::make('reason')
                     ->label(__('panel.fields.reason'))
                     ->wrap()
-                    ->limit(50),
+                    ->limit(50)
+                    ->tooltip(fn (GradeCorrection $record): ?string => mb_strlen((string) $record->reason) > 50 ? $record->reason : null),
+                // STARE (badge)
                 TextColumn::make('status')
                     ->label(__('panel.fields.status'))
                     ->badge()
                     ->color(fn (CorrectionStatus $state): string => $state->color()),
-                TextColumn::make('requestedBy.name')
-                    ->label(__('panel.fields.requested_by'))
-                    ->toggleable(),
-                TextColumn::make('reviewedBy.name')
-                    ->label(__('panel.fields.reviewed_by'))
-                    ->placeholder(__('panel.common.dash'))
-                    ->toggleable(),
+                // DATA + solicitantul ca sub-text (fost coloană „Solicitată de" separată).
                 TextColumn::make('created_at')
                     ->label(__('panel.fields.date'))
                     ->dateTime('d.m.Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn (GradeCorrection $record): ?string => $record->requestedBy?->name),
+                // REVIZUITĂ DE — ascunsă default.
+                TextColumn::make('reviewedBy.name')
+                    ->label(__('panel.fields.reviewed_by'))
+                    ->placeholder(__('panel.common.dash'))
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -76,7 +83,7 @@ class GradeCorrectionsTable
                     ->icon('heroicon-o-check')
                     ->color('success')
                     ->visible(fn (GradeCorrection $record): bool => $record->isPending()
-                        && (auth()->user()?->canApproveGradeCorrections() ?? false))
+                        && (auth('web')->user()?->canApproveGradeCorrections() ?? false))
                     ->modalHeading(fn (): string => __('panel.actions.approve.label'))
                     ->modalDescription(fn (): string => __('panel.actions.approve_bulk.description'))
                     ->schema([
@@ -94,7 +101,7 @@ class GradeCorrectionsTable
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
                     ->visible(fn (GradeCorrection $record): bool => $record->isPending()
-                        && (auth()->user()?->canApproveGradeCorrections() ?? false))
+                        && (auth('web')->user()?->canApproveGradeCorrections() ?? false))
                     ->modalHeading(fn (): string => __('panel.actions.reject.label'))
                     ->schema([
                         Textarea::make('review_note')
@@ -140,7 +147,7 @@ class GradeCorrectionsTable
                             self::reviewBulk($records, $data['review_note'] ?? null, approve: false);
                         })
                         ->deselectRecordsAfterCompletion(),
-                ])->visible(fn (): bool => auth()->user()?->canApproveGradeCorrections() ?? false),
+                ])->visible(fn (): bool => auth('web')->user()?->canApproveGradeCorrections() ?? false),
             ]);
     }
 

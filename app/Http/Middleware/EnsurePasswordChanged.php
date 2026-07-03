@@ -14,7 +14,7 @@ class EnsurePasswordChanged
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
+        $user = $request->user('web');
 
         if ($user !== null && $user->must_change_password && ! $this->isExempt($request)) {
             return redirect()->route('password.change');

@@ -50,24 +50,24 @@ class UserResource extends Resource
      */
     public static function canAccess(): bool
     {
-        return auth()->user()?->canManageAccounts() ?? false;
+        return auth('web')->user()?->canManageAccounts() ?? false;
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->canManageAccounts() ?? false;
+        return auth('web')->user()?->canManageAccounts() ?? false;
     }
 
     public static function canEdit(Model $record): bool
     {
         return $record instanceof User
-            && (auth()->user()?->canManageUser($record) ?? false);
+            && (auth('web')->user()?->canManageUser($record) ?? false);
     }
 
     public static function canDelete(Model $record): bool
     {
         return $record instanceof User
-            && (auth()->user()?->canManageUser($record) ?? false);
+            && (auth('web')->user()?->canManageUser($record) ?? false);
     }
 
     public static function form(Schema $schema): Schema

@@ -15,7 +15,7 @@ class LoginResponse implements LoginResponseContract
      */
     public function toResponse($request): Response
     {
-        $user = $request->user();
+        $user = $request->user('web');
         $target = $user?->homePath() ?? (string) config('fortify.home');
 
         if ($request->wantsJson()) {

@@ -26,7 +26,7 @@ class ForcedPasswordController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        $user = $request->user();
+        $user = $request->user('web');
         // Cast-ul `hashed` aplică bcrypt; setăm must_change_password=false ca să deblocăm accesul.
         $user->forceFill([
             'password' => $validated['password'],

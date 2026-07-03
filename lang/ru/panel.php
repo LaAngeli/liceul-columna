@@ -345,6 +345,11 @@ return [
             'homeroom_only_no' => 'Без классного руководителя',
             'homeroom_only_yes' => 'С классным руководителем',
         ],
+        'students' => [
+            'corigenti_filter' => 'На переэкзаменовке',
+            'corigenti_only' => 'Только на переэкзаменовке',
+            'corigenti_none' => 'Без переэкзаменовки',
+        ],
         'grade_corrections' => [
             'change' => 'Изменение',
         ],
@@ -398,6 +403,12 @@ return [
             'second_language_short' => 'Язык 2',
             'english_group_short' => 'Гр. англ.',
             'account_short' => 'Учётная запись',
+            'section_personal' => 'Личные данные',
+            'section_situation' => 'Текущая ситуация',
+            'section_situation_hint' => 'Предварительный статус по средним оценкам текущего семестра — ориентировочно; официальный статус утверждает педсовет.',
+            'average' => 'Общая средняя',
+            'failing_subjects' => 'Задолженности (средняя < 5)',
+            'no_failing' => 'Задолженностей нет',
             'validate_status' => [
                 'label' => 'Подтвердить статус',
                 'heading' => 'Подтвердить семестровый статус',

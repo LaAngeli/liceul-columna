@@ -9,6 +9,7 @@ use App\Filament\Exports\StudentExporter;
 use App\Models\SemesterValidation;
 use App\Models\Student;
 use App\Models\Term;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -16,12 +17,15 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ExportBulkAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class StudentsTable
 {
@@ -57,6 +61,25 @@ class StudentsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // Drill-down din cardul „Corigenți" (Teacher/Director Overview): elevii cu cel puțin
+                // o medie < 5 în semestrul CURENT. Fără semestru curent → filtrul iese neutru.
+                // ⚠️ Filament v4 nu citește `tableFilters` din query params URL (nu are `#[Url]`).
+                // Widget-urile trimit `?corigenti=1` (URL simplu, cache-friendly) și `->default()`
+                // aici îl citește pentru a pre-bifa filtrul la mount.
+                TernaryFilter::make('corigenti_only')
+                    ->label(__('panel.tables.students.corigenti_filter'))
+                    ->placeholder(__('panel.common.all'))
+                    ->trueLabel(__('panel.tables.students.corigenti_only'))
+                    ->falseLabel(__('panel.tables.students.corigenti_none'))
+                    ->default(fn (): ?bool => match (request()->query('corigenti')) {
+                        '1' => true,
+                        '0' => false,
+                        default => null,
+                    })
+                    ->queries(
+                        true: self::corigentiOnlyQuery(...),
+                        false: self::corigentiNoneQuery(...),
+                    ),
                 TrashedFilter::make(),
             ])
             ->recordActions([
@@ -64,7 +87,7 @@ class StudentsTable
                     ->label(__('panel.forms.student.validate_status.label'))
                     ->icon('heroicon-o-check-badge')
                     ->color('success')
-                    ->visible(fn (): bool => auth()->user()?->canValidateSemester() ?? false)
+                    ->visible(fn (): bool => auth('web')->user()?->canValidateSemester() ?? false)
                     ->modalHeading(fn (): string => __('panel.forms.student.validate_status.heading'))
                     ->modalDescription(fn (): string => __('panel.forms.student.validate_status.description'))
                     ->schema([
@@ -107,18 +130,73 @@ class StudentsTable
 
                         Notification::make()->success()->title(__('panel.forms.student.validate_status.success'))->send();
                     }),
-                EditAction::make(),
+                // Fișa read-only (situație + discipline restante) — accesibilă tuturor cu drept de
+                // consultare, inclusiv diriginților (care NU pot edita fișa de elev).
+                ViewAction::make(),
+                // Editarea fișei doar pentru configuratori (§3.3). Guard explicit: EditAction nu se
+                // auto-ascunde consecvent, iar un diriginte care apasă „Editare" ar primi 403.
+                EditAction::make()
+                    ->visible(fn (): bool => ($user = auth('web')->user()) instanceof User && $user->canConfigureSchool()),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     ExportBulkAction::make()
                         ->exporter(StudentExporter::class)
-                        ->visible(fn (): bool => auth()->user()?->isAdministrator() ?? false),
+                        ->visible(fn (): bool => auth('web')->user()?->isAdministrator() ?? false),
                     DeleteBulkAction::make(),
                     ForceDeleteBulkAction::make(),
                     RestoreBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * Filtrul „Corigenți / true": elevi cu cel puțin o medie < 5 în semestrul CURENT. Fără semestru
+     * curent → setul rămâne neschimbat. Extras în metodă statică (nu closure inline) ca phpstan
+     * să vadă tipul `Builder<Student>` — first-class callable transmis către TernaryFilter::queries.
+     *
+     * @param  Builder<Student>  $query
+     * @return Builder<Student>
+     */
+    private static function corigentiOnlyQuery(Builder $query): Builder
+    {
+        $termId = self::currentTermId();
+
+        if ($termId === null) {
+            return $query;
+        }
+
+        return $query->whereHas(
+            'termAverages',
+            fn (Builder $sub): Builder => $sub->where('term_id', $termId)->where('value', '<', 5),
+        );
+    }
+
+    /**
+     * Filtrul „Corigenți / false": elevi FĂRĂ nicio medie < 5 în semestrul curent (complementul).
+     *
+     * @param  Builder<Student>  $query
+     * @return Builder<Student>
+     */
+    private static function corigentiNoneQuery(Builder $query): Builder
+    {
+        $termId = self::currentTermId();
+
+        if ($termId === null) {
+            return $query;
+        }
+
+        return $query->whereDoesntHave(
+            'termAverages',
+            fn (Builder $sub): Builder => $sub->where('term_id', $termId)->where('value', '<', 5),
+        );
+    }
+
+    private static function currentTermId(): ?int
+    {
+        $value = Term::query()->where('is_current', true)->value('id');
+
+        return $value === null ? null : (int) $value;
     }
 
     /**

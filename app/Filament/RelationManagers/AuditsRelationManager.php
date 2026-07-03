@@ -31,7 +31,7 @@ class AuditsRelationManager extends RelationManager
 
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
-        return auth()->user()?->canViewAuditLog() ?? false;
+        return auth('web')->user()?->canViewAuditLog() ?? false;
     }
 
     /**

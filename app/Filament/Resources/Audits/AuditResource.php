@@ -55,7 +55,7 @@ class AuditResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->canViewAuditLog() ?? false;
+        return auth('web')->user()?->canViewAuditLog() ?? false;
     }
 
     /**
@@ -85,7 +85,7 @@ class AuditResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if ($user instanceof User && $user->isTechnicalAdmin()) {
             $query->whereNotIn('auditable_type', [

@@ -31,7 +31,7 @@ class SchoolTrendChart extends ChartWidget
 
     public static function canView(): bool
     {
-        return auth()->user()?->isManagement() ?? false;
+        return auth('web')->user()?->isManagement() ?? false;
     }
 
     /**

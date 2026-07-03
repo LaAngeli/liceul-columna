@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\SendMessage;
 use App\Enums\AudienceDomain;
+use App\Enums\UserRole;
 use App\Models\Message;
 use App\Models\Student;
 use App\Models\User;
@@ -23,7 +24,7 @@ class MessagesController extends Controller
 {
     public function index(Request $request): Response
     {
-        $user = $request->user();
+        $user = $request->user('web');
 
         $threads = Message::query()
             ->whereNull('parent_id')
@@ -50,11 +51,11 @@ class MessagesController extends Controller
             'student_id' => ['required', 'integer', 'exists:students,id'],
             'recipient_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'domain' => ['required_if:type,audience', 'nullable', new Enum(AudienceDomain::class)],
-            'subject' => ['nullable', 'string', 'max:150'],
+            'subject' => ['required', 'string', 'max:120'],
             'body' => ['required', 'string', 'max:2000'],
         ]);
 
-        $user = $request->user();
+        $user = $request->user('web');
         $student = Student::query()->findOrFail((int) $data['student_id']);
         $send = app(SendMessage::class);
 
@@ -79,7 +80,7 @@ class MessagesController extends Controller
     {
         $data = $request->validate(['body' => ['required', 'string', 'max:2000']]);
 
-        app(SendMessage::class)->reply($request->user(), $message, $data['body']);
+        app(SendMessage::class)->reply($request->user('web'), $message, $data['body']);
 
         return back()->with('success', 'Răspunsul a fost trimis.');
     }
@@ -92,7 +93,7 @@ class MessagesController extends Controller
             ->where(function (Builder $query) use ($rootId): void {
                 $query->whereKey($rootId)->orWhere('parent_id', $rootId);
             })
-            ->where('recipient_user_id', $request->user()->id)
+            ->where('recipient_user_id', $request->user('web')->id)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
@@ -144,13 +145,18 @@ class MessagesController extends Controller
         }
         $students = $students->unique('id')->values();
 
+        // Solicitarea de audiență către conducere e prerogativa PĂRINTELUI (tutorelui legal), NU a elevului.
+        // Elevul comunică doar direct cu profesorii/dirigintele lui; escaladarea către conducere se face
+        // de familie. `hasRole` — verificăm rolul de Elev prin `guardian` (via spatie/permission).
+        $isStudent = $user->hasRole(UserRole::Elev->value);
+
         return [
             'students' => $students->map(fn (Student $student): array => [
                 'id' => $student->id,
                 'name' => $student->full_name,
                 'recipients' => $send->allowedRecipientsForStudent($student),
             ])->all(),
-            'canAudience' => $students->isNotEmpty(),
+            'canAudience' => $students->isNotEmpty() && ! $isStudent,
             'audienceDomains' => AudienceDomain::values(),
         ];
     }

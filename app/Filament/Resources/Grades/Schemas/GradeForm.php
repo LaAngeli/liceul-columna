@@ -89,13 +89,13 @@ class GradeForm
                         && self::gradingType($get) !== GradingType::Numeric),
                 // Autorul = profesorul logat (la administratori rămâne gol).
                 Hidden::make('teacher_id')
-                    ->default(fn (): ?int => auth()->user()?->teacher?->id),
+                    ->default(fn (): ?int => auth('web')->user()?->teacher?->id),
             ]);
     }
 
     private static function currentTeacher(): ?Teacher
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return ($user && ! $user->isAdministrator()) ? $user->teacher : null;
     }

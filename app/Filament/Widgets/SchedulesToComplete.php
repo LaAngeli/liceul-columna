@@ -32,7 +32,7 @@ class SchedulesToComplete extends StatsOverviewWidget
 
     public static function canView(): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return $user !== null && $user->canManageSchedules() && self::missingTypes() !== [];
     }

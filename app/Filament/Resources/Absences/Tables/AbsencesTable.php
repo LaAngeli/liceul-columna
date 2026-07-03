@@ -28,31 +28,37 @@ class AbsencesTable
             ->emptyStateDescription(__('panel.empty.absences.description'))
             ->emptyStateIcon('heroicon-o-calendar-date-range')
             ->defaultSort('occurred_on', 'desc')
-            ->modifyQueryUsing(fn ($query) => $query->with('student'))
+            // Restructurat: 5 coloane vizibile default (față de 7 înainte). Vezi memoria
+            // filament-table-width-compaction.
+            ->modifyQueryUsing(fn ($query) => $query->with(['student', 'schoolClass']))
             ->columns([
+                // ELEV + clasa (fost coloană „Clasă" separată).
                 TextColumn::make('student.full_name')
                     ->label(__('panel.fields.student'))
                     ->searchable(['last_name', 'first_name'])
                     ->sortable(['last_name'])
-                    ->url(fn (Absence $record): string => StudentResource::getUrl('edit', ['record' => $record->student_id]))
-                    ->color('primary'),
-                TextColumn::make('schoolClass.name')
-                    ->label(__('panel.fields.class'))
-                    ->sortable(),
+                    ->url(fn (Absence $record): string => StudentResource::getUrl('view', ['record' => $record->student_id]))
+                    ->color('primary')
+                    ->description(fn (Absence $record): ?string => $record->schoolClass?->name),
+                // DISCIPLINA
                 TextColumn::make('subject.name')
                     ->label(__('panel.fields.subject'))
                     ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state))
                     ->searchable()
                     ->sortable(),
+                // DATA
                 TextColumn::make('occurred_on')
                     ->label(__('panel.fields.date'))
                     ->date()
                     ->sortable(),
+                // MOTIVATĂ (icon)
                 IconColumn::make('is_motivated')
                     ->label(__('panel.fields.is_motivated'))
                     ->boolean(),
+                // SEM.
                 TextColumn::make('term.number')
                     ->label(__('panel.fields.term_short')),
+                // AUTOR — ascuns default.
                 TextColumn::make('teacher.full_name')
                     ->label(__('panel.fields.author'))
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -83,19 +89,19 @@ class AbsencesTable
                 // Editarea absențelor: profesorul/dirigintele (scoped) sau autoritatea academică.
                 // Administratorul operațional/tehnic vede, dar NU editează (§3.3).
                 EditAction::make()
-                    ->visible(fn (): bool => (auth()->user()?->canAdministerCatalog() ?? false)
-                        || auth()->user()?->teacher !== null),
+                    ->visible(fn (): bool => (auth('web')->user()?->canAdministerCatalog() ?? false)
+                        || auth('web')->user()?->teacher !== null),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     ExportBulkAction::make()
                         ->exporter(AbsenceExporter::class)
-                        ->visible(fn (): bool => auth()->user()?->isAdministrator() ?? false),
+                        ->visible(fn (): bool => auth('web')->user()?->isAdministrator() ?? false),
                     DeleteBulkAction::make(),
                     ForceDeleteBulkAction::make(),
                     RestoreBulkAction::make(),
-                ])->visible(fn (): bool => (auth()->user()?->canAdministerCatalog() ?? false)
-                    || auth()->user()?->teacher !== null),
+                ])->visible(fn (): bool => (auth('web')->user()?->canAdministerCatalog() ?? false)
+                    || auth('web')->user()?->teacher !== null),
             ]);
     }
 }

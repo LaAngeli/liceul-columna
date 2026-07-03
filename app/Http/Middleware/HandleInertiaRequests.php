@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\UserRole;
 use App\Support\Locale;
+use App\Support\RouteSlugs;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,18 +42,22 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
-                'canAccessAdmin' => $request->user()?->hasAnyRole(UserRole::panelRoleValues()) ?? false,
+                'user' => $request->user('web'),
+                'canAccessAdmin' => $request->user('web')?->hasAnyRole(UserRole::panelRoleValues()) ?? false,
                 // Rolul (valoarea spatie) — eticheta tradusă se rezolvă în frontend din `site.roles.*`.
-                'role' => $request->user()?->getRoleNames()->first(),
+                'role' => $request->user('web')?->getRoleNames()->first(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             // Badge de notificări necitite (lazy: query doar pentru utilizatori autentificați).
-            'notificationsUnread' => fn (): int => $request->user()?->unreadNotifications()->count() ?? 0,
+            'notificationsUnread' => fn (): int => $request->user('web')?->unreadNotifications()->count() ?? 0,
             // Lazy: share() rulează înaintea middleware-ului de limbă, deci rezolvăm
             // limba la randare (după ce locale-ul a fost setat).
             'locale' => fn (): string => app()->getLocale(),
             'locales' => Locale::supported(),
+            // Traducerile de slug (RU/EN) — sursă unică App\Support\RouteSlugs. Frontend-ul
+            // (LocaleLink, LanguageSwitcher) le folosește ca să genereze URL-uri corecte
+            // pe limbă, fără să rescrie fiecare href="/..." din cod.
+            'routeSlugs' => RouteSlugs::map(),
             // Toate limbile, ca interfața să poată rezerva lățimea celei mai lungi
             // variante (butoanele nu-și schimbă dimensiunea la traducere).
             'messages' => fn (): array => collect(array_keys(Locale::supported()))

@@ -57,7 +57,7 @@ class CorigentaExamResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->canManageCorigenta() ?? false;
+        return auth('web')->user()?->canManageCorigenta() ?? false;
     }
 
     // Intrările se generează automat la marcarea „corigent" — nu se creează manual din panou.

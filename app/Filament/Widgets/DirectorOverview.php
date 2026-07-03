@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class DirectorOverview extends StatsOverviewWidget
 {
-    // -4: după WelcomeWidget (-5), înaintea AccountWidget (-3, default) — fără coliziune de ordine.
+    // -4: imediat după WelcomeWidget (-5), înaintea widget-urilor de statistici — fără coliziune de ordine.
     protected static ?int $sort = -4;
 
     // Reîmprospătare la 60s: dashboard-ul „de conducere" e adesea lăsat deschis pe parcursul zilei.
@@ -31,7 +31,7 @@ class DirectorOverview extends StatsOverviewWidget
 
     public static function canView(): bool
     {
-        return auth()->user()?->isManagement() ?? false;
+        return auth('web')->user()?->isManagement() ?? false;
     }
 
     protected function getStats(): array
@@ -81,7 +81,7 @@ class DirectorOverview extends StatsOverviewWidget
                 ->description(__('panel.widgets.director_overview.corigenti_desc'))
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
                 ->color($corigenti > 0 ? 'danger' : 'success')
-                ->url(StudentResource::getUrl('index')),
+                ->url(StudentResource::getUrl('index').'?corigenti=1'),
         ];
     }
 }

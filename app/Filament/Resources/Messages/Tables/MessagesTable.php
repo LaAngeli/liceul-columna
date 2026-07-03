@@ -96,7 +96,7 @@ class MessagesTable
                             ->maxLength(2000),
                     ])
                     ->action(function (Message $record, array $data): void {
-                        $user = auth()->user();
+                        $user = auth('web')->user();
 
                         if (! $user instanceof User) {
                             return;

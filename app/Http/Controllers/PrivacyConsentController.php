@@ -24,7 +24,7 @@ class PrivacyConsentController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $user = $request->user();
+        $user = $request->user('web');
         $version = (string) config('privacy.notice_version');
 
         // Istoricul (dovada) + marcajul rapid pe cont (verificat de middleware).

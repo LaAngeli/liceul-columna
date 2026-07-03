@@ -223,3 +223,44 @@ it('dirigintele vede TOATE absențele clasei lui', function () {
         ->toContain($a1->id, $a2->id)
         ->not->toContain($aOther->id);
 });
+
+it('dirigintele POATE deschide fișa read-only a unui elev din clasa lui (nu 403)', function () {
+    $year = AcademicYear::factory()->create();
+    $homeroom = SchoolClass::factory()->for($year)->create();
+
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($homeroom)->for($year)->create();
+
+    $user = User::factory()->create();
+    $user->assignRole(UserRole::Diriginte->value);
+    $teacher = Teacher::factory()->create(['user_id' => $user->id]);
+    $homeroom->update(['homeroom_teacher_id' => $teacher->id]);
+
+    $this->actingAs($user);
+
+    // Pagina View e accesibilă (fostul bug: cardul „Corigenți" ducea spre pagina Edit → 403).
+    $this->get(StudentResource::getUrl('view', ['record' => $student->id]))->assertOk();
+
+    // Editarea rămâne interzisă dirigintelui (doar configuratorii pot edita fișa, §3.3).
+    expect(StudentResource::canEdit($student))->toBeFalse();
+    $this->get(StudentResource::getUrl('edit', ['record' => $student->id]))->assertForbidden();
+});
+
+it('dirigintele NU poate deschide fișa unui elev din afara claselor lui (scoping păstrat)', function () {
+    $year = AcademicYear::factory()->create();
+    $homeroom = SchoolClass::factory()->for($year)->create();
+    $other = SchoolClass::factory()->for($year)->create();
+
+    $elsewhere = Student::factory()->create();
+    Enrollment::factory()->for($elsewhere)->for($other)->for($year)->create();
+
+    $user = User::factory()->create();
+    $user->assignRole(UserRole::Diriginte->value);
+    $teacher = Teacher::factory()->create(['user_id' => $user->id]);
+    $homeroom->update(['homeroom_teacher_id' => $teacher->id]);
+
+    $this->actingAs($user);
+
+    // Record binding scope-uit → elev din altă clasă = inaccesibil (404).
+    $this->get(StudentResource::getUrl('view', ['record' => $elsewhere->id]))->assertNotFound();
+});

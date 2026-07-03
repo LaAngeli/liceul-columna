@@ -13,6 +13,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\User;
+use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -184,6 +185,7 @@ it('ruta de trimitere din cabinet respectă ierarhia (HTTP)', function () {
         'type' => 'direct',
         'student_id' => $student->id,
         'recipient_user_id' => $prof->id,
+        'subject' => 'Salut',
         'body' => 'Bună ziua.',
     ])->assertRedirect();
 
@@ -202,6 +204,7 @@ it('ruta de trimitere blochează canalele nepermise (HTTP 403)', function () {
         'type' => 'direct',
         'student_id' => $student->id,
         'recipient_user_id' => $director->id,
+        'subject' => 'Ceva',
         'body' => 'Salut.',
     ])->assertForbidden();
 });
@@ -247,6 +250,65 @@ it('audiența din cabinet cere un domeniu (eroare de validare fără el)', funct
     $this->actingAs($parent)->post(route('cabinet.messages.send'), [
         'type' => 'audience',
         'student_id' => $student->id,
+        'subject' => 'Solicitare',
         'body' => 'Fără domeniu.',
     ])->assertSessionHasErrors('domain');
+});
+
+it('trimiterea fără subject dă eroare de validare (subject required, audit dashboard #dashboard)', function () {
+    [$student, $class] = studentInClass();
+    $parent = parentOf($student);
+    $prof = teacherTeaching($class);
+
+    $this->actingAs($parent)->post(route('cabinet.messages.send'), [
+        'type' => 'direct',
+        'student_id' => $student->id,
+        'recipient_user_id' => $prof->id,
+        'body' => 'Doar corp, fără subiect.',
+    ])->assertSessionHasErrors('subject');
+});
+
+it('elevul NU vede opțiunea „solicită audiență" (canAudience=false în inbox)', function () {
+    [$student] = studentInClass();
+    $elev = User::factory()->create();
+    $elev->assignRole(UserRole::Elev->value);
+    $student->update(['user_id' => $elev->id]);
+
+    $this->actingAs($elev)
+        ->get(route('cabinet.messages'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('compose.canAudience', false)
+        );
+});
+
+it('părintele VEDE opțiunea „solicită audiență" (canAudience=true în inbox)', function () {
+    [$student] = studentInClass();
+    $parent = parentOf($student);
+
+    $this->actingAs($parent)
+        ->get(route('cabinet.messages'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('compose.canAudience', true)
+        );
+});
+
+it('elevul care POST-ează direct o audiență primește 403 (backend defensiv)', function () {
+    [$student] = studentInClass();
+    $elev = User::factory()->create();
+    $elev->assignRole(UserRole::Elev->value);
+    $student->update(['user_id' => $elev->id]);
+
+    // Configurăm un vicedirector cu domeniul educație ca să nu cadă pe 422.
+    $vicedirector = User::factory()->create(['audience_domains' => [AudienceDomain::Educatie->value]]);
+    $vicedirector->assignRole(UserRole::PrimVicedirector->value);
+
+    $this->actingAs($elev)->post(route('cabinet.messages.send'), [
+        'type' => 'audience',
+        'student_id' => $student->id,
+        'domain' => AudienceDomain::Educatie->value,
+        'subject' => 'Încercare',
+        'body' => 'Vreau audiență.',
+    ])->assertForbidden();
 });

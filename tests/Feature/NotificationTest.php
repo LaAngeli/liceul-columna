@@ -109,6 +109,99 @@ it('salvarea setărilor stochează contactele (fără cele goale) și preferinț
         ->and($user->notification_preferences['new_homework'])->toBe(['email']);
 });
 
+it('setările întorc adresa curentă a contului (populată automat în UI)', function () {
+    $user = User::factory()->create(['email' => 'parinte@example.test']);
+    $user->assignRole(UserRole::Parinte->value);
+
+    $this->actingAs($user)
+        ->get(route('cabinet.notifications.settings'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('cabinet/notification-settings')
+            ->where('email', 'parinte@example.test')
+        );
+});
+
+it('userul fără email poate salva o adresă → persistă pe users.email', function () {
+    // Utilizator migrat: login pe username, fără adresă e-mail. Adaugă adresa din setări.
+    $user = User::factory()->create(['email' => null, 'username' => 'parinte_fara_mail']);
+    $user->assignRole(UserRole::Parinte->value);
+
+    $this->actingAs($user)->put(route('cabinet.notifications.settings.update'), [
+        'email' => 'parinte@example.test',
+        'contacts' => [],
+        'preferences' => [],
+    ])->assertRedirect();
+
+    expect($user->refresh()->email)->toBe('parinte@example.test');
+});
+
+it('userul cu email pe cont POATE corecta adresa prin setări (editare descentralizată)', function () {
+    $user = User::factory()->create(['email' => 'gresit@example.test']);
+    $user->assignRole(UserRole::Parinte->value);
+
+    $this->actingAs($user)->put(route('cabinet.notifications.settings.update'), [
+        'email' => 'corectat@example.test',
+        'contacts' => [],
+        'preferences' => [],
+    ])->assertRedirect();
+
+    // Adresa se schimbă la solicitarea utilizatorului — Fortify acceptă login pe email SAU username,
+    // deci schimbarea nu blochează accesul.
+    expect($user->refresh()->email)->toBe('corectat@example.test');
+});
+
+it('trimiterea unui email gol la salvare NU șterge adresa existentă (no-op)', function () {
+    $user = User::factory()->create(['email' => 'existenta@example.test']);
+    $user->assignRole(UserRole::Parinte->value);
+
+    // Utilizatorul salvează preferințele fără să atingă câmpul email → HTML trimite '' → no-op.
+    $this->actingAs($user)->put(route('cabinet.notifications.settings.update'), [
+        'email' => '',
+        'contacts' => [],
+        'preferences' => [],
+    ])->assertRedirect();
+
+    expect($user->refresh()->email)->toBe('existenta@example.test');
+});
+
+it('utilizatorul nu poate seta o adresă folosită de alt cont (unique)', function () {
+    User::factory()->create(['email' => 'ocupat@example.test']);
+    $user = User::factory()->create(['email' => null, 'username' => 'alt_migrat']);
+    $user->assignRole(UserRole::Parinte->value);
+
+    $this->actingAs($user)->put(route('cabinet.notifications.settings.update'), [
+        'email' => 'ocupat@example.test',
+        'contacts' => [],
+        'preferences' => [],
+    ])->assertSessionHasErrors('email');
+
+    expect($user->refresh()->email)->toBeNull();
+});
+
+it('utilizatorul poate corecta contactele telegram/viber după introducerea inițială', function () {
+    // Confirmă că input-urile telegram/viber sunt editabile after-fact (nu se blochează după salvare).
+    $user = User::factory()->create();
+    $user->assignRole(UserRole::Parinte->value);
+
+    // Prima salvare: valori inițiale (posibil cu greșeală).
+    $this->actingAs($user)->put(route('cabinet.notifications.settings.update'), [
+        'contacts' => ['telegram' => '@gresit', 'viber' => '+37360000001'],
+        'preferences' => [],
+    ])->assertRedirect();
+
+    // A doua salvare: corectare.
+    $this->actingAs($user)->put(route('cabinet.notifications.settings.update'), [
+        'contacts' => ['telegram' => '@corect', 'viber' => '+37360000002'],
+        'preferences' => [],
+    ])->assertRedirect();
+
+    expect($user->refresh()->notification_contacts)->toBe([
+        'telegram' => '@corect',
+        'viber' => '+37360000002',
+    ]);
+});
+
 it('inboxul se randează și marcarea „citit" funcționează', function () {
     $user = User::factory()->create();
     $user->assignRole(UserRole::Parinte->value);

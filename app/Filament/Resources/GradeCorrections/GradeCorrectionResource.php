@@ -61,7 +61,7 @@ class GradeCorrectionResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         // Badge-ul „în așteptare" e un îndemn la acțiune — doar pentru cei care aprobă.
-        if (! (auth()->user()?->canApproveGradeCorrections() ?? false)) {
+        if (! (auth('web')->user()?->canApproveGradeCorrections() ?? false)) {
             return null;
         }
 
@@ -82,7 +82,7 @@ class GradeCorrectionResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if (! $user || $user->canViewCorrectionArchive()) {
             return $query;

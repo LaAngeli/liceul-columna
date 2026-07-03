@@ -19,7 +19,7 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
  */
 class AdminOverview extends StatsOverviewWidget
 {
-    // -4: după WelcomeWidget (-5), înaintea AccountWidget (-3, default) — fără coliziune de ordine.
+    // -4: imediat după WelcomeWidget (-5), înaintea widget-urilor de statistici — fără coliziune de ordine.
     protected static ?int $sort = -4;
 
     // Stats predominant statice (conturi/volume) → polling rar (5 min) ca să nu încarce DB.
@@ -27,7 +27,7 @@ class AdminOverview extends StatsOverviewWidget
 
     public static function canView(): bool
     {
-        return auth()->user()?->isSystemAdministrator() ?? false;
+        return auth('web')->user()?->isSystemAdministrator() ?? false;
     }
 
     protected function getStats(): array

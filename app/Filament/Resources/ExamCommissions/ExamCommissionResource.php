@@ -59,7 +59,7 @@ class ExamCommissionResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->canManageCorigenta() ?? false;
+        return auth('web')->user()?->canManageCorigenta() ?? false;
     }
 
     public static function getPages(): array

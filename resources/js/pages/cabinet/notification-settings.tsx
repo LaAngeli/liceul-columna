@@ -11,6 +11,8 @@ interface Props {
     channels: Record<string, string>;
     // E activat de liceu fiecare canal? (cabinet/email mereu da; sociale după token din .env)
     channelStatus: Record<string, boolean>;
+    // Adresa curentă a contului (null dacă utilizatorul se loghează cu username). Editabilă
+    // descentralizat de utilizator — dacă e deja setată de admin, câmpul e pre-populat.
     email: string | null;
     locale: string;
     locales: Record<string, string>;
@@ -24,10 +26,12 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
 
     const form = useForm<{
         notification_locale: string;
+        email: string;
         contacts: Record<string, string>;
         preferences: Record<string, string[]>;
     }>({
         notification_locale: locale,
+        email: email ?? '',
         contacts: {
             telegram: contacts.telegram ?? '',
             viber: contacts.viber ?? '',
@@ -80,22 +84,39 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
                     <CardContent>
                         <p className="text-sm font-medium">{t('cabinet.notif_contacts')}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{t('cabinet.notif_contacts_hint')}</p>
+                        {/* Rând-label și rând-hint cu min-h fix pe toate câmpurile → input-urile sunt aliniate
+                            vertical INDIFERENT dacă un canal are/nu are badge „NEACTIVAT" sau text explicativ.
+                            (Grid `gap-1.5` + `grid-rows-[auto_auto_auto]` implicit — cele 3 rânduri sunt aliniate
+                            între toate coloanele.) */}
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
                             <label className="grid gap-1.5 text-xs text-muted-foreground">
-                                {t('cabinet.notif_email_account')}
+                                <span className="flex min-h-5 items-center gap-2">
+                                    {t('cabinet.notif_email_account')}
+                                </span>
                                 <input
-                                    type="text"
-                                    value={email ?? '—'}
-                                    disabled
-                                    className="rounded-md border border-input bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+                                    type="email"
+                                    value={form.data.email}
+                                    onChange={(e) => form.setData('email', e.target.value)}
+                                    placeholder={t('cabinet.notif_email_add_placeholder')}
+                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    maxLength={255}
+                                    autoComplete="email"
                                 />
+                                <span className="min-h-4 text-[11px] text-muted-foreground/80">
+                                    {t('cabinet.notif_email_add_hint')}
+                                </span>
+                                {form.errors.email && (
+                                    <span className="text-[11px] font-medium text-destructive" role="alert">
+                                        {form.errors.email}
+                                    </span>
+                                )}
                             </label>
                             {CONTACT_CHANNELS.map((channel) => {
                                 const configured = channelStatus[channel] ?? true;
 
                                 return (
                                     <label key={channel} className="grid gap-1.5 text-xs text-muted-foreground">
-                                        <span className="flex items-center gap-2">
+                                        <span className="flex min-h-5 items-center gap-2">
                                             {channels[channel] ?? channel}
                                             {!configured && (
                                                 <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -112,11 +133,9 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
                                             className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                                             maxLength={120}
                                         />
-                                        {!configured && (
-                                            <span className="text-[11px] text-muted-foreground/80">
-                                                {t('cabinet.notif_channel_unconfigured')}
-                                            </span>
-                                        )}
+                                        <span className="min-h-4 text-[11px] text-muted-foreground/80">
+                                            {!configured ? t('cabinet.notif_channel_unconfigured') : ' '}
+                                        </span>
                                     </label>
                                 );
                             })}

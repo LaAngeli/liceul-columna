@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Grades\Tables;
 
 use App\Enums\EvaluationType;
+use App\Enums\SchoolCycle;
 use App\Filament\Exports\GradeExporter;
 use App\Filament\Resources\Students\StudentResource;
 use App\Models\Grade;
@@ -30,45 +31,50 @@ class GradesTable
             ->emptyStateIcon('heroicon-o-academic-cap')
             ->defaultSort('graded_on', 'desc')
             ->modifyQueryUsing(fn ($query) => $query->with('student'))
+            // Restructurat: 6 coloane vizibile default (față de 10 înainte). Info secundară în
+            // `description()` (rând 2 al celulei). Vezi memoria filament-table-width-compaction.
+            ->modifyQueryUsing(fn ($query) => $query->with(['student', 'schoolClass', 'subject']))
             ->columns([
+                // ELEV + clasa (fost coloană „Clasă" separată).
                 TextColumn::make('student.full_name')
                     ->label(__('panel.fields.student'))
                     ->searchable(['last_name', 'first_name'])
                     ->sortable(['last_name'])
-                    // Navigație inversă: numele elevului devine link spre fișa lui (scope-protejat).
-                    ->url(fn (Grade $record): string => StudentResource::getUrl('edit', ['record' => $record->student_id]))
-                    ->color('primary'),
-                TextColumn::make('schoolClass.name')
-                    ->label(__('panel.fields.class'))
-                    ->sortable(),
+                    // Navigație inversă: link spre fișa read-only (scope-protejat).
+                    ->url(fn (Grade $record): string => StudentResource::getUrl('view', ['record' => $record->student_id]))
+                    ->color('primary')
+                    ->description(fn (Grade $record): ?string => $record->schoolClass?->name),
+                // DISCIPLINA + tipul evaluării (fost coloană „Tip" separată).
                 TextColumn::make('subject.name')
                     ->label(__('panel.fields.subject'))
                     ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state))
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn (Grade $record): string => $record->evaluation_type->labelForCycle(
+                        $record->schoolClass !== null
+                            ? SchoolCycle::fromGradeLevel((int) $record->schoolClass->grade_level)
+                            : null
+                    )),
+                // NOTĂ + calificativ ca sub-text (fost coloană „Calif." separată).
                 TextColumn::make('value')
                     ->label(__('panel.fields.value'))
                     ->numeric()
                     ->color(fn (Grade $record): ?string => $record->isAnnulled() ? 'gray' : null)
-                    ->sortable(),
-                TextColumn::make('calificativ')
-                    ->label(__('panel.fields.calificativ_short'))
-                    ->placeholder(__('panel.common.dash')),
-                TextColumn::make('evaluation_type')
-                    ->label(__('panel.fields.type_short'))
-                    ->badge(),
-                TextColumn::make('annulment_reason')
-                    ->label(__('panel.tables.grades.annulment_col'))
-                    ->badge()
-                    ->color('danger')
-                    ->placeholder(__('panel.common.dash'))
-                    ->formatStateUsing(fn (?string $state): string => $state ? __('panel.tables.grades.annulled_prefix', ['reason' => $state]) : ''),
+                    ->sortable()
+                    ->description(fn (Grade $record): ?string => $record->calificativ),
+                // SEM.
                 TextColumn::make('term.number')
                     ->label(__('panel.fields.term_short')),
+                // DATA + motivul anulării ca sub-text (fost coloană „Anulare" separată).
                 TextColumn::make('graded_on')
                     ->label(__('panel.fields.date'))
                     ->date()
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn (Grade $record): ?string => $record->annulment_reason !== null
+                        ? (string) __('panel.tables.grades.annulled_prefix', ['reason' => $record->annulment_reason])
+                        : null)
+                    ->color(fn (Grade $record): ?string => $record->isAnnulled() ? 'danger' : null),
+                // AUTOR — ascuns default.
                 TextColumn::make('teacher.full_name')
                     ->label(__('panel.fields.author'))
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -104,14 +110,14 @@ class GradesTable
                 // Administratorul operațional/tehnic NU editează note (§3.2).
                 EditAction::make()
                     ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
-                        && (auth()->user()?->canAdministerCatalog() ?? false)),
+                        && (auth('web')->user()?->canAdministerCatalog() ?? false)),
                 Action::make('requestCorrection')
                     ->label(__('panel.actions.request_correction.label'))
                     ->icon('heroicon-o-pencil-square')
                     ->color('warning')
                     ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
-                        && ! (auth()->user()?->canAdministerCatalog() ?? false)
-                        && auth()->user()?->teacher !== null)
+                        && ! (auth('web')->user()?->canAdministerCatalog() ?? false)
+                        && auth('web')->user()?->teacher !== null)
                     ->modalHeading(fn (): string => __('panel.actions.request_correction.heading'))
                     ->modalDescription(fn (): string => __('panel.actions.request_correction.description'))
                     ->schema([
@@ -155,8 +161,8 @@ class GradesTable
                     ->color('danger')
                     ->requiresConfirmation()
                     ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
-                        && ((auth()->user()?->canAdministerCatalog() ?? false)
-                            || auth()->user()?->teacher !== null))
+                        && ((auth('web')->user()?->canAdministerCatalog() ?? false)
+                            || auth('web')->user()?->teacher !== null))
                     ->modalHeading(fn (): string => __('panel.actions.annul.heading'))
                     ->modalDescription(fn (): string => __('panel.actions.annul.description'))
                     ->schema([
@@ -182,7 +188,7 @@ class GradesTable
                 BulkActionGroup::make([
                     ExportBulkAction::make()
                         ->exporter(GradeExporter::class)
-                        ->visible(fn (): bool => auth()->user()?->isAdministrator() ?? false),
+                        ->visible(fn (): bool => auth('web')->user()?->isAdministrator() ?? false),
                 ]),
             ]);
     }

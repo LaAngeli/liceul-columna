@@ -112,7 +112,7 @@ class CalendarEventForm
      */
     private static function scopeOptions(): array
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if ($user instanceof User && ! $user->canPublishContent()) {
             return [CalendarEventScope::SchoolClass->value => CalendarEventScope::SchoolClass->getLabel()];
@@ -123,7 +123,7 @@ class CalendarEventForm
 
     private static function defaultScope(): string
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if ($user instanceof User && ! $user->canPublishContent()) {
             return CalendarEventScope::SchoolClass->value;
@@ -152,7 +152,7 @@ class CalendarEventForm
     private static function classOptions(): array
     {
         $query = SchoolClass::query()->orderBy('grade_level')->orderBy('name');
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if ($user instanceof User && ! $user->canPublishContent()) {
             $query->whereKey($user->homeroomSchoolClassIds());

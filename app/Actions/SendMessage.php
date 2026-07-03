@@ -83,6 +83,9 @@ class SendMessage
     public function audience(User $sender, Student $student, string $subject, string $body, AudienceDomain $domain): Message
     {
         abort_unless($this->isFamilyOf($sender, $student), 403, 'Doar familia poate solicita audiență.');
+        // Solicitarea de audiență e prerogativa TUTORELUI legal (părintele), NU a elevului. Elevul
+        // comunică doar cu profesorii/dirigintele lui; escaladarea către conducere se face de familie.
+        abort_if($sender->hasRole(UserRole::Elev->value), 403, 'Elevul nu poate solicita audiență direct — solicitarea o depune tutorele legal.');
 
         $recipient = $this->audienceTargetForDomain($domain);
         abort_unless($recipient !== null, 422, 'Nu există un membru al conducerii pentru rutarea audienței.');

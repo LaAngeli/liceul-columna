@@ -30,7 +30,7 @@ class AudiencesPendingAssignment extends StatsOverviewWidget
 
     public static function canView(): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return $user instanceof User && $user->isManagement() && self::pendingCount() > 0;
     }

@@ -347,6 +347,11 @@ return [
             'homeroom_only_no' => 'No homeroom teacher',
             'homeroom_only_yes' => 'Has homeroom teacher',
         ],
+        'students' => [
+            'corigenti_filter' => 'Make-up exam',
+            'corigenti_only' => 'Only students in make-up',
+            'corigenti_none' => 'Excluding make-up',
+        ],
         'grade_corrections' => [
             'change' => 'Change',
         ],
@@ -400,6 +405,12 @@ return [
             'second_language_short' => 'Lang 2',
             'english_group_short' => 'Eng. grp.',
             'account_short' => 'Account',
+            'section_personal' => 'Personal details',
+            'section_situation' => 'Current situation',
+            'section_situation_hint' => 'Preliminary status from the current term averages — indicative; the official status is validated by the Teachers Council.',
+            'average' => 'Overall average',
+            'failing_subjects' => 'Failing subjects (average < 5)',
+            'no_failing' => 'No failing subjects',
             'validate_status' => [
                 'label' => 'Validate status',
                 'heading' => 'Validate semester status',

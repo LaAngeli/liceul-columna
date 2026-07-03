@@ -86,7 +86,7 @@ class SchoolClassResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if (! $user || $user->isAdministrator()) {
             return $query;

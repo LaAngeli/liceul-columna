@@ -28,10 +28,10 @@ class WelcomeWidget extends Widget
      */
     protected function getViewData(): array
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if ($user === null) {
-            return ['greeting' => '', 'name' => '', 'roleLabel' => null, 'date' => '', 'missingTeacherProfile' => false];
+            return ['greeting' => '', 'name' => '', 'initials' => '', 'roleLabel' => null, 'date' => '', 'missingTeacherProfile' => false];
         }
 
         $roleValue = $user->getRoleNames()->first();
@@ -50,9 +50,29 @@ class WelcomeWidget extends Widget
         return [
             'greeting' => trans('site.dashboard.greeting_staff'),
             'name' => $user->name,
+            'initials' => self::initialsFrom($user->name),
             'roleLabel' => $role !== null ? trans('site.roles.'.$role->value) : null,
             'date' => $now->isoFormat('dddd, D MMMM YYYY'),
             'missingTeacherProfile' => $missingTeacherProfile,
         ];
+    }
+
+    /**
+     * Inițialele pentru avatar — primele litere ale primelor două cuvinte din nume, majuscule
+     * (aliniat cu avatarul generat de Filament în topbar: „Russu Ionela" → „RI").
+     */
+    private static function initialsFrom(string $name): string
+    {
+        $parts = array_values(array_filter(
+            explode(' ', trim($name)),
+            static fn (string $part): bool => $part !== '',
+        ));
+
+        $initials = '';
+        foreach (array_slice($parts, 0, 2) as $part) {
+            $initials .= mb_strtoupper(mb_substr($part, 0, 1));
+        }
+
+        return $initials;
     }
 }

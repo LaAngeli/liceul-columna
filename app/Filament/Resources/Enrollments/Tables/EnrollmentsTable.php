@@ -26,7 +26,7 @@ class EnrollmentsTable
                     ->label(__('panel.fields.student'))
                     ->searchable(['last_name', 'first_name'])
                     ->sortable(['last_name'])
-                    ->url(fn (Enrollment $record): string => StudentResource::getUrl('edit', ['record' => $record->student_id]))
+                    ->url(fn (Enrollment $record): string => StudentResource::getUrl('view', ['record' => $record->student_id]))
                     ->color('primary'),
                 TextColumn::make('schoolClass.name')
                     ->label(__('panel.fields.class'))

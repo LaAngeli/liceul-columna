@@ -67,7 +67,7 @@ class CabinetCalendarController extends Controller
 
     private function viewer(Request $request): User
     {
-        $viewer = $request->user();
+        $viewer = $request->user('web');
 
         abort_unless($viewer instanceof User, 403);
 

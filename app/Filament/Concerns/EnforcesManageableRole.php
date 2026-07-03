@@ -23,7 +23,7 @@ trait EnforcesManageableRole
         $this->selectedRole = isset($data['role']) ? (string) $data['role'] : null;
         unset($data['role']);
 
-        $manageable = auth()->user()?->manageableRoleValues() ?? [];
+        $manageable = auth('web')->user()?->manageableRoleValues() ?? [];
 
         if ($this->selectedRole === null || ! in_array($this->selectedRole, $manageable, true)) {
             throw ValidationException::withMessages([

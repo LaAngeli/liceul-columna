@@ -74,7 +74,7 @@ class HomeworkAssignmentResource extends Resource
 
     public static function canCreate(): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return $user !== null && ($user->isAdministrator() || $user->teacher !== null);
     }
@@ -94,7 +94,7 @@ class HomeworkAssignmentResource extends Resource
      */
     protected static function canManage(Model $record): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if (! $user) {
             return false;
@@ -118,7 +118,7 @@ class HomeworkAssignmentResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if (! $user || $user->isAdministrator()) {
             return $query;

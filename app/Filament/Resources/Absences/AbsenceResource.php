@@ -52,7 +52,7 @@ class AbsenceResource extends Resource
      */
     public static function canCreate(): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         return $user !== null && ($user->teacher !== null || $user->canAdministerCatalog());
     }
@@ -90,7 +90,7 @@ class AbsenceResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if (! $user || $user->isAdministrator()) {
             return $query;

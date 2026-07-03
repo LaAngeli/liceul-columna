@@ -19,7 +19,7 @@ class NotificationsController extends Controller
 {
     public function index(Request $request): Response
     {
-        $notifications = $request->user()->notifications()->latest()->limit(50)->get()
+        $notifications = $request->user('web')->notifications()->latest()->limit(50)->get()
             ->map(fn (DatabaseNotification $notification): array => [
                 'id' => $notification->id,
                 'type' => $notification->data['type'] ?? null,
@@ -40,21 +40,21 @@ class NotificationsController extends Controller
         // Folosim API-ul DatabaseNotification (la fel ca markAllRead) ca să declanșăm event-urile
         // modelului — orice listener viitor pe „marcat citit" (sync cross-device, analytics) prinde
         // ambele căi uniform. null-safe = no-op silențios dacă id-ul nu există / nu aparține userului.
-        $request->user()->notifications()->whereKey($notification)->first()?->markAsRead();
+        $request->user('web')->notifications()->whereKey($notification)->first()?->markAsRead();
 
         return back();
     }
 
     public function markAllRead(Request $request): RedirectResponse
     {
-        $request->user()->unreadNotifications->markAsRead();
+        $request->user('web')->unreadNotifications->markAsRead();
 
         return back();
     }
 
     public function settings(Request $request): Response
     {
-        $user = $request->user();
+        $user = $request->user('web');
 
         return Inertia::render('cabinet/notification-settings', [
             'contacts' => $user->notification_contacts ?? [],
@@ -81,7 +81,14 @@ class NotificationsController extends Controller
             array_filter(NotificationChannel::cases(), static fn (NotificationChannel $c): bool => $c->isDeliverable()),
         );
 
-        $data = $request->validate([
+        $user = $request->user('web');
+
+        // Empty string trimis de formularul HTML → tratat ca „nu se schimbă adresa" (nu declanșează
+        // eroarea `email`). Astfel utilizatorul care doar salvează preferințele nu e obligat să
+        // reintroducă adresa. Golirea intenționată a adresei se face separat (contact admin).
+        $submittedEmail = trim((string) $request->input('email', ''));
+
+        $rules = [
             'notification_locale' => ['nullable', 'string', Rule::in(array_keys(self::notificationLocales()))],
             'contacts' => ['nullable', 'array'],
             'contacts.telegram' => ['nullable', 'string', 'max:120'],
@@ -89,13 +96,28 @@ class NotificationsController extends Controller
             'preferences' => ['nullable', 'array'],
             'preferences.*' => ['array'],
             'preferences.*.*' => [Rule::in($channelValues)],
-        ]);
+        ];
 
-        $request->user()->update([
+        if ($submittedEmail !== '') {
+            // Editare descentralizată: utilizatorul își gestionează adresa în această secțiune,
+            // indiferent dacă e prima setare sau corectarea unei greșeli anterioare. Fortify acceptă
+            // login pe email SAU username, deci schimbarea nu blochează accesul (username-ul rămâne).
+            $rules['email'] = ['string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)];
+        }
+
+        $data = $request->validate($rules);
+
+        $attributes = [
             'notification_locale' => $data['notification_locale'] ?? null,
             'notification_contacts' => array_filter($data['contacts'] ?? []),
             'notification_preferences' => $data['preferences'] ?? [],
-        ]);
+        ];
+
+        if ($submittedEmail !== '' && $submittedEmail !== $user->email) {
+            $attributes['email'] = $submittedEmail;
+        }
+
+        $user->update($attributes);
 
         return back()->with('success', 'Preferințele de notificare au fost salvate.');
     }

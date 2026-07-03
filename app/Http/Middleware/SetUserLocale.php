@@ -17,7 +17,7 @@ class SetUserLocale
     {
         $cookie = $request->cookie('locale');
 
-        $locale = (auth()->check() ? $request->user()->locale : null)
+        $locale = (auth()->check() ? $request->user('web')->locale : null)
             ?? (is_string($cookie) ? $cookie : null)
             ?? Locale::default();
 

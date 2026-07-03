@@ -54,12 +54,12 @@ class CalendarEventResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->canManageCalendarEvents() ?? false;
+        return auth('web')->user()?->canManageCalendarEvents() ?? false;
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->canManageCalendarEvents() ?? false;
+        return auth('web')->user()?->canManageCalendarEvents() ?? false;
     }
 
     public static function canEdit(Model $record): bool
@@ -85,7 +85,7 @@ class CalendarEventResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         // Dirigintele (care nu e și din conducere) vede DOAR evenimentele claselor lui.
         if ($user instanceof User && ! $user->canPublishContent()) {
@@ -136,7 +136,7 @@ class CalendarEventResource extends Resource
 
     private static function canModify(Model $record): bool
     {
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         if (! $user instanceof User) {
             return false;
