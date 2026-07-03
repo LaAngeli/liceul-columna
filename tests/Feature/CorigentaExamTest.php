@@ -66,11 +66,12 @@ it('e idempotent — rerularea nu dublează intrările', function () {
     expect(CorigentaExam::query()->where('student_id', $student->id)->count())->toBe(1);
 });
 
-it('generează corigență și când o componentă (sumativă) < 5, deși MS ≥ 5', function () {
+it('nu generează corigență dacă MS ≥ 5, chiar dacă o componentă (sumativă) < 5', function () {
     $student = Student::factory()->create();
     $term = Term::factory()->create(['number' => 2]);
     $math = Subject::factory()->create();
 
+    // MC = 8, sumativă = 3 → MS = 5,00 ≥ 5 → promovat, fără corigență (decizia e pe MS).
     TermAverage::factory()->create([
         'student_id' => $student->id,
         'term_id' => $term->id,
@@ -80,7 +81,5 @@ it('generează corigență și când o componentă (sumativă) < 5, deși MS ≥
         'summative_value' => 3,
     ]);
 
-    $created = app(GenerateCorigentaExams::class)->forStudentTerm($student, $term);
-
-    expect($created)->toBe(1);
+    expect(app(GenerateCorigentaExams::class)->forStudentTerm($student, $term))->toBe(0);
 });

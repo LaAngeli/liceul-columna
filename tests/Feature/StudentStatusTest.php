@@ -47,12 +47,12 @@ it('nedeterminabil (null) când nu există medii', function () {
         ->and($result['average'])->toBeNull();
 });
 
-it('prag pe componente: sumativă < 5 → corigent chiar dacă MS ≥ 5', function () {
+it('decizia e pe MS: componentă sub 5 dar MS ≥ 5 → promovat (fără prag pe componente)', function () {
     $student = Student::factory()->create();
     $term = Term::factory()->create();
     $math = Subject::factory()->create(['name' => 'Matematică']);
 
-    // MC = 7, sumativă = 3 → MS = 5,00; dar sumativa < 5 ⇒ nu se compensează, elevul e restant.
+    // MC = 7, sumativă = 3 → MS = 5,00 ≥ 5 → promovat. Notele se mediază, componentele n-au prag.
     TermAverage::factory()->create([
         'student_id' => $student->id,
         'subject_id' => $math->id,
@@ -62,24 +62,26 @@ it('prag pe componente: sumativă < 5 → corigent chiar dacă MS ≥ 5', functi
         'summative_value' => 3,
     ]);
 
+    expect(statusFor($student, $term)['status'])->toBe(StudentStatus::Promovat);
+});
+
+it('corigent când MS a disciplinei < 5, chiar dacă sumativa e ≥ 5', function () {
+    $student = Student::factory()->create();
+    $term = Term::factory()->create();
+    $math = Subject::factory()->create(['name' => 'Matematică']);
+
+    // MC = 3, sumativă = 6 → MS = 4,50 < 5 → corigent (sumativa bună nu salvează media mică).
+    TermAverage::factory()->create([
+        'student_id' => $student->id,
+        'subject_id' => $math->id,
+        'term_id' => $term->id,
+        'value' => 4.5,
+        'mc_value' => 3,
+        'summative_value' => 6,
+    ]);
+
     $result = statusFor($student, $term);
 
     expect($result['status'])->toBe(StudentStatus::Corigent)
         ->and($result['failingSubjects'])->toBe(['Matematică']);
-});
-
-it('prag pe componente: ambele componente ≥ 5 → promovat', function () {
-    $student = Student::factory()->create();
-    $term = Term::factory()->create();
-
-    TermAverage::factory()->create([
-        'student_id' => $student->id,
-        'subject_id' => Subject::factory()->create()->id,
-        'term_id' => $term->id,
-        'value' => 6,
-        'mc_value' => 7,
-        'summative_value' => 5,
-    ]);
-
-    expect(statusFor($student, $term)['status'])->toBe(StudentStatus::Promovat);
 });

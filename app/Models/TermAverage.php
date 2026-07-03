@@ -41,19 +41,12 @@ class TermAverage extends Model implements Auditable
     }
 
     /**
-     * Disciplină restantă (corigent) după regula pe componente (§1.3): dacă există și MC, și
-     * sumativă, FIECARE trebuie ≥ 5,00 — o sumativă < 5 nu se compensează cu un MC mare. Cu o
-     * singură componentă (primar / disciplină fără sumativă), decide media semestrială (MS).
+     * Disciplină restantă (corigent): decizia se ia pe MEDIA SEMESTRIALĂ per disciplină (§3) —
+     * MS < 5,00 → corigent. Componentele (MC, sumativă) NU au prag individual: notele se mediază
+     * (o notă mică într-o zi nu contează separat), iar promovarea se decide pe media rezultată.
      */
     public function isFailing(): bool
     {
-        $mc = $this->mc_value !== null ? (float) $this->mc_value : null;
-        $summative = $this->summative_value !== null ? (float) $this->summative_value : null;
-
-        if ($mc !== null && $summative !== null) {
-            return $mc < Grades::PASS || $summative < Grades::PASS;
-        }
-
         return $this->value !== null && (float) $this->value < Grades::PASS;
     }
 

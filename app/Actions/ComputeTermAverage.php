@@ -76,8 +76,7 @@ class ComputeTermAverage
     /**
      * Primar: MS = MC (fără sumativă). Gimnaziu/Liceu: MS = MC·(1−pondere) + sumativă·pondere
      * (pondere din tip_nota, 0,50 → (MC+sumativă)/2), când există ambele; altfel componenta
-     * prezentă. Pragul „ambele ≥ 5" e aplicat la statut (TermAverage::isFailing), nu aici.
-     * MC și sumativa vin deja trunchiate la sutimi.
+     * prezentă. MC și sumativa vin deja trunchiate la sutimi; promovarea se decide pe MS (§3).
      */
     private function semesterAverage(SchoolCycle $cycle, ?float $mc, ?float $summative): ?float
     {
