@@ -16,7 +16,7 @@ interface StudentSummary {
 }
 
 interface StudentStatus {
-    status: 'promovat' | 'corigent' | 'amanat' | null;
+    status: 'promovat' | 'corigent' | 'repetent' | 'amanat' | null;
     label: string | null;
     failingSubjects: string[];
     official: boolean;
@@ -97,7 +97,7 @@ export function ProfileHeader({
                             ✓ {t('cabinet.status_official')}
                         </Badge>
                     )}
-                    {status.status === 'corigent' && status.failingSubjects.length > 0 && (
+                    {(status.status === 'corigent' || status.status === 'repetent') && status.failingSubjects.length > 0 && (
                         <span className="text-xs text-destructive">{status.failingSubjects.join(', ')}</span>
                     )}
                 </p>

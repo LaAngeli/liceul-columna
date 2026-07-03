@@ -8,6 +8,7 @@ use App\Filament\Concerns\ManagedByConfigurators;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Term;
+use App\Models\TermAverage;
 use App\Support\ContentTranslator;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -83,6 +84,16 @@ class StudentInfolist
                             ->placeholder(__('panel.forms.student.no_failing'))
                             ->columnSpanFull(),
                     ]),
+
+                Section::make(__('grading.staff.section_averages'))
+                    ->schema([
+                        TextEntry::make('subject_averages')
+                            ->hiddenLabel()
+                            ->state(fn (Student $record): array => self::subjectAverages($record))
+                            ->listWithLineBreaks()
+                            ->placeholder(__('grading.staff.no_averages'))
+                            ->columnSpanFull(),
+                    ]),
             ]);
     }
 
@@ -102,5 +113,39 @@ class StudentInfolist
         }
 
         return self::$statusCache[$student->id] = app(DetermineStudentStatus::class)->forTerm($student->id, (int) $termId);
+    }
+
+    /**
+     * Mediile pe disciplină din semestrul curent, cu componentele (curente + sumativă) — transparență
+     * (§1.3). Fiecare rând: „Disciplina: MS (curente X · sumativă Y)".
+     *
+     * @return array<int, string>
+     */
+    private static function subjectAverages(Student $student): array
+    {
+        $termId = Term::query()->where('is_current', true)->value('id');
+
+        if ($termId === null) {
+            return [];
+        }
+
+        return TermAverage::query()
+            ->with('subject')
+            ->where('student_id', $student->id)
+            ->where('term_id', $termId)
+            ->get()
+            ->map(function (TermAverage $average): string {
+                $subject = ContentTranslator::subject((string) ($average->subject->name ?? ''));
+                $ms = $average->value !== null ? number_format((float) $average->value, 2) : (string) __('panel.common.dash');
+                $line = $subject.': '.$ms;
+
+                if ($average->mc_value !== null && $average->summative_value !== null) {
+                    $line .= '  ('.__('grading.staff.avg_current').' '.number_format((float) $average->mc_value, 2)
+                        .' · '.__('grading.staff.avg_summative').' '.number_format((float) $average->summative_value, 2).')';
+                }
+
+                return $line;
+            })
+            ->all();
     }
 }

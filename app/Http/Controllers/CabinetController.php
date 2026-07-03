@@ -10,6 +10,7 @@ use App\Actions\LogStudentAccess;
 use App\Enums\AcademicRecordPeriod;
 use App\Enums\DocumentRequestType;
 use App\Enums\RequestStatus;
+use App\Enums\SchoolCycle;
 use App\Enums\StudentStatus;
 use App\Enums\UserRole;
 use App\Models\Absence;
@@ -343,7 +344,7 @@ class CabinetController extends Controller
     {
         Gate::authorize('view', $student);
 
-        $student->load(['grades.subject', 'grades.term', 'absences.subject', 'academicRecords.subject']);
+        $student->load(['grades.subject', 'grades.term', 'grades.schoolClass', 'absences.subject', 'academicRecords.subject']);
 
         $viewer = auth('web')->user();
 
@@ -764,15 +765,24 @@ class CabinetController extends Controller
         $subjects = [];
         foreach ($activeGrades->groupBy(fn (Grade $grade): string => $grade->subject->name) as $name => $items) {
             $subjectId = (int) $items->first()->subject_id;
-            $ms = $averages[$subjectId] ?? null;
+            $ms = $averages->get($subjectId);
             $subjects[] = [
                 'subject' => ContentTranslator::subject((string) $name),
-                'average' => $ms !== null ? (float) $ms : null,
+                'average' => $ms !== null && $ms->value !== null ? (float) $ms->value : null,
+                // Componentele MS, pentru transparență (§1.3): media curentelor + sumativa semestrială.
+                'mc' => $ms !== null && $ms->mc_value !== null ? (float) $ms->mc_value : null,
+                'summative' => $ms !== null && $ms->summative_value !== null ? (float) $ms->summative_value : null,
                 'items' => $items->map(fn (Grade $grade): array => [
                     'value' => $grade->value,
                     'calificativ' => $grade->calificativ,
                     'date' => $grade->graded_on->format('d.m.Y'),
                     'term' => $grade->term->number,
+                    // Tipul notei cu etichetă pe ciclu (ESS/teză) + dacă e sumativa ponderată — badge distinct.
+                    'type' => $grade->evaluation_type->value,
+                    'typeLabel' => $grade->evaluation_type->labelForCycle(
+                        SchoolCycle::fromGradeLevel((int) $grade->schoolClass->grade_level)
+                    ),
+                    'isSummative' => $grade->evaluation_type->isWeighted(),
                 ])->all(),
             ];
         }
@@ -781,10 +791,10 @@ class CabinetController extends Controller
     }
 
     /**
-     * Mediile semestriale calculate (cache term_averages) pentru semestrul curent,
-     * indexate pe subject_id.
+     * Mediile semestriale (cache term_averages) pentru semestrul curent, indexate pe subject_id.
+     * Modelele COMPLETE (nu doar valoarea) — ca să putem expune și componentele MC/sumativă.
      *
-     * @return Collection<int, string>
+     * @return Collection<int, TermAverage>
      */
     private function semesterAverages(Student $student): Collection
     {
@@ -794,11 +804,11 @@ class CabinetController extends Controller
             return collect();
         }
 
-        /** @var Collection<int, string> */
         return TermAverage::query()
             ->where('student_id', $student->id)
             ->where('term_id', $currentTermId)
-            ->pluck('value', 'subject_id');
+            ->get()
+            ->keyBy('subject_id');
     }
 
     /**
@@ -894,7 +904,7 @@ class CabinetController extends Controller
         // Media generală = media mediilor semestriale calculate (nu a notelor brute).
         $averages = $this->semesterAverages($student);
         $overall = $averages->isNotEmpty()
-            ? Grades::truncate2((float) $averages->avg(fn (string $value): float => (float) $value))
+            ? Grades::truncate2((float) $averages->avg(fn (TermAverage $ta): float => (float) $ta->value))
             : null;
 
         return [

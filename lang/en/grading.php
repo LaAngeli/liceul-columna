@@ -17,4 +17,10 @@ return [
         'help' => 'Lower secondary uses ESS, upper secondary uses the term paper (by the class cycle). Primary classes (I–IV) have no semester summative and do not appear here.',
         'empty' => 'No summative subjects configured yet.',
     ],
+    'staff' => [
+        'section_averages' => 'Averages by subject (current term)',
+        'no_averages' => 'No averages computed for the current term.',
+        'avg_current' => 'current',
+        'avg_summative' => 'summative',
+    ],
 ];

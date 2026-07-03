@@ -17,4 +17,10 @@ return [
         'help' => 'Gimnaziul folosește ESS, liceul folosește teză (după ciclul clasei). Clasele primare (I–IV) nu au notă sumativă semestrială și nu apar aici.',
         'empty' => 'Nicio disciplină cu sumativă configurată încă.',
     ],
+    'staff' => [
+        'section_averages' => 'Medii pe discipline (semestrul curent)',
+        'no_averages' => 'Nicio medie calculată pentru semestrul curent.',
+        'avg_current' => 'curente',
+        'avg_summative' => 'sumativă',
+    ],
 ];

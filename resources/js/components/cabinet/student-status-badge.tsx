@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
-export type StudentStatusValue = 'promovat' | 'corigent' | 'amanat' | null;
+export type StudentStatusValue = 'promovat' | 'corigent' | 'repetent' | 'amanat' | null;
 
 /**
  * Pastila de statut elev — încapsulează logica de „risc" (corigent/amânat) vs „în regulă" + traducere.
@@ -19,15 +19,17 @@ export function StudentStatusBadge({
     className?: string;
 }) {
     const t = useTranslations();
-    const atRisk = status === 'corigent' || status === 'amanat';
+    const atRisk = status === 'corigent' || status === 'amanat' || status === 'repetent';
 
     const label = status === 'corigent'
         ? t('cabinet.status_corigent')
-        : status === 'amanat'
-            ? t('cabinet.status_amanat')
-            : status === 'promovat'
-                ? t('cabinet.status_promovat')
-                : t('profile.status_ok', 'În regulă');
+        : status === 'repetent'
+            ? t('cabinet.status_repetent')
+            : status === 'amanat'
+                ? t('cabinet.status_amanat')
+                : status === 'promovat'
+                    ? t('cabinet.status_promovat')
+                    : t('profile.status_ok', 'În regulă');
 
     return (
         <Badge

@@ -10,7 +10,7 @@ import type { StudentStatusValue } from '@/components/cabinet/student-status-bad
 import { useTranslations } from '@/lib/i18n';
 
 interface StudentStatus {
-    status: 'promovat' | 'corigent' | 'amanat' | null;
+    status: 'promovat' | 'corigent' | 'repetent' | 'amanat' | null;
     label: string | null;
     failingSubjects: string[];
     official: boolean;

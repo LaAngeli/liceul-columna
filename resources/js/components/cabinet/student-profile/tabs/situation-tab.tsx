@@ -11,6 +11,8 @@ import { motivation } from '@/routes/cabinet';
 interface SubjectGrades {
     subject: string;
     average: number | null;
+    mc?: number | null;
+    summative?: number | null;
     items: GradeItem[];
 }
 
@@ -82,20 +84,37 @@ export function SituationTab({
                                                 {s.items.map((item, i) => (
                                                     <span
                                                         key={i}
-                                                        className="inline-flex min-w-7 items-center justify-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary"
-                                                        title={item.date ?? undefined}
+                                                        className={`inline-flex min-w-7 items-center justify-center rounded-md px-2 py-0.5 text-xs font-semibold ${
+                                                            item.isSummative
+                                                                ? 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/40 dark:text-amber-300'
+                                                                : 'bg-primary/10 text-primary'
+                                                        }`}
+                                                        title={[item.typeLabel, item.date].filter(Boolean).join(' · ') || undefined}
                                                     >
                                                         {gradeLabel(item)}
                                                     </span>
                                                 ))}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3 text-right font-semibold">{s.average ?? '—'}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            <div className="font-semibold">{s.average ?? '—'}</div>
+                                            {s.mc != null && s.summative != null && (
+                                                <div className="mt-0.5 text-[11px] font-normal text-muted-foreground">
+                                                    {t('cabinet.avg_current')} {s.mc} · {t('cabinet.avg_summative')} {s.summative}
+                                                </div>
+                                            )}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
+                )}
+                {subjects !== undefined && subjects.length > 0 && (
+                    <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500/40 ring-1 ring-amber-500/40" />
+                        {t('cabinet.summative_legend')}
+                    </p>
                 )}
             </section>
 

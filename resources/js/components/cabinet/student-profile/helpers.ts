@@ -9,6 +9,10 @@ export interface GradeItem {
     calificativ: string | null;
     date: string | null;
     term: number | null;
+    /** Tipul evaluării (curenta/esi/teza) + etichetă pe ciclu (ESS/teză) + dacă e sumativa ponderată. */
+    type?: string;
+    typeLabel?: string;
+    isSummative?: boolean;
 }
 
 export function gradeLabel(item: GradeItem): string {

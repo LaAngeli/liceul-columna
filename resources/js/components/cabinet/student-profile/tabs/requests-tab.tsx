@@ -23,6 +23,7 @@ interface CorigentaExamItem {
     scheduledOn: string | null;
     commission: string | null;
     sessionType: string | null;
+    mark: string | null;
     passed: boolean | null;
 }
 
@@ -66,6 +67,7 @@ export function RequestsTab({
                                             }`}
                                         >
                                             {e.passed ? t('cabinet.corigenta_passed') : t('cabinet.corigenta_failed')}
+                                            {e.mark !== null ? ` · ${e.mark}` : ''}
                                         </span>
                                     )}
                                 </div>

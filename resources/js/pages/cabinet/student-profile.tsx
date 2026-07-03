@@ -23,7 +23,7 @@ interface StudentSummary {
 }
 
 interface StudentStatus {
-    status: 'promovat' | 'corigent' | 'amanat' | null;
+    status: 'promovat' | 'corigent' | 'repetent' | 'amanat' | null;
     label: string | null;
     failingSubjects: string[];
     official: boolean;
@@ -42,6 +42,9 @@ interface GradeItem {
     calificativ: string | null;
     date: string | null;
     term: number | null;
+    type?: string;
+    typeLabel?: string;
+    isSummative?: boolean;
 }
 
 interface Dynamics {
@@ -70,7 +73,7 @@ interface Props {
     siblings: { id: number; name: string }[];
 
     // Defer (sosesc progresiv într-un al 2-lea request după mount)
-    subjects?: { subject: string; average: number | null; items: GradeItem[] }[];
+    subjects?: { subject: string; average: number | null; mc?: number | null; summative?: number | null; items: GradeItem[] }[];
     absencesBySubject?: { subject: string; count: number }[];
     transcript?: { grade_level: number; subjects: { subject: string; sem1: string | null; sem2: string | null; annual: string | null }[] }[];
     homework?: {
@@ -108,6 +111,7 @@ interface Props {
         scheduledOn: string | null;
         commission: string | null;
         sessionType: string | null;
+        mark: string | null;
         passed: boolean | null;
     }[];
     documentRequests?: {
