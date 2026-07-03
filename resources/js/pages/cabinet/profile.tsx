@@ -15,6 +15,7 @@ import {
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { SectionHeading } from '@/components/cabinet/section-heading';
 import ManageTwoFactor from '@/components/manage-two-factor';
+import TwoFactorEmail from '@/components/two-factor-email';
 import { StudentStatusBadge  } from '@/components/cabinet/student-status-badge';
 import type {StudentStatusValue} from '@/components/cabinet/student-status-badge';
 import { Badge } from '@/components/ui/badge';
@@ -45,7 +46,12 @@ interface Account {
 
 interface Props {
     account: Account;
-    twoFactor?: { enabled: boolean; requiresConfirmation: boolean };
+    twoFactor?: {
+        enabled: boolean;
+        requiresConfirmation: boolean;
+        email: { enabled: boolean; address: string | null };
+    };
+    status?: string | null;
     self: StudentCard | null;
     children: StudentCard[];
 }
@@ -95,7 +101,7 @@ function ChildCard({ student }: { student: StudentCard }) {
     );
 }
 
-export default function CabinetProfile({ account, twoFactor, self, children: students = [] }: Props) {
+export default function CabinetProfile({ account, twoFactor, status, self, children: students = [] }: Props) {
     const t = useTranslations();
     const getInitials = useInitials();
 
@@ -151,14 +157,22 @@ export default function CabinetProfile({ account, twoFactor, self, children: stu
                 </Card>
 
                 {/* Securitate — 2FA e singura zonă self-service a contului; restul datelor
-                    rămân gestionate de administrație (nota read-only din cardul de mai sus). */}
+                    rămân gestionate de administrație (nota read-only din cardul de mai sus).
+                    Două metode: aplicație de autentificare (TOTP) sau cod pe email. */}
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-8">
                         <ManageTwoFactor
                             canManageTwoFactor
                             requiresConfirmation={twoFactor?.requiresConfirmation}
                             twoFactorEnabled={twoFactor?.enabled}
                         />
+                        <div className="border-t pt-6">
+                            <TwoFactorEmail
+                                enabled={twoFactor?.email.enabled ?? false}
+                                accountEmail={twoFactor?.email.address ?? account.email}
+                                status={status}
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 

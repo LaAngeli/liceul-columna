@@ -35,6 +35,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
+ * @property Carbon|null $two_factor_email_enabled_at
  * @property string|null $remember_token
  * @property string|null $locale
  * @property string|null $notification_locale
@@ -76,6 +77,69 @@ class User extends Authenticatable implements Auditable, FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->hasAnyRole(UserRole::panelRoleValues());
+    }
+
+    /**
+     * Codul OTP pe email activ (un singur rând per utilizator; efemer).
+     *
+     * @return HasOne<TwoFactorEmailCode, $this>
+     */
+    public function twoFactorEmailCode(): HasOne
+    {
+        return $this->hasOne(TwoFactorEmailCode::class);
+    }
+
+    /**
+     * 2FA pe email e activ (metoda alternativă la TOTP; cere o adresă de email pe cont).
+     */
+    public function usesEmailTwoFactor(): bool
+    {
+        return $this->two_factor_email_enabled_at !== null && $this->email !== null;
+    }
+
+    /**
+     * Metoda de provocare la login: TOTP are prioritate (dacă e confirmat), apoi emailul.
+     * null = utilizatorul nu are 2FA configurat (nu se provoacă).
+     */
+    public function twoFactorChallengeMethod(): ?string
+    {
+        if ($this->hasEnabledTwoFactorAuthentication()) {
+            return 'totp';
+        }
+
+        if ($this->usesEmailTwoFactor()) {
+            return 'email';
+        }
+
+        return null;
+    }
+
+    /**
+     * Are 2FA configurat prin ORICARE metodă — sursa unică pentru pipeline-ul de login
+     * (RedirectIfTwoFactorEnrolled) și pentru viitorul gate de obligativitate.
+     */
+    public function hasTwoFactorConfigured(): bool
+    {
+        return $this->twoFactorChallengeMethod() !== null;
+    }
+
+    /**
+     * Emailul mascat pentru pagina de challenge (nu divulgăm adresa completă pre-autentificare).
+     */
+    public function maskedEmail(): ?string
+    {
+        if ($this->email === null || ! str_contains($this->email, '@')) {
+            return null;
+        }
+
+        [$local, $domain] = explode('@', $this->email, 2);
+
+        $maskPart = fn (string $part): string => mb_substr($part, 0, min(2, mb_strlen($part))).'***';
+
+        $domainParts = explode('.', $domain);
+        $tld = count($domainParts) > 1 ? '.'.end($domainParts) : '';
+
+        return $maskPart($local).'@'.$maskPart($domainParts[0]).$tld;
     }
 
     /**
@@ -563,6 +627,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
             'password' => 'hashed',
             'must_change_password' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
+            'two_factor_email_enabled_at' => 'datetime',
             'notification_contacts' => 'array',
             'notification_preferences' => 'array',
             'audience_domains' => 'array',

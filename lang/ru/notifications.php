@@ -68,4 +68,11 @@ return [
         'title' => 'Новая заявка на зачисление',
         'body' => 'Получена новая заявка на зачисление для :child.',
     ],
+
+    // Emailul cu codul 2FA (trimis SINCRON la login/activare — vezi TwoFactorCodeNotification).
+    'two_factor' => [
+        'subject' => 'Ваш код для входа — Liceul Columna',
+        'intro' => 'Используйте код ниже, чтобы завершить вход:',
+        'expiry' => 'Код действителен :minutes минут. Если вы его не запрашивали, проигнорируйте это письмо и сообщите администрации.',
+    ],
 ];

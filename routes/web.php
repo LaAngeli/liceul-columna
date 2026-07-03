@@ -14,6 +14,8 @@ use App\Http\Controllers\MessagesController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\PrivacyConsentController;
 use App\Http\Controllers\PublicPageController;
+use App\Http\Controllers\TwoFactorEmailChallengeController;
+use App\Http\Controllers\TwoFactorEmailSetupController;
 use App\Http\Controllers\VisitController;
 use App\Http\Middleware\SetPublicLocale;
 use App\Http\Middleware\SetUserLocale;
@@ -189,4 +191,18 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
     // Luare la cunoștință a notei de informare (Legea 133/2011 §7) — blocant pentru elev/părinte.
     Route::get('consimtamant', [PrivacyConsentController::class, 'show'])->name('privacy.consent');
     Route::post('consimtamant', [PrivacyConsentController::class, 'store'])->name('privacy.consent.store');
+});
+
+// 2FA pe email — ACTIVARE (autentificat + parola confirmată, ca endpoint-urile 2FA Fortify).
+Route::middleware(['auth', 'password.confirm', SetUserLocale::class])->group(function () {
+    Route::post('user/two-factor-email/send', [TwoFactorEmailSetupController::class, 'send'])->name('two-factor-email.send');
+    Route::post('user/two-factor-email/confirm', [TwoFactorEmailSetupController::class, 'confirm'])->name('two-factor-email.confirm');
+    Route::delete('user/two-factor-email', [TwoFactorEmailSetupController::class, 'destroy'])->name('two-factor-email.destroy');
+});
+
+// 2FA pe email — CHALLENGE la login (sesiune parțială login.id, PRE-autentificare; guest +
+// rate-limiter-ul `two-factor` al Fortify, per login.id).
+Route::middleware(['guest:web', 'throttle:two-factor', SetUserLocale::class])->group(function () {
+    Route::post('two-factor-challenge/email/send', [TwoFactorEmailChallengeController::class, 'send'])->name('two-factor-email.challenge.send');
+    Route::post('two-factor-challenge/email', [TwoFactorEmailChallengeController::class, 'verify'])->name('two-factor-email.challenge.verify');
 });

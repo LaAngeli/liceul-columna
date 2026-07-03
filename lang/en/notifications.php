@@ -68,4 +68,11 @@ return [
         'title' => 'New admission request',
         'body' => 'A new admission request was received for :child.',
     ],
+
+    // Emailul cu codul 2FA (trimis SINCRON la login/activare — vezi TwoFactorCodeNotification).
+    'two_factor' => [
+        'subject' => 'Your sign-in code — Liceul Columna',
+        'intro' => 'Use the code below to finish signing in:',
+        'expiry' => 'The code is valid for :minutes minutes. If you did not request it, ignore this message and notify the administration.',
+    ],
 ];

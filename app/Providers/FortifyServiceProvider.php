@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
+use App\Actions\Fortify\RedirectIfTwoFactorEnrolled;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -13,6 +14,9 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
+use Laravel\Fortify\Actions\AttemptToAuthenticate;
+use Laravel\Fortify\Actions\CanonicalizeUsername;
+use Laravel\Fortify\Actions\PrepareAuthenticatedSession;
 use Laravel\Fortify\Contracts\LoginResponse;
 use Laravel\Fortify\Contracts\TwoFactorLoginResponse;
 use Laravel\Fortify\Features;
@@ -69,6 +73,16 @@ class FortifyServiceProvider extends ServiceProvider
 
             return null;
         });
+
+        // Pipeline-ul implicit, cu pasul de 2FA înlocuit: RedirectIfTwoFactorEnrolled provoacă
+        // și utilizatorii cu 2FA pe EMAIL, nu doar TOTP. Throttling-ul rămâne pe middleware
+        // (fortify.limiters.login e configurat), ca în pipeline-ul implicit Fortify.
+        Fortify::authenticateThrough(fn (Request $request): array => array_filter([
+            config('fortify.lowercase_usernames') ? CanonicalizeUsername::class : null,
+            RedirectIfTwoFactorEnrolled::class,
+            AttemptToAuthenticate::class,
+            PrepareAuthenticatedSession::class,
+        ]));
     }
 
     /**
@@ -104,7 +118,19 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
+        // Pagina de challenge află metoda utilizatorului provocat (TOTP sau email) din
+        // handshake-ul de sesiune (login.id) — emailul apare DOAR mascat (pre-autentificare).
+        Fortify::twoFactorChallengeView(function (Request $request) {
+            $challengedId = $request->session()->get('login.id');
+            $challenged = $challengedId !== null ? User::query()->find((int) $challengedId) : null;
+            $method = $challenged?->twoFactorChallengeMethod() ?? 'totp';
+
+            return Inertia::render('auth/two-factor-challenge', [
+                'method' => $method,
+                'maskedEmail' => $method === 'email' ? $challenged?->maskedEmail() : null,
+                'status' => $request->session()->get('status'),
+            ]);
+        });
 
         Fortify::confirmPasswordView(fn () => Inertia::render('auth/confirm-password'));
     }

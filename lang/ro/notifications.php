@@ -75,4 +75,11 @@ return [
         'title' => 'Cerere de înscriere nouă',
         'body' => 'O nouă cerere de înscriere a fost primită pentru :child.',
     ],
+
+    // Emailul cu codul 2FA (trimis SINCRON la login/activare — vezi TwoFactorCodeNotification).
+    'two_factor' => [
+        'subject' => 'Codul tău de autentificare — Liceul Columna',
+        'intro' => 'Folosește codul de mai jos ca să îți finalizezi autentificarea:',
+        'expiry' => 'Codul e valabil :minutes minute. Dacă nu tu ai cerut acest cod, ignoră mesajul și anunță administrația.',
+    ],
 ];

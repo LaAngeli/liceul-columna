@@ -2,6 +2,8 @@
 
 namespace App\Filament\Pages\Auth;
 
+use App\Actions\ConfirmTwoFactorEmailSetup;
+use App\Actions\SendTwoFactorEmailCode;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Auth\Pages\EditProfile as BaseEditProfile;
@@ -16,6 +18,8 @@ use Filament\Support\Enums\FontFamily;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\HtmlString;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Actions\ConfirmTwoFactorAuthentication;
 use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
@@ -76,7 +80,122 @@ class EditProfile extends BaseEditProfile
                     $this->getRegenerateRecoveryCodesAction(),
                     $this->getDisableTwoFactorAction(),
                 ])->key('twoFactorActions'),
+
+                // A doua metodă: cod pe email (alternativă pentru cei fără aplicație de autentificare).
+                Text::make(fn (): string => __('panel.pages.profile.twofa.email_status_on', ['email' => (string) $this->twoFactorUser()->email]))
+                    ->color('success')
+                    ->visible(fn (): bool => $this->twoFactorUser()->usesEmailTwoFactor()),
+                Text::make(__('panel.pages.profile.twofa.email_status_off'))
+                    ->color('neutral')
+                    ->visible(fn (): bool => ! $this->twoFactorUser()->usesEmailTwoFactor()),
+                Actions::make([
+                    $this->getSendEmailCodeAction(),
+                    $this->getConfirmEmailCodeAction(),
+                    $this->getDisableEmailTwoFactorAction(),
+                ])->key('twoFactorEmailActions'),
             ]);
+    }
+
+    private function getSendEmailCodeAction(): Action
+    {
+        return Action::make('sendTwoFactorEmailCode')
+            ->label(__('panel.pages.profile.twofa.email_send'))
+            ->icon(Heroicon::OutlinedEnvelope)
+            ->color('gray')
+            ->visible(fn (): bool => ! $this->twoFactorUser()->usesEmailTwoFactor())
+            ->modalHeading(__('panel.pages.profile.twofa.email_send_heading'))
+            ->modalDescription(__('panel.pages.profile.twofa.email_send_description'))
+            ->schema([
+                TextInput::make('email')
+                    ->label(__('panel.pages.profile.twofa.email_field'))
+                    ->email()
+                    ->required()
+                    ->default(fn (): ?string => $this->twoFactorUser()->email)
+                    ->rule(fn (): Unique => Rule::unique('users', 'email')->ignore($this->twoFactorUser()->id)),
+                TextInput::make('current_password')
+                    ->label(__('panel.pages.profile.twofa.current_password'))
+                    ->password()
+                    ->required()
+                    ->rule('current_password'),
+            ])
+            ->action(function (array $data, Action $action): void {
+                $user = $this->twoFactorUser();
+                $email = (string) $data['email'];
+
+                // Aceeași adresă ca a contului nu e „în așteptare" — codul merge pe emailul existent.
+                $pendingEmail = ($user->email !== null && strcasecmp($email, $user->email) === 0) ? null : $email;
+
+                if (! app(SendTwoFactorEmailCode::class)->execute($user, $pendingEmail)) {
+                    Notification::make()->danger()
+                        ->title(__('panel.pages.profile.twofa.email_cooldown'))
+                        ->send();
+
+                    $action->halt();
+                }
+
+                Notification::make()->success()
+                    ->title(__('panel.pages.profile.twofa.email_code_sent'))
+                    ->send();
+            });
+    }
+
+    private function getConfirmEmailCodeAction(): Action
+    {
+        return Action::make('confirmTwoFactorEmailCode')
+            ->label(__('panel.pages.profile.twofa.email_confirm'))
+            ->icon(Heroicon::OutlinedCheckCircle)
+            ->visible(fn (): bool => ! $this->twoFactorUser()->usesEmailTwoFactor()
+                && $this->twoFactorUser()->twoFactorEmailCode()->exists())
+            ->modalHeading(__('panel.pages.profile.twofa.email_confirm_heading'))
+            ->schema([
+                TextInput::make('code')
+                    ->label(__('panel.pages.profile.twofa.code'))
+                    ->required()
+                    ->maxLength(6),
+            ])
+            ->action(function (array $data, Action $action): void {
+                $result = app(ConfirmTwoFactorEmailSetup::class)->execute($this->twoFactorUser(), (string) $data['code']);
+
+                if ($result !== 'ok') {
+                    Notification::make()->danger()
+                        ->title($result === 'email_taken'
+                            ? __('panel.pages.profile.twofa.email_taken')
+                            : __('panel.pages.profile.twofa.email_invalid_code'))
+                        ->send();
+
+                    $action->halt();
+                }
+
+                Notification::make()->success()
+                    ->title(__('panel.pages.profile.twofa.email_enabled_success'))
+                    ->send();
+            });
+    }
+
+    private function getDisableEmailTwoFactorAction(): Action
+    {
+        return Action::make('disableTwoFactorEmail')
+            ->label(__('panel.pages.profile.twofa.email_disable'))
+            ->icon(Heroicon::OutlinedShieldExclamation)
+            ->color('danger')
+            ->visible(fn (): bool => $this->twoFactorUser()->usesEmailTwoFactor())
+            ->modalHeading(__('panel.pages.profile.twofa.email_disable_heading'))
+            ->schema([
+                TextInput::make('current_password')
+                    ->label(__('panel.pages.profile.twofa.current_password'))
+                    ->password()
+                    ->required()
+                    ->rule('current_password'),
+            ])
+            ->action(function (): void {
+                $user = $this->twoFactorUser();
+                $user->forceFill(['two_factor_email_enabled_at' => null])->save();
+                $user->twoFactorEmailCode()->delete();
+
+                Notification::make()->success()
+                    ->title(__('panel.pages.profile.twofa.email_disabled_success'))
+                    ->send();
+            });
     }
 
     private function getEnableTwoFactorAction(): Action

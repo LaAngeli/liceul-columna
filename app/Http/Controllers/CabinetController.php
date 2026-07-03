@@ -297,11 +297,17 @@ class CabinetController extends Controller
                 'locale' => $user->locale,
             ],
             // Secțiunea „Securitate" (2FA) — singura zonă self-service a contului; restul datelor
-            // rămân gestionate de staff (cabinet read-only).
+            // rămân gestionate de staff (cabinet read-only). Două metode: TOTP sau cod pe email.
             'twoFactor' => [
                 'enabled' => $user->hasEnabledTwoFactorAuthentication(),
                 'requiresConfirmation' => Features::optionEnabled(Features::twoFactorAuthentication(), 'confirm'),
+                'email' => [
+                    'enabled' => $user->usesEmailTwoFactor(),
+                    'address' => $user->email,
+                ],
             ],
+            // Flash-ul pașilor 2FA pe email („cod trimis" etc.) — nu există un share global de flash.
+            'status' => $request->session()->get('status'),
             'self' => $self !== null ? $this->profileCard($self) : null,
             'children' => $user->students()->get()
                 ->map(fn (Student $student): array => $this->profileCard($student))
