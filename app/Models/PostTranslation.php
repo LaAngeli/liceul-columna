@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $post_id
  * @property string $locale
+ * @property string|null $slug
  * @property string|null $title
  * @property string|null $excerpt
  * @property string|null $content
@@ -23,6 +24,7 @@ class PostTranslation extends Model
     protected $fillable = [
         'post_id',
         'locale',
+        'slug',
         'title',
         'excerpt',
         'content',

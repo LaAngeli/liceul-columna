@@ -2,18 +2,54 @@
 
 namespace App\Support;
 
+use App\Models\LibraryCategory;
+
 /**
- * Catalogul Bibliotecii online (migrare columna.org.md → columna.md).
- * Generat automat din pagina veche. Linkurile țintesc fișierele existente
- * (folderul server `/biblioteca/`); la mutarea domeniului se copiază server-side
- * în public/downloads/biblioteca/ și se repointează URL-urile.
+ * Biblioteca online. `categories()` citește catalogul LIVE din DB (administrat în Studio);
+ * `seedCatalog()` păstrează catalogul legacy hardcodat, folosit doar la importul unic.
  */
 final class BibliotecaLibrary
 {
     /**
-     * @return list<array{title: string, books: list<array{title: string, url: string}>}>
+     * Catalogul LIVE din DB (pagina publică): categorii publicate, ordonate, titlu localizat +
+     * materiale (fișier PDF sau link extern). Autorul e transmis ca `author` (nullable) direct
+     * din coloana DB — frontendul îl folosește la afișare (numele autorului sub titlu) și cade pe
+     * parsing „Autor — Titlu" doar pentru materialele vechi importate cu titlul concatenat.
+     *
+     * @return list<array{key: string, title: string, kind: string, books: list<array{title: string, author: ?string, url: string}>}>
      */
     public static function categories(): array
+    {
+        $out = [];
+
+        foreach (LibraryCategory::query()->published()->ordered()->with('items')->get() as $category) {
+            $books = [];
+            foreach ($category->items as $item) {
+                $books[] = [
+                    'title' => $item->title,
+                    'author' => $item->author,
+                    'url' => $item->url(),
+                ];
+            }
+
+            $out[] = [
+                'key' => $category->slug,
+                'title' => $category->localizedTitle(),
+                'kind' => $category->kind->value,
+                'books' => $books,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Catalogul LEGACY hardcodat (columna.org.md), folosit DOAR de `app:import-library` pentru a
+     * popula DB o singură dată. Nu mai e citit de pagina publică.
+     *
+     * @return list<array{title: string, books: list<array{title: string, url: string}>}>
+     */
+    public static function seedCatalog(): array
     {
         return [
             [

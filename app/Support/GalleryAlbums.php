@@ -2,37 +2,34 @@
 
 namespace App\Support;
 
+use App\Models\GalleryAlbum;
+
 /**
- * Albumele galeriei foto — scanate din `public/images/galerie/<folder>/`.
+ * Albumele galeriei foto — administrate în Studio ({@see GalleryAlbum}), citite din DB.
  * Sursă UNICĂ pentru pagina interactivă `/galerie` (toate albumele) ȘI pentru secțiunile
- * `gallery` din paginile de structură (un singur folder), via {@see imagesFor()}.
+ * `gallery` din paginile de structură (un singur album), via {@see imagesFor()}.
+ *
+ * API-ul (contractul cu frontend-ul) e păstrat identic cu varianta pe filesystem.
  */
 final class GalleryAlbums
 {
-    /** Folder => etichetă RO (etichetele se traduc în frontend prin `gallery.album.<key>`). */
-    private const ALBUMS = [
-        'general' => 'Evenimente și activități',
-        'scoala-primara' => 'Școala primară',
-        'scoala-gimnaziala' => 'Școala gimnazială',
-        'scoala-liceala' => 'Școala liceală',
-    ];
-
     /**
      * @return list<array{key: string, label: string, count: int, images: list<array{src: string, alt: string}>}>
      */
     public static function all(): array
     {
         $albums = [];
-        foreach (self::ALBUMS as $folder => $label) {
-            $images = self::imagesFor($folder);
-            if ($images === []) {
+
+        foreach (GalleryAlbum::query()->published()->ordered()->with('images')->get() as $album) {
+            if ($album->images->isEmpty()) {
                 continue;
             }
+
             $albums[] = [
-                'key' => $folder,
-                'label' => $label,
-                'count' => count($images),
-                'images' => $images,
+                'key' => $album->slug,
+                'label' => $album->localizedTitle(),
+                'count' => $album->images->count(),
+                'images' => $album->imageEntries(),
             ];
         }
 
@@ -44,13 +41,6 @@ final class GalleryAlbums
      */
     public static function imagesFor(string $folder): array
     {
-        $dir = public_path('images/galerie/'.$folder);
-        $files = is_dir($dir) ? (glob($dir.'/*.{jpg,jpeg,png,webp}', GLOB_BRACE) ?: []) : [];
-        natsort($files);
-
-        return array_values(array_map(
-            fn (string $path): array => ['src' => '/images/galerie/'.$folder.'/'.basename($path), 'alt' => 'Liceul „Columna"'],
-            $files,
-        ));
+        return GalleryAlbum::query()->where('slug', $folder)->with('images')->first()?->imageEntries() ?? [];
     }
 }

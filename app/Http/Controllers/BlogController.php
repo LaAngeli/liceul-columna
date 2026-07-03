@@ -23,13 +23,16 @@ class BlogController extends Controller
             ->published()
             ->category($category)
             ->with('translations')
+            // `published_at` nu are componentă de oră (mereu miezul nopții) — `id` desparte
+            // articolele publicate în aceeași zi, păstrând ordinea reală de creare.
             ->orderByDesc('published_at')
+            ->orderByDesc('id')
             ->get()
             ->map(fn (Post $post): array => [
                 'title' => $post->localizedTitle(),
                 'slug' => $post->slug,
                 'excerpt' => $post->localizedExcerpt(),
-                'image' => $post->image,
+                'image' => $post->imageUrl(),
                 'date' => $post->published_at?->translatedFormat('d F Y'),
                 'year' => (int) $post->published_at?->format('Y'),
             ]);
@@ -54,12 +57,13 @@ class BlogController extends Controller
             ->whereKeyNot($post->getKey())
             ->with('translations')
             ->orderByDesc('published_at')
+            ->orderByDesc('id')
             ->limit(3)
             ->get()
             ->map(fn (Post $related): array => [
                 'title' => $related->localizedTitle(),
                 'slug' => $related->slug,
-                'image' => $related->image,
+                'image' => $related->imageUrl(),
                 'date' => $related->published_at?->translatedFormat('d F Y'),
             ]);
 
@@ -69,7 +73,7 @@ class BlogController extends Controller
                 'category' => $post->category,
                 'categoryLabel' => self::TITLES[$post->category] ?? 'Articole',
                 'categoryUrl' => $post->category === 'blog' ? '/blog' : '/actualitati-si-evenimente',
-                'image' => $post->image,
+                'image' => $post->imageUrl(),
                 'content' => $content,
                 'date' => $post->published_at->translatedFormat('d F Y'),
                 'readingMinutes' => max(1, (int) ceil($words / 200)),

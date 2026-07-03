@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * @property int $id
@@ -21,8 +24,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $image
  * @property Carbon|null $published_at
  */
-class Post extends Model
+class Post extends Model implements Auditable
 {
+    use AuditableTrait;
+
     /** @use HasFactory<PostFactory> */
     use HasFactory;
 
@@ -52,6 +57,24 @@ class Post extends Model
     public function getRouteKeyName(): string
     {
         return 'slug';
+    }
+
+    /**
+     * Rezolvare de rută prin oricare slug localizat: încercăm întâi RO (coloana proprie), apoi
+     * traducerile RU/EN (slug pe post_translations). Așa articolul e accesibil pe URL-ul localizat
+     * al oricărei limbi, indiferent de locale-ul curent.
+     */
+    public function resolveRouteBinding($value, $field = null): ?Model
+    {
+        $post = $this->newQuery()->where($field ?? $this->getRouteKeyName(), $value)->first();
+
+        if ($post !== null) {
+            return $post;
+        }
+
+        $translation = PostTranslation::query()->where('slug', $value)->first();
+
+        return $translation?->post;
     }
 
     /**
@@ -98,6 +121,25 @@ class Post extends Model
         $translation = $this->translation($locale);
 
         return $translation === null ? $this->content : ($translation->content ?? $this->content);
+    }
+
+    /**
+     * URL utilizabil pentru `<img src>`: URL-urile absolute (import WP) și căile deja root-relative
+     * trec neatinse; căile stocate pe disk (upload din Studio) sunt rezolvate prin storage.
+     */
+    public function imageUrl(): ?string
+    {
+        if ($this->image === null || $this->image === '') {
+            return null;
+        }
+
+        if (str_starts_with($this->image, 'http://')
+            || str_starts_with($this->image, 'https://')
+            || str_starts_with($this->image, '/')) {
+            return $this->image;
+        }
+
+        return Storage::disk('public')->url($this->image);
     }
 
     /**
