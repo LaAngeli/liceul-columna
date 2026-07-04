@@ -182,6 +182,31 @@ logați (service layer, ex. Prism PHP; aceleași endpoints cu permisiuni scoped)
 - La importul datelor legacy: parolele vechi (în clar) NU se migrează — forțăm reset/re-hash.
 - Atenție maximă la PII de minori în orice endpoint, export, log sau feature AI.
 
+### 6.a. Secrete & credențiale — regulă GENERALĂ (orice tip, nu doar Telegram/Viber)
+
+> Se aplică la ORICE secret: token de bot, cheie API, parolă, `APP_KEY`, secret OAuth/sesiune, string de
+> conexiune DB, cheie privată, webhook cu token, cheie de semnare. Fără excepții „e doar un exemplu".
+
+- **Niciun secret real — sau cu FORMĂ reală — în cod, config, teste, seedere, comentarii SAU documentație
+  (`.md`).** Scanerele publice (GitHub secret scanning ș.a.) declanșează alertă chiar și pe un exemplu care
+  doar „arată" real (ex.: incidentul tokenului Telegram scris ca valoare reală în `DEPLOY-DOMENIU.md` în loc
+  de placeholder). Repo-ul e **public** → orice string commis e vizibil oricui, permanent, până la rotire.
+- **În exemple/documentație folosește DOAR placeholdere evident false** și marcate ca atare:
+  `<TOKEN_BOT>`, `123456789:xxxxxxxx...`, `xxxx-yyyy-zzzz`, `parola-ta-aici`, `<APP_KEY>`. **Nu genera**
+  valori care se potrivesc formatului real al unui credential (nici măcar „inventate").
+- **Secretele reale trăiesc DOAR în `.env`** (gitignored) sau într-un manager de secrete, citite prin
+  `env()` → `config()`. Fișierele din `config/**` referă `env('CHEIE')`, **niciodată** valoarea literală.
+  `.env` și `.env.production` NU se comit; `.env.example` listează cheile cu valori **goale/placeholder**.
+- **Verificare pre-commit (obligatorie):** dacă un `git diff` introduce un string cu formă de token/cheie/
+  parolă, OPREȘTE-TE și confirmă că e placeholder înainte de commit. Un secret commis e compromis din
+  secunda în care devine public — nu „ni se pare".
+- **Dacă un secret a scăpat deja:** ordinea e (1) **REVOCĂ/rotește** secretul la sursă (e deja compromis),
+  (2) înlocuiește-l cu placeholder în fișier, (3) închide alerta ca „revoked". Ștergerea din working tree
+  **NU** îl scoate din istoricul git — rămâne în commit-ul vechi până la rotire; curățarea istoricului
+  (`git filter-repo` + force-push) e opțională și se face DOAR la cererea explicită a userului (rescrie
+  istoric public). Revocarea și accesul la `.env`/VPS/conturile de bot = **acțiuni ale userului**, nu ale
+  asistentului (vezi și regulile globale de acțiuni sensibile).
+
 ## 7. Roadmap (ce urmează)
 1. **Import date legacy** (~124.000 rânduri din `C:\Users\LaAngeli\Downloads\1017-3_*.sql`). De clarificat
    întâi: sensul `st_n` (1-6), care din `name_1/name_2` e nume/prenume, maparea `func` (1-6)→roluri,
