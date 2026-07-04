@@ -13,6 +13,7 @@ use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\UnorderedList;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\FontFamily;
 use Filament\Support\Icons\Heroicon;
@@ -55,12 +56,118 @@ class EditProfile extends BaseEditProfile
     {
         return $schema
             ->components([
-                $this->getNameFormComponent(),
-                $this->getEmailFormComponent(),
-                $this->getPasswordFormComponent(),
-                $this->getPasswordConfirmationFormComponent(),
+                // 1. GENERAL — un singur câmp „Nume/Prenume" (convenția moldovenească „Nume Prenume",
+                //    ex. „Popescu Ion"). Câmpul e `User::name` — sursa unică din DB. Section pe 2
+                //    coloane + `columnSpan(1)` pe câmp = input pe stânga (nu ocupă tot rândul).
+                //    Rescris ca TextInput direct (nu prin `getNameFormComponent()` care întoarce
+                //    `Component` generic → phpstan pierde tipul; default-urile sunt identice).
+                Section::make(__('panel.pages.profile.section_general'))
+                    ->columns(2)
+                    ->schema([
+                        TextInput::make('name')
+                            ->label(__('panel.pages.profile.name_full'))
+                            ->required()
+                            ->maxLength(255)
+                            ->autofocus()
+                            ->columnSpan(1)
+                            // READ-ONLY pentru toți în afară de super-admin: numele e ancora de
+                            // identitate (legată de fișa oficială + audit), iar conturile sunt create
+                            // de administrație → corecțiile de nume se fac din resursa „Utilizatori",
+                            // nu din „profilul meu". Blocarea e server-side: `disabled` +
+                            // `dehydrated(false)` → câmpul rămâne VIZIBIL dar needitabil, iar valoarea
+                            // nu se persistă nici printr-un request falsificat.
+                            ->disabled(fn (): bool => ! $this->twoFactorUser()->isSuperAdmin())
+                            ->dehydrated(fn (): bool => $this->twoFactorUser()->isSuperAdmin())
+                            ->helperText(fn (): ?string => $this->twoFactorUser()->isSuperAdmin()
+                                ? null
+                                : (string) __('panel.pages.profile.name_locked_hint')),
+                    ]),
+
+                // 2. DATE DE CONTACT — email + Telegram + Viber. Aceleași câmpuri ca la Setări →
+                //    Notificări (sursă unică: `User::email` + `User::notification_contacts`).
+                //    Modifici aici = se schimbă și acolo, și invers. Zero duplicare de state.
+                Section::make(__('panel.pages.profile.section_contacts'))
+                    ->description(__('panel.pages.profile.section_contacts_hint'))
+                    ->columns(3)
+                    ->schema([
+                        // helperText nu se poate seta după `getEmailFormComponent()` (întoarce
+                        // `Component` generic în signatura BaseEditProfile). Textul informativ e
+                        // deja pe `section_contacts_hint` deasupra.
+                        $this->getEmailFormComponent(),
+                        TextInput::make('contacts.telegram')
+                            ->label('Telegram')
+                            ->placeholder((string) __('site.cabinet.notif_telegram_placeholder'))
+                            ->maxLength(120),
+                        TextInput::make('contacts.viber')
+                            ->label('Viber')
+                            ->placeholder((string) __('site.cabinet.notif_viber_placeholder'))
+                            ->maxLength(120),
+                    ]),
+
+                // 3. SETARE PAROLĂ — AMBELE câmpuri vizibile SIMULTAN pe 2 coloane (stânga: parolă
+                //    nouă, dreapta: confirmă parola). Confirmarea rescrisă ca TextInput direct (fără
+                //    `->visible(filled(...))` din default-ul Filament) și cu `->required` condiționat:
+                //    obligatorie DOAR când parola nouă e completată — altfel se pot ignora amândouă.
+                //    Validare `->same('passwordConfirmation')` din `getPasswordFormComponent()`
+                //    verifică potrivirea; goale = parola NU se schimbă (`dehydrated(filled)`).
+                Section::make(__('panel.pages.profile.section_password'))
+                    ->description(__('panel.pages.profile.section_password_hint'))
+                    ->columns(2)
+                    ->schema([
+                        $this->getPasswordFormComponent(),
+                        TextInput::make('passwordConfirmation')
+                            ->label(__('filament-panels::auth/pages/edit-profile.form.password_confirmation.label'))
+                            ->validationAttribute(__('filament-panels::auth/pages/edit-profile.form.password_confirmation.validation_attribute'))
+                            ->password()
+                            ->autocomplete('new-password')
+                            ->revealable(filament()->arePasswordsRevealable())
+                            ->required(fn (Get $get): bool => filled($get('password')))
+                            ->dehydrated(false),
+                    ]),
+
+                // 4. SECURITATE — 2FA (aplicație autentificatoare + cod pe e-mail ca alternativă).
                 $this->getTwoFactorSection(),
             ]);
+    }
+
+    /**
+     * Prefill contactele din `notification_contacts` (sursă unică cu Setări → Notificări).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $user = $this->twoFactorUser();
+        $contacts = $user->notification_contacts ?? [];
+        $data['contacts'] = [
+            'telegram' => is_string($contacts['telegram'] ?? null) ? $contacts['telegram'] : '',
+            'viber' => is_string($contacts['viber'] ?? null) ? $contacts['viber'] : '',
+        ];
+
+        return $data;
+    }
+
+    /**
+     * Pliază contactele în `notification_contacts` (merge cu cele existente ca să nu ștergem
+     * chei pe care alt UI le poate seta — ex. messenger).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $user = $this->twoFactorUser();
+        $existing = is_array($user->notification_contacts) ? $user->notification_contacts : [];
+        $incoming = is_array($data['contacts'] ?? null) ? $data['contacts'] : [];
+        $merged = array_merge($existing, $incoming);
+        $data['notification_contacts'] = array_filter(
+            $merged,
+            static fn ($value): bool => is_string($value) && $value !== '',
+        );
+        unset($data['contacts']);
+
+        return $data;
     }
 
     private function getTwoFactorSection(): Section

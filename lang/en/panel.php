@@ -80,6 +80,14 @@ return [
         'notifications' => ['title' => 'Notifications'],
         'profile' => [
             'title' => 'Profile',
+            'section_general' => 'General',
+            'name_locked_hint' => 'Your name is managed by the administration — if it is wrong, request a correction (changed from "Users", with an audit trail).',
+            'name_full' => 'Full name',
+            'section_contacts' => 'Contact details',
+            'section_contacts_hint' => 'The addresses here mirror Settings → Notifications — updating one place propagates to the other.',
+            'section_password' => 'Change password',
+            'section_password_hint' => 'Leave blank if you do not want to change the password.',
+            'section_security' => 'Security',
             'twofa' => [
                 'title' => 'Two-factor authentication (2FA)',
                 'description' => 'Protect your account by requiring a code from your authenticator app at every sign-in.',

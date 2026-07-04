@@ -90,6 +90,14 @@ return [
         'notifications' => ['title' => 'Notificări'],
         'profile' => [
             'title' => 'Profil',
+            'section_general' => 'General',
+            'name_locked_hint' => 'Numele e gestionat de administrație — dacă e greșit, cere corectarea (se modifică din „Utilizatori", cu urmă în audit).',
+            'name_full' => 'Nume/Prenume',
+            'section_contacts' => 'Date de contact',
+            'section_contacts_hint' => 'Adresele de aici sunt aceleași ca la Setări → Notificări — modificarea într-un loc se propagă automat în celălalt.',
+            'section_password' => 'Setare parolă',
+            'section_password_hint' => 'Lasă gol dacă nu vrei să schimbi parola.',
+            'section_security' => 'Securitate',
             'twofa' => [
                 'title' => 'Autentificare în doi pași (2FA)',
                 'description' => 'Protejează-ți contul cerând un cod din aplicația de autentificare la fiecare logare.',
