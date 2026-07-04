@@ -33,6 +33,10 @@ export default defineConfig({
         tailwindcss(),
         wayfinder({
             formVariants: true,
+            // wayfinder:generate bootează aplicația + introspectează rutele/formularele și
+            // depășește limita implicită CLI de 128MB → build/dev picau. Ridicăm memoria doar
+            // pentru această comandă (fix portabil, nu în php.ini global).
+            command: 'php -d memory_limit=512M artisan wayfinder:generate',
         }),
     ],
 });
