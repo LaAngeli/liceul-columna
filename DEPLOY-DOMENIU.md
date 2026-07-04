@@ -156,12 +156,12 @@ Pas cu pas pentru cineva de la liceu (nu cere programator):
    - Un username unic (fără spații, se termină în `bot`) — ex. `liceul_columna_bot`
 3. BotFather trimite înapoi un token de forma:
    ```
-   7834562143:AAEHb4mUj-y8kZoQ_r7XVK9rZ4nT2mFvBqE
+   123456789:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
    ```
 4. Copiază tokenul și trimite-l pe canal privat administratorului tehnic (NU public).
 5. Administratorul pune tokenul în `.env` producție:
    ```env
-   TELEGRAM_BOT_TOKEN=7834562143:AAEHb4mUj-y8kZoQ_r7XVK9rZ4nT2mFvBqE
+   TELEGRAM_BOT_TOKEN=123456789:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
    ```
 6. Rulează pe VPS:
    ```bash
