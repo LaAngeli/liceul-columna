@@ -13,11 +13,12 @@ use Spatie\Permission\Models\Role;
 class DemoAccountsSeeder extends Seeder
 {
     /**
-     * Conturi demo: un elev, un părinte cu doi copii și un profesor (legat de o fișă).
+     * Conturi demo: doi elevi, un părinte cu doi copii, un profesor și un diriginte
+     * (fiecare legat de o fișă reală distinctă).
      */
     public function run(): void
     {
-        foreach ([UserRole::Elev, UserRole::Parinte, UserRole::Profesor] as $role) {
+        foreach ([UserRole::Elev, UserRole::Parinte, UserRole::Profesor, UserRole::Diriginte] as $role) {
             Role::findOrCreate($role->value, 'web');
         }
 
@@ -37,13 +38,33 @@ class DemoAccountsSeeder extends Seeder
             $this->command->info("Profesor: profesor@columna.test / password  →  {$teacher->full_name}");
         }
 
+        // Cont de diriginte cu rolul Diriginte (nu Profesor) — altă fișă de profesor, cu clasă
+        // de diriginte proprie (user_id e 1-la-1, nu poate fi aceeași fișă ca profesor@ de mai sus).
+        $homeroomTeacher = Teacher::query()
+            ->whereHas('homeroomClasses')
+            ->when($teacher, fn ($q) => $q->whereKeyNot($teacher->id))
+            ->orderBy('id')
+            ->first();
+
+        if ($homeroomTeacher) {
+            $diriginte = User::updateOrCreate(
+                ['email' => 'diriginte@columna.test'],
+                ['name' => DemoAccounts::MARKER.' '.$homeroomTeacher->full_name, 'username' => 'diriginte', 'password' => 'password'],
+            );
+            $diriginte->forceFill(['email_verified_at' => now()])->save();
+            $diriginte->syncRoles([UserRole::Diriginte->value]);
+            $homeroomTeacher->update(['user_id' => $diriginte->id]);
+
+            $this->command->info("Diriginte: diriginte@columna.test / password  →  {$homeroomTeacher->full_name}");
+        }
+
         $students = Student::query()
             ->whereHas('grades', fn ($q) => $q->whereNotNull('value'))
             ->orderByDesc('id')
-            ->take(3)
+            ->take(4)
             ->get();
 
-        if ($students->count() < 3) {
+        if ($students->count() < 4) {
             $this->command->warn('Nu sunt destui elevi cu note numerice pentru conturile demo.');
 
             return;
@@ -68,7 +89,18 @@ class DemoAccountsSeeder extends Seeder
         $parent->syncRoles([UserRole::Parinte->value]);
         $parent->students()->sync([$students[1]->id, $students[2]->id]);
 
+        // Al doilea cont de elev (fișă distinctă, util pentru testare cu doi conturi elev simultan)
+        $student2 = $students[3];
+        $elev2 = User::updateOrCreate(
+            ['email' => 'elev2@columna.test'],
+            ['name' => DemoAccounts::MARKER.' '.$student2->full_name, 'username' => 'elev2', 'password' => 'password'],
+        );
+        $elev2->forceFill(['email_verified_at' => now()])->save();
+        $elev2->syncRoles([UserRole::Elev->value]);
+        $student2->update(['user_id' => $elev2->id]);
+
         $this->command->info("Elev:    elev@columna.test / password  →  {$student->full_name}");
         $this->command->info("Părinte: parinte@columna.test / password  →  copii: {$students[1]->full_name}, {$students[2]->full_name}");
+        $this->command->info("Elev 2:  elev2@columna.test / password  →  {$student2->full_name}");
     }
 }
