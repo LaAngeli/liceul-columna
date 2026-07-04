@@ -2,6 +2,7 @@
 
 use App\Enums\UserRole;
 use App\Filament\Resources\SchoolClasses\Pages\CreateSchoolClass;
+use App\Filament\Resources\SchoolClasses\Pages\EditSchoolClass;
 use App\Models\AcademicYear;
 use App\Models\SchoolClass;
 use App\Models\Teacher;
@@ -57,4 +58,31 @@ it('permite crearea când dirigintele e specificat', function () {
         ->assertHasNoFormErrors();
 
     expect(SchoolClass::query()->where('homeroom_teacher_id', $teacher->id)->exists())->toBeTrue();
+});
+
+it('permite RETRAGEREA dirigintelui la editare (vacanță — nu e obligatoriu pe edit)', function () {
+    $year = AcademicYear::factory()->create();
+    $teacher = Teacher::factory()->create();
+    $class = SchoolClass::factory()->for($year)->create(['homeroom_teacher_id' => $teacher->id]);
+
+    Livewire::test(EditSchoolClass::class, ['record' => $class->getRouteKey()])
+        ->fillForm(['homeroom_teacher_id' => null])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($class->refresh()->homeroom_teacher_id)->toBeNull();
+});
+
+it('permite SCHIMBAREA dirigintelui la editare', function () {
+    $year = AcademicYear::factory()->create();
+    $old = Teacher::factory()->create();
+    $new = Teacher::factory()->create();
+    $class = SchoolClass::factory()->for($year)->create(['homeroom_teacher_id' => $old->id]);
+
+    Livewire::test(EditSchoolClass::class, ['record' => $class->getRouteKey()])
+        ->fillForm(['homeroom_teacher_id' => $new->id])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($class->refresh()->homeroom_teacher_id)->toBe($new->id);
 });

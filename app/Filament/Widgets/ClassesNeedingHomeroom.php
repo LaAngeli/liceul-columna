@@ -14,10 +14,13 @@ use Filament\Widgets\TableWidget;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Tablou ACȚIONABIL (admin + conducere): unicul loc unde se rezolvă EXCEPȚIA „clasă fără diriginte".
- * Invariantul (orice clasă cu elevi are diriginte) e impus la creare prin SchoolClassForm; aici apar
- * doar cazurile reziduale (import legacy / vacanță prin nullOnDelete), cu numire pe loc. Se ascunde
- * automat când toate clasele active au diriginte — deci nu e un indicator de rutină.
+ * Tablou ACȚIONABIL: unicul loc unde se rezolvă EXCEPȚIA „clasă fără diriginte". Invariantul (orice
+ * clasă nouă se creează cu diriginte) e impus la creare prin SchoolClassForm; aici apar doar cazurile
+ * reziduale (import legacy / vacanță prin nullOnDelete sau retragere deliberată), cu numire pe loc.
+ *
+ * Vizibil DOAR celor ce pot opera efectiv pe clase — canConfigureSchool() (super-admin / director /
+ * administrator operațional), adică fix cei ce pot edita/retrage dirigintele (ManagedByConfigurators).
+ * Se ascunde automat când toate clasele active au diriginte — deci nu e un indicator de rutină.
  */
 class ClassesNeedingHomeroom extends TableWidget
 {
@@ -30,7 +33,7 @@ class ClassesNeedingHomeroom extends TableWidget
         $user = auth('web')->user();
 
         return $user !== null
-            && $user->isAdministrator()
+            && $user->canConfigureSchool()
             && SchoolClass::query()->withoutHomeroom()->exists();
     }
 

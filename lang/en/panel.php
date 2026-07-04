@@ -521,7 +521,7 @@ return [
             'name_placeholder' => 'e.g.: VIII',
             'section' => 'Section letter',
             'section_placeholder' => 'e.g.: A / 1',
-            'homeroom_help' => 'Required: every class must have a homeroom teacher.',
+            'homeroom_help' => 'Required when creating. Can be changed or removed later by the responsible administration (vacancy).',
         ],
         'academic_record' => [
             'value' => 'Average',

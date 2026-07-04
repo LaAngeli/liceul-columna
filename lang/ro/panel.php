@@ -534,7 +534,7 @@ return [
             'name_placeholder' => 'ex: VIII',
             'section' => 'Litera/secția',
             'section_placeholder' => 'ex: A / 1',
-            'homeroom_help' => 'Obligatoriu: fiecare clasă trebuie să aibă un diriginte.',
+            'homeroom_help' => 'Obligatoriu la creare. Poate fi schimbat sau retras ulterior de administrația responsabilă (vacanță).',
         ],
         'academic_record' => [
             'value' => 'Media',

@@ -34,10 +34,11 @@ class SchoolClassForm
                     ->label(__('panel.forms.school_class.section'))
                     ->placeholder(__('panel.forms.school_class.section_placeholder'))
                     ->maxLength(4),
-                // Diriginte OBLIGATORIU pe calea normală: o clasă cu elevi nu trebuie să rămână fără
-                // diriginte (invariant organizatoric). DB-ul rămâne nullable intenționat — import
-                // legacy + vacanță la mijloc de an (nullOnDelete) au nevoie de o stare tranzitorie,
-                // rezolvată prin widget-ul „Clase fără diriginte".
+                // Diriginte OBLIGATORIU doar la CREARE — o clasă nouă nu se naște orfană. La EDITARE
+                // rămâne opțional: administrația responsabilă (canConfigureSchool) poate schimba SAU
+                // retrage dirigintele după necesitate (vacanță). DB-ul e nullable intenționat — import
+                // legacy + vacanță prin nullOnDelete. Reziduul e rezolvat în widget-ul „Clase fără
+                // diriginte", vizibil doar celor ce pot opera pe clase.
                 Select::make('homeroom_teacher_id')
                     ->label(__('panel.tables.school_classes.homeroom'))
                     ->helperText(__('panel.forms.school_class.homeroom_help'))
@@ -45,7 +46,7 @@ class SchoolClassForm
                     ->getOptionLabelFromRecordUsing(fn (Teacher $record): string => $record->full_name)
                     ->searchable(['last_name', 'first_name'])
                     ->preload()
-                    ->required(),
+                    ->required(fn (string $operation): bool => $operation === 'create'),
             ]);
     }
 }

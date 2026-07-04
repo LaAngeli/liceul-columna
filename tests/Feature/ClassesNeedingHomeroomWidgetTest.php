@@ -55,26 +55,29 @@ it('e ascuns când clasa fără diriginte e goală (fără elevi)', function () 
     expect(ClassesNeedingHomeroom::canView())->toBeFalse();
 });
 
-it('apare pentru admin și conducere când există clase ACTIVE fără diriginte', function () {
+it('apare doar pentru administrația care poate configura clase (super/director/AO)', function () {
     $year = AcademicYear::factory()->create();
     activeClassWithoutHomeroom($year);
 
+    // canConfigureSchool() — fix cei ce pot edita/retrage dirigintele.
     $this->actingAs(homeroomTestUser(UserRole::Admin));
     expect(ClassesNeedingHomeroom::canView())->toBeTrue();
 
     $this->actingAs(homeroomTestUser(UserRole::Director));
     expect(ClassesNeedingHomeroom::canView())->toBeTrue();
 
-    $this->actingAs(homeroomTestUser(UserRole::PrimVicedirector));
-    expect(ClassesNeedingHomeroom::canView())->toBeTrue();
-
     $this->actingAs(homeroomTestUser(UserRole::AdministratorOperational));
     expect(ClassesNeedingHomeroom::canView())->toBeTrue();
 });
 
-it('NU apare pentru profesor sau diriginte', function () {
+it('NU apare pentru cei ce nu pot opera pe clase (prim-vicedirector, profesor, diriginte)', function () {
     $year = AcademicYear::factory()->create();
     activeClassWithoutHomeroom($year);
+
+    // Prim-vicedirectorul e conducere, dar NU configurează clase (nu poate numi/retrage diriginte)
+    // → indicatorul nu-i e util (nu poate opera pe el).
+    $this->actingAs(homeroomTestUser(UserRole::PrimVicedirector));
+    expect(ClassesNeedingHomeroom::canView())->toBeFalse();
 
     $this->actingAs(homeroomTestUser(UserRole::Profesor));
     expect(ClassesNeedingHomeroom::canView())->toBeFalse();
