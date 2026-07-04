@@ -1,16 +1,16 @@
 /**
  * Grila „Personal" (homepage, secțiunea 07).
  * - 4 plăci pe orizontală, cu bare (spine) de înălțime EGALĂ (grid items-stretch + h-full;
- *   rolul e plafonat la 2 rânduri → înălțime consistentă indiferent de membru).
- * - TOATE cele 4 sloturi rotesc LIVE, aleatoriu, din TOT personalul liceului (toate grupurile
- *   de pe /personal — administrație, învățători, profesori, activități extrașcolare). Nimeni
- *   nu e fixat pe o poziție (nici directorul) — fiecare swap aduce un membru nou în loc al
- *   unuia ascuns (fără dubluri vizibile).
+ *   rolul e plafonat la 2 rânduri, deci înălțimea e fixată de director).
+ * - Daniță Ghenadie (members[0]) e PINNED mereu pe prima poziție (STATIC, nu rotește);
+ *   celelalte 3 sloturi rotesc LIVE membri aleși random din TOT restul personalului (toate
+ *   grupurile de pe /personal — administrație, învățători, profesori, activități
+ *   extrașcolare), fiecare adus în loc al unuia ascuns (fără dubluri vizibile).
  * - Animație: cross-fade SECVENȚIAL cu transform, nu doar opacity — ieșire rapidă și ușor
  *   „retrasă" (ease-in), intrare mai lentă cu aterizare fină (ease-out expo), ca o placă ce
- *   se așază la loc. Slotul 1 tranziționează, apoi slotul 2, ... apoi slotul 4; după ce ciclul
- *   se închide se așteaptă ~CYCLE_PAUSE_MS și se reia. Doar `opacity`+`transform` pe sloturi
- *   FIXE (compozit GPU, fără reflow/layout shift → performant).
+ *   se așază la loc. Slotul 1 tranziționează, apoi slotul 2, apoi slotul 3; după ce ciclul se
+ *   închide se așteaptă ~CYCLE_PAUSE_MS și se reia. Doar `opacity`+`transform` pe sloturi FIXE
+ *   (compozit GPU, fără reflow/layout shift → performant).
  * - Bune practici: rulează DOAR în viewport (IntersectionObserver), se oprește la hover/focus,
  *   respectă `prefers-reduced-motion` (un singur amestec, fără rotație).
  */
@@ -31,7 +31,7 @@ interface Frame {
     phase: 'out' | 'in';
 }
 
-const ROTATE_SLOTS = 4;
+const ROTATE_SLOTS = 3;
 const OUT_MS = 260; // ieșire — rapidă, ease-in (placa „se retrage")
 const IN_MS = 480; // intrare — mai lentă, aterizare fină (ease-out)
 const OUT_EASE = 'cubic-bezier(.4,0,1,1)';
@@ -83,7 +83,8 @@ function Plate({ m }: { m: LeadershipMember }) {
 }
 
 export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
-    const pool = members;
+    const director = members[0];
+    const pool = members.slice(1);
 
     // Init determinist (SSR-safe); randomizăm după montare ca să evităm hydration mismatch.
     const [shown, setShown] = useState<LeadershipMember[]>(() => pool.slice(0, ROTATE_SLOTS));
@@ -97,7 +98,7 @@ export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
     const rootRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Primul amestec: ROTATE_SLOTS vizibili + restul în „sac" (de introdus în ciclul curent, fără repetare).
+        // Primul amestec: 3 vizibili + restul în „sac" (de introdus în ciclul curent, fără repetare).
         const deck = shuffle(pool);
         const first = deck.slice(0, ROTATE_SLOTS);
         shownRef.current = first;
@@ -179,7 +180,7 @@ return;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    if (!pool.length) {
+    if (!director) {
 return null;
 }
 
@@ -200,6 +201,9 @@ return null;
                 pausedRef.current = false;
             }}
         >
+            <article className="h-full">
+                <Plate m={director} />
+            </article>
             {shown.map((m, i) => {
                 const f = frames[i];
                 const hidden = f.opacity === 0;
