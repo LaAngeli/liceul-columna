@@ -134,6 +134,10 @@ return null;
                             </h2>
                             <p className="mt-1.5 text-sm leading-relaxed text-brand-gray">
                                 {t('cookies.text', 'Folosim cookies necesare pentru funcționarea site-ului și, doar cu acordul tău, cookies pentru preferințe și statistici.')}{' '}
+                                <LocaleLink href="/politica-cookies" className="font-semibold text-brand-navy underline decoration-brand-green decoration-2 underline-offset-2">
+                                    {t('cookies.policy_cookies', 'Politica cookie-uri')}
+                                </LocaleLink>
+                                {' · '}
                                 <LocaleLink href="/confidentialitate" className="font-semibold text-brand-navy underline decoration-brand-green decoration-2 underline-offset-2">
                                     {t('cookies.policy', 'Politica de confidențialitate')}
                                 </LocaleLink>

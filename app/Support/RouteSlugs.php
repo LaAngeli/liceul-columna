@@ -106,7 +106,14 @@ final class RouteSlugs
             'sponsorizare' => ['ru' => 'sponsorstvo', 'en' => 'sponsorship'],
             'contacte' => ['ru' => 'kontakty', 'en' => 'contact'],
             'multumim' => ['ru' => 'spasibo', 'en' => 'thank-you'],
+
+            // Pagini juridice. „confidentialitate" (Politica de confidențialitate) exista deja;
+            // adăugăm Termeni și condiții + Politica cookie-uri. RU „usloviya-i-polozheniya"
+            // (Условия и положения) / EN „terms-and-conditions" — formule juridice standard.
+            // „cookie" rămâne împrumut internațional identic RO/EN/RU (nu se transliterează).
             'confidentialitate' => ['ru' => 'konfidentsialnost', 'en' => 'privacy'],
+            'termeni-si-conditii' => ['ru' => 'usloviya-i-polozheniya', 'en' => 'terms-and-conditions'],
+            'politica-cookies' => ['ru' => 'politika-cookie', 'en' => 'cookie-policy'],
         ];
     }
 

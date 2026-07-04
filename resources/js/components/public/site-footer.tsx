@@ -114,27 +114,43 @@ export function SiteFooter() {
             </Container>
 
             <div className="border-t border-white/15">
-                <Container className="flex flex-col items-center justify-between gap-2 py-5 text-xs text-white/60 sm:flex-row">
-                    <p>
-                        © {new Date().getFullYear()} IPL „Liceul Columna”. {t('footer.rights', 'Toate drepturile rezervate.')}{' '}
-                        <LocaleLink href="/confidentialitate" className="underline decoration-white/30 underline-offset-2 hover:text-white/90">
+                <Container className="py-5">
+                    {/* Bară juridică — linkuri legale separate de „·" (același idiom ca bara utilitară
+                        din header); nu aglomerează sitemap-ul de 5 coloane, e locul convențional pentru
+                        aceste pagini. „Setări cookies" e o ACȚIUNE (redeschide bannerul), nu o pagină. */}
+                    <nav aria-label={t('footer.legal', 'Informații legale')} className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-2 text-xs text-white/60 sm:justify-start">
+                        <LocaleLink href="/termeni-si-conditii" className="transition-colors hover:text-white/90">
+                            {t('footer.terms', 'Termeni și condiții')}
+                        </LocaleLink>
+                        <span aria-hidden="true" className="text-white/25">·</span>
+                        <LocaleLink href="/confidentialitate" className="transition-colors hover:text-white/90">
                             {t('footer.privacy', 'Confidențialitate')}
                         </LocaleLink>
-                        {' · '}
+                        <span aria-hidden="true" className="text-white/25">·</span>
+                        <LocaleLink href="/politica-cookies" className="transition-colors hover:text-white/90">
+                            {t('footer.cookies', 'Politica cookie-uri')}
+                        </LocaleLink>
+                        <span aria-hidden="true" className="text-white/25">·</span>
                         <button
                             type="button"
                             onClick={() => window.dispatchEvent(new CustomEvent('cookie-settings:open'))}
-                            className="underline decoration-white/30 underline-offset-2 hover:text-white/90"
+                            className="transition-colors hover:text-white/90"
                         >
                             {t('cookies.settings', 'Setări cookies')}
                         </button>
-                    </p>
-                    <p>
-                        Created by{' '}
-                        <a href="https://advista.marketing/" target="_blank" rel="noopener noreferrer" className="font-medium transition-colors hover:text-[rgb(228,81,55)]">
-                            AdVista
-                        </a>
-                    </p>
+                    </nav>
+                    {/* Copyright */}
+                    <div className="mt-4 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-4 text-xs text-white/55 sm:flex-row">
+                        <p>
+                            © {new Date().getFullYear()} IPL „Liceul Columna”. {t('footer.rights', 'Toate drepturile rezervate.')}
+                        </p>
+                        <p>
+                            Created by{' '}
+                            <a href="https://advista.marketing/" target="_blank" rel="noopener noreferrer" className="font-medium transition-colors hover:text-[rgb(228,81,55)]">
+                                AdVista
+                            </a>
+                        </p>
+                    </div>
                 </Container>
             </div>
         </footer>

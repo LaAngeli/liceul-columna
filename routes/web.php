@@ -140,7 +140,10 @@ $publicRoutes = function (string $locale): void {
     Route::inertia($p('/contacte'), 'public/contacte')->name('contacte'); // pagină de contact bespoke (split + hartă + formular)
     Route::post($p('/contacte'), [ContactController::class, 'store'])->middleware('throttle:6,1')->name('contacte.store');
     Route::get($p('/contacte/multumim'), [ContactController::class, 'thanks'])->name('contacte.thanks');
-    publicPage($p('/confidentialitate'), 'confidentialitate', 'Politica de confidențialitate', [['title' => 'Confidențialitate']], 'Cum protejăm datele cu caracter personal, conform Legii 133/2011.');
+    // Pagini juridice (footer) — motorul generic PublicPageContent + slug tradus RU/EN.
+    publicPage($p('/confidentialitate'), 'confidentialitate', 'Politica de confidențialitate', [['title' => 'Confidențialitate']], 'Cum protejăm datele cu caracter personal ale elevilor, părinților și vizitatorilor, conform Legii nr. 133/2011.');
+    publicPage($p('/termeni-si-conditii'), 'termeni-si-conditii', 'Termeni și condiții', [['title' => 'Termeni și condiții']], 'Termenii de utilizare a site-ului columna.md și a serviciilor online ale Liceului Columna.');
+    publicPage($p('/politica-cookies'), 'politica-cookies', 'Politica privind cookie-urile', [['title' => 'Politica cookie-uri']], 'Ce cookie-uri folosim, în ce scop și cum îți gestionezi preferințele.');
 };
 
 // RO la root + RU/EN cu prefix de URL (+ slug tradus, vezi RouteSlugs).
