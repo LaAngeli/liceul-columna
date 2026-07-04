@@ -28,6 +28,12 @@ class AudiencesPendingAssignment extends StatsOverviewWidget
     // cererii (instanța de widget e proaspătă per request).
     private static ?int $cachedPendingCount = null;
 
+    // Cap de panou (bandă de categorie cockpit).
+    protected function getHeading(): ?string
+    {
+        return __('panel.widgets.audiences_pending.title');
+    }
+
     public static function canView(): bool
     {
         $user = auth('web')->user();

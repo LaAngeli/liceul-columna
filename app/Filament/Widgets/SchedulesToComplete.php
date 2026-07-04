@@ -30,6 +30,12 @@ class SchedulesToComplete extends StatsOverviewWidget
     /** @var list<ScheduleType> */
     private static array $cachedMissingTypes = [];
 
+    // Cap de panou (bandă de categorie cockpit).
+    protected function getHeading(): ?string
+    {
+        return __('panel.widgets.schedules_to_complete.heading');
+    }
+
     public static function canView(): bool
     {
         $user = auth('web')->user();

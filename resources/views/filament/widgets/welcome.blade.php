@@ -1,36 +1,42 @@
-{{-- Banner de bun-venit (dashboard staff).
-     ⚠️ Stilurile sunt în `resources/css/filament/admin/theme.css` (NU inline): widget-ul e o
-     componentă Livewire cu UN SINGUR element rădăcină (`.fi-welcome`). Un bloc `<style>` frate al
-     rădăcinii era eliminat la morphing-ul Livewire → cardul apărea complet nestilizat. --}}
+{{-- Card-EROU dashboard staff (hybrid V-D). Stilurile sunt în theme.css (widget Livewire cu un
+     singur root — un `<style>` frate ar fi eliminat la morphing). --}}
 <div class="fi-welcome">
     <div class="fi-welcome__bar">
         <div class="fi-welcome__intro">
-            {{-- Avatar cu inițiale (oglindește avatarul din topbar). Decorativ → aria-hidden;
-                 numele complet e deja anunțat în salut. --}}
             <span class="fi-welcome__avatar" aria-hidden="true">{{ $initials }}</span>
-
             <div class="fi-welcome__main">
                 <p class="fi-welcome__greeting">{{ $greeting }}, <span>{{ $name }}</span></p>
+                @if ($roleLabel !== null)
+                    <span class="fi-welcome__role">
+                        <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+                             style="width: 0.85rem; height: 0.85rem; flex-shrink: 0;">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                        </svg>
+                        {{ $roleLabel }}
+                    </span>
+                @endif
                 <p class="fi-welcome__date">{{ \Illuminate\Support\Str::ucfirst($date) }}</p>
             </div>
         </div>
 
-        @if ($roleLabel !== null)
-            <span class="fi-welcome__role">
-                {{-- width/height + style inline: Filament v4 aplică un reset `svg { width: 100% }`;
-                     fără dimensiuni explicite, iconița devine gigantică. --}}
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
-                     style="width: 1rem; height: 1rem; flex-shrink: 0;">
-                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-                </svg>
-                {{ $roleLabel }}
-            </span>
+        @if ($primaryValue !== null)
+            <div class="fi-hero__metric">
+                <p class="fi-hero__metric-label">{{ $primaryLabel }}</p>
+                <p class="fi-hero__metric-value">{{ number_format((int) $primaryValue, 0, ',', '.') }}</p>
+                @if ($secondaryLine !== null)
+                    <p class="fi-hero__metric-secondary">{{ $secondaryLine }}</p>
+                @endif
+                @if ($sparkPoints !== null)
+                    <svg class="fi-hero__spark" viewBox="0 0 260 34" preserveAspectRatio="none" aria-hidden="true">
+                        <polyline points="{{ $sparkPoints }}" fill="none" stroke="currentColor" stroke-width="2.5" vector-effect="non-scaling-stroke" />
+                    </svg>
+                @endif
+            </div>
         @endif
     </div>
 
     @if ($missingTeacherProfile)
-        {{-- Profesor/diriginte cu rol dar fără fișă Teacher: dashboard-ul „de rol" se ascunde — îl
-             îndrumăm să contacteze administrația ca să-i atribuie o fișă. --}}
+        {{-- Profesor/diriginte cu rol dar fără fișă Teacher: metrica lipsește — îndrumare. --}}
         <div class="fi-welcome-hint" role="status">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
                  style="width: 1.125rem; height: 1.125rem; flex-shrink: 0;">

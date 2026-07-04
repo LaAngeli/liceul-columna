@@ -7,7 +7,7 @@ use App\Enums\UserRole;
 use App\Filament\Resources\Grades\Pages\EditGrade;
 use App\Filament\Resources\SchoolClasses\Pages\EditSchoolClass;
 use App\Filament\Resources\Students\Pages\EditStudent;
-use App\Filament\Widgets\PendingApprovalsOverview;
+use App\Filament\Widgets\NeedsAttention;
 use App\Filament\Widgets\SchoolTrendChart;
 use App\Models\AcademicYear;
 use App\Models\AdmissionRequest;
@@ -29,23 +29,28 @@ beforeEach(function () {
     foreach (UserRole::cases() as $role) {
         Role::findOrCreate($role->value, 'web');
     }
+
+    // Cache-urile statice memoizate per-request scurg între teste (același proces PHP) — resetăm.
+    NeedsAttention::flushCache();
 });
 
-it('PendingApprovalsOverview se afișează administrației și ascunde profesorului', function () {
+it('NeedsAttention (triaj) se afișează administrației și se ascunde profesorului fără fișă/elemente', function () {
     $director = User::factory()->create();
     $director->assignRole(UserRole::Director->value);
 
     $this->actingAs($director);
-    expect(PendingApprovalsOverview::canView())->toBeTrue();
+    expect(NeedsAttention::canView())->toBeTrue();
 
+    // Profesor FĂRĂ fișă Teacher și fără drepturi de aprobare → niciun element de triaj → ascuns.
     $prof = User::factory()->create();
     $prof->assignRole(UserRole::Profesor->value);
 
+    NeedsAttention::flushCache(); // memoizat per-request; testul schimbă utilizatorul curent
     $this->actingAs($prof);
-    expect(PendingApprovalsOverview::canView())->toBeFalse();
+    expect(NeedsAttention::canView())->toBeFalse();
 });
 
-it('PendingApprovalsOverview randează corect și afișează contul de corecții pending', function () {
+it('NeedsAttention (triaj) randează și afișează contul de corecții pending', function () {
     $director = User::factory()->create();
     $director->assignRole(UserRole::Director->value);
 
@@ -54,7 +59,7 @@ it('PendingApprovalsOverview randează corect și afișează contul de corecții
 
     $this->actingAs($director);
 
-    Livewire::test(PendingApprovalsOverview::class)
+    Livewire::test(NeedsAttention::class)
         ->assertOk()
         ->assertSee('Corecții note')
         ->assertSee('3');

@@ -146,9 +146,17 @@ return [
         'welcome' => [
             'missing_teacher' => 'Contul tău nu e încă legat de o fișă de profesor — administrația trebuie să o atribuie pentru a vedea clasele și catalogul tău aici.',
         ],
+        'hero' => [
+            'accounts' => 'Conturi în sistem',
+            'students' => 'Elevi înmatriculați',
+            'my_students' => 'Elevii mei',
+            'secondary_admin' => ':students elevi · :teachers profesori',
+            'secondary_mgmt' => ':classes clase · :teachers profesori',
+            'secondary_teacher' => ':classes clase · :grades note introduse',
+        ],
         'classes_needing_homeroom' => [
-            'heading' => 'Clase active fără diriginte',
-            'description' => 'Clase cu elevi care necesită numirea unui diriginte.',
+            'heading' => 'Clase fără diriginte — de rezolvat',
+            'description' => 'Orice clasă cu elevi trebuie să aibă diriginte. Cazurile de mai jos (reziduu din import sau vacanță) trebuie rezolvate — numește un diriginte acum.',
             'enrollments' => 'Elevi',
             'assign' => [
                 'label' => 'Numește diriginte',
@@ -159,13 +167,22 @@ return [
             ],
         ],
         'schedules_to_complete' => [
+            'heading' => 'Orare de completat',
             'value' => 'De completat',
+        ],
+        'quick_actions' => [
+            'heading' => 'Acțiuni rapide',
+            'new_class' => 'Clasă nouă',
+        ],
+        'needs_attention' => [
+            'heading' => 'Necesită atenție',
         ],
         'audiences_pending' => [
             'title' => 'Audiențe fără responsabil de domeniu',
             'description' => 'Atribuie un responsabil din formularul de utilizator (Domenii de audiență).',
         ],
         'pending_approvals' => [
+            'heading' => 'Aprobări în așteptare',
             'grade_corrections' => [
                 'title' => 'Corecții note',
                 'pending' => 'În așteptare — solicitate de profesori',
@@ -517,6 +534,7 @@ return [
             'name_placeholder' => 'ex: VIII',
             'section' => 'Litera/secția',
             'section_placeholder' => 'ex: A / 1',
+            'homeroom_help' => 'Obligatoriu: fiecare clasă trebuie să aibă un diriginte.',
         ],
         'academic_record' => [
             'value' => 'Media',

@@ -48,6 +48,13 @@ class SchoolClassesTable
                     ->placeholder(__('panel.common.all'))
                     ->trueLabel(__('panel.tables.school_classes.homeroom_only_no'))
                     ->falseLabel(__('panel.tables.school_classes.homeroom_only_yes'))
+                    // Drill-down din DirectorOverview: `?without_homeroom=1` pre-bifează filtrul
+                    // (Filament v4 NU citește `tableFilters` din query string — vezi memoria).
+                    ->default(fn (): ?bool => match (request()->query('without_homeroom')) {
+                        '1' => true,
+                        '0' => false,
+                        default => null,
+                    })
                     ->queries(
                         // Extras într-o metodă privată ca să avem typehint generic Builder<SchoolClass>
                         // pentru phpstan/larastan — scope-ul withoutHomeroom() trăiește pe model.

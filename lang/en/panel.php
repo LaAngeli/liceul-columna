@@ -136,9 +136,17 @@ return [
         'welcome' => [
             'missing_teacher' => 'Your account is not yet linked to a teacher profile — administration must assign one so your classes and gradebook appear here.',
         ],
+        'hero' => [
+            'accounts' => 'Accounts in system',
+            'students' => 'Enrolled students',
+            'my_students' => 'My students',
+            'secondary_admin' => ':students students · :teachers teachers',
+            'secondary_mgmt' => ':classes classes · :teachers teachers',
+            'secondary_teacher' => ':classes classes · :grades grades entered',
+        ],
         'classes_needing_homeroom' => [
-            'heading' => 'Active classes without a homeroom teacher',
-            'description' => 'Classes with students that need a homeroom teacher assigned.',
+            'heading' => 'Classes without a homeroom teacher — to resolve',
+            'description' => 'Every class with students must have a homeroom teacher. The cases below (import residue or a vacancy) must be resolved — assign one now.',
             'enrollments' => 'Students',
             'assign' => [
                 'label' => 'Assign homeroom teacher',
@@ -149,13 +157,22 @@ return [
             ],
         ],
         'schedules_to_complete' => [
+            'heading' => 'Schedules to complete',
             'value' => 'To complete',
+        ],
+        'quick_actions' => [
+            'heading' => 'Quick actions',
+            'new_class' => 'New class',
+        ],
+        'needs_attention' => [
+            'heading' => 'Needs attention',
         ],
         'audiences_pending' => [
             'title' => 'Audiences without a domain owner',
             'description' => 'Assign an owner from the user form (Audience domains).',
         ],
         'pending_approvals' => [
+            'heading' => 'Pending approvals',
             'grade_corrections' => [
                 'title' => 'Grade corrections',
                 'pending' => 'Pending — submitted by teachers',
@@ -504,6 +521,7 @@ return [
             'name_placeholder' => 'e.g.: VIII',
             'section' => 'Section letter',
             'section_placeholder' => 'e.g.: A / 1',
+            'homeroom_help' => 'Required: every class must have a homeroom teacher.',
         ],
         'academic_record' => [
             'value' => 'Average',

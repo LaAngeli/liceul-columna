@@ -14,8 +14,10 @@ use Filament\Widgets\TableWidget;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Tablou ACȚIONABIL (admin + conducere): clasele rămase fără diriginte, cu numire pe loc.
- * Se ascunde automat când toate clasele au diriginte.
+ * Tablou ACȚIONABIL (admin + conducere): unicul loc unde se rezolvă EXCEPȚIA „clasă fără diriginte".
+ * Invariantul (orice clasă cu elevi are diriginte) e impus la creare prin SchoolClassForm; aici apar
+ * doar cazurile reziduale (import legacy / vacanță prin nullOnDelete), cu numire pe loc. Se ascunde
+ * automat când toate clasele active au diriginte — deci nu e un indicator de rutină.
  */
 class ClassesNeedingHomeroom extends TableWidget
 {

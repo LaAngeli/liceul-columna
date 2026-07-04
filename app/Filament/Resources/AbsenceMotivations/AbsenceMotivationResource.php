@@ -121,7 +121,7 @@ class AbsenceMotivationResource extends Resource
 
     /**
      * Cererile în așteptare scoped pe utilizatorul curent, memoizate per request.
-     * Sursă unică pentru badge + culoare badge + widget PendingApprovalsOverview — evită rularea
+     * Sursă unică pentru badge + culoare badge + widget-ul de triaj NeedsAttention — evită rularea
      * scope-ului (getEloquentQuery) de 3 ori pe randarea unui dashboard.
      *
      * Selectează doar coloanele de care depinde isOverdue() (status + created_at), ca să nu
