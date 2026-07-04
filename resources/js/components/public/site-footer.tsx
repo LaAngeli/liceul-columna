@@ -1,8 +1,10 @@
-import { Mail, MapPin, Phone } from 'lucide-react';
+import { ChevronDown, Code2, Mail, MapPin, Phone } from 'lucide-react';
+import { useState } from 'react';
 import { LocaleLink } from '@/components/locale-link';
 import { Container, FourStar } from '@/components/public/brand';
 import { useTranslations } from '@/lib/i18n';
 import { footerNav, siteContact } from '@/lib/public-navigation';
+import { cn } from '@/lib/utils';
 
 function FacebookIcon({ className }: { className?: string }) {
     return (
@@ -26,6 +28,21 @@ const VALUES: [string, string][] = [
 
 export function SiteFooter() {
     const t = useTranslations();
+    // Acordeon doar pe mobil (<sm): secțiunile hărții de linkuri se pliază pe rânduri uniforme.
+    // De la sm în sus totul e vizibil (grilă), deci starea e ignorată vizual.
+    const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+    const toggleSection = (title: string) =>
+        setOpenSections((prev) => {
+            const next = new Set(prev);
+
+            if (next.has(title)) {
+                next.delete(title);
+            } else {
+                next.add(title);
+            }
+
+            return next;
+        });
 
     const contactRows = [
         { icon: MapPin, value: siteContact.address, href: `https://maps.google.com/?q=${encodeURIComponent(siteContact.address)}`, external: true },
@@ -69,38 +86,72 @@ export function SiteFooter() {
                                 </a>
                             </li>
                         ))}
+                        {/* Credit agenție — a 4-a linie a listei de contact, în același stil (iconiță verde
+                            outline), dar ușor mai discretă. DOAR desktop (sm+); pe mobil rămâne în bara de jos. */}
+                        <li className="hidden sm:block">
+                            <a href="https://advista.marketing/" target="_blank" rel="noopener noreferrer" className="group inline-flex min-h-11 items-center gap-2.5 text-white/55 transition-colors hover:text-white md:min-h-9">
+                                <Code2 className="size-4 shrink-0 text-brand-green" />
+                                <span>
+                                    Created by <span className="font-medium transition-colors group-hover:text-[rgb(228,81,55)]">AdVista</span>
+                                </span>
+                            </a>
+                        </li>
                     </ul>
                 </div>
 
-                {/* Valori */}
-                <ul className="flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-white/15 py-7">
+                {/* Valori — pe mobil (<sm) ascundem 2 (Libertate, Națiune) ca cele 5 rămase să încapă pe UN rând;
+                    de la sm în sus rămân toate 7 cu wrap, ca înainte. */}
+                <ul className="flex flex-nowrap items-center justify-center gap-x-2 border-b border-white/15 py-7 sm:flex-wrap sm:gap-x-2 sm:gap-y-3">
                     {VALUES.map(([key, fb], i) => (
-                        <li key={key} className="flex items-center gap-2">
-                            <span className="text-[0.8125rem] font-bold tracking-[0.08em] text-white/90 uppercase sm:tracking-[0.14em]" style={{ fontFamily: 'var(--font-display)' }}>
+                        <li
+                            key={key}
+                            className={`items-center gap-2 ${[2, 5].includes(i) ? 'hidden sm:flex' : 'flex'}`}
+                        >
+                            <span
+                                className="font-[family-name:var(--font-brand)] text-[clamp(0.6rem,calc(8vw_-_1.25rem),0.8rem)] font-bold tracking-[0.03em] whitespace-nowrap text-white/90 uppercase sm:font-[family-name:var(--font-display)] sm:text-[0.8125rem] sm:tracking-[0.14em]"
+                            >
                                 {t(`values.${key}`, fb)}
                             </span>
-                            {i < VALUES.length - 1 && <FourStar className="size-2.5 text-brand-green" />}
+                            {i < VALUES.length - 1 && <FourStar className="size-2.5 shrink-0 text-brand-green" />}
                         </li>
                     ))}
                 </ul>
 
-                {/* Sitemap */}
-                <nav className="grid grid-cols-2 gap-8 py-10 sm:grid-cols-3 lg:grid-cols-5">
-                    {footerNav.map((column) => (
-                        <div key={column.title}>
-                            <h3 className="eyebrow text-white/55">{t(column.tKey, column.title)}</h3>
-                            <ul className="mt-4 space-y-1">
-                                {column.links.map((link) => (
-                                    <li key={link.href}>
-                                        <LocaleLink href={link.href} className="flex min-h-11 items-center gap-2 text-sm text-white/80 hover:text-white md:min-h-10">
-                                            <FourStar className="size-2 shrink-0 text-brand-green/70" />
-                                            {link.tKey ? t(link.tKey, link.title) : link.title}
-                                        </LocaleLink>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    ))}
+                {/* Sitemap — pe mobil (<sm) acordeon uniform: fiecare secțiune = un rând identic, plin pe lățime,
+                    pliabil la atingere; de la sm în sus redevine grila de coloane cu tot conținutul vizibil. */}
+                <nav className="py-6 sm:grid sm:grid-cols-3 sm:gap-8 sm:py-10 lg:grid-cols-5">
+                    {footerNav.map((column) => {
+                        const isOpen = openSections.has(column.title);
+
+                        return (
+                            <div key={column.title} className="border-b border-white/10 last:border-b-0 sm:border-b-0">
+                                <h3 className="m-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleSection(column.title)}
+                                        aria-expanded={isOpen}
+                                        className="eyebrow flex w-full items-center justify-between gap-3 py-4 text-left text-white/55 sm:pointer-events-none sm:py-0"
+                                    >
+                                        {t(column.tKey, column.title)}
+                                        <ChevronDown
+                                            className={cn('size-4 shrink-0 text-brand-green transition-transform duration-200 sm:hidden', isOpen && 'rotate-180')}
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                </h3>
+                                <ul className={cn('space-y-0.5 pb-3 sm:mt-4 sm:block sm:space-y-1 sm:pb-0', isOpen ? 'block' : 'hidden')}>
+                                    {column.links.map((link) => (
+                                        <li key={link.href}>
+                                            <LocaleLink href={link.href} className="flex min-h-11 items-center gap-2 text-sm text-white/80 hover:text-white md:min-h-10">
+                                                <FourStar className="size-2 shrink-0 text-brand-green/70" />
+                                                {link.tKey ? t(link.tKey, link.title) : link.title}
+                                            </LocaleLink>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        );
+                    })}
                 </nav>
 
                 {/* Social */}
@@ -115,41 +166,70 @@ export function SiteFooter() {
 
             <div className="border-t border-white/15">
                 <Container className="py-5">
-                    {/* Bară juridică — linkuri legale separate de „·" (același idiom ca bara utilitară
-                        din header); nu aglomerează sitemap-ul de 5 coloane, e locul convențional pentru
-                        aceste pagini. „Setări cookies" e o ACȚIUNE (redeschide bannerul), nu o pagină. */}
-                    <nav aria-label={t('footer.legal', 'Informații legale')} className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-2 text-xs text-white/60 sm:justify-start">
-                        <LocaleLink href="/termeni-si-conditii" className="transition-colors hover:text-white/90">
-                            {t('footer.terms', 'Termeni și condiții')}
-                        </LocaleLink>
-                        <span aria-hidden="true" className="text-white/25">·</span>
-                        <LocaleLink href="/confidentialitate" className="transition-colors hover:text-white/90">
-                            {t('footer.privacy', 'Confidențialitate')}
-                        </LocaleLink>
-                        <span aria-hidden="true" className="text-white/25">·</span>
-                        <LocaleLink href="/politica-cookies" className="transition-colors hover:text-white/90">
-                            {t('footer.cookies', 'Politica cookie-uri')}
-                        </LocaleLink>
-                        <span aria-hidden="true" className="text-white/25">·</span>
-                        <button
-                            type="button"
-                            onClick={() => window.dispatchEvent(new CustomEvent('cookie-settings:open'))}
-                            className="transition-colors hover:text-white/90"
-                        >
-                            {t('cookies.settings', 'Setări cookies')}
-                        </button>
-                    </nav>
-                    {/* Copyright */}
-                    <div className="mt-4 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-4 text-xs text-white/55 sm:flex-row">
-                        <p>
+                    {/* Mobil (<sm): NESCHIMBAT — două rânduri stivuite (nav legal centrat, apoi
+                        copyright+AdVista sub o linie separatoare). */}
+                    <div className="sm:hidden">
+                        <nav aria-label={t('footer.legal', 'Informații legale')} className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-2 text-xs text-white/60">
+                            <LocaleLink href="/termeni-si-conditii" className="transition-colors hover:text-white/90">
+                                {t('footer.terms', 'Termeni și condiții')}
+                            </LocaleLink>
+                            <span aria-hidden="true" className="text-white/25">·</span>
+                            <LocaleLink href="/confidentialitate" className="transition-colors hover:text-white/90">
+                                {t('footer.privacy', 'Confidențialitate')}
+                            </LocaleLink>
+                            <span aria-hidden="true" className="text-white/25">·</span>
+                            <LocaleLink href="/politica-cookies" className="transition-colors hover:text-white/90">
+                                {t('footer.cookies', 'Politica cookie-uri')}
+                            </LocaleLink>
+                            <span aria-hidden="true" className="text-white/25">·</span>
+                            <button
+                                type="button"
+                                onClick={() => window.dispatchEvent(new CustomEvent('cookie-settings:open'))}
+                                className="transition-colors hover:text-white/90"
+                            >
+                                {t('cookies.settings', 'Setări cookies')}
+                            </button>
+                        </nav>
+                        <div className="mt-4 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-4 text-xs text-white/55">
+                            <p>
+                                © {new Date().getFullYear()} IPL „Liceul Columna”. {t('footer.rights', 'Toate drepturile rezervate.')}
+                            </p>
+                            <p>
+                                Created by{' '}
+                                <a href="https://advista.marketing/" target="_blank" rel="noopener noreferrer" className="font-medium transition-colors hover:text-[rgb(228,81,55)]">
+                                    AdVista
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Desktop (sm+): UN singur rând — © stânga, linkuri legale dreapta. Creditul
+                        „Created by AdVista" a fost mutat sus, ca a 4-a linie a listei de contact. */}
+                    <div className="hidden sm:flex sm:items-center sm:justify-between sm:gap-6 sm:text-xs">
+                        <p className="text-white/55">
                             © {new Date().getFullYear()} IPL „Liceul Columna”. {t('footer.rights', 'Toate drepturile rezervate.')}
                         </p>
-                        <p>
-                            Created by{' '}
-                            <a href="https://advista.marketing/" target="_blank" rel="noopener noreferrer" className="font-medium transition-colors hover:text-[rgb(228,81,55)]">
-                                AdVista
-                            </a>
-                        </p>
+                        <nav aria-label={t('footer.legal', 'Informații legale')} className="flex shrink-0 items-center gap-x-2.5 text-white/60">
+                            <LocaleLink href="/termeni-si-conditii" className="transition-colors hover:text-white/90">
+                                {t('footer.terms', 'Termeni și condiții')}
+                            </LocaleLink>
+                            <span aria-hidden="true" className="text-white/25">·</span>
+                            <LocaleLink href="/confidentialitate" className="transition-colors hover:text-white/90">
+                                {t('footer.privacy', 'Confidențialitate')}
+                            </LocaleLink>
+                            <span aria-hidden="true" className="text-white/25">·</span>
+                            <LocaleLink href="/politica-cookies" className="transition-colors hover:text-white/90">
+                                {t('footer.cookies', 'Politica cookie-uri')}
+                            </LocaleLink>
+                            <span aria-hidden="true" className="text-white/25">·</span>
+                            <button
+                                type="button"
+                                onClick={() => window.dispatchEvent(new CustomEvent('cookie-settings:open'))}
+                                className="transition-colors hover:text-white/90"
+                            >
+                                {t('cookies.settings', 'Setări cookies')}
+                            </button>
+                        </nav>
                     </div>
                 </Container>
             </div>
