@@ -599,6 +599,7 @@ return [
 
     'cabinet' => [
         'grp_main' => 'Principal',
+        'grp_events' => 'Evenimente',
         'grp_communication' => 'Comunicare',
         'grp_settings' => 'Setări',
         'nav_home' => 'Acasă',

@@ -32,8 +32,13 @@ export function AppSidebar() {
             label: t('cabinet.grp_main', 'Principal'),
             items: [
                 { title: t('cabinet.nav_home', 'Acasă'), href: dashboard(), icon: LayoutGrid },
-                { title: t('ccal.title', 'Calendar'), href: '/cabinet/calendar', icon: CalendarDays },
                 { title: t('profile.head', 'Profil'), href: '/cabinet/profil', icon: UserCircle },
+            ],
+        },
+        {
+            label: t('cabinet.grp_events', 'Evenimente'),
+            items: [
+                { title: t('ccal.title', 'Calendar'), href: '/cabinet/calendar', icon: CalendarDays },
             ],
         },
         {

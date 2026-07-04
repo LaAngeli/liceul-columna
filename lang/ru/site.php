@@ -599,6 +599,7 @@ return [
 
     'cabinet' => [
         'grp_main' => 'Главное',
+        'grp_events' => 'События',
         'grp_communication' => 'Общение',
         'grp_settings' => 'Настройки',
         'nav_home' => 'Главная',
