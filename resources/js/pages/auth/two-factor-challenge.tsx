@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/input-otp';
 import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
 import { useTranslations } from '@/lib/i18n';
-import { send as sendEmailCode, verify as verifyEmailCode } from '@/routes/two-factor-email/challenge';
 import { store } from '@/routes/two-factor/login';
+import { send as sendEmailCode, verify as verifyEmailCode } from '@/routes/two-factor-email/challenge';
 
 interface Props {
     /** Metoda utilizatorului provocat: TOTP (aplicație) sau cod pe email. */
@@ -34,7 +34,9 @@ export default function TwoFactorChallenge({ method = 'totp', maskedEmail, statu
         if (resendCooldown <= 0) {
             return;
         }
+
         const timer = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+
         return () => clearTimeout(timer);
     }, [resendCooldown]);
 

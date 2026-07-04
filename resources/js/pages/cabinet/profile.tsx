@@ -14,10 +14,10 @@ import {
 } from 'lucide-react';
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { SectionHeading } from '@/components/cabinet/section-heading';
-import ManageTwoFactor from '@/components/manage-two-factor';
-import TwoFactorEmail from '@/components/two-factor-email';
 import { StudentStatusBadge  } from '@/components/cabinet/student-status-badge';
 import type {StudentStatusValue} from '@/components/cabinet/student-status-badge';
+import ManageTwoFactor from '@/components/manage-two-factor';
+import TwoFactorEmail from '@/components/two-factor-email';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useInitials } from '@/hooks/use-initials';
@@ -156,26 +156,6 @@ export default function CabinetProfile({ account, twoFactor, status, self, child
                     </CardContent>
                 </Card>
 
-                {/* Securitate — 2FA e singura zonă self-service a contului; restul datelor
-                    rămân gestionate de administrație (nota read-only din cardul de mai sus).
-                    Două metode: aplicație de autentificare (TOTP) sau cod pe email. */}
-                <Card>
-                    <CardContent className="space-y-8">
-                        <ManageTwoFactor
-                            canManageTwoFactor
-                            requiresConfirmation={twoFactor?.requiresConfirmation}
-                            twoFactorEnabled={twoFactor?.enabled}
-                        />
-                        <div className="border-t pt-6">
-                            <TwoFactorEmail
-                                enabled={twoFactor?.email.enabled ?? false}
-                                accountEmail={twoFactor?.email.address ?? account.email}
-                                status={status}
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
-
                 {/* Datele mele (elev) */}
                 {self && (
                     <Card>
@@ -219,6 +199,26 @@ export default function CabinetProfile({ account, twoFactor, status, self, child
                         title={t('profile.no_children', 'Nu există elevi asociați acestui cont.')}
                     />
                 )}
+
+                {/* Securitate — 2FA e singura zonă self-service a contului; restul datelor
+                    rămân gestionate de administrație (nota read-only din cardul de mai sus).
+                    Două metode: aplicație de autentificare (TOTP) sau cod pe email. */}
+                <Card>
+                    <CardContent className="space-y-8">
+                        <ManageTwoFactor
+                            canManageTwoFactor
+                            requiresConfirmation={twoFactor?.requiresConfirmation}
+                            twoFactorEnabled={twoFactor?.enabled}
+                        />
+                        <div className="border-t pt-6">
+                            <TwoFactorEmail
+                                enabled={twoFactor?.email.enabled ?? false}
+                                accountEmail={twoFactor?.email.address ?? account.email}
+                                status={status}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </>
     );

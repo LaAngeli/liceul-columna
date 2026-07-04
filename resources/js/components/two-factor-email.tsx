@@ -32,7 +32,9 @@ export default function TwoFactorEmail({ enabled, accountEmail, status }: Props)
         if (resendCooldown <= 0) {
             return;
         }
+
         const timer = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+
         return () => clearTimeout(timer);
     }, [resendCooldown]);
 
