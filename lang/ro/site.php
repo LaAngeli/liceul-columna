@@ -777,6 +777,11 @@ return [
         'cockpit_trend_down' => 'în scădere',
         'cockpit_trend_stable' => 'stabil',
         'cockpit_quick_actions' => 'Acțiuni rapide',
+        'cockpit_general_average' => 'Media generală',
+        'cockpit_pass_line' => 'Prag de promovare',
+        'cockpit_no_average' => 'Fără medie încă',
+        'cockpit_tile_absences' => 'Absențe noi',
+        'cockpit_tile_motivations' => 'Motivări',
 
         // Taburi profil elev (adresabile prin URL: ?tab=overview/situation/schedule/history/requests)
         'tab_overview' => 'Prezentare',

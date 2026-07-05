@@ -777,6 +777,11 @@ return [
         'cockpit_trend_down' => 'снижается',
         'cockpit_trend_stable' => 'стабильно',
         'cockpit_quick_actions' => 'Быстрые действия',
+        'cockpit_general_average' => 'Средний балл',
+        'cockpit_pass_line' => 'Порог сдачи',
+        'cockpit_no_average' => 'Пока нет среднего',
+        'cockpit_tile_absences' => 'Новые пропуски',
+        'cockpit_tile_motivations' => 'Мотивировки',
 
         // Табы профиля ученика
         'tab_overview' => 'Обзор',

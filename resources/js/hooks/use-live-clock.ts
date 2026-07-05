@@ -6,11 +6,25 @@ const JS_LOCALE: Record<string, string> = {
     en: 'en-GB',
 };
 
+interface LiveClock {
+    /** Ziua săptămânii, forma scurtă (ex. „dum."). Se capitalizează în componentă. */
+    weekday: string;
+    /** Ziua + luna scurtă (ex. „5 iul."). */
+    dayMonth: string;
+    /** Ora și minutul (ex. „12:47"). */
+    hm: string;
+    /** Secundele, 2 cifre (ex. „16") — afișate estompat. */
+    ss: string;
+    /** false pe server / înainte de hidratare (evită mismatch); true după prima tresărire client. */
+    ready: boolean;
+}
+
 /**
- * Ceas live (client-side). Returnează data + ora formatate pe limba curentă, actualizate la fiecare
- * secundă. Pornește GOL (server / înainte de hidratare) ca să nu apară mismatch de hidratare.
+ * Ceas live (client-side). Returnează părțile datei/orei formatate pe limba curentă, actualizate la
+ * fiecare secundă și expuse SEPARAT (zi / dată / oră / secunde) ca UI-ul să poată da ierarhie
+ * vizuală (ora accentuată, secundele estompate). Pornește GOL ca să nu apară mismatch de hidratare.
  */
-export function useLiveClock(locale: string): { date: string; time: string } {
+export function useLiveClock(locale: string): LiveClock {
     const jsLocale = JS_LOCALE[locale] ?? 'ro-RO';
     const [now, setNow] = useState<Date | null>(null);
 
@@ -24,19 +38,14 @@ export function useLiveClock(locale: string): { date: string; time: string } {
     }, []);
 
     if (now === null) {
-        return { date: '', time: '' };
+        return { weekday: '', dayMonth: '', hm: '', ss: '', ready: false };
     }
 
     return {
-        date: now.toLocaleDateString(jsLocale, {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short',
-        }),
-        time: now.toLocaleTimeString(jsLocale, {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        }),
+        weekday: now.toLocaleDateString(jsLocale, { weekday: 'short' }),
+        dayMonth: now.toLocaleDateString(jsLocale, { day: 'numeric', month: 'short' }),
+        hm: now.toLocaleTimeString(jsLocale, { hour: '2-digit', minute: '2-digit' }),
+        ss: String(now.getSeconds()).padStart(2, '0'),
+        ready: true,
     };
 }

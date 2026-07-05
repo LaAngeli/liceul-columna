@@ -777,6 +777,11 @@ return [
         'cockpit_trend_down' => 'declining',
         'cockpit_trend_stable' => 'stable',
         'cockpit_quick_actions' => 'Quick actions',
+        'cockpit_general_average' => 'General average',
+        'cockpit_pass_line' => 'Pass threshold',
+        'cockpit_no_average' => 'No average yet',
+        'cockpit_tile_absences' => 'New absences',
+        'cockpit_tile_motivations' => 'Excuse requests',
 
         // Student profile tabs (URL-addressable: ?tab=overview/situation/schedule/history/requests)
         'tab_overview' => 'Overview',
