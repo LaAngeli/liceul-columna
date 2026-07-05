@@ -200,11 +200,20 @@ return [
                 'empty' => 'Coadă goală',
             ],
         ],
-        'school_trend_chart' => [
-            'heading_base' => 'Activitate catalog',
+        'activity_monitor' => [
+            'heading_base' => 'Monitor activitate',
             'months' => '{1} :count lună|[2,*] :count luni',
-            'grades_dataset' => 'Note introduse',
-            'absences_dataset' => 'Absențe înregistrate',
+            'axis_y' => 'Acțiuni pe interval',
+            'filter_period' => 'Perioadă',
+            'filter_series' => 'Serii afișate',
+            'series' => [
+                'total' => 'Activitate totală',
+                'grades' => 'Note',
+                'absences' => 'Absențe',
+                'corrections' => 'Corecții note',
+                'motivations' => 'Motivări absențe',
+                'messages' => 'Mesaje',
+            ],
         ],
         'director_overview' => [
             'enrolled' => 'Înmatriculați',

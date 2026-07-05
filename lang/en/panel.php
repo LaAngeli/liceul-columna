@@ -190,11 +190,20 @@ return [
                 'empty' => 'Queue is empty',
             ],
         ],
-        'school_trend_chart' => [
-            'heading_base' => 'Gradebook activity',
+        'activity_monitor' => [
+            'heading_base' => 'Activity monitor',
             'months' => '{1} :count month|[2,*] :count months',
-            'grades_dataset' => 'Grades entered',
-            'absences_dataset' => 'Absences recorded',
+            'axis_y' => 'Actions per interval',
+            'filter_period' => 'Period',
+            'filter_series' => 'Displayed series',
+            'series' => [
+                'total' => 'Total activity',
+                'grades' => 'Grades',
+                'absences' => 'Absences',
+                'corrections' => 'Grade corrections',
+                'motivations' => 'Absence justifications',
+                'messages' => 'Messages',
+            ],
         ],
         'director_overview' => [
             'enrolled' => 'Enrolled',

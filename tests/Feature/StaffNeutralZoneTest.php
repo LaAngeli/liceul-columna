@@ -7,8 +7,8 @@ use App\Enums\UserRole;
 use App\Filament\Resources\Grades\Pages\EditGrade;
 use App\Filament\Resources\SchoolClasses\Pages\EditSchoolClass;
 use App\Filament\Resources\Students\Pages\EditStudent;
+use App\Filament\Widgets\ActivityMonitor;
 use App\Filament\Widgets\NeedsAttention;
-use App\Filament\Widgets\SchoolTrendChart;
 use App\Models\AcademicYear;
 use App\Models\AdmissionRequest;
 use App\Models\Enrollment;
@@ -65,22 +65,23 @@ it('NeedsAttention (triaj) randează și afișează contul de corecții pending'
         ->assertSee('3');
 });
 
-it('SchoolTrendChart e vizibil conducerii (smoke render)', function () {
+it('ActivityMonitor e vizibil oricărui membru al staff-ului (smoke render)', function () {
     $director = User::factory()->create();
     $director->assignRole(UserRole::Director->value);
 
     $this->actingAs($director);
-    expect(SchoolTrendChart::canView())->toBeTrue();
+    expect(ActivityMonitor::canView())->toBeTrue();
 
-    Livewire::test(SchoolTrendChart::class)->assertOk();
+    Livewire::test(ActivityMonitor::class)->assertOk();
 });
 
-it('SchoolTrendChart e ascuns profesorului', function () {
+it('ActivityMonitor e vizibil și profesorului (monitor personal, standard pt. tot staff-ul)', function () {
     $prof = User::factory()->create();
     $prof->assignRole(UserRole::Profesor->value);
     $this->actingAs($prof);
 
-    expect(SchoolTrendChart::canView())->toBeFalse();
+    // Redesign: monitorul e PERSONAL și standard pentru orice membru al staff-ului, nu doar conducerea.
+    expect(ActivityMonitor::canView())->toBeTrue();
 });
 
 it('AdmissionRequest status e cast ca enum AdmissionStatus', function () {

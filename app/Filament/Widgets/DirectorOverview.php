@@ -33,8 +33,8 @@ class DirectorOverview extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        // Doar informaționale (Elevi → card-erou; alertele → NeedsAttention). Ritmul catalogului
-        // (grafic) rămâne în SchoolTrendChart.
+        // Doar informaționale (Elevi → card-erou; alertele → NeedsAttention). Activitatea personală
+        // (grafic) rămâne în ActivityMonitor.
         return [
             Stat::make(__('panel.fields.classes'), SchoolClass::query()->count())
                 ->descriptionIcon(Heroicon::OutlinedRectangleStack)

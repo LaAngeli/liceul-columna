@@ -188,11 +188,20 @@ return [
                 'empty' => 'Очередь пуста',
             ],
         ],
-        'school_trend_chart' => [
-            'heading_base' => 'Активность журнала',
+        'activity_monitor' => [
+            'heading_base' => 'Монитор активности',
             'months' => '{1} :count месяц|[2,4] :count месяца|[5,*] :count месяцев',
-            'grades_dataset' => 'Введено оценок',
-            'absences_dataset' => 'Зафиксировано пропусков',
+            'axis_y' => 'Действий за период',
+            'filter_period' => 'Период',
+            'filter_series' => 'Отображаемые ряды',
+            'series' => [
+                'total' => 'Общая активность',
+                'grades' => 'Оценки',
+                'absences' => 'Пропуски',
+                'corrections' => 'Исправления оценок',
+                'motivations' => 'Оправдания пропусков',
+                'messages' => 'Сообщения',
+            ],
         ],
         'director_overview' => [
             'enrolled' => 'Зачисленные',

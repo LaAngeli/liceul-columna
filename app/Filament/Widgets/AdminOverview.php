@@ -55,7 +55,7 @@ class AdminOverview extends StatsOverviewWidget
                 ->descriptionIcon(Heroicon::OutlinedUserGroup)
                 ->extraAttributes(self::cockpit())
                 ->url(TeacherResource::getUrl('index')),
-            // Aliniat la scope-ul active() (consecvent cu SchoolTrendChart și motorul de medii): notele
+            // Aliniat la scope-ul active() (consecvent cu ActivityMonitor și motorul de medii): notele
             // anulate (annulled_at) sunt păstrate în istoric dar NU se numără în „note în catalog".
             Stat::make(__('panel.widgets.admin_overview.grades_count'), Grade::query()->active()->count())
                 ->description(__('panel.widgets.admin_overview.grades_count_desc'))
