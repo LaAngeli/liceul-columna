@@ -201,7 +201,8 @@ return [
             ],
         ],
         'school_trend_chart' => [
-            'heading' => 'Activitate catalog — ultimele 6 luni',
+            'heading_base' => 'Activitate catalog',
+            'months' => '{1} :count lună|[2,*] :count luni',
             'grades_dataset' => 'Note introduse',
             'absences_dataset' => 'Absențe înregistrate',
         ],

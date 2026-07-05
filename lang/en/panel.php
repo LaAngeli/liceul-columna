@@ -191,7 +191,8 @@ return [
             ],
         ],
         'school_trend_chart' => [
-            'heading' => 'Gradebook activity — last 6 months',
+            'heading_base' => 'Gradebook activity',
+            'months' => '{1} :count month|[2,*] :count months',
             'grades_dataset' => 'Grades entered',
             'absences_dataset' => 'Absences recorded',
         ],

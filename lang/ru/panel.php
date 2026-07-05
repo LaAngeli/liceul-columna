@@ -189,7 +189,8 @@ return [
             ],
         ],
         'school_trend_chart' => [
-            'heading' => 'Активность журнала — последние 6 месяцев',
+            'heading_base' => 'Активность журнала',
+            'months' => '{1} :count месяц|[2,4] :count месяца|[5,*] :count месяцев',
             'grades_dataset' => 'Введено оценок',
             'absences_dataset' => 'Зафиксировано пропусков',
         ],
