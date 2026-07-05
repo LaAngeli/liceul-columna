@@ -2,11 +2,14 @@
 
 namespace App\Filament\Resources\CalendarEvents\Pages;
 
+use App\Filament\Concerns\DisablesCreateAnother;
 use App\Filament\Resources\CalendarEvents\CalendarEventResource;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateCalendarEvent extends CreateRecord
 {
+    use DisablesCreateAnother;
+
     protected static string $resource = CalendarEventResource::class;
 
     /**
