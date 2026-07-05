@@ -4,17 +4,21 @@ namespace App\Filament\Widgets;
 
 use App\Models\Absence;
 use App\Models\Grade;
+use App\Models\User;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
 /**
- * „Activitate catalog" (varianta V-F): tendința activității din catalog — note introduse + absențe
- * înregistrate — pentru conducerea școlii + super-admin (break-glass). Importul legacy (query builder)
- * NU declanșează observers, deci graficul reflectă ritmul introducerii curente, nu volumul istoric.
+ * „Activitate catalog" (varianta V-F): SECȚIUNE STANDARD a dashboard-ului de staff — aceeași
+ * structură pentru toți, dar SCOPATĂ pe datele fiecăruia:
+ *   • conducere / operațional / super-admin → activitatea întregii școli;
+ *   • profesor / diriginte → PROPRIA activitate (notele introduse de el + absențele claselor lui).
+ * Administratorul TEHNIC nu apare (fără fișă de profesor și fără rol academic → nicio amprentă).
  *
- * Perioadă selectabilă (filtru nativ ChartWidget): 1 / 3 / 6 luni. La 1 lună bucketing SĂPTĂMÂNAL
- * (4 intervale — o linie citibilă), la 3/6 luni bucketing LUNAR. Sort 0 = sub overviews/queue,
- * peste AudiencesPendingAssignment.
+ * Note introduse + absențe înregistrate. Importul legacy (query builder) NU declanșează observers,
+ * deci graficul reflectă ritmul introducerii curente. Perioadă selectabilă (filtru nativ): 1 / 3 / 6
+ * luni; la 1 lună bucketing SĂPTĂMÂNAL (4 intervale — linie citibilă), la 3/6 luni LUNAR.
  */
 class SchoolTrendChart extends ChartWidget
 {
@@ -32,9 +36,11 @@ class SchoolTrendChart extends ChartWidget
     {
         $user = auth('web')->user();
 
-        // Conducerea academică/operațională + super-adminul (omniscient). Administratorul TEHNIC e
-        // exclus deliberat (fără acces la date academice, chiar și agregate).
-        return $user !== null && ($user->isManagement() || $user->isSuperAdmin());
+        // Standard pentru tot staff-ul cu amprentă în catalog: conducere/operațional, super-admin
+        // (omniscient) SAU orice profesor/diriginte (are fișă). Administratorul TEHNIC — fără fișă și
+        // fără rol academic — rămâne exclus (nicio activitate de catalog de arătat).
+        return $user instanceof User
+            && ($user->isManagement() || $user->isSuperAdmin() || $user->teacher !== null);
     }
 
     public function getHeading(): string
@@ -63,6 +69,16 @@ class SchoolTrendChart extends ChartWidget
      */
     protected function getData(): array
     {
+        $user = auth('web')->user();
+        $schoolWide = $user instanceof User && ($user->isManagement() || $user->isSuperAdmin());
+        $teacher = $user instanceof User ? $user->teacher : null;
+
+        // Profesor (non-conducere): scop pe amprenta lui — notele introduse de el + absențele claselor
+        // lui. Conducerea/super-adminul (schoolWide) văd școala întreagă (fără filtru).
+        $restrict = ! $schoolWide && $teacher !== null;
+        $teacherId = $teacher?->id;
+        $classIds = $teacher?->visibleSchoolClassIds() ?? [];
+
         $gradesData = [];
         $absencesData = [];
         $labels = [];
@@ -73,10 +89,12 @@ class SchoolTrendChart extends ChartWidget
             $gradesData[] = Grade::query()
                 ->whereBetween('created_at', [$start, $end])
                 ->whereNull('annulled_at')
+                ->when($restrict, fn (Builder $q) => $q->where('teacher_id', $teacherId))
                 ->count();
 
             $absencesData[] = Absence::query()
                 ->whereBetween('created_at', [$start, $end])
+                ->when($restrict, fn (Builder $q) => $q->whereIn('school_class_id', $classIds))
                 ->count();
         }
 
