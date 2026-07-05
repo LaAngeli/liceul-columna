@@ -59,11 +59,15 @@ class ImportLegacy extends Command
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+        // Interval per semestru — necesar pentru derivarea semestrului din data unei note/absențe.
+        $termDates = [1 => ['2025-09-01', '2025-12-31'], 2 => ['2026-01-01', '2026-06-30']];
         foreach ([1 => 'Semestrul I', 2 => 'Semestrul II'] as $num => $name) {
             $this->termMap[$num] = DB::table('terms')->insertGetId([
                 'academic_year_id' => $this->yearId,
                 'number' => $num,
                 'name' => $name,
+                'starts_on' => $termDates[$num][0],
+                'ends_on' => $termDates[$num][1],
                 'is_current' => $num === 1,
                 'created_at' => $now,
                 'updated_at' => $now,

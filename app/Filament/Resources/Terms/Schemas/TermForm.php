@@ -31,10 +31,14 @@ class TermForm
                     ->placeholder(__('panel.forms.term.name_placeholder'))
                     ->required()
                     ->maxLength(255),
+                // Intervalul e OBLIGATORIU: din el se derivă semestrul unei note/absențe după dată.
                 DatePicker::make('starts_on')
-                    ->label(__('panel.fields.starts_on')),
+                    ->label(__('panel.fields.starts_on'))
+                    ->required(),
                 DatePicker::make('ends_on')
-                    ->label(__('panel.fields.ends_on')),
+                    ->label(__('panel.fields.ends_on'))
+                    ->required()
+                    ->afterOrEqual('starts_on'),
                 Toggle::make('is_current')
                     ->label(__('panel.forms.term.is_current')),
             ]);

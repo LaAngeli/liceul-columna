@@ -9,7 +9,6 @@ use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
-use App\Models\Term;
 use App\Support\ContentTranslator;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
@@ -51,13 +50,7 @@ class GradeForm
                     ))
                     ->searchable()
                     ->required(),
-                Select::make('term_id')
-                    ->label(__('panel.fields.term'))
-                    ->relationship('term', 'name')
-                    ->default(fn (): ?int => Term::query()->where('is_current', true)->value('id'))
-                    ->searchable()
-                    ->preload()
-                    ->required(),
+                // Semestrul NU se alege manual: se derivă din `graded_on` pe server (EnforcesGradeScope).
                 Select::make('evaluation_type')
                     ->label(__('panel.fields.evaluation_type'))
                     ->options(EvaluationType::options())

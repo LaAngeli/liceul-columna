@@ -736,5 +736,9 @@ return [
             'not_enrolled' => 'The student is not enrolled in the selected class.',
             'cannot_record_absence' => 'You cannot record absences for this class/subject.',
         ],
+        'absence' => [
+            'future' => 'The absence date cannot be in the future.',
+            'duplicate' => 'An absence already exists for this student, on this day, for this subject.',
+        ],
     ],
 ];

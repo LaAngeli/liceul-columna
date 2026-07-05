@@ -30,6 +30,7 @@ class EditAbsence extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        return $this->enforceAbsenceScope($data);
+        // Trecem id-ul curent ca să se excludă din verificarea anti-duplicat.
+        return $this->enforceAbsenceScope($data, (int) $this->getRecord()->getKey());
     }
 }

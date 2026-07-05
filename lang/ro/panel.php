@@ -751,5 +751,9 @@ return [
             'not_enrolled' => 'Elevul nu este înmatriculat în clasa selectată.',
             'cannot_record_absence' => 'Nu poți înregistra absențe pentru această clasă/disciplină.',
         ],
+        'absence' => [
+            'future' => 'Data absenței nu poate fi în viitor.',
+            'duplicate' => 'Există deja o absență pentru acest elev, în această zi, la această disciplină.',
+        ],
     ],
 ];

@@ -2,12 +2,18 @@
 
 namespace App\Filament\Concerns;
 
+use App\Models\Absence;
 use App\Models\Enrollment;
+use App\Models\Term;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Impune pe SERVER scope-ul la salvarea unei absențe: profesorul doar la disciplina lui,
- * dirigintele pentru orice disciplină a clasei lui.
+ * Impune pe SERVER regulile la salvarea unei absențe. Se aplică TUTUROR (inclusiv administrației):
+ * data nu poate fi în viitor, semestrul se DERIVĂ din dată (nu se alege manual), fără duplicate.
+ * Apoi scoping-ul per rol: profesorul doar la disciplina lui, dirigintele pentru orice disciplină
+ * a clasei lui.
  */
 trait EnforcesAbsenceScope
 {
@@ -15,11 +21,53 @@ trait EnforcesAbsenceScope
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    protected function enforceAbsenceScope(array $data): array
+    protected function enforceAbsenceScope(array $data, ?int $ignoreId = null): array
     {
+        $occurredOn = isset($data['occurred_on']) && $data['occurred_on'] !== ''
+            ? Carbon::parse((string) $data['occurred_on'])
+            : null;
+
+        // (1) O absență nu poate fi în viitor — elevul nu a lipsit încă.
+        if ($occurredOn !== null && $occurredOn->startOfDay()->isAfter(Carbon::today())) {
+            throw ValidationException::withMessages([
+                'occurred_on' => __('panel.validation.absence.future'),
+            ]);
+        }
+
+        // (2) Semestrul se DERIVĂ din dată (o absență aparține semestrului care conține ziua ei),
+        // cu fallback la semestrul curent când data cade în afara oricărui interval (ex. vacanță).
+        if ($occurredOn !== null) {
+            $term = Term::forDate($occurredOn);
+            $data['term_id'] = $term instanceof Term
+                ? $term->id
+                : Term::query()->where('is_current', true)->value('id');
+        }
+
+        // (3) Anti-duplicat: aceeași absență ACTIVĂ (elev + zi + disciplină) nu se consemnează de 2 ori.
+        if ($occurredOn !== null && isset($data['student_id'])) {
+            $subjectId = isset($data['subject_id']) && $data['subject_id'] !== '' ? (int) $data['subject_id'] : null;
+
+            $duplicate = Absence::query()
+                ->where('student_id', (int) $data['student_id'])
+                ->whereDate('occurred_on', $occurredOn->toDateString())
+                ->when(
+                    $subjectId !== null,
+                    fn (Builder $q): Builder => $q->where('subject_id', $subjectId),
+                    fn (Builder $q): Builder => $q->whereNull('subject_id'),
+                )
+                ->when($ignoreId !== null, fn (Builder $q): Builder => $q->whereKeyNot($ignoreId))
+                ->exists();
+
+            if ($duplicate) {
+                throw ValidationException::withMessages([
+                    'student_id' => __('panel.validation.absence.duplicate'),
+                ]);
+            }
+        }
+
         $user = auth('web')->user();
 
-        // Autoritatea academică (super-admin / director / prim-vicedirector) nu e limitată.
+        // Autoritatea academică (super-admin / director / prim-vicedirector) nu e limitată la scope.
         // Administratorul operațional/tehnic NU consemnează absențe → cade pe ramura „fără fișă".
         if (! $user || $user->canAdministerCatalog()) {
             return $data;

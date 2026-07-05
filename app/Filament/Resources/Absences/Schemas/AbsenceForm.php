@@ -7,7 +7,7 @@ use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
-use App\Models\Term;
+use App\Models\TeachingAssignment;
 use App\Support\ContentTranslator;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
@@ -29,11 +29,20 @@ class AbsenceForm
                     ->searchable()
                     ->required()
                     ->live()
-                    ->afterStateUpdated(fn (Set $set): mixed => $set('student_id', null)),
+                    ->afterStateUpdated(function (Set $set): void {
+                        $set('student_id', null);
+                        $set('subject_id', null);
+                    }),
                 Select::make('subject_id')
                     ->label(__('panel.fields.subject'))
-                    ->options(fn (): array => self::subjectOptions())
-                    ->searchable(),
+                    // Doar disciplinele predate în clasa ALEASĂ (profesorul-pur: doar ale lui din acea clasă).
+                    ->options(fn (Get $get): array => self::subjectOptions(
+                        ($classId = $get('school_class_id')) !== null ? (int) $classId : null,
+                    ))
+                    ->searchable()
+                    ->live()
+                    // Obligatorie pentru profesorul-pur; dirigintele/administrația pot lăsa gol (absență pe zi întreagă).
+                    ->required(fn (Get $get): bool => self::subjectRequired($get)),
                 Select::make('student_id')
                     ->label(__('panel.fields.student'))
                     ->options(fn (Get $get): array => self::studentOptions(
@@ -41,17 +50,13 @@ class AbsenceForm
                     ))
                     ->searchable()
                     ->required(),
-                Select::make('term_id')
-                    ->label(__('panel.fields.term'))
-                    ->relationship('term', 'name')
-                    ->default(fn (): ?int => Term::query()->where('is_current', true)->value('id'))
-                    ->searchable()
-                    ->preload()
-                    ->required(),
+                // Semestrul NU se alege manual: se derivă din `occurred_on` pe server (EnforcesAbsenceScope).
                 DatePicker::make('occurred_on')
                     ->label(__('panel.fields.date'))
                     ->required()
-                    ->default(now()),
+                    ->default(now())
+                    // O absență nu poate fi în viitor; data determină și semestrul.
+                    ->maxDate(now()),
                 Toggle::make('is_motivated')
                     ->label(__('panel.fields.is_motivated')),
                 Hidden::make('teacher_id')
@@ -86,17 +91,34 @@ class AbsenceForm
     }
 
     /**
-     * Profesorul pur vede doar disciplinele lui; dirigintele (și administrația) toate
-     * disciplinele — gestionează absențele întregii clase, indiferent de lecție.
+     * Disciplinele selectabile. Când o clasă e aleasă, se restrâng la disciplinele PREDATE în acea
+     * clasă (din teaching_assignments): profesorul-pur vede doar disciplinele LUI din clasa aleasă,
+     * dirigintele/administrația pe toate cele predate în clasă. Fără nicio clasă aleasă, profesorul-pur
+     * vede doar disciplinele lui. Așa dropdown-ul nu mai arată TOATE materiile (chiar și pt. diriginte).
      *
      * @return array<int, string>
      */
-    private static function subjectOptions(): array
+    private static function subjectOptions(?int $classId): array
     {
         $query = Subject::query()->orderBy('name');
-
         $teacher = self::currentTeacher();
-        if ($teacher && $teacher->homeroomSchoolClassIds() === []) {
+
+        if ($classId !== null) {
+            $subjectIds = TeachingAssignment::query()
+                ->where('school_class_id', $classId)
+                ->pluck('subject_id')
+                ->unique();
+
+            if ($teacher !== null && $teacher->homeroomSchoolClassIds() === []) {
+                $ownIds = TeachingAssignment::query()
+                    ->where('teacher_id', $teacher->id)
+                    ->where('school_class_id', $classId)
+                    ->pluck('subject_id');
+                $subjectIds = $subjectIds->intersect($ownIds);
+            }
+
+            $query->whereKey($subjectIds->all());
+        } elseif ($teacher !== null && $teacher->homeroomSchoolClassIds() === []) {
             $query->whereKey($teacher->taughtSubjectIds());
         }
 
@@ -106,6 +128,27 @@ class AbsenceForm
         }
 
         return $options;
+    }
+
+    /**
+     * Disciplina e obligatorie pentru profesorul-pur (consemnează absență la lecția LUI). Dirigintele
+     * clasei alese și administrația pot lăsa gol = absență pe zi întreagă.
+     */
+    private static function subjectRequired(Get $get): bool
+    {
+        $teacher = self::currentTeacher();
+
+        if ($teacher === null) {
+            return false; // administrația academică — absență pe zi întreagă permisă
+        }
+
+        $classId = ($c = $get('school_class_id')) !== null ? (int) $c : null;
+
+        if ($classId === null) {
+            return true; // profesor, fără clasă aleasă → cere disciplina
+        }
+
+        return ! in_array($classId, $teacher->homeroomSchoolClassIds(), true);
     }
 
     /**

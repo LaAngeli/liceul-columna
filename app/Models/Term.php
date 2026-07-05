@@ -39,6 +39,22 @@ class Term extends Model
         ];
     }
 
+    /**
+     * Semestrul care conține data dată (sursă unică: absențe, note, import, API). Întoarce null când
+     * data nu cade în niciun interval definit (ex. vacanță, sau semestre fără interval) → apelantul
+     * decide fallback-ul (de regulă semestrul curent).
+     */
+    public static function forDate(\DateTimeInterface $date): ?self
+    {
+        return static::query()
+            ->whereNotNull('starts_on')
+            ->whereNotNull('ends_on')
+            ->whereDate('starts_on', '<=', $date)
+            ->whereDate('ends_on', '>=', $date)
+            ->orderByDesc('starts_on')
+            ->first();
+    }
+
     /** @return BelongsTo<AcademicYear, $this> */
     public function academicYear(): BelongsTo
     {
