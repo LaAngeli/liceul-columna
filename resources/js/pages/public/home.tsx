@@ -116,7 +116,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                 {/* Foto-eroină: mobil = bloc în flux sus (100vw); desktop = panou pe dreapta
                     (~54vw) unde imaginea de 900px e afișată aproape la mărimea nativă = clară,
                     nu întinsă full-bleed la 2× (unde s-ar înmuia). Textul stă pe navy solid. */}
-                <div className="hero-photo relative h-[min(38vh,290px)] w-full lg:absolute lg:inset-y-0 lg:right-0 lg:left-[46%] lg:h-full lg:w-auto">
+                <div className="hero-photo relative h-[min(38vh,290px)] w-full overflow-hidden lg:absolute lg:inset-y-0 lg:right-0 lg:left-[46%] lg:h-full lg:w-auto">
                     <img
                         src="/images/hero/g15-hero-1440.webp"
                         srcSet="/images/hero/g15-hero-900.webp 900w, /images/hero/g15-hero-1440.webp 1440w, /images/hero/g15-hero-1800.webp 1800w"
