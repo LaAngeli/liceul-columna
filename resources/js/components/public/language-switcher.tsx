@@ -8,8 +8,14 @@ const LOCALES = ['ro', 'ru', 'en'] as const;
  * Comutator de limbă animat (pastilă segmentată cu indicator glisant).
  * Fiecare opțiune duce la /set-locale/{cod} cu redirect către pagina curentă
  * tradusă; serverul salvează preferința (cookie + user) și reîncarcă.
+ *
+ * `prefixed` (implicit true) = SITE PUBLIC: URL-urile au prefix de limbă (`/ru/...`),
+ * deci redirectul se re-localizează prin `localizePath`. Pentru ZONA AUTENTIFICATĂ
+ * (cabinet/dashboard/setări) unde rutele NU au prefix — limba vine din cookie/`user.locale` —
+ * treci `prefixed={false}`: redirectul rămâne URL-ul curent NEATINS. Altfel s-ar construi
+ * un `/ru/dashboard` inexistent → 404 (deși preferința se salvează). Vezi routes/web.php.
  */
-export function LanguageSwitcher({ className }: { className?: string }) {
+export function LanguageSwitcher({ className, prefixed = true }: { className?: string; prefixed?: boolean }) {
     const { url } = usePage();
     const locale = useLocale();
     const routeSlugs = useRouteSlugs();
@@ -32,7 +38,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
             {LOCALES.map((code) => (
                 <a
                     key={code}
-                    href={`/set-locale/${code}?redirect=${encodeURIComponent(localizePath(url, code, routeSlugs))}`}
+                    href={`/set-locale/${code}?redirect=${encodeURIComponent(prefixed ? localizePath(url, code, routeSlugs) : url)}`}
                     aria-current={code === locale ? 'true' : undefined}
                     className={cn(
                         'relative z-10 inline-flex min-h-10 w-9 items-center justify-center rounded-full py-2 text-center uppercase transition-colors md:min-h-0 md:py-1',

@@ -51,8 +51,11 @@ export function AppSidebarHeader({
                 <AppUserBadge />
 
                 {/* Comutatoare limbă + temă (sincronizate cu Filament prin localStorage `theme` și
-                    cu serverul prin /set-locale). Ascunse pe ecrane foarte înguste pentru spațiu. */}
-                <LanguageSwitcher className="hidden sm:inline-flex" />
+                    cu serverul prin /set-locale). Ascunse pe ecrane foarte înguste pentru spațiu.
+                    `prefixed={false}`: cabinetul e în zona autentificată, cu rute FĂRĂ prefix de
+                    limbă (limba vine din cookie/user) → redirect pe URL-ul curent, nu pe `/ru/...`
+                    care ar da 404. */}
+                <LanguageSwitcher prefixed={false} className="hidden sm:inline-flex" />
                 <ThemeToggle variant="icon" className="hidden sm:block" />
 
                 <Link

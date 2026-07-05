@@ -14,18 +14,22 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
-import { useTranslations } from '@/lib/i18n';
+import { useLocale, useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
 /**
  * Sidebar-ul cabinetului elev/părinte. Navigare grupată; cabinetul e DOAR pentru vizualizare —
  * fără secțiune „Setări” (datele contului apar read-only în „Profil”, iar gestiunea conturilor revine
- * personalului). Logo-ul de brand trimite la homepage-ul site-ului public (`/`).
+ * personalului). Logo-ul de brand trimite la homepage-ul site-ului public, PE LIMBA curentă
+ * (RO la root, RU/EN cu prefix) — altfel serverul ar redirecta `/` → `/ru`, cu un bounce în plus.
  */
 export function AppSidebar() {
     const t = useTranslations();
+    const locale = useLocale();
     const { isCurrentUrl } = useCurrentUrl();
+    // Homepage-ul public pe limba cabinetului: RO la root, RU/EN cu prefix de URL.
+    const homeHref = locale === 'ro' ? '/' : `/${locale}`;
 
     const groups: { label: string; items: NavItem[] }[] = [
         {
@@ -58,7 +62,7 @@ export function AppSidebar() {
                         {/* Buton „logo" mai înalt (h-14) ca să încapă lockup-ul de 42px cu spațiu de respirație,
                             și `justify-center` ca logo-ul să fie CENTRAT orizontal (nu aliniat stânga). */}
                         <SidebarMenuButton size="lg" className="h-14 justify-center" asChild>
-                            <Link href="/" aria-label="Liceul Columna">
+                            <Link href={homeHref} aria-label="Liceul Columna">
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
