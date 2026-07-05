@@ -414,6 +414,16 @@ return [
             'motivation_filter' => 'Justification',
             'motivation_only_yes' => 'Only justified',
             'motivation_only_no' => 'Only unjustified',
+            'motivate' => [
+                'label' => 'Justify',
+                'heading' => 'Justify with proof',
+                'submit' => 'Justify',
+                'period_start' => 'Period — from',
+                'period_end' => 'Period — to',
+                'document' => 'Proof (certificate / request)',
+                'document_hint' => 'Image or PDF, max 5 MB. Stored privately.',
+                'success' => 'Absences in the period have been justified.',
+            ],
         ],
         'admissions' => [
             'child' => 'Child',

@@ -427,6 +427,16 @@ return [
             'motivation_filter' => 'Motivare',
             'motivation_only_yes' => 'Doar motivate',
             'motivation_only_no' => 'Doar nemotivate',
+            'motivate' => [
+                'label' => 'Motivează',
+                'heading' => 'Motivează cu dovadă',
+                'submit' => 'Motivează',
+                'period_start' => 'Perioada — de la',
+                'period_end' => 'Perioada — până la',
+                'document' => 'Dovada (certificat / cerere)',
+                'document_hint' => 'Imagine sau PDF, max. 5 MB. Se păstrează privat.',
+                'success' => 'Absențele din perioadă au fost motivate.',
+            ],
         ],
         'admissions' => [
             'child' => 'Copil',
