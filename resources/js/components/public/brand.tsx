@@ -163,9 +163,13 @@ export function BrandButton({
     disabled?: boolean;
 }) {
     const isLink = variant === 'link' || variant === 'link-navy';
+    // whitespace-nowrap doar pe varianta pill (nu pe link, care trebuie să curgă în text):
+    // fără el, un flex item cu text ce are un spațiu poate primi o lățime „preferată" mai mică
+    // decât max-content și se rupe pe 2 rânduri chiar când ar avea loc pe unul (constatat cu
+    // RU „Запись на визит" în CTA-ul din header — text mai scurt ca RO, dar se rupea la 153px).
     const base = isLink
         ? 'inline-flex min-h-11 items-center gap-1.5 transition-all'
-        : 'inline-flex min-h-11 items-center justify-center gap-2 rounded-[12px] px-5 py-2.5 transition-all active:scale-[0.98]';
+        : 'inline-flex min-h-11 items-center justify-center gap-2 rounded-[12px] px-5 py-2.5 whitespace-nowrap transition-all active:scale-[0.98]';
     const cls = cn(base, BTN[variant], disabled && 'pointer-events-none opacity-60', className);
     const inner = (
         <>

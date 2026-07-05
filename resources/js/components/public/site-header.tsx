@@ -285,10 +285,12 @@ export function SiteHeader() {
                     <div className="relative border-t border-white/15 bg-surface-navy/80 backdrop-blur" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
                         <Container className="space-y-4 py-4">
                             <div className="grid grid-cols-2 gap-2">
-                                <BrandButton href={cabinetHref} variant="ghost-navy" icon={LayoutDashboard} className="w-full text-sm">
+                                {/* px-3 (nu px-5 implicit) — verificat: la px-5 textul RU „Запись на визит"
+                                    se rupe pe 2 rânduri în acest slot înjumătățit; la px-3 încape pe un rând. */}
+                                <BrandButton href={cabinetHref} variant="ghost-navy" icon={LayoutDashboard} className="w-full px-3 text-sm">
                                     {t('action.cabinet', 'Cabinet')}
                                 </BrandButton>
-                                <BrandButton href={visitHref} variant="primary" icon={CalendarDays} className="w-full text-sm">
+                                <BrandButton href={visitHref} variant="primary" icon={CalendarDays} className="w-full px-3 text-sm">
                                     {t('menu.book_visit', 'Programează o vizită')}
                                 </BrandButton>
                             </div>

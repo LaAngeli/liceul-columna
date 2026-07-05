@@ -127,7 +127,7 @@ return [
         'extracurricular' => 'Внеклассные занятия',
         'admission_process' => 'Процесс поступления',
         'enroll_online' => 'Запись онлайн',
-        'book_visit' => 'Записаться на визит',
+        'book_visit' => 'Запись на визит',
         'school_life' => 'Школьная жизнь',
         'calendar' => 'Календарь и расписание',
         'resources' => 'Ресурсы',
