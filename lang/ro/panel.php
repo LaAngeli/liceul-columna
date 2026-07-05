@@ -177,6 +177,10 @@ return [
         'needs_attention' => [
             'heading' => 'Necesită atenție',
         ],
+        'upcoming_events' => [
+            'heading' => 'Evenimente apropiate',
+            'empty' => 'Niciun eveniment programat.',
+        ],
         'audiences_pending' => [
             'title' => 'Audiențe fără responsabil de domeniu',
             'description' => 'Atribuie un responsabil din formularul de utilizator (Domenii de audiență).',

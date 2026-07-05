@@ -167,6 +167,10 @@ return [
         'needs_attention' => [
             'heading' => 'Needs attention',
         ],
+        'upcoming_events' => [
+            'heading' => 'Upcoming events',
+            'empty' => 'No scheduled events.',
+        ],
         'audiences_pending' => [
             'title' => 'Audiences without a domain owner',
             'description' => 'Assign an owner from the user form (Audience domains).',

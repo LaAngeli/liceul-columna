@@ -39,9 +39,21 @@ Cont: **`[DEMO] Bujor-Cobili Carolina`** (`user_id=2`, profesor + diriginte), î
    `--remove` cade pe un fallback care șterge aceste rânduri marcate după `user_id` (notele/absențele
    NU pot fi identificate fără manifest — de aceea manifestul e sursa principală).
 
+## Evenimente de calendar demo (widgetul „Evenimente apropiate")
+
+Separat de comanda de mai sus, pentru a demonstra widgetul **„Evenimente apropiate"** au fost inserate
+**5 evenimente de calendar** cu titlul prefixat `[DEMO]` (ședință părinți, teză, concurs, consiliu
+profesoral, zi porți deschise), împrăștiate pe următoarele ~3 săptămâni. Sunt globale (nu legate de un
+cont), deci NU intră în manifestul de mai sus. Curățare (idempotent):
+
+```bash
+php artisan tinker --execute "App\Models\CalendarEvent::where('title','like','[DEMO]%')->forceDelete();"
+```
+
 ## La deploy
 
 - Rulează `php artisan app:demo-activity --remove` **înainte** de a promova baza spre producție, SAU
   pur și simplu nu rula comanda pe producție (producția pornește din `migrate --force`, fără aceste date).
+- Șterge evenimentele de calendar `[DEMO]` (comanda tinker de mai sus).
 - Vezi și curățarea generală `[DEMO]`: `php artisan app:demo-accounts --remove` (conturi) și
   `DemoTestDataSeeder` (corecții/motivări/mesaje demo marcate `[DEMO]`).

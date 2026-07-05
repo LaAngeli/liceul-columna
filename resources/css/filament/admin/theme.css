@@ -267,6 +267,36 @@
 }
 .fi-triage__row.is-alert .fi-triage__count { color: var(--cockpit-alert); }
 
+/* --- Evenimente apropiate: aceeași listă ca triajul, cu meta (tip · oră) sub titlu + dată la dreapta.
+   Tokeni currentColor → adaptare automată light/dark, ca restul cockpit-ului. --- */
+.fi-event__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    min-width: 0;
+}
+.fi-event__meta {
+    font-size: 0.75rem;
+    color: color-mix(in srgb, currentColor 45%, transparent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.fi-event__date {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: color-mix(in srgb, currentColor 55%, transparent);
+}
+.fi-events__empty {
+    font-size: 0.85rem;
+    color: color-mix(in srgb, currentColor 45%, transparent);
+    padding: 0.5rem 0.25rem;
+    margin: 0;
+}
+
 /* --- Metrici cockpit: card dens cu accent top-border colorat (prin extraAttributes) ---
    `.fi-cockpit-stat` pe o Stat → top-border navy (neutru); `--alert` → cărămiziu
    (necesită acțiune). Restul cardului rămâne stilul curat Filament. */
