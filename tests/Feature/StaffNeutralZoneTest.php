@@ -97,6 +97,12 @@ it('AdmissionRequest status e cast ca enum AdmissionStatus', function () {
         ->and($req->status->label())->toBe('Nou');
 });
 
+it('logo-ul panoului trimite la homepage-ul site-ului public (homeUrl)', function () {
+    // filament()->getHomeUrl() = panel->getHomeUrl() ?? panel->getUrl(); logo-ul din sidebar/topbar
+    // îl folosește. Setat pe „/" → click pe logo duce la homepage, nu la /admin.
+    expect(Filament\Facades\Filament::getPanel('admin')->getHomeUrl())->toBe('/');
+});
+
 it('digestul zilnic de teme notifică familia elevilor din clasa-țintă (cale unică, nu per-temă)', function () {
     Notification::fake();
 

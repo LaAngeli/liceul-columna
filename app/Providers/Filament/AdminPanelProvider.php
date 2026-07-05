@@ -42,6 +42,11 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(fn (): string => asset('images/logo/columna-wordmark.webp'))
             ->darkModeBrandLogo(fn (): string => asset('images/logo/columna-wordmark-white.webp'))
             ->brandLogoHeight('2.25rem')
+            // Click pe logo → homepage-ul site-ului public (convenție „logo = acasă"). homeUrl
+            // controlează DOAR linkul logo-ului (sidebar + topbar, via filament()->getHomeUrl()); NU
+            // afectează redirectul de login (LoginResponse folosește getUrl() = /admin), deci staff-ul
+            // aterizează tot pe dashboard. Meniul user păstrează separat „Vezi site-ul" (tab nou).
+            ->homeUrl('/')
             // Favicon (emblema bicoloră a brand-ului — vezi public/favicon.ico generat din columna-crest-color).
             ->favicon(asset('favicon.ico'))
             // Pagina Profil (nume/email/parolă/2FA), în layout cu sidebar (isSimple: false).
