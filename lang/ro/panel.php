@@ -493,7 +493,10 @@ return [
             'helper_value_range' => 'Interval permis: :min–:max.',
             'helper_pick_subject' => 'Alege întâi disciplina — câmpul de notare se adaptează la ea.',
         ],
-        'absence' => [],
+        'absence' => [
+            'motivate_now' => 'Motivează acum (cu dovadă)',
+            'motivate_now_hint' => 'Marchează absența motivată chiar la creare, atașând justificativul.',
+        ],
         'admission' => [
             'parent_name' => 'Nume, prenume părinte',
             'child_name' => 'Nume, prenume copil',

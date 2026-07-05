@@ -480,7 +480,10 @@ return [
             'helper_value_range' => 'Allowed range: :min–:max.',
             'helper_pick_subject' => 'Pick the subject first — the grading field adapts to it.',
         ],
-        'absence' => [],
+        'absence' => [
+            'motivate_now' => 'Justify now (with proof)',
+            'motivate_now_hint' => 'Mark the absence justified right at creation by attaching proof.',
+        ],
         'admission' => [
             'parent_name' => 'Parent first and last name',
             'child_name' => 'Child first and last name',

@@ -10,8 +10,11 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Support\ContentTranslator;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -56,9 +59,31 @@ class AbsenceForm
                     ->default(now())
                     // O absență nu poate fi în viitor; data determină și semestrul.
                     ->maxDate(now()),
-                // Motivarea NU se setează aici (fără un toggle brut, fără dovadă). Se face din lista
-                // Absențe → acțiunea „Motivează cu dovadă" (creează un AbsenceMotivation cu justificativ),
-                // sau prin fluxul familiei. O singură sursă de adevăr pentru is_motivated.
+                // Motivare LA CREARE (opțional, doar pe „create"): la activarea toggle-ului apar câmpurile
+                // pentru motiv + dovadă. NU setează direct is_motivated pe absență — la salvare creează un
+                // AbsenceMotivation aprobat cu justificativ (CreateAbsence::afterCreate). Sursă unică pentru
+                // is_motivated. Câmpurile de motivare nu sunt coloane pe absences (se extrag în CreateAbsence).
+                Toggle::make('motivate_now')
+                    ->label(__('panel.forms.absence.motivate_now'))
+                    ->helperText(__('panel.forms.absence.motivate_now_hint'))
+                    ->visible(fn (string $operation): bool => $operation === 'create')
+                    ->live(),
+                Textarea::make('motivation_reason')
+                    ->label(__('panel.fields.reason'))
+                    ->rows(2)
+                    ->maxLength(500)
+                    ->visible(fn (string $operation, Get $get): bool => $operation === 'create' && (bool) $get('motivate_now'))
+                    ->required(fn (Get $get): bool => (bool) $get('motivate_now')),
+                FileUpload::make('motivation_document')
+                    ->label(__('panel.tables.absences.motivate.document'))
+                    ->helperText(__('panel.tables.absences.motivate.document_hint'))
+                    ->disk('local')
+                    ->directory('motivations')
+                    ->visibility('private')
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])
+                    ->maxSize(5120)
+                    ->visible(fn (string $operation, Get $get): bool => $operation === 'create' && (bool) $get('motivate_now'))
+                    ->required(fn (Get $get): bool => (bool) $get('motivate_now')),
                 Hidden::make('teacher_id')
                     ->default(fn (): ?int => auth('web')->user()?->teacher?->id),
             ]);
