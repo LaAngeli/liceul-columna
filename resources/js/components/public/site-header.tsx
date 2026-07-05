@@ -306,16 +306,6 @@ export function SiteHeader() {
                     </div>
                 </div>
             )}
-
-            {/* Bară CTA fixă pe mobil */}
-            <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t keyline bg-background/95 p-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] backdrop-blur md:hidden">
-                <BrandButton href={cabinetHref} variant="ghost" icon={LayoutDashboard} className="flex-1 text-sm">
-                    {t('action.cabinet', 'Cabinet')}
-                </BrandButton>
-                <BrandButton href={visitHref} variant="primary" icon={CalendarDays} className="flex-1 text-sm">
-                    {t('menu.book_visit', 'Programează o vizită')}
-                </BrandButton>
-            </div>
         </header>
     );
 }

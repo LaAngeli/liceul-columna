@@ -116,7 +116,7 @@ return null;
     ];
 
     return (
-        <div className="fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 px-3 pb-1 md:bottom-4 md:px-4">
+        <div className="fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-50 px-3 pb-1 md:bottom-4 md:px-4">
             <div
                 role="dialog"
                 aria-modal="false"

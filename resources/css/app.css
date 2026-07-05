@@ -473,6 +473,20 @@
     .site-shell .eyebrow { letter-spacing: 0.08em; overflow-wrap: anywhere; }
 }
 
+/* Strip de valori din footer — pe mobil (<640px) mărime fluidă centrată care încape mereu (Proxima, îngust);
+   de la sm în sus revine la Cervino display 0.8125rem. Clamp în CSS pur fiindcă Tailwind v4 nu generează
+   utilitarul arbitrary `text-[length:clamp(...vw...)]`. */
+.site-shell .footer-values-item {
+    font-family: var(--font-brand);
+    font-size: 0.8rem;
+}
+@media (min-width: 640px) {
+    .site-shell .footer-values-item {
+        font-family: var(--font-display);
+        font-size: 0.8125rem;
+    }
+}
+
 /* Keyline 1px navy/12% (snapped) — separatorul-cheie al sistemului */
 .site-shell .keyline { border-color: var(--keyline) !important; }
 

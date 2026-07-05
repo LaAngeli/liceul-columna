@@ -99,8 +99,8 @@ export function SiteFooter() {
                     </ul>
                 </div>
 
-                {/* Valori — pe mobil (<sm) ascundem 2 (Libertate, Națiune) ca cele 5 rămase să încapă pe UN rând;
-                    de la sm în sus rămân toate 7 cu wrap, ca înainte. */}
+                {/* Valori — pe mobil (<sm) 5 valori centrate pe UN rând (ascundem Libertate(2), Națiune(5));
+                    de la sm în sus: toate 7 cu wrap, ca înainte. */}
                 <ul className="flex flex-nowrap items-center justify-center gap-x-2 border-b border-white/15 py-7 sm:flex-wrap sm:gap-x-2 sm:gap-y-3">
                     {VALUES.map(([key, fb], i) => (
                         <li
@@ -108,7 +108,7 @@ export function SiteFooter() {
                             className={`items-center gap-2 ${[2, 5].includes(i) ? 'hidden sm:flex' : 'flex'}`}
                         >
                             <span
-                                className="font-[family-name:var(--font-brand)] text-[clamp(0.6rem,calc(8vw_-_1.25rem),0.8rem)] font-bold tracking-[0.03em] whitespace-nowrap text-white/90 uppercase sm:font-[family-name:var(--font-display)] sm:text-[0.8125rem] sm:tracking-[0.14em]"
+                                className="footer-values-item font-bold tracking-[0.02em] whitespace-nowrap text-white/90 uppercase sm:tracking-[0.14em]"
                             >
                                 {t(`values.${key}`, fb)}
                             </span>

@@ -15,7 +15,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                 {t('a11y.skip', 'Sari la conținut')}
             </a>
             <SiteHeader />
-            <main id="continut" className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
+            <main id="continut" className="flex-1 pb-[env(safe-area-inset-bottom)] md:pb-0">
                 {children}
             </main>
             <SiteFooter />
