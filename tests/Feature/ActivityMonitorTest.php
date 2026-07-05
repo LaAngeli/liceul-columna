@@ -146,15 +146,14 @@ it('scopează notele pe profesorul curent (exclude ale altuia + anulate)', funct
     expect(activitySeriesSum($data, 'Note'))->toBe(1);
 });
 
-it('scopează absențele pe clasele profesorului', function () {
-    $year = AcademicYear::factory()->create();
-    $classA = SchoolClass::factory()->for($year)->create();
-    $classB = SchoolClass::factory()->for($year)->create();
+it('scopează absențele pe cele CONSEMNATE de profesor (teacher_id, nu toată clasa)', function () {
+    $teacherUser = activityTeacherUser();
+    $teacherId = $teacherUser->teacher->id;
 
-    $teacherUser = activityTeacherUser($classA);
-
-    Absence::factory()->create(['school_class_id' => $classA->id]); // clasa lui — contează
-    Absence::factory()->create(['school_class_id' => $classB->id]); // altă clasă — NU
+    // Absența consemnată de el contează; una a altui profesor (chiar și în clasa lui) NU — altfel ar
+    // prinde importul legacy + consemnările altora (spike artificial).
+    Absence::factory()->create(['teacher_id' => $teacherId]);
+    Absence::factory()->create();
 
     $this->actingAs($teacherUser);
     $data = activityData(['series' => ['absences']]);
@@ -197,7 +196,7 @@ it('Total = suma seriilor AFIȘATE (ignoră categoriile ascunse)', function () {
     $teacherId = $teacherUser->teacher->id;
 
     Grade::factory()->count(2)->create(['teacher_id' => $teacherId]);
-    Absence::factory()->create(['school_class_id' => $classA->id]);
+    Absence::factory()->create(['teacher_id' => $teacherId]);
 
     $this->actingAs($teacherUser);
 

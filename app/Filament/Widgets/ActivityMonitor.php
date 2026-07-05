@@ -25,7 +25,8 @@ use Illuminate\Support\Carbon;
  *
  * Fiecare serie = numărul de acțiuni ale userului pe interval (axa Y = acțiuni, întregi):
  *   • Note      — note ACTIVE introduse de el (Grade.teacher_id, la created_at);
- *   • Absențe   — absențe consemnate în clasele lui (Absence.school_class_id ∈ visibleSchoolClassIds);
+ *   • Absențe   — absențe CONSEMNATE de el (Absence.teacher_id, la created_at) — activitatea LUI, nu
+ *                 toate absențele clasei (acelea includ importul legacy + consemnările altor profesori);
  *   • Corecții  — corecții cerute (requested_by, created_at) + revizuite (reviewed_by, reviewed_at);
  *   • Motivări  — motivări de absență revizuite de el (reviewed_by, reviewed_at);
  *   • Mesaje    — mesaje trimise de el (sender_user_id, created_at).
@@ -103,7 +104,6 @@ class ActivityMonitor extends ChartWidget
         $user = auth('web')->user();
         $teacher = $user instanceof User ? $user->teacher : null;
         $teacherId = $teacher?->id;
-        $classIds = $teacher?->visibleSchoolClassIds() ?? [];
         $userId = $user?->getKey();
 
         $labels = [];
@@ -116,7 +116,7 @@ class ActivityMonitor extends ChartWidget
             $bucketTotal = 0;
 
             foreach ($selected as $key) {
-                $count = $this->categoryCount($key, $start, $end, $teacherId, $classIds, $userId);
+                $count = $this->categoryCount($key, $start, $end, $teacherId, $userId);
                 $categoryData[$key][] = $count;
                 $bucketTotal += $count;
             }
@@ -159,10 +159,8 @@ class ActivityMonitor extends ChartWidget
     /**
      * Numărul de acțiuni ale userului pentru o categorie, într-un interval. Fiecare categorie e
      * datată la momentul REAL al acțiunii (created_at pentru introduceri, reviewed_at pentru revizuiri).
-     *
-     * @param  list<int>  $classIds
      */
-    private function categoryCount(string $key, Carbon $start, Carbon $end, ?int $teacherId, array $classIds, ?int $userId): int
+    private function categoryCount(string $key, Carbon $start, Carbon $end, ?int $teacherId, ?int $userId): int
     {
         return match ($key) {
             'grades' => $teacherId === null ? 0 : Grade::query()
@@ -170,8 +168,8 @@ class ActivityMonitor extends ChartWidget
                 ->where('teacher_id', $teacherId)
                 ->whereBetween('created_at', [$start, $end])
                 ->count(),
-            'absences' => $classIds === [] ? 0 : Absence::query()
-                ->whereIn('school_class_id', $classIds)
+            'absences' => $teacherId === null ? 0 : Absence::query()
+                ->where('teacher_id', $teacherId)
                 ->whereBetween('created_at', [$start, $end])
                 ->count(),
             'corrections' => $userId === null ? 0 : GradeCorrection::query()
