@@ -134,7 +134,9 @@ class AbsenceForm
                 ->pluck('subject_id')
                 ->unique();
 
-            if ($teacher !== null && $teacher->homeroomSchoolClassIds() === []) {
+            // Dirigintele CLASEI ALESE vede toate disciplinele ei (gestionează absențele clasei);
+            // orice alt profesor (chiar diriginte la ALTĂ clasă) vede doar disciplinele LUI din clasă.
+            if ($teacher !== null && ! in_array($classId, $teacher->homeroomSchoolClassIds(), true)) {
                 $ownIds = TeachingAssignment::query()
                     ->where('teacher_id', $teacher->id)
                     ->where('school_class_id', $classId)
@@ -143,7 +145,8 @@ class AbsenceForm
             }
 
             $query->whereKey($subjectIds->all());
-        } elseif ($teacher !== null && $teacher->homeroomSchoolClassIds() === []) {
+        } elseif ($teacher !== null) {
+            // Fără clasă aleasă încă: profesorul vede disciplinele lui (se re-scopează la alegerea clasei).
             $query->whereKey($teacher->taughtSubjectIds());
         }
 

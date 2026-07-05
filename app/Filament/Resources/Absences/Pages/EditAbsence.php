@@ -24,6 +24,12 @@ class EditAbsence extends EditRecord
         ];
     }
 
+    // După salvare, revenire la listă (nu rămâne pe formular).
+    protected function getRedirectUrl(): string
+    {
+        return static::getResource()::getUrl('index');
+    }
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>

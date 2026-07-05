@@ -30,7 +30,7 @@ trait EnforcesAbsenceScope
         // (1) O absență nu poate fi în viitor — elevul nu a lipsit încă.
         if ($occurredOn !== null && $occurredOn->startOfDay()->isAfter(Carbon::today())) {
             throw ValidationException::withMessages([
-                'occurred_on' => __('panel.validation.absence.future'),
+                'data.occurred_on' => __('panel.validation.absence.future'),
             ]);
         }
 
@@ -60,7 +60,7 @@ trait EnforcesAbsenceScope
 
             if ($duplicate) {
                 throw ValidationException::withMessages([
-                    'student_id' => __('panel.validation.absence.duplicate'),
+                    'data.student_id' => __('panel.validation.absence.duplicate'),
                 ]);
             }
         }
@@ -77,7 +77,7 @@ trait EnforcesAbsenceScope
 
         if (! $teacher) {
             throw ValidationException::withMessages([
-                'student_id' => __('panel.validation.scope.no_teacher_profile'),
+                'data.student_id' => __('panel.validation.scope.no_teacher_profile'),
             ]);
         }
 
@@ -89,7 +89,7 @@ trait EnforcesAbsenceScope
 
         if (! $teacher->canRecordAbsence($classId, $subjectId)) {
             throw ValidationException::withMessages([
-                'school_class_id' => __('panel.validation.scope.cannot_record_absence'),
+                'data.school_class_id' => __('panel.validation.scope.cannot_record_absence'),
             ]);
         }
 
@@ -100,7 +100,7 @@ trait EnforcesAbsenceScope
 
         if (! $enrolled) {
             throw ValidationException::withMessages([
-                'student_id' => __('panel.validation.scope.not_enrolled'),
+                'data.student_id' => __('panel.validation.scope.not_enrolled'),
             ]);
         }
 

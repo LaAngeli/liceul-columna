@@ -40,7 +40,7 @@ trait EnforcesGradeScope
 
         if (! $teacher) {
             throw ValidationException::withMessages([
-                'student_id' => __('panel.validation.scope.no_teacher_profile'),
+                'data.student_id' => __('panel.validation.scope.no_teacher_profile'),
             ]);
         }
 
@@ -53,7 +53,7 @@ trait EnforcesGradeScope
 
         if (! $teacher->canGradeClassSubject($classId, $subjectId)) {
             throw ValidationException::withMessages([
-                'subject_id' => __('panel.validation.scope.not_your_class_subject'),
+                'data.subject_id' => __('panel.validation.scope.not_your_class_subject'),
             ]);
         }
 
@@ -64,7 +64,7 @@ trait EnforcesGradeScope
 
         if (! $enrolled) {
             throw ValidationException::withMessages([
-                'student_id' => __('panel.validation.scope.not_enrolled'),
+                'data.student_id' => __('panel.validation.scope.not_enrolled'),
             ]);
         }
 

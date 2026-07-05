@@ -17,6 +17,12 @@ class CreateAbsence extends CreateRecord
 
     protected static string $resource = AbsenceResource::class;
 
+    // După creare, revenire la listă (nu rămâne pe formular / nu sare pe editare).
+    protected function getRedirectUrl(): string
+    {
+        return static::getResource()::getUrl('index');
+    }
+
     /** Motivul + dovada, când se motivează CHIAR la creare (câmpurile `motivate_now`). */
     private ?string $motivationReason = null;
 
