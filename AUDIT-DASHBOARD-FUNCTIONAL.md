@@ -16,6 +16,24 @@
 
 ---
 
+## Status remediere — ✅ COMPLET (toate loturile A–F)
+
+Toate cele ~20 de probleme au fost remediate, pe loturi, fiecare cu teste + Pint + PHPStan + suita verde:
+
+| Lot | Conținut | Commit |
+|---|---|---|
+| A | C-1, Î-1, Î-2, Î-4 (autorizare bulk + PII AT) | `ffc1155` |
+| B | Î-3 (dată-viitoare notă), M-1, M-5 | `0f4ddbb` |
+| C | M-2, M-3, M-4, M-6, S-7 (configurare) | `34922b6` |
+| D | M-7, M-8, M-9, M-10, S-4, S-5, S-8 (cabinet & backend↔UI) | `b91bb75` |
+| E | S-1, S-2, S-3, S-11 (widget-uri) | `30acb0b` |
+| F | S-6, S-9, S-10 (i18n & polish) | `c7c9670` |
+
+Decizii de produs confirmate cu utilizatorul: **AT = doar agregate ne-PII** (Î-2); M-6 (fișe profesor =
+configurare) și M-7 (anunț publicat = blocat) rezolvate conform recomandării. Suita finală: **701 teste verzi**.
+
+---
+
 ## Rezumat executiv
 
 | Severitate | Nr. probleme unice | Natură dominantă |
