@@ -60,9 +60,13 @@ class HomeworkAssignmentsTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    // Soft-delete: autorul își poate retrage propriile teme (scoped prin query).
                     DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
+                    // Ștergerea PERMANENTĂ / restaurarea = doar autoritatea academică (audit Î-4/#06).
+                    ForceDeleteBulkAction::make()
+                        ->visible(fn (): bool => auth('web')->user()?->canAdministerCatalog() ?? false),
+                    RestoreBulkAction::make()
+                        ->visible(fn (): bool => auth('web')->user()?->canAdministerCatalog() ?? false),
                 ]),
             ]);
     }

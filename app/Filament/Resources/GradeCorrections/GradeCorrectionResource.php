@@ -40,6 +40,13 @@ class GradeCorrectionResource extends Resource
         return __('panel.resources.grade_corrections.plural');
     }
 
+    // Catalogul academic nu se afișează administratorului tehnic (decizia „AT = doar agregate
+    // ne-PII"); staff-ul academic vede, scoped prin getEloquentQuery. Audit Î-2/#28.
+    public static function canViewAny(): bool
+    {
+        return auth('web')->user()?->canSeeAcademicData() ?? false;
+    }
+
     public static function table(Table $table): Table
     {
         return GradeCorrectionsTable::configure($table);

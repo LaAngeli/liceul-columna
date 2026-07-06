@@ -47,9 +47,12 @@ class ConsentAcknowledgmentResource extends Resource
         return ConsentAcknowledgmentsTable::configure($table);
     }
 
+    // Conține PII de minori (nume elev/părinte + IP). Vizibil DOAR administrației academice
+    // (`isAdministrator`), NU administratorului tehnic — deși AT vede jurnalul de audit, acolo
+    // datele sunt minimizate; aici nu. Aliniere cu minimizarea PII (L133 §7), audit Î-1/#04.
     public static function canViewAny(): bool
     {
-        return auth('web')->user()?->canViewAuditLog() ?? false;
+        return auth('web')->user()?->isAdministrator() ?? false;
     }
 
     public static function canCreate(): bool

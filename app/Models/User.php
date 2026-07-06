@@ -619,6 +619,18 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * Poate VEDEA datele academice din panou (catalogul: elevi, note, absențe, foaie matricolă,
+     * discipline, clase, teme etc.). Administrația academică (`isAdministrator`) + personalul
+     * pedagogic (are fișă de profesor) — scoping-ul fin rămâne în `getEloquentQuery`. Administratorul
+     * TEHNIC e exclus (infra, fără date academice/PII — §3.2); elevii/părinții nu ajung în panou.
+     * Sursă unică pentru gate-urile `canViewAny` academice (decizia „AT = doar agregate ne-PII").
+     */
+    public function canSeeAcademicData(): bool
+    {
+        return $this->isAdministrator() || $this->teacher !== null;
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

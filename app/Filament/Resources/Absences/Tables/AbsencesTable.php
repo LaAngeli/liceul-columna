@@ -167,9 +167,14 @@ class AbsencesTable
                     ExportBulkAction::make()
                         ->exporter(AbsenceExporter::class)
                         ->visible(fn (): bool => auth('web')->user()?->isAdministrator() ?? false),
+                    // Soft-delete: profesorul își poate retrage propriile absențe (scoped prin query).
                     DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
+                    // Ștergerea PERMANENTĂ / restaurarea = doar autoritatea academică; profesorul nu
+                    // șterge definitiv date de catalog, nici măcar ale lui (audit Î-4/#06).
+                    ForceDeleteBulkAction::make()
+                        ->visible(fn (): bool => auth('web')->user()?->canAdministerCatalog() ?? false),
+                    RestoreBulkAction::make()
+                        ->visible(fn (): bool => auth('web')->user()?->canAdministerCatalog() ?? false),
                 ])->visible(fn (): bool => (auth('web')->user()?->canAdministerCatalog() ?? false)
                     || auth('web')->user()?->teacher !== null),
             ]);

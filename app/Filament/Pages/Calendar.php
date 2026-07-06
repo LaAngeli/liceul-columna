@@ -32,6 +32,13 @@ class Calendar extends Page
         return __('panel.nav.groups.communication');
     }
 
+    // Calendar instituțional = staff academic (conducere + personal pedagogic). Administratorul
+    // tehnic e exclus (infra, fără date academice) — audit #33, decizia „AT = doar agregate".
+    public static function canAccess(): bool
+    {
+        return auth('web')->user()?->canSeeAcademicData() ?? false;
+    }
+
     public function getTitle(): string
     {
         return __('panel.pages.calendar.title');

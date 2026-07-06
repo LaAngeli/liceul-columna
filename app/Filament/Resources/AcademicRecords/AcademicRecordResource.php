@@ -44,6 +44,13 @@ class AcademicRecordResource extends Resource
         return __('panel.resources.academic_records.plural');
     }
 
+    // Catalogul academic (PII) nu se afișează administratorului tehnic (decizia „AT = doar agregate
+    // ne-PII"); staff-ul academic vede, scoped prin getEloquentQuery. Audit Î-2/#28.
+    public static function canViewAny(): bool
+    {
+        return auth('web')->user()?->canSeeAcademicData() ?? false;
+    }
+
     public static function infolist(Schema $schema): Schema
     {
         return AcademicRecordInfolist::configure($schema);

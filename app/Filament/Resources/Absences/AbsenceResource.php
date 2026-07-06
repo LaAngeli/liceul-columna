@@ -46,6 +46,13 @@ class AbsenceResource extends Resource
         return __('panel.resources.absences.plural');
     }
 
+    // Catalogul academic nu se afișează administratorului tehnic (decizia „AT = doar agregate
+    // ne-PII"); staff-ul academic vede, scoped prin getEloquentQuery. Audit Î-2/#28.
+    public static function canViewAny(): bool
+    {
+        return auth('web')->user()?->canSeeAcademicData() ?? false;
+    }
+
     /**
      * Consemnează absențe: profesorii/diriginții (scoped pe server) + autoritatea academică.
      * Administratorul operațional/tehnic — nu (§3.3).

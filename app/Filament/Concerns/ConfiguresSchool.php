@@ -35,4 +35,27 @@ trait ConfiguresSchool
     {
         return auth('web')->user()?->canConfigureSchool() ?? false;
     }
+
+    // ForceDelete/Restore (ștergere PERMANENTĂ / restaurare din coș) = tot drept de configurare.
+    // Filament verifică `can{ForceDelete,Restore}Any` separat de `canDeleteAny` la acțiunile în
+    // masă; fără aceste metode, ele cad pe default-ul „permis" și ocolesc ierarhia (audit Î-4/#26).
+    public static function canForceDelete(Model $record): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
+
+    public static function canForceDeleteAny(): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
+
+    public static function canRestore(Model $record): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
+
+    public static function canRestoreAny(): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
 }

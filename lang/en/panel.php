@@ -712,6 +712,8 @@ return [
             'twofa_reset_description' => 'Both methods (app + email) will be cleared; the user will set up 2FA again at the next sign-in. The action is kept in the audit log.',
             'twofa_reset_reason' => 'Reset reason',
             'twofa_reset_success' => '2FA has been reset. The user will set it up again at the next sign-in.',
+            'bulk_delete_success' => ':count accounts deleted.',
+            'bulk_delete_partial' => ':deleted accounts deleted; :blocked skipped (you cannot manage them, or it is your own account).',
         ],
         'audit' => [
             'data_type_grade' => 'Grade',

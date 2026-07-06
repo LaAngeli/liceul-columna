@@ -52,6 +52,50 @@ class TeacherResource extends Resource
         return __('panel.resources.teachers.plural');
     }
 
+    // Vizibilă întregii administrații academice (AdministratorOnly::canAccess = isAdministrator), dar
+    // fișele de profesor sunt parte din CONFIGURAREA școlii (alocări §3.3) → creare/editare/ștergere
+    // doar de configuratori (super-admin/director/AO), NU de prim-vicedirector. Consecvent cu
+    // Elevi/Discipline/Clase (ManagedByConfigurators); audit M-6/#15.
+    public static function canCreate(): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
+
+    public static function canForceDelete(Model $record): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
+
+    public static function canForceDeleteAny(): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
+
+    public static function canRestore(Model $record): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
+
+    public static function canRestoreAny(): bool
+    {
+        return auth('web')->user()?->canConfigureSchool() ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return TeacherForm::configure($schema);

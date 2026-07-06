@@ -725,6 +725,8 @@ return [
             'twofa_reset_description' => 'Ambele metode (aplicație + e-mail) vor fi golite; utilizatorul va reconfigura 2FA la următoarea logare. Acțiunea rămâne în audit.',
             'twofa_reset_reason' => 'Motivul resetării',
             'twofa_reset_success' => '2FA a fost resetat. Utilizatorul va configura din nou la următoarea logare.',
+            'bulk_delete_success' => 'Au fost șterse :count conturi.',
+            'bulk_delete_partial' => ':deleted conturi șterse; :blocked ignorate (nu le poți administra sau e propriul tău cont).',
         ],
         'audit' => [
             'data_type_grade' => 'Notă',

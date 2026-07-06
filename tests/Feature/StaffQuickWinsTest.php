@@ -14,6 +14,7 @@ use App\Models\GradeCorrection;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
+use App\Models\Teacher;
 use App\Models\Term;
 use App\Models\User;
 use Illuminate\Support\Facades\Queue;
@@ -57,7 +58,12 @@ it('aprobă în masă doar corecțiile în așteptare', function () {
 });
 
 it('bara de instrumente bulk a corecțiilor e ascunsă profesorului fără drept de aprobare', function () {
-    $this->actingAs(staffWithRole(UserRole::Profesor));
+    $profesor = staffWithRole(UserRole::Profesor);
+    // Profesorul are fișă → poate VEDEA pagina (cererile lui), dar acțiunea de aprobare în masă
+    // rămâne ascunsă (nu are drept de aprobare). Fără fișă, catalogul academic nu-i e vizibil deloc.
+    Teacher::factory()->create(['user_id' => $profesor->id]);
+
+    $this->actingAs($profesor);
 
     Livewire::test(ListGradeCorrections::class)
         ->assertTableBulkActionHidden('approveSelected');

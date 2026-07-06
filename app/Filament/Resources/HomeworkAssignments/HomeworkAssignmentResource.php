@@ -46,6 +46,13 @@ class HomeworkAssignmentResource extends Resource
         return __('panel.resources.homework.plural');
     }
 
+    // Catalogul academic nu se afișează administratorului tehnic (decizia „AT = doar agregate
+    // ne-PII"); staff-ul academic vede, scoped prin getEloquentQuery. Audit Î-2/#28.
+    public static function canViewAny(): bool
+    {
+        return auth('web')->user()?->canSeeAcademicData() ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return HomeworkAssignmentForm::configure($schema);

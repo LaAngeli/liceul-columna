@@ -39,22 +39,25 @@ class AdminOverview extends StatsOverviewWidget
         $pendingPasswords = User::query()->where('must_change_password', true)->count();
 
         return [
+            // Cardurile linkează spre resursă DOAR dacă vizualizatorul o poate deschide. Astfel
+            // administratorul tehnic vede agregatele (decizia „AT = doar agregate ne-PII"), dar
+            // cardurile nu mai duc la 403 (Utilizatori/Profesori îi sunt inaccesibile). Audit S-11/#18/#19.
             Stat::make(__('panel.widgets.admin_overview.passwords_pending'), $pendingPasswords)
                 ->description(__('panel.widgets.admin_overview.passwords_pending_desc'))
                 ->descriptionIcon(Heroicon::OutlinedKey)
                 ->color($pendingPasswords > 0 ? 'warning' : 'success')
                 ->extraAttributes(self::cockpit($pendingPasswords > 0))
-                ->url(UserResource::getUrl('index')),
+                ->url(UserResource::canAccess() ? UserResource::getUrl('index') : null),
             Stat::make(__('panel.widgets.admin_overview.students'), Student::query()->count())
                 ->description(__('panel.widgets.admin_overview.students_desc'))
                 ->descriptionIcon(Heroicon::OutlinedAcademicCap)
                 ->extraAttributes(self::cockpit())
-                ->url(StudentResource::getUrl('index')),
+                ->url(StudentResource::canAccess() ? StudentResource::getUrl('index') : null),
             Stat::make(__('panel.widgets.admin_overview.teachers'), Teacher::query()->count())
                 ->description(__('panel.widgets.admin_overview.teachers_desc'))
                 ->descriptionIcon(Heroicon::OutlinedUserGroup)
                 ->extraAttributes(self::cockpit())
-                ->url(TeacherResource::getUrl('index')),
+                ->url(TeacherResource::canAccess() ? TeacherResource::getUrl('index') : null),
             // Aliniat la scope-ul active() (consecvent cu ActivityMonitor și motorul de medii): notele
             // anulate (annulled_at) sunt păstrate în istoric dar NU se numără în „note în catalog".
             Stat::make(__('panel.widgets.admin_overview.grades_count'), Grade::query()->active()->count())

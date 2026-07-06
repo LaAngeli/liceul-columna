@@ -46,6 +46,13 @@ class GradeResource extends Resource
         return __('panel.resources.grades.plural');
     }
 
+    // Catalogul academic nu se afișează administratorului tehnic (decizia „AT = doar agregate
+    // ne-PII"); staff-ul academic vede, scoped prin getEloquentQuery. Audit Î-2/#28.
+    public static function canViewAny(): bool
+    {
+        return auth('web')->user()?->canSeeAcademicData() ?? false;
+    }
+
     /**
      * Introduc note: profesorii/diriginții (scoped pe server) + autoritatea academică
      * (super-admin/director/prim-vicedirector). Administratorul operațional/tehnic — nu (§3.2/§3.3).
