@@ -129,11 +129,16 @@ it('dirigintele poate anula nota la disciplina LUI, dar nu la o disciplină pe c
         ->assertTableActionHidden('annul', $biologieGrade); // nu predă Biologie → ascuns
 });
 
-// ─── M-5: modalul de corecție folosește disciplina notei (câmp + interval) ──────────────
+// ─── M-5 (+ regresie corectată): modalul de corecție folosește disciplina notei (câmp), dar
+// intervalul e FIX 1–10 — NU Subject::min_grade/max_grade (acelea sunt „De la clasă/Până la
+// clasă": treapta la care se predă disciplina, ex. Chimie reală 7–12 = clasele VII-XII, un
+// concept diferit de notă). Fixtura de mai jos folosește intenționat 7/12 (ca la Chimie) ca
+// să demonstreze că nota 4 (validă pe scala 1–10) NU mai e respinsă — ar fi picat sub bug-ul
+// care confunda „treaptă" cu „interval de notă".
 
-it('solicitarea de corecție se deschide cu câmpul disciplinei notei și creează cererea', function () {
+it('solicitarea de corecție acceptă scala FIXĂ 1–10, indiferent de min_grade/max_grade („treaptă") al disciplinei', function () {
     $class = SchoolClass::factory()->for($this->year)->create();
-    $subject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'min_grade' => 1, 'max_grade' => 10]);
+    $subject = Subject::factory()->create(['name' => 'Chimie', 'grading_type' => GradingType::Numeric, 'min_grade' => 7, 'max_grade' => 12]);
     $student = Student::factory()->create();
     Enrollment::factory()->for($student)->for($class)->for($this->year)->create();
 
@@ -148,8 +153,35 @@ it('solicitarea de corecție se deschide cu câmpul disciplinei notei și creeaz
     actingAs($teacherUser);
 
     Livewire::test(ListGrades::class)
-        ->callTableAction('requestCorrection', $grade, ['new_value' => 9, 'reason' => 'greșeală de transcriere'])
+        ->callTableAction('requestCorrection', $grade, ['new_value' => 4, 'reason' => 'greșeală de transcriere'])
         ->assertHasNoTableActionErrors();
 
-    expect(GradeCorrection::query()->where('grade_id', $grade->id)->count())->toBe(1);
+    expect(GradeCorrection::query()->where('grade_id', $grade->id)->where('new_value', 4)->count())->toBe(1);
+});
+
+// ─── Regresie: crearea notei acceptă scala FIXĂ 1–10, indiferent de min_grade/max_grade
+// („treaptă") al disciplinei — reproduce exact raportul: Chimie (treaptă VII-XII, min/max_grade
+// 7/12) afișa greșit „Interval permis: 7–12" pe câmpul NOTĂ și respingea valori sub 7. ──────────
+
+it('crearea notei acceptă o valoare joasă (4) la o disciplină cu min_grade/max_grade = treaptă (Chimie 7–12)', function () {
+    $class = SchoolClass::factory()->for($this->year)->create();
+    $subject = Subject::factory()->create(['name' => 'Chimie', 'grading_type' => GradingType::Numeric, 'min_grade' => 7, 'max_grade' => 12]);
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($this->year)->create();
+
+    actingAs(lotBGradingTeacher($class, $subject));
+
+    Livewire::test(CreateGrade::class)
+        ->fillForm([
+            'school_class_id' => $class->id,
+            'subject_id' => $subject->id,
+            'student_id' => $student->id,
+            'evaluation_type' => EvaluationType::Curenta->value,
+            'graded_on' => '2026-03-10',
+            'value' => 4,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Grade::query()->where('value', 4)->count())->toBe(1);
 });

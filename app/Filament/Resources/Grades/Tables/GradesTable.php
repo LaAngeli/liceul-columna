@@ -126,12 +126,15 @@ class GradesTable
                     ->schema([
                         // Corecția trebuie să propună o nouă valoare: cel puțin una dintre notă/calificativ
                         // (requiredWithout reciproc → blochează „nicio modificare de valoare"). Intervalul
-                        // și tipul câmpului urmează disciplina notei (audit M-5/#11), nu 1–10 fix.
+                        // notei e FIX 1–10 (scala oficială, §3); CÂMPUL (notă vs calificativ) urmează
+                        // disciplina (audit M-5/#11). CORECȚIE: Subject::min_grade/max_grade NU sunt
+                        // limitele notei — sunt „De la clasă / Până la clasă" (treapta la care se predă
+                        // disciplina, ex. Chimie 7–12 = clasele VII-XII); le folosisem greșit ca bounds.
                         TextInput::make('new_value')
                             ->label(__('panel.actions.request_correction.new_value'))
                             ->numeric()
-                            ->minValue(fn (Grade $record): int => $record->subject->min_grade ?? 1)
-                            ->maxValue(fn (Grade $record): int => $record->subject->max_grade ?? 10)
+                            ->minValue(1)
+                            ->maxValue(10)
                             ->visible(fn (Grade $record): bool => $record->subject->grading_type === GradingType::Numeric)
                             ->requiredWithout('new_calificativ'),
                         TextInput::make('new_calificativ')

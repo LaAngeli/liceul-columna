@@ -64,14 +64,16 @@ class GradeForm
                     ->default(now())
                     ->maxDate(now()),
                 // Câmpul de NOTĂ NUMERICĂ: vizibil + obligatoriu DOAR pentru disciplinele numerice
-                // (sau cât timp disciplina nu e aleasă). Intervalul min/max vine din Subject.
-                // Vizibilitatea pe grading_type asigură structural că NU pot coexista notă și calificativ
-                // (rezolvă regula „notă SAU calificativ"): pentru o disciplină cunoscută, doar UN câmp e vizibil.
+                // (sau cât timp disciplina nu e aleasă). Intervalul e FIX 1–10 (scala oficială, §3) —
+                // Subject::min_grade/max_grade NU sunt limitele notei: sunt „De la clasă / Până la
+                // clasă" (treapta la care se predă disciplina, ex. Chimie 7–12 = clasele VII-XII), un
+                // concept diferit. Vizibilitatea pe grading_type asigură structural că NU pot coexista
+                // notă și calificativ (rezolvă regula „notă SAU calificativ").
                 TextInput::make('value')
                     ->label(__('panel.fields.value'))
                     ->numeric()
-                    ->minValue(fn (Get $get): int => self::bounds($get)[0])
-                    ->maxValue(fn (Get $get): int => self::bounds($get)[1])
+                    ->minValue(1)
+                    ->maxValue(10)
                     ->helperText(fn (Get $get): string => self::valueHelper($get))
                     ->visible(fn (Get $get): bool => self::showsValue($get))
                     ->required(fn (Get $get): bool => self::gradingType($get) === GradingType::Numeric),
@@ -129,34 +131,14 @@ class GradeForm
         ], true);
     }
 
-    /**
-     * Intervalul [min, max] al disciplinei alese (sau [1, 10] implicit cât timp nu e aleasă).
-     *
-     * @return array{0: int, 1: int}
-     */
-    private static function bounds(Get $get): array
-    {
-        $subject = self::subjectFor($get);
-
-        if ($subject === null) {
-            return [1, 10];
-        }
-
-        return [$subject->min_grade ?? 1, $subject->max_grade ?? 10];
-    }
-
-    /** Helper-ul câmpului de notă: intervalul disciplinei dacă e aleasă, altfel îndemnul de a alege disciplina. */
+    /** Helper-ul câmpului de notă: intervalul FIX 1–10 dacă disciplina e aleasă, altfel îndemnul de a o alege. */
     private static function valueHelper(Get $get): string
     {
-        $subject = self::subjectFor($get);
-
-        if ($subject === null) {
+        if (self::subjectFor($get) === null) {
             return __('panel.forms.grade.helper_pick_subject');
         }
 
-        [$min, $max] = self::bounds($get);
-
-        return __('panel.forms.grade.helper_value_range', ['min' => $min, 'max' => $max]);
+        return __('panel.forms.grade.helper_value_range', ['min' => 1, 'max' => 10]);
     }
 
     /**
