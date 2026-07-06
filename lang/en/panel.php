@@ -755,5 +755,8 @@ return [
             'future' => 'The absence date cannot be in the future.',
             'duplicate' => 'An absence already exists for this student, on this day, for this subject.',
         ],
+        'grade' => [
+            'future' => 'The grade date cannot be in the future.',
+        ],
     ],
 ];

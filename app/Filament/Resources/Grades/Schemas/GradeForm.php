@@ -57,10 +57,12 @@ class GradeForm
                     ->default(EvaluationType::Curenta->value)
                     ->native(false)
                     ->required(),
+                // O notă nu poate fi în viitor; data determină și semestrul (derivat pe server).
                 DatePicker::make('graded_on')
                     ->label(__('panel.fields.date'))
                     ->required()
-                    ->default(now()),
+                    ->default(now())
+                    ->maxDate(now()),
                 // Câmpul de NOTĂ NUMERICĂ: vizibil + obligatoriu DOAR pentru disciplinele numerice
                 // (sau cât timp disciplina nu e aleasă). Intervalul min/max vine din Subject.
                 // Vizibilitatea pe grading_type asigură structural că NU pot coexista notă și calificativ

@@ -770,5 +770,8 @@ return [
             'future' => 'Data absenței nu poate fi în viitor.',
             'duplicate' => 'Există deja o absență pentru acest elev, în această zi, la această disciplină.',
         ],
+        'grade' => [
+            'future' => 'Data notei nu poate fi în viitor.',
+        ],
     ],
 ];

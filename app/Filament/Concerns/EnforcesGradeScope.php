@@ -20,9 +20,20 @@ trait EnforcesGradeScope
      */
     protected function enforceGradeScope(array $data): array
     {
-        // Semestrul aparține datei notei; fallback la semestrul curent în afara intervalelor.
         if (isset($data['graded_on']) && $data['graded_on'] !== '') {
-            $term = Term::forDate(Carbon::parse((string) $data['graded_on']));
+            $gradedOn = Carbon::parse((string) $data['graded_on']);
+
+            // O notă nu poate fi în viitor — elevul nu a fost încă evaluat în acea zi (audit Î-3).
+            // Serverul e protecția reală (POST manipulat); maxDate din formular e doar UX. Aceeași
+            // gardă ca la absențe (EnforcesAbsenceScope).
+            if ($gradedOn->startOfDay()->isAfter(Carbon::today())) {
+                throw ValidationException::withMessages([
+                    'data.graded_on' => __('panel.validation.grade.future'),
+                ]);
+            }
+
+            // Semestrul aparține datei notei; fallback la semestrul curent în afara intervalelor.
+            $term = Term::forDate($gradedOn);
             $data['term_id'] = $term instanceof Term
                 ? $term->id
                 : Term::query()->where('is_current', true)->value('id');

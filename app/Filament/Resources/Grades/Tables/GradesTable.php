@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Grades\Tables;
 
 use App\Enums\EvaluationType;
+use App\Enums\GradingType;
 use App\Enums\SchoolCycle;
 use App\Filament\Exports\GradeExporter;
 use App\Filament\Resources\Students\StudentResource;
@@ -115,23 +116,28 @@ class GradesTable
                     ->label(__('panel.actions.request_correction.label'))
                     ->icon('heroicon-o-pencil-square')
                     ->color('warning')
+                    // Doar profesorul care PREDĂ (clasa, disciplina) notei poate cere corecția — nu
+                    // dirigintele pe o disciplină străină lui, deși vede nota clasei (audit M-1/#10).
                     ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
                         && ! (auth('web')->user()?->canAdministerCatalog() ?? false)
-                        && auth('web')->user()?->teacher !== null)
+                        && self::teacherTeachesGrade($record))
                     ->modalHeading(fn (): string => __('panel.actions.request_correction.heading'))
                     ->modalDescription(fn (): string => __('panel.actions.request_correction.description'))
                     ->schema([
                         // Corecția trebuie să propună o nouă valoare: cel puțin una dintre notă/calificativ
-                        // (requiredWithout reciproc → blochează „nicio modificare de valoare").
+                        // (requiredWithout reciproc → blochează „nicio modificare de valoare"). Intervalul
+                        // și tipul câmpului urmează disciplina notei (audit M-5/#11), nu 1–10 fix.
                         TextInput::make('new_value')
                             ->label(__('panel.actions.request_correction.new_value'))
                             ->numeric()
-                            ->minValue(1)
-                            ->maxValue(10)
+                            ->minValue(fn (Grade $record): int => $record->subject->min_grade ?? 1)
+                            ->maxValue(fn (Grade $record): int => $record->subject->max_grade ?? 10)
+                            ->visible(fn (Grade $record): bool => $record->subject->grading_type === GradingType::Numeric)
                             ->requiredWithout('new_calificativ'),
                         TextInput::make('new_calificativ')
                             ->label(__('panel.actions.request_correction.new_calificativ'))
                             ->maxLength(10)
+                            ->visible(fn (Grade $record): bool => $record->subject->grading_type !== GradingType::Numeric)
                             ->requiredWithout('new_value'),
                         Textarea::make('reason')
                             ->label(__('panel.actions.request_correction.reason'))
@@ -160,9 +166,11 @@ class GradesTable
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
                     ->requiresConfirmation()
+                    // Anularea scoate nota din medii — o poate face autoritatea academică sau profesorul
+                    // care PREDĂ (clasa, disciplina) notei, NU dirigintele pe o disciplină străină (M-1/#07).
                     ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
                         && ((auth('web')->user()?->canAdministerCatalog() ?? false)
-                            || auth('web')->user()?->teacher !== null))
+                            || self::teacherTeachesGrade($record)))
                     ->modalHeading(fn (): string => __('panel.actions.annul.heading'))
                     ->modalDescription(fn (): string => __('panel.actions.annul.description'))
                     ->schema([
@@ -191,5 +199,21 @@ class GradesTable
                         ->visible(fn (): bool => auth('web')->user()?->isAdministrator() ?? false),
                 ]),
             ]);
+    }
+
+    /**
+     * Profesorul logat PREDĂ (clasa, disciplina) acestei note? Sursă pentru vizibilitatea acțiunilor
+     * de anulare / solicitare corecție la profesor: dirigintele vede notele clasei, dar nu operează
+     * pe disciplinele altor profesori. Administrația (canAdministerCatalog) e verificată separat.
+     */
+    private static function teacherTeachesGrade(Grade $record): bool
+    {
+        $teacher = auth('web')->user()?->teacher;
+
+        if ($teacher === null) {
+            return false;
+        }
+
+        return $teacher->canGradeClassSubject((int) $record->school_class_id, (int) $record->subject_id);
     }
 }
