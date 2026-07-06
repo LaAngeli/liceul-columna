@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\EnsuresSingleCurrent;
+use Database\Factories\AcademicYearFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,8 +11,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AcademicYear extends Model
 {
-    /** @use HasFactory<\Database\Factories\AcademicYearFactory> */
-    use HasFactory, SoftDeletes;
+    /** @use HasFactory<AcademicYearFactory> */
+    use EnsuresSingleCurrent, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\EnsuresSingleCurrent;
 use Database\Factories\TermFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,7 +19,7 @@ use Illuminate\Support\Carbon;
 class Term extends Model
 {
     /** @use HasFactory<TermFactory> */
-    use HasFactory, SoftDeletes;
+    use EnsuresSingleCurrent, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'academic_year_id',

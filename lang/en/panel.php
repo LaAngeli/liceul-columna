@@ -564,6 +564,7 @@ return [
             'name' => 'Name',
             'name_placeholder' => 'e.g.: Term I',
             'is_current' => 'Current term',
+            'is_current_hint' => 'Set automatically from the date ranges (daily sync); not edited manually.',
             'number_short' => 'No.',
         ],
         'holiday' => [
@@ -757,6 +758,13 @@ return [
         ],
         'grade' => [
             'future' => 'The grade date cannot be in the future.',
+        ],
+        'term' => [
+            'outside_year' => 'The term dates must fall within the selected academic year.',
+            'overlap' => 'The dates overlap another term of the same academic year.',
+        ],
+        'enrollment' => [
+            'duplicate' => 'This student is already enrolled for the selected academic year.',
         ],
     ],
 ];

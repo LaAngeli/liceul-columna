@@ -27,10 +27,13 @@ class CorigentaSessionForm
                 ->required(),
             DatePicker::make('starts_on')
                 ->label(__('panel.forms.corigenta_session.starts_on'))
-                ->required(),
+                ->required()
+                ->beforeOrEqual('ends_on'),
             DatePicker::make('ends_on')
                 ->label(__('panel.forms.corigenta_session.ends_on'))
-                ->required(),
+                ->required()
+                // Intervalul sesiunii nu poate fi negativ (audit S-7).
+                ->afterOrEqual('starts_on'),
         ]);
     }
 }

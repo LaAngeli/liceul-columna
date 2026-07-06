@@ -577,6 +577,7 @@ return [
             'name' => 'Denumire',
             'name_placeholder' => 'ex: Semestrul I',
             'is_current' => 'Semestru curent',
+            'is_current_hint' => 'Se stabilește automat după intervalele de date (sincronizare zilnică); nu se editează manual.',
             'number_short' => 'Nr.',
         ],
         'holiday' => [
@@ -772,6 +773,13 @@ return [
         ],
         'grade' => [
             'future' => 'Data notei nu poate fi în viitor.',
+        ],
+        'term' => [
+            'outside_year' => 'Intervalul semestrului trebuie să se încadreze în anul școlar selectat.',
+            'overlap' => 'Intervalul se suprapune cu alt semestru al aceluiași an școlar.',
+        ],
+        'enrollment' => [
+            'duplicate' => 'Acest elev este deja înmatriculat în anul școlar selectat.',
         ],
     ],
 ];
