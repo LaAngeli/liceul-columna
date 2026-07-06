@@ -20,29 +20,29 @@ class StudentExporter extends Exporter
     {
         return [
             ExportColumn::make('last_name')
-                ->label('Nume'),
+                ->label(__('panel.exports.last_name')),
             ExportColumn::make('first_name')
-                ->label('Prenume'),
+                ->label(__('panel.exports.first_name')),
             ExportColumn::make('sex')
-                ->label('Sex')
+                ->label(__('panel.exports.sex'))
                 ->formatStateUsing(fn (?string $state): string => $state ?? ''),
             ExportColumn::make('register_number')
-                ->label('Nr. matricol'),
+                ->label(__('panel.exports.register_number')),
             ExportColumn::make('second_language')
-                ->label('Limba a 2-a')
+                ->label(__('panel.exports.second_language'))
                 ->formatStateUsing(fn (?string $state): string => $state ?? ''),
             ExportColumn::make('english_group')
-                ->label('Grupa engleză')
+                ->label(__('panel.exports.english_group'))
                 ->enabledByDefault(false),
         ];
     }
 
     public static function getCompletedNotificationBody(Export $export): string
     {
-        $body = 'Exportul listei de elevi s-a încheiat — '.Number::format($export->successful_rows).' rânduri exportate.';
+        $body = __('panel.exports.done_students', ['count' => Number::format($export->successful_rows)]);
 
         if ($failedRowsCount = $export->getFailedRowsCount()) {
-            $body .= ' '.Number::format($failedRowsCount).' rânduri nu au putut fi exportate.';
+            $body .= ' '.__('panel.exports.failed', ['count' => Number::format($failedRowsCount)]);
         }
 
         return $body;

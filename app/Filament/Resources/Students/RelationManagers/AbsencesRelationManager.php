@@ -17,7 +17,10 @@ class AbsencesRelationManager extends RelationManager
 {
     protected static string $relationship = 'absences';
 
-    protected static ?string $title = 'Absențe';
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('panel.resources.absences.plural');
+    }
 
     protected static string|BackedEnum|null $icon = 'heroicon-o-calendar-date-range';
 

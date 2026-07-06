@@ -107,10 +107,31 @@ class NotificationsController extends Controller
 
         $data = $request->validate($rules);
 
+        $availableTypeValues = array_map(
+            static fn (NotificationType $type): string => $type->value,
+            $user->availableNotificationTypes(),
+        );
+
+        // Sanitizează preferințele: DOAR tipurile RELEVANTE rolului (§5) — UI-ul arată doar aceste tipuri,
+        // dar un POST manipulat putea salva o preferință pe un tip străin rolului (ex. părinte pe un tip
+        // destinat staff-ului). Canalele rămân cele livrabile (validate mai sus prin Rule::in); un canal
+        // social încă fără token e păstrat și se activează când liceul îl configurează. Audit S-6/#40.
+        $preferences = [];
+        foreach ((is_array($data['preferences'] ?? null) ? $data['preferences'] : []) as $type => $channels) {
+            if (! in_array($type, $availableTypeValues, true)) {
+                continue;
+            }
+
+            $preferences[$type] = array_values(array_intersect(
+                is_array($channels) ? $channels : [],
+                $channelValues,
+            ));
+        }
+
         $attributes = [
             'notification_locale' => $data['notification_locale'] ?? null,
             'notification_contacts' => array_filter($data['contacts'] ?? []),
-            'notification_preferences' => $data['preferences'] ?? [],
+            'notification_preferences' => $preferences,
         ];
 
         if ($submittedEmail !== '' && $submittedEmail !== $user->email) {

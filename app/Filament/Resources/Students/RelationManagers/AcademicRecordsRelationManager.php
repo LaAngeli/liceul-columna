@@ -17,7 +17,10 @@ class AcademicRecordsRelationManager extends RelationManager
 {
     protected static string $relationship = 'academicRecords';
 
-    protected static ?string $title = 'Foaie matricolă';
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('panel.resources.academic_records.plural');
+    }
 
     protected static string|BackedEnum|null $icon = 'heroicon-o-rectangle-stack';
 

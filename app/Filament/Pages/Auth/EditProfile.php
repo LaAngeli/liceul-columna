@@ -193,7 +193,7 @@ class EditProfile extends BaseEditProfile
                     ->color('success')
                     ->visible(fn (): bool => $this->twoFactorUser()->usesEmailTwoFactor()),
                 Text::make(__('panel.pages.profile.twofa.email_status_off'))
-                    ->color('neutral')
+                    ->color('gray')
                     ->visible(fn (): bool => ! $this->twoFactorUser()->usesEmailTwoFactor()),
                 Actions::make([
                     $this->getSendEmailCodeAction(),
@@ -326,7 +326,7 @@ class EditProfile extends BaseEditProfile
                 )),
                 Text::make(fn (): string => __('panel.pages.profile.twofa.manual_key', [
                     'key' => decrypt($this->twoFactorUser()->two_factor_secret),
-                ]))->color('neutral'),
+                ]))->color('gray'),
                 TextInput::make('code')
                     ->label(__('panel.pages.profile.twofa.code'))
                     ->required()

@@ -478,6 +478,7 @@ return [
             'action' => 'Acțiune',
             'data_type' => 'Tip date',
             'id' => 'ID',
+            'url' => 'URL',
             'event_created' => 'Creare',
             'event_updated' => 'Modificare',
             'event_deleted' => 'Ștergere',
@@ -760,6 +761,34 @@ return [
     ],
 
     // Mesaje de validare impuse pe SERVER (scoping note/absențe) — vizibile staff-ului la salvare.
+    // Antetele de coloană + notificarea de finalizare pentru exporturile Filament (note/absențe/elevi).
+    'exports' => [
+        'last_name' => 'Nume',
+        'first_name' => 'Prenume',
+        'class' => 'Clasa',
+        'subject' => 'Disciplina',
+        'date' => 'Data',
+        'term' => 'Semestrul',
+        'author_last' => 'Autor (nume)',
+        'author_first' => 'Autor (prenume)',
+        'grade' => 'Nota',
+        'calificativ' => 'Calificativ',
+        'evaluation_type' => 'Tipul evaluării',
+        'annulled_at' => 'Anulată la',
+        'annulment_reason' => 'Motivul anulării',
+        'motivated' => 'Motivată',
+        'yes' => 'Da',
+        'no' => 'Nu',
+        'sex' => 'Sex',
+        'register_number' => 'Nr. matricol',
+        'second_language' => 'Limba a 2-a',
+        'english_group' => 'Grupa engleză',
+        'done_grades' => 'Exportul de note s-a încheiat — :count rânduri exportate.',
+        'done_absences' => 'Exportul de absențe s-a încheiat — :count rânduri exportate.',
+        'done_students' => 'Exportul listei de elevi s-a încheiat — :count rânduri exportate.',
+        'failed' => ':count rânduri nu au putut fi exportate.',
+    ],
+
     'validation' => [
         'scope' => [
             'no_teacher_profile' => 'Contul tău nu e legat de o fișă de profesor.',

@@ -25,9 +25,12 @@ class AuditsRelationManager extends RelationManager
 {
     protected static string $relationship = 'audits';
 
-    protected static ?string $title = 'Jurnal de audit';
-
     protected static string|BackedEnum|null $icon = 'heroicon-o-shield-check';
+
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('panel.resources.audits.label');
+    }
 
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
@@ -47,25 +50,25 @@ class AuditsRelationManager extends RelationManager
     {
         return $schema->components([
             TextEntry::make('created_at')
-                ->label('Data')
+                ->label(__('panel.fields.date'))
                 ->dateTime('d.m.Y H:i:s'),
             TextEntry::make('user.name')
-                ->label('Autor')
-                ->placeholder('— sistem —'),
+                ->label(__('panel.fields.author'))
+                ->placeholder(__('panel.common.system')),
             TextEntry::make('event')
-                ->label('Acțiune')
+                ->label(__('panel.tables.audits.action'))
                 ->badge()
                 ->formatStateUsing(fn (Audit $record): string => $record->eventLabel()),
             TextEntry::make('url')
-                ->label('URL')
-                ->placeholder('—'),
+                ->label(__('panel.tables.audits.url'))
+                ->placeholder(__('panel.common.dash')),
             TextEntry::make('ip_address')
-                ->label('IP')
-                ->placeholder('—'),
+                ->label(__('panel.forms.consent.ip'))
+                ->placeholder(__('panel.common.dash')),
             KeyValueEntry::make('old_values')
-                ->label('Valori vechi'),
+                ->label(__('panel.forms.audit.old_values')),
             KeyValueEntry::make('new_values')
-                ->label('Valori noi'),
+                ->label(__('panel.forms.audit.new_values')),
         ]);
     }
 
@@ -76,15 +79,15 @@ class AuditsRelationManager extends RelationManager
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('created_at')
-                    ->label('Data')
+                    ->label(__('panel.fields.date'))
                     ->dateTime('d.m.Y H:i')
                     ->sortable(),
                 TextColumn::make('user.name')
-                    ->label('Autor')
-                    ->placeholder('— sistem —')
+                    ->label(__('panel.fields.author'))
+                    ->placeholder(__('panel.common.system'))
                     ->searchable(),
                 TextColumn::make('event')
-                    ->label('Acțiune')
+                    ->label(__('panel.tables.audits.action'))
                     ->badge()
                     ->formatStateUsing(fn (Audit $record): string => $record->eventLabel())
                     ->color(fn (string $state): string => match ($state) {
@@ -95,19 +98,19 @@ class AuditsRelationManager extends RelationManager
                         default => 'gray',
                     }),
                 TextColumn::make('ip_address')
-                    ->label('IP')
+                    ->label(__('panel.forms.consent.ip'))
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('event')
-                    ->label('Acțiune')
+                    ->label(__('panel.tables.audits.action'))
                     ->options([
-                        'created' => 'Creare',
-                        'updated' => 'Modificare',
-                        'deleted' => 'Ștergere',
-                        'restored' => 'Restaurare',
-                        'viewed' => 'Vizualizare',
-                        'exported' => 'Export',
+                        'created' => __('panel.tables.audits.event_created'),
+                        'updated' => __('panel.tables.audits.event_updated'),
+                        'deleted' => __('panel.tables.audits.event_deleted'),
+                        'restored' => __('panel.tables.audits.event_restored'),
+                        'viewed' => __('panel.tables.audits.event_viewed'),
+                        'exported' => __('panel.tables.audits.event_exported'),
                     ]),
             ])
             ->recordActions([

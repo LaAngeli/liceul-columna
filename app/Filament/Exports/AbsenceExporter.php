@@ -21,34 +21,34 @@ class AbsenceExporter extends Exporter
     {
         return [
             ExportColumn::make('student.last_name')
-                ->label('Nume'),
+                ->label(__('panel.exports.last_name')),
             ExportColumn::make('student.first_name')
-                ->label('Prenume'),
+                ->label(__('panel.exports.first_name')),
             ExportColumn::make('schoolClass.name')
-                ->label('Clasa'),
+                ->label(__('panel.exports.class')),
             ExportColumn::make('subject.name')
-                ->label('Disciplina')
+                ->label(__('panel.exports.subject'))
                 ->formatStateUsing(fn (?string $state): string => $state === null ? '' : ContentTranslator::subject($state)),
             ExportColumn::make('occurred_on')
-                ->label('Data'),
+                ->label(__('panel.exports.date')),
             ExportColumn::make('is_motivated')
-                ->label('Motivată')
-                ->formatStateUsing(fn (mixed $state): string => $state ? 'Da' : 'Nu'),
+                ->label(__('panel.exports.motivated'))
+                ->formatStateUsing(fn (mixed $state): string => $state ? (string) __('panel.exports.yes') : (string) __('panel.exports.no')),
             ExportColumn::make('term.name')
-                ->label('Semestrul'),
+                ->label(__('panel.exports.term')),
             ExportColumn::make('teacher.last_name')
-                ->label('Autor (nume)'),
+                ->label(__('panel.exports.author_last')),
             ExportColumn::make('teacher.first_name')
-                ->label('Autor (prenume)'),
+                ->label(__('panel.exports.author_first')),
         ];
     }
 
     public static function getCompletedNotificationBody(Export $export): string
     {
-        $body = 'Exportul de absențe s-a încheiat — '.Number::format($export->successful_rows).' rânduri exportate.';
+        $body = __('panel.exports.done_absences', ['count' => Number::format($export->successful_rows)]);
 
         if ($failedRowsCount = $export->getFailedRowsCount()) {
-            $body .= ' '.Number::format($failedRowsCount).' rânduri nu au putut fi exportate.';
+            $body .= ' '.__('panel.exports.failed', ['count' => Number::format($failedRowsCount)]);
         }
 
         return $body;

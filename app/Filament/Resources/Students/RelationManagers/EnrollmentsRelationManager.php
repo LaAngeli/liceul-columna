@@ -18,7 +18,10 @@ class EnrollmentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'enrollments';
 
-    protected static ?string $title = 'Înmatriculări';
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('panel.resources.enrollments.plural');
+    }
 
     protected static string|BackedEnum|null $icon = 'heroicon-o-clipboard-document-list';
 

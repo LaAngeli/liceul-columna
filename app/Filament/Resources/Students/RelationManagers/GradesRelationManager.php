@@ -19,7 +19,10 @@ class GradesRelationManager extends RelationManager
 {
     protected static string $relationship = 'grades';
 
-    protected static ?string $title = 'Note';
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('panel.resources.grades.plural');
+    }
 
     protected static string|BackedEnum|null $icon = 'heroicon-o-pencil-square';
 

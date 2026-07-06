@@ -21,44 +21,44 @@ class GradeExporter extends Exporter
     {
         return [
             ExportColumn::make('student.last_name')
-                ->label('Nume'),
+                ->label(__('panel.exports.last_name')),
             ExportColumn::make('student.first_name')
-                ->label('Prenume'),
+                ->label(__('panel.exports.first_name')),
             ExportColumn::make('schoolClass.name')
-                ->label('Clasa'),
+                ->label(__('panel.exports.class')),
             ExportColumn::make('subject.name')
-                ->label('Disciplina')
+                ->label(__('panel.exports.subject'))
                 ->formatStateUsing(fn (?string $state): string => $state === null ? '' : ContentTranslator::subject($state)),
             ExportColumn::make('value')
-                ->label('Nota'),
+                ->label(__('panel.exports.grade')),
             ExportColumn::make('calificativ')
-                ->label('Calificativ'),
+                ->label(__('panel.exports.calificativ')),
             ExportColumn::make('evaluation_type')
-                ->label('Tipul evaluării')
+                ->label(__('panel.exports.evaluation_type'))
                 ->formatStateUsing(fn (?string $state): string => $state ?? ''),
             ExportColumn::make('term.name')
-                ->label('Semestrul'),
+                ->label(__('panel.exports.term')),
             ExportColumn::make('graded_on')
-                ->label('Data'),
+                ->label(__('panel.exports.date')),
             ExportColumn::make('teacher.last_name')
-                ->label('Autor (nume)'),
+                ->label(__('panel.exports.author_last')),
             ExportColumn::make('teacher.first_name')
-                ->label('Autor (prenume)'),
+                ->label(__('panel.exports.author_first')),
             ExportColumn::make('annulled_at')
-                ->label('Anulată la')
+                ->label(__('panel.exports.annulled_at'))
                 ->enabledByDefault(false),
             ExportColumn::make('annulment_reason')
-                ->label('Motivul anulării')
+                ->label(__('panel.exports.annulment_reason'))
                 ->enabledByDefault(false),
         ];
     }
 
     public static function getCompletedNotificationBody(Export $export): string
     {
-        $body = 'Exportul de note s-a încheiat — '.Number::format($export->successful_rows).' rânduri exportate.';
+        $body = __('panel.exports.done_grades', ['count' => Number::format($export->successful_rows)]);
 
         if ($failedRowsCount = $export->getFailedRowsCount()) {
-            $body .= ' '.Number::format($failedRowsCount).' rânduri nu au putut fi exportate.';
+            $body .= ' '.__('panel.exports.failed', ['count' => Number::format($failedRowsCount)]);
         }
 
         return $body;
