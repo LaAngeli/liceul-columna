@@ -36,9 +36,12 @@ class AudiencesPendingAssignment extends StatsOverviewWidget
 
     public static function canView(): bool
     {
+        // Doar cine poate ATRIBUI un responsabil de domeniu (editează conturi = super/director/AO).
+        // Prim-vicedirectorul vedea semnalul dar nu putea acționa — acțiunea instruită ducea la 403
+        // (audit S-2/#34).
         $user = auth('web')->user();
 
-        return $user instanceof User && $user->isManagement() && self::pendingCount() > 0;
+        return $user instanceof User && $user->canManageAccounts() && self::pendingCount() > 0;
     }
 
     protected function getStats(): array

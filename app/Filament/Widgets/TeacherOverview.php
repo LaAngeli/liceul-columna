@@ -6,7 +6,6 @@ use App\Filament\Resources\Absences\AbsenceResource;
 use App\Filament\Resources\Grades\GradeResource;
 use App\Filament\Resources\SchoolClasses\SchoolClassResource;
 use App\Filament\Widgets\Concerns\CockpitStats;
-use App\Models\Absence;
 use App\Models\Grade;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget;
@@ -46,8 +45,10 @@ class TeacherOverview extends StatsOverviewWidget
         // active(): exclude notele anulate din contor — aliniat cu chartul și mediile (§1/§3.1).
         $myGrades = Grade::query()->active()->where('teacher_id', $teacher->id)->count();
 
-        $unmotivated = Absence::query()
-            ->whereIn('school_class_id', $classIds)
+        // Numărăm exact ce vede profesorul în resursa Absențe (scoped: dirigintele toată clasa;
+        // profesorul doar disciplina lui) → contorul din widget se potrivește cu lista pe care o
+        // deschide link-ul, nu cuprinde discipline pe care nu le predă (audit #20).
+        $unmotivated = AbsenceResource::getEloquentQuery()
             ->where('is_motivated', false)
             ->count();
 

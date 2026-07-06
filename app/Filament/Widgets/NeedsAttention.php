@@ -106,12 +106,16 @@ class NeedsAttention extends Widget
             );
         }
 
-        // Elevi de urmărit (absențe nemotivate ridicate) — conducerea.
+        // Elevi de urmărit (absențe nemotivate ridicate în SEMESTRUL CURENT) — conducerea. Scoparea pe
+        // termenul curent (ca la corigenți) face contorul acționabil; fără ea, aduna absențe pe toate
+        // semestrele și devenea nerelevant (audit #36).
         if ($user->isManagement()) {
             $items[] = self::item(
                 'panel.widgets.director_overview.students_to_watch',
                 'heroicon-o-calendar-date-range',
-                Student::query()->whereHas('absences', fn (Builder $q) => $q->where('is_motivated', false), '>=', 30)->count(),
+                $termId === null ? 0 : Student::query()
+                    ->whereHas('absences', fn (Builder $q) => $q->where('is_motivated', false)->where('term_id', $termId), '>=', 30)
+                    ->count(),
                 StudentResource::getUrl('index'),
             );
         }

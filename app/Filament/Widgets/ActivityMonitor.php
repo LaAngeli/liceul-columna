@@ -87,7 +87,7 @@ class ActivityMonitor extends ChartWidget
             CheckboxList::make('series')
                 ->label(__('panel.widgets.activity_monitor.filter_series'))
                 ->options($this->seriesOptions())
-                ->default(self::DEFAULT_SERIES)
+                ->default($this->defaultSeries())
                 ->columns(3)
                 ->gridDirection(GridDirection::Row)
                 ->bulkToggleable(),
@@ -217,13 +217,28 @@ class ActivityMonitor extends ChartWidget
      */
     private function selectedSeries(): array
     {
-        $selected = $this->filters['series'] ?? self::DEFAULT_SERIES;
+        $selected = $this->filters['series'] ?? $this->defaultSeries();
 
         if (! is_array($selected)) {
-            $selected = self::DEFAULT_SERIES;
+            $selected = $this->defaultSeries();
         }
 
         return array_values(array_intersect(self::CATEGORY_KEYS, $selected));
+    }
+
+    /**
+     * Seriile bifate IMPLICIT, relevante rolului: personalul didactic (are fișă de profesor) vede
+     * întâi note + absențe (acțiunile lui de bază); staff-ul non-didactic (conducere / AO / secretariat)
+     * vede corecții + motivări + mesaje — altfel seriile teacher-only i-ar da un grafic plat la 0 (S-3/#35).
+     *
+     * @return list<string>
+     */
+    private function defaultSeries(): array
+    {
+        $user = auth('web')->user();
+        $hasTeacher = $user instanceof User && $user->teacher !== null;
+
+        return $hasTeacher ? self::DEFAULT_SERIES : ['corrections', 'motivations', 'messages'];
     }
 
     /**
