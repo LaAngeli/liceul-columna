@@ -179,6 +179,7 @@ export default function StudentProfile(props: Props) {
                         absencesUnmotivated: props.absencesUnmotivated,
                     }}
                     siblings={props.siblings}
+                    isFamily={props.canRequestMotivation}
                 />
 
                 <TabBar items={tabs} active={activeTab} onChange={changeTab} ariaLabel={props.student.name} />

@@ -159,7 +159,7 @@ class CabinetController extends Controller
             /** @var \Illuminate\Database\Eloquent\Collection<int, TermAverage> $avgs */
             $avgs = $termAveragesByStudent->get($s->id, new \Illuminate\Database\Eloquent\Collection);
             $overall = $avgs->isNotEmpty()
-                ? round($avgs->avg(fn (TermAverage $a): float => (float) $a->value), 2)
+                ? Grades::truncate2((float) $avgs->avg(fn (TermAverage $a): float => (float) $a->value))
                 : null;
 
             return $this->cockpitCard(
@@ -415,10 +415,12 @@ class CabinetController extends Controller
         $user = $request->user('web');
         abort_unless($user instanceof User && $this->isFamilyOf($user, $student), 403);
 
+        // Se motivează absențe DEJA petrecute → perioada nu poate fi în viitor (audit M-10, aliniat cu
+        // garda de dată-viitoare de la consemnarea absenței/notei).
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:1000'],
-            'period_start' => ['required', 'date'],
-            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
+            'period_start' => ['required', 'date', 'before_or_equal:today'],
+            'period_end' => ['required', 'date', 'after_or_equal:period_start', 'before_or_equal:today'],
             'document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ]);
 
@@ -842,7 +844,7 @@ class CabinetController extends Controller
                 $byPeriod = [];
                 foreach ($items as $record) {
                     $byPeriod[$record->period->value] = $record->value !== null
-                        ? (string) round((float) $record->value, 2)
+                        ? (string) Grades::truncate2((float) $record->value)
                         : ($record->calificativ ?: null);
                 }
                 $subjects[] = [

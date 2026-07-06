@@ -18,6 +18,7 @@ use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\TwoFactorEmailChallengeController;
 use App\Http\Controllers\TwoFactorEmailSetupController;
 use App\Http\Controllers\VisitController;
+use App\Http\Middleware\EnsureFamilyCabinet;
 use App\Http\Middleware\SetPublicLocale;
 use App\Http\Middleware\SetUserLocale;
 use App\Support\Locale;
@@ -159,6 +160,10 @@ foreach (Locale::prefixed() as $prefix) {
 */
 
 Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function () {
+    // EnsureFamilyCabinet redirecționează personalul la /admin — se aplică pe rutele GET care RANDEAZĂ
+    // pagini de familie (gating UNIFORM, audit M-8/#23/#39/#24). NU pe acțiunile POST (au deja abort 403
+    // în controller) și NU pe vizualizarea profilului unui elev / descărcările de PII (accesibile ȘI
+    // administrației, cu gating propriu). Dashboard-ul se auto-redirecționează în controller.
     Route::get('dashboard', [CabinetController::class, 'index'])->name('dashboard');
     Route::get('cabinet/elev/{student}', [CabinetController::class, 'student'])->name('cabinet.student');
     Route::post('cabinet/elev/{student}/motivare', [CabinetController::class, 'requestMotivation'])->name('cabinet.motivation');
@@ -166,7 +171,9 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     Route::post('cabinet/elev/{student}/confirm-statut', [CabinetController::class, 'acknowledgeStatus'])->name('cabinet.status.acknowledge');
 
     // Comunicare (spec §4): inbox + trimitere filtrată ierarhic + răspuns în fir.
-    Route::get('cabinet/mesaje', [MessagesController::class, 'index'])->name('cabinet.messages');
+    Route::get('cabinet/mesaje', [MessagesController::class, 'index'])
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.messages');
     Route::post('cabinet/mesaje', [MessagesController::class, 'send'])->name('cabinet.messages.send');
     Route::post('cabinet/mesaje/{message}/raspunde', [MessagesController::class, 'reply'])->name('cabinet.messages.reply');
     Route::post('cabinet/mesaje/{message}/citit', [MessagesController::class, 'markRead'])->name('cabinet.messages.read');
@@ -176,10 +183,14 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     Route::get('cabinet/cereri/{documentRequest}/pdf', [CabinetController::class, 'downloadRequest'])->name('cabinet.requests.pdf');
 
     // Notificări (spec §5): inbox in-app + setări (contacte + matrice canal × tip).
-    Route::get('cabinet/notificari', [NotificationsController::class, 'index'])->name('cabinet.notifications');
+    Route::get('cabinet/notificari', [NotificationsController::class, 'index'])
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.notifications');
     Route::post('cabinet/notificari/citeste-tot', [NotificationsController::class, 'markAllRead'])->name('cabinet.notifications.read-all');
     Route::post('cabinet/notificari/{notification}/citit', [NotificationsController::class, 'markRead'])->name('cabinet.notifications.read');
-    Route::get('cabinet/notificari/setari', [NotificationsController::class, 'settings'])->name('cabinet.notifications.settings');
+    Route::get('cabinet/notificari/setari', [NotificationsController::class, 'settings'])
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.notifications.settings');
     Route::put('cabinet/notificari/setari', [NotificationsController::class, 'updateSettings'])->name('cabinet.notifications.settings.update');
 
     // Profil (DOAR vizualizare): datele contului + situația elevului/copiilor. Fără editare/ștergere
@@ -187,7 +198,7 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     // `password.confirm`: profilul e și suprafața de securitate (2FA); cu flag-ul setat la login
     // (AppServiceProvider) confirmarea e de regulă tăcută, iar „intended"-ul rămâne o pagină GET.
     Route::get('cabinet/profil', [CabinetController::class, 'profile'])
-        ->middleware('password.confirm')
+        ->middleware(['password.confirm', EnsureFamilyCabinet::class])
         ->name('cabinet.profile');
 });
 

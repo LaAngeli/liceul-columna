@@ -38,6 +38,7 @@ export function ProfileHeader({
     status,
     totals,
     siblings = [],
+    isFamily = true,
 }: {
     student: StudentSummary;
     status: StudentStatus;
@@ -47,6 +48,7 @@ export function ProfileHeader({
         absencesUnmotivated: number;
     };
     siblings?: Sibling[];
+    isFamily?: boolean;
 }) {
     const t = useTranslations();
     const getInitials = useInitials();
@@ -114,30 +116,33 @@ export function ProfileHeader({
                 </div>
             </div>
 
-            {/* Acțiuni rapide */}
-            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-                <Link
-                    href="/cabinet/calendar"
-                    className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
-                >
-                    <CalendarDays className="size-4" aria-hidden="true" />
-                    {t('ccal.title')}
-                </Link>
-                <Link
-                    href="/cabinet/mesaje"
-                    className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
-                >
-                    <MessageSquare className="size-4" aria-hidden="true" />
-                    {t('cabinet.messages_title')}
-                </Link>
-                <Link
-                    href="/cabinet/notificari"
-                    className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
-                >
-                    <Bell className="size-4" aria-hidden="true" />
-                    {t('cabinet.notif_title')}
-                </Link>
-            </div>
+            {/* Acțiuni rapide — DOAR pentru familie: sunt scurtături spre cabinetul personal
+                (calendar/mesaje/notificări), care pentru personal redirecționează la /admin. */}
+            {isFamily && (
+                <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                    <Link
+                        href="/cabinet/calendar"
+                        className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+                    >
+                        <CalendarDays className="size-4" aria-hidden="true" />
+                        {t('ccal.title')}
+                    </Link>
+                    <Link
+                        href="/cabinet/mesaje"
+                        className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+                    >
+                        <MessageSquare className="size-4" aria-hidden="true" />
+                        {t('cabinet.messages_title')}
+                    </Link>
+                    <Link
+                        href="/cabinet/notificari"
+                        className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+                    >
+                        <Bell className="size-4" aria-hidden="true" />
+                        {t('cabinet.notif_title')}
+                    </Link>
+                </div>
+            )}
         </div>
     );
 }

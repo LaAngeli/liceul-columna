@@ -654,7 +654,7 @@ return [
         'motivation_to' => 'По',
         'motivation_submit' => 'Отправить заявку',
         'motivation_sending' => 'Отправка…',
-        'motivation_sent' => 'Заявка отправлена классному руководителю.',
+        'motivation_sent' => 'Заявка на мотивирование отправлена.',
         'motivation_none' => 'Нет поданных заявок.',
         'motivation_exception' => 'Исключение (после срока)',
         'corigenta_title' => 'Ликвидация задолженностей',

@@ -58,14 +58,20 @@ class AnnouncementResource extends Resource
         return auth('web')->user()?->canPublishContent() ?? false;
     }
 
+    // Un anunț PUBLICAT a fost deja trimis familiilor → nu se mai editează/șterge (altfel ce e stocat
+    // diferă de ce a fost difuzat). Tabelul îl arăta „blocat", dar acțiunile funcționau (audit M-7).
     public static function canEdit(Model $record): bool
     {
-        return auth('web')->user()?->canPublishContent() ?? false;
+        return $record instanceof Announcement
+            && $record->published_at === null
+            && (auth('web')->user()?->canPublishContent() ?? false);
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth('web')->user()?->canPublishContent() ?? false;
+        return $record instanceof Announcement
+            && $record->published_at === null
+            && (auth('web')->user()?->canPublishContent() ?? false);
     }
 
     public static function form(Schema $schema): Schema

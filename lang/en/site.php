@@ -654,7 +654,7 @@ return [
         'motivation_to' => 'To',
         'motivation_submit' => 'Submit request',
         'motivation_sending' => 'Sending…',
-        'motivation_sent' => 'Request sent to the homeroom teacher.',
+        'motivation_sent' => 'The excuse request has been sent.',
         'motivation_none' => 'No excuse requests submitted.',
         'motivation_exception' => 'Exception (past deadline)',
         'corigenta_title' => 'Make-up exams',

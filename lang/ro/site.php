@@ -654,7 +654,7 @@ return [
         'motivation_to' => 'Până la',
         'motivation_submit' => 'Trimite cererea',
         'motivation_sending' => 'Se trimite…',
-        'motivation_sent' => 'Cererea a fost trimisă dirigintelui.',
+        'motivation_sent' => 'Cererea de motivare a fost trimisă.',
         'motivation_none' => 'Nicio cerere de motivare depusă.',
         'motivation_exception' => 'Excepție (după termen)',
         'corigenta_title' => 'Lichidarea corigenței',

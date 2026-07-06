@@ -8,6 +8,7 @@ use App\Models\Student;
 use App\Models\Term;
 use App\Models\TermAverage;
 use App\Support\ContentTranslator;
+use App\Support\Grades;
 use Illuminate\Support\Collection;
 
 /**
@@ -46,7 +47,7 @@ class ComputeStudentDynamics
         foreach ($records->groupBy('grade_level') as $level => $rows) {
             $general[] = [
                 'level' => (int) $level,
-                'average' => round($rows->avg(fn (AcademicRecord $r): float => (float) $r->value), 2),
+                'average' => Grades::truncate2((float) $rows->avg(fn (AcademicRecord $r): float => (float) $r->value)),
             ];
         }
         usort($general, fn (array $a, array $b): int => $a['level'] <=> $b['level']);
@@ -56,7 +57,7 @@ class ComputeStudentDynamics
             $points = [];
             $values = [];
             foreach ($rows->sortBy('grade_level') as $record) {
-                $value = round((float) $record->value, 2);
+                $value = Grades::truncate2((float) $record->value);
                 $points[] = ['level' => (int) $record->grade_level, 'value' => $value];
                 $values[] = $value;
             }
@@ -72,7 +73,7 @@ class ComputeStudentDynamics
         $currentAverage = $this->currentGeneralAverage($student);
         $historyAverage = $general === []
             ? null
-            : round(array_sum(array_column($general, 'average')) / count($general), 2);
+            : Grades::truncate2(array_sum(array_column($general, 'average')) / count($general));
         $lastAnnual = $general === [] ? null : $general[count($general) - 1]['average'];
 
         $trend = ($currentAverage !== null && $lastAnnual !== null)
@@ -148,7 +149,7 @@ class ComputeStudentDynamics
             ->where('term_id', $currentTermId)
             ->avg('value');
 
-        return $avg === null ? null : round((float) $avg, 2);
+        return $avg === null ? null : Grades::truncate2((float) $avg);
     }
 
     /**
@@ -175,7 +176,7 @@ class ComputeStudentDynamics
             ->whereNotNull('value')
             ->avg('value');
 
-        return $avg === null ? null : round((float) $avg, 2);
+        return $avg === null ? null : Grades::truncate2((float) $avg);
     }
 
     /**

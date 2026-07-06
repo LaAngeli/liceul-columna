@@ -18,6 +18,12 @@ class BroadcastAnnouncement
 {
     public function publish(Announcement $announcement): void
     {
+        // Idempotent: un anunț deja publicat NU se re-difuzează (altfel familiile primesc de mai multe
+        // ori aceeași notificare, iar recipients_count se suprascrie). Audit S-8.
+        if ($announcement->published_at !== null) {
+            return;
+        }
+
         $families = User::query()
             ->whereHas('roles', fn ($query) => $query->whereIn('name', [UserRole::Parinte->value, UserRole::Elev->value]))
             ->get();
