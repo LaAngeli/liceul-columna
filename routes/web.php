@@ -6,6 +6,7 @@ use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CabinetController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\ForcedPasswordController;
 use App\Http\Controllers\ForcedTwoFactorController;
 use App\Http\Controllers\GalleryController;
@@ -201,6 +202,13 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
         ->middleware(['password.confirm', EnsureFamilyCabinet::class])
         ->name('cabinet.profile');
 });
+
+// Descărcarea documentelor din bibliotecă — acces RE-CONFIRMAT pe server la fiecare cerere pe baza
+// rolului real (spec §1). Servește atât personalul (panou), cât și familia (cabinet) — de-aceea nu
+// e sub gardul „doar familie" al cabinetului. Documentele individuale (generate) au rutele lor proprii.
+Route::middleware(['auth', SetUserLocale::class])
+    ->get('documente/{document}/descarca', [DocumentDownloadController::class, 'download'])
+    ->name('documents.download');
 
 // Schimbarea obligatorie a parolei (userii migrați) — doar `auth`.
 Route::middleware(['auth', SetUserLocale::class])->group(function () {

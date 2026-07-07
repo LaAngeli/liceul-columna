@@ -128,4 +128,20 @@ return [
         '2' => 'Семестр II',
         '3' => 'Годовая средняя',
     ],
+    'document_category' => [
+        'reports' => 'Отчёты',
+        'requests' => 'Заявления',
+        'notices' => 'Извещения',
+        'forms' => 'Бланки',
+        'useful' => 'Полезное',
+    ],
+    'document_access_level' => [
+        'public' => 'Публичный',
+        'role_specific' => 'По роли',
+        'individual' => 'Индивидуальный',
+    ],
+    'document_source' => [
+        'static' => 'Статический',
+        'generated' => 'Генерируемый',
+    ],
 ];

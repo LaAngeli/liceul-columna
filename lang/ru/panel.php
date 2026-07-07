@@ -17,6 +17,7 @@ return [
         ],
     ],
     'resources' => [
+        'documents' => ['label' => 'Документы', 'plural' => 'Документы', 'single' => 'документ'],
         'students' => ['label' => 'Ученики', 'plural' => 'Ученики', 'single' => 'ученик'],
         'teachers' => ['label' => 'Преподаватели', 'plural' => 'Преподаватели', 'single' => 'преподаватель'],
         'subjects' => ['label' => 'Предметы', 'plural' => 'Предметы', 'single' => 'предмет'],
@@ -77,11 +78,6 @@ return [
             'event_time_all_day' => 'Весь день',
         ],
         'notifications' => ['title' => 'Уведомления'],
-        'documents' => [
-            'title' => 'Документы',
-            'empty_heading' => 'Раздел в разработке',
-            'empty_description' => 'Здесь появятся институциональные документы и материалы.',
-        ],
         'profile' => [
             'title' => 'Профиль',
             'section_general' => 'Общие сведения',
@@ -407,6 +403,18 @@ return [
     ],
 
     'tables' => [
+        'documents' => [
+            'title' => 'Название',
+            'category' => 'Категория',
+            'access_level' => 'Доступ',
+            'file' => 'Файл',
+            'version' => 'Версия',
+            'published' => 'Опубликован',
+            'updated' => 'Обновлён',
+            'download' => 'Скачать',
+            'empty_heading' => 'Нет доступных документов',
+            'empty_description' => 'Здесь появляются опубликованные документы, видимые вашей роли.',
+        ],
         'grades' => [
             'annulment_filter' => 'Аннулирование',
             'annulment_only' => 'Только аннулированные',
@@ -480,6 +488,24 @@ return [
     ],
 
     'forms' => [
+        'document' => [
+            'section_details' => 'Сведения',
+            'section_access' => 'Доступ',
+            'section_access_hint' => 'Кто видит документ — проверяется на сервере при каждом запросе по реальной роли.',
+            'section_file' => 'Файл',
+            'title' => 'Название',
+            'description' => 'Описание',
+            'category' => 'Категория',
+            'version' => 'Версия',
+            'version_placeholder' => 'напр. ред. 2026',
+            'access_level' => 'Уровень доступа',
+            'visible_roles' => 'Роли с доступом',
+            'visible_roles_hint' => 'Документ виден ТОЛЬКО выбранным ролям.',
+            'is_published' => 'Опубликован',
+            'is_published_hint' => 'Не опубликован = виден только администрации, ведущей библиотеку.',
+            'file' => 'Файл',
+            'file_hint' => 'PDF, Word, Excel или изображение, до 20 МБ. Хранится приватно, скачивание только по праву доступа.',
+        ],
         'grade' => [
             'helper_value_or_calif' => 'Укажите числовую оценку ИЛИ балл.',
             'helper_value_range' => 'Допустимый диапазон: :min–:max.',

@@ -131,4 +131,20 @@ return [
         '2' => 'Semestrul II',
         '3' => 'Media anuală',
     ],
+    'document_category' => [
+        'reports' => 'Rapoarte',
+        'requests' => 'Cereri',
+        'notices' => 'Înștiințări',
+        'forms' => 'Formulare',
+        'useful' => 'Utile',
+    ],
+    'document_access_level' => [
+        'public' => 'Public',
+        'role_specific' => 'Rol-specific',
+        'individual' => 'Individual',
+    ],
+    'document_source' => [
+        'static' => 'Static',
+        'generated' => 'Generat',
+    ],
 ];

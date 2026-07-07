@@ -19,6 +19,7 @@ return [
         ],
     ],
     'resources' => [
+        'documents' => ['label' => 'Documents', 'plural' => 'Documents', 'single' => 'document'],
         'students' => ['label' => 'Students', 'plural' => 'Students', 'single' => 'student'],
         'teachers' => ['label' => 'Teachers', 'plural' => 'Teachers', 'single' => 'teacher'],
         'subjects' => ['label' => 'Subjects', 'plural' => 'Subjects', 'single' => 'subject'],
@@ -79,11 +80,6 @@ return [
             'event_time_all_day' => 'All day',
         ],
         'notifications' => ['title' => 'Notifications'],
-        'documents' => [
-            'title' => 'Documents',
-            'empty_heading' => 'Section coming soon',
-            'empty_description' => 'Institutional documents and materials will appear here.',
-        ],
         'profile' => [
             'title' => 'Profile',
             'section_general' => 'General',
@@ -409,6 +405,18 @@ return [
     ],
 
     'tables' => [
+        'documents' => [
+            'title' => 'Title',
+            'category' => 'Category',
+            'access_level' => 'Access',
+            'file' => 'File',
+            'version' => 'Version',
+            'published' => 'Published',
+            'updated' => 'Updated',
+            'download' => 'Download',
+            'empty_heading' => 'No documents available',
+            'empty_description' => 'Published documents visible to your role appear here.',
+        ],
         'grades' => [
             'annulment_filter' => 'Annulment',
             'annulment_only' => 'Only annulled',
@@ -482,6 +490,24 @@ return [
     ],
 
     'forms' => [
+        'document' => [
+            'section_details' => 'Details',
+            'section_access' => 'Access',
+            'section_access_hint' => 'Who sees the document — enforced on the server on every request, by the real role.',
+            'section_file' => 'File',
+            'title' => 'Title',
+            'description' => 'Description',
+            'category' => 'Category',
+            'version' => 'Version',
+            'version_placeholder' => 'e.g. ed. 2026',
+            'access_level' => 'Access level',
+            'visible_roles' => 'Roles with access',
+            'visible_roles_hint' => 'The document is visible ONLY to the selected roles.',
+            'is_published' => 'Published',
+            'is_published_hint' => 'Unpublished = visible only to the administration managing the library.',
+            'file' => 'File',
+            'file_hint' => 'PDF, Word, Excel or image, up to 20 MB. Stored privately, downloadable only by those with access.',
+        ],
         'grade' => [
             'helper_value_or_calif' => 'Enter the numeric grade OR the mark.',
             'helper_value_range' => 'Allowed range: :min–:max.',

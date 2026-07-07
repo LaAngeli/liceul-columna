@@ -29,6 +29,7 @@ return [
         ],
     ],
     'resources' => [
+        'documents' => ['label' => 'Documente', 'plural' => 'Documente', 'single' => 'document'],
         'students' => ['label' => 'Elevi', 'plural' => 'Elevi', 'single' => 'elev'],
         'teachers' => ['label' => 'Profesori', 'plural' => 'Profesori', 'single' => 'profesor'],
         'subjects' => ['label' => 'Discipline', 'plural' => 'Discipline', 'single' => 'disciplină'],
@@ -89,11 +90,6 @@ return [
             'event_time_all_day' => 'Toată ziua',
         ],
         'notifications' => ['title' => 'Notificări'],
-        'documents' => [
-            'title' => 'Documente',
-            'empty_heading' => 'Secțiune în pregătire',
-            'empty_description' => 'Aici vor apărea documentele și materialele instituționale.',
-        ],
         'profile' => [
             'title' => 'Profil',
             'section_general' => 'General',
@@ -422,6 +418,18 @@ return [
 
     // Strings SPECIFICE per tabel/formular — coloane sau câmpuri care nu apar în fields/actions/common.
     'tables' => [
+        'documents' => [
+            'title' => 'Titlu',
+            'category' => 'Categorie',
+            'access_level' => 'Acces',
+            'file' => 'Fișier',
+            'version' => 'Versiune',
+            'published' => 'Publicat',
+            'updated' => 'Actualizat',
+            'download' => 'Descarcă',
+            'empty_heading' => 'Niciun document disponibil',
+            'empty_description' => 'Aici apar documentele publicate, vizibile rolului tău.',
+        ],
         'grades' => [
             'annulment_filter' => 'Anulare',
             'annulment_only' => 'Doar anulate',
@@ -495,6 +503,24 @@ return [
     ],
 
     'forms' => [
+        'document' => [
+            'section_details' => 'Detalii',
+            'section_access' => 'Acces',
+            'section_access_hint' => 'Cine vede documentul — impus pe server la fiecare cerere, pe baza rolului real.',
+            'section_file' => 'Fișier',
+            'title' => 'Titlu',
+            'description' => 'Descriere',
+            'category' => 'Categorie',
+            'version' => 'Versiune',
+            'version_placeholder' => 'ex. ed. 2026',
+            'access_level' => 'Nivel de acces',
+            'visible_roles' => 'Roluri cu acces',
+            'visible_roles_hint' => 'Documentul e vizibil DOAR rolurilor selectate.',
+            'is_published' => 'Publicat',
+            'is_published_hint' => 'Nepublicat = vizibil doar administrației care gestionează biblioteca.',
+            'file' => 'Fișier',
+            'file_hint' => 'PDF, Word, Excel sau imagine, max. 20 MB. Stocat privat, descărcabil doar de cei cu drept.',
+        ],
         'grade' => [
             'helper_value_or_calif' => 'Completează nota numerică SAU calificativul.',
             'helper_value_range' => 'Interval permis: :min–:max.',

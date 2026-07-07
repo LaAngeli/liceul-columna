@@ -631,6 +631,16 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * Poate GESTIONA biblioteca de documente statice (încărcare/editare/publicare) — administratorul
+     * operațional e proprietarul (§2: „static = fișier încărcat de AO"), plus directorul și super-adminul.
+     * VIZUALIZAREA documentelor e a întregului personal, filtrată pe rol în {@see Document::scopeVisibleTo}.
+     */
+    public function canManageDocuments(): bool
+    {
+        return $this->canConfigureSchool();
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

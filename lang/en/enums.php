@@ -128,4 +128,20 @@ return [
         '2' => 'Term II',
         '3' => 'Annual average',
     ],
+    'document_category' => [
+        'reports' => 'Reports',
+        'requests' => 'Requests',
+        'notices' => 'Notices',
+        'forms' => 'Forms',
+        'useful' => 'Useful',
+    ],
+    'document_access_level' => [
+        'public' => 'Public',
+        'role_specific' => 'Role-specific',
+        'individual' => 'Individual',
+    ],
+    'document_source' => [
+        'static' => 'Static',
+        'generated' => 'Generated',
+    ],
 ];
