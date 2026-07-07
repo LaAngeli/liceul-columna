@@ -144,4 +144,14 @@ return [
         'static' => 'Static',
         'generated' => 'Generated',
     ],
+    'generated_document_type' => [
+        'transcript' => [
+            'label' => 'Academic transcript',
+            'description' => 'History of yearly averages by grade (term I / II / annual).',
+        ],
+        'term_situation' => [
+            'label' => 'Term situation',
+            'description' => 'Subject averages and absences for the current term.',
+        ],
+    ],
 ];

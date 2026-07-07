@@ -147,4 +147,14 @@ return [
         'static' => 'Static',
         'generated' => 'Generat',
     ],
+    'generated_document_type' => [
+        'transcript' => [
+            'label' => 'Foaia matricolă',
+            'description' => 'Istoricul mediilor pe trepte (sem. I / II / anuală).',
+        ],
+        'term_situation' => [
+            'label' => 'Situația școlară',
+            'description' => 'Mediile pe discipline și absențele din semestrul curent.',
+        ],
+    ],
 ];

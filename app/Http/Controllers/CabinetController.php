@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Actions\ComputeDeferralRisk;
 use App\Actions\ComputeStudentDynamics;
 use App\Actions\DetermineStudentStatus;
+use App\Actions\Documents\GenerateStudentDocumentPdf;
 use App\Actions\GenerateRequestPdf;
 use App\Actions\LogStudentAccess;
 use App\Enums\AcademicRecordPeriod;
 use App\Enums\DocumentRequestType;
+use App\Enums\GeneratedDocumentType;
 use App\Enums\RequestStatus;
 use App\Enums\SchoolCycle;
 use App\Enums\StudentStatus;
@@ -38,6 +40,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Enum;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -586,6 +589,90 @@ class CabinetController extends Controller
         $accessLog->record($student, 'exported', 'Descărcare justificativ motivare');
 
         return Storage::disk('local')->download($absenceMotivation->document_path);
+    }
+
+    /**
+     * Descarcă un document GENERAT per-elev (foaie matricolă, situația școlară) — produs LA CERERE din
+     * datele catalogului, mereu actualizat (§3), NU stocat. Accesul e re-confirmat pe server: familia
+     * (copilul propriu), administrația academică sau dirigintele clasei. Randare oficială în RO.
+     */
+    public function downloadGeneratedDocument(
+        Request $request,
+        Student $student,
+        string $type,
+        GenerateStudentDocumentPdf $pdf,
+        LogStudentAccess $accessLog,
+    ): StreamedResponse {
+        $user = $request->user('web');
+        abort_unless(
+            $user instanceof User
+                && ($this->isFamilyOf($user, $student)
+                    || $user->isAdministrator()
+                    || ($student->homeroomUser()?->is($user) ?? false)),
+            403,
+        );
+
+        $documentType = GeneratedDocumentType::tryFrom($type);
+        abort_if($documentType === null, 404);
+
+        // Document oficial → randare consecventă în RO (antete + denumiri de discipline).
+        app()->setLocale('ro');
+
+        $content = $pdf->render($documentType, $this->generatedDocumentData($documentType, $student));
+
+        $accessLog->record($student, 'exported', 'Descărcare document generat: '.$documentType->value);
+
+        $fileName = $documentType->fileBase().'-'.Str::slug($student->full_name).'.pdf';
+
+        return response()->streamDownload(
+            function () use ($content): void {
+                echo $content;
+            },
+            $fileName,
+            ['Content-Type' => 'application/pdf'],
+        );
+    }
+
+    /**
+     * Datele pentru un document generat, reutilizând helper-ele de date ale cabinetului (o singură sursă).
+     *
+     * @return array<string, mixed>
+     */
+    private function generatedDocumentData(GeneratedDocumentType $type, Student $student): array
+    {
+        $class = $student->currentSchoolClass();
+        $className = $class !== null ? trim($class->name.' '.($class->section ?? '')) : null;
+
+        if ($type === GeneratedDocumentType::Transcript) {
+            $student->loadMissing('academicRecords.subject');
+
+            return [
+                'studentName' => $student->full_name,
+                'className' => $className,
+                'levels' => $this->transcript($student),
+                'date' => now()->format('d.m.Y'),
+            ];
+        }
+
+        // Situația școlară — semestrul curent.
+        $student->loadMissing(['grades.subject', 'grades.term', 'grades.schoolClass', 'absences.subject']);
+        $status = $this->currentStatus($student);
+        $termNumber = Term::query()->where('is_current', true)->value('number');
+
+        return [
+            'studentName' => $student->full_name,
+            'className' => $className,
+            'termLabel' => $termNumber !== null
+                ? 'Semestrul '.((int) $termNumber === 1 ? 'I' : 'II')
+                : 'Semestrul curent',
+            'subjects' => $this->gradesBySubject($student),
+            'absences' => $this->absencesBySubject($student),
+            'absencesTotal' => $student->absences->count(),
+            'average' => $this->summary($student)['average'],
+            'statusLabel' => $status['label'],
+            'statusOfficial' => $status['official'],
+            'date' => now()->format('d.m.Y'),
+        ];
     }
 
     /**

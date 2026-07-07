@@ -4,6 +4,7 @@ use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\BibliotecaController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CabinetController;
+use App\Http\Controllers\CabinetDocumentsController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DocumentDownloadController;
@@ -170,6 +171,9 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     Route::post('cabinet/elev/{student}/motivare', [CabinetController::class, 'requestMotivation'])->name('cabinet.motivation');
     Route::get('cabinet/motivare/{absenceMotivation}/document', [CabinetController::class, 'downloadMotivationDocument'])->name('cabinet.motivation.document');
     Route::post('cabinet/elev/{student}/confirm-statut', [CabinetController::class, 'acknowledgeStatus'])->name('cabinet.status.acknowledge');
+    // Document GENERAT per-elev (foaie matricolă, situația școlară) — produs la cerere, gardat în
+    // controller (familie / administrație / diriginte). Accesibil ȘI personalului → fără gardul „doar familie".
+    Route::get('cabinet/elev/{student}/document/{type}', [CabinetController::class, 'downloadGeneratedDocument'])->name('cabinet.document.generate');
 
     // Comunicare (spec §4): inbox + trimitere filtrată ierarhic + răspuns în fir.
     Route::get('cabinet/mesaje', [MessagesController::class, 'index'])
@@ -182,6 +186,11 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     // Cereri tipice (spec §4.3): depunere (→ PDF, secretariat) + descărcare PDF privat.
     Route::post('cabinet/elev/{student}/cereri', [CabinetController::class, 'requestDocument'])->name('cabinet.requests.store');
     Route::get('cabinet/cereri/{documentRequest}/pdf', [CabinetController::class, 'downloadRequest'])->name('cabinet.requests.pdf');
+
+    // Pagina „Documente" a familiei (spec §2/§3): statice vizibile + generate per-copil + cereri.
+    Route::get('cabinet/documente', [CabinetDocumentsController::class, 'index'])
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.documents');
 
     // Notificări (spec §5): inbox in-app + setări (contacte + matrice canal × tip).
     Route::get('cabinet/notificari', [NotificationsController::class, 'index'])
