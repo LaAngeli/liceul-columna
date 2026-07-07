@@ -8,6 +8,7 @@ return [
             'communication' => 'Коммуникация',
             'admission' => 'Приём',
             'administration' => 'Администрирование',
+            'documents' => 'Документы',
             'settings' => 'Настройки',
         ],
         'items' => [
@@ -76,6 +77,11 @@ return [
             'event_time_all_day' => 'Весь день',
         ],
         'notifications' => ['title' => 'Уведомления'],
+        'documents' => [
+            'title' => 'Документы',
+            'empty_heading' => 'Раздел в разработке',
+            'empty_description' => 'Здесь появятся институциональные документы и материалы.',
+        ],
         'profile' => [
             'title' => 'Профиль',
             'section_general' => 'Общие сведения',

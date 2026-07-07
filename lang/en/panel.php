@@ -8,6 +8,7 @@ return [
             'communication' => 'Communication',
             'admission' => 'Admissions',
             'administration' => 'Administration',
+            'documents' => 'Documents',
             'settings' => 'Settings',
         ],
         'items' => [
@@ -78,6 +79,11 @@ return [
             'event_time_all_day' => 'All day',
         ],
         'notifications' => ['title' => 'Notifications'],
+        'documents' => [
+            'title' => 'Documents',
+            'empty_heading' => 'Section coming soon',
+            'empty_description' => 'Institutional documents and materials will appear here.',
+        ],
         'profile' => [
             'title' => 'Profile',
             'section_general' => 'General',

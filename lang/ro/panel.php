@@ -18,6 +18,7 @@ return [
             'communication' => 'Comunicare',
             'admission' => 'Admitere',
             'administration' => 'Administrare',
+            'documents' => 'Documente',
             'settings' => 'Setări',
         ],
         'items' => [
@@ -88,6 +89,11 @@ return [
             'event_time_all_day' => 'Toată ziua',
         ],
         'notifications' => ['title' => 'Notificări'],
+        'documents' => [
+            'title' => 'Documente',
+            'empty_heading' => 'Secțiune în pregătire',
+            'empty_description' => 'Aici vor apărea documentele și materialele instituționale.',
+        ],
         'profile' => [
             'title' => 'Profil',
             'section_general' => 'General',

@@ -71,6 +71,7 @@ class AdminPanelProvider extends PanelProvider
                 __('panel.nav.groups.communication'),
                 __('panel.nav.groups.admission'),
                 __('panel.nav.groups.administration'),
+                __('panel.nav.groups.documents'),
                 __('panel.nav.groups.settings'),
             ])
             // Pagina de profil Filament e legată de meniul user, nu de sidebar (`->profile()` nu o
