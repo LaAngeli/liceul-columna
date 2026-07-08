@@ -41,7 +41,7 @@ export default function ScoalaLiceala() {
             />
 
             {/* Secțiune ALBASTRĂ — identitate (foto LED video wall + body) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="III"
                     variant="navy"
@@ -76,7 +76,7 @@ export default function ScoalaLiceala() {
             </Band>
 
             {/* Secțiune ALBĂ — Curriculum: arii curriculare + link spre sub-pagina cu PDF-uri pe disciplină */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     label={t('high_page.curriculum_eyebrow', 'Ce studiem')}
@@ -107,7 +107,7 @@ export default function ScoalaLiceala() {
             </Band>
 
             {/* Secțiune ALBASTRĂ — dotări (foto lab chimie + text verbatim) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <Reveal className="grid items-center gap-8 lg:grid-cols-[1fr_1.1fr] lg:gap-14">
                     <div>
                         <div className="flex flex-wrap items-center gap-3">
@@ -136,7 +136,7 @@ export default function ScoalaLiceala() {
             </Band>
 
             {/* Secțiune ALBĂ — Cambridge English (atu liceul) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <Reveal className="mx-auto max-w-3xl text-center">
                     <FourStar className="mx-auto size-5 text-brand-green" />
                     <span className="eyebrow mt-3 block text-brand-navy">{t('high_page.cambridge_eyebrow', 'Standard internațional')}</span>
@@ -154,7 +154,7 @@ export default function ScoalaLiceala() {
             </Band>
 
             {/* Secțiune ALBASTRĂ — galerie (4 imagini noi din viața elevilor, distincte de identitate/dotări) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     variant="navy"
@@ -180,7 +180,7 @@ export default function ScoalaLiceala() {
             </Band>
 
             {/* Secțiune ALBĂ — CTA „pasul următor" */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <SectionHeader
                         index="✦"

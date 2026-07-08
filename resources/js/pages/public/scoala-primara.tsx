@@ -45,7 +45,7 @@ export default function ScoalaPrimara() {
             />
 
             {/* Secțiune ALBASTRĂ — identitate (foto „lecție SMART" + body verbatim) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="I"
                     variant="navy"
@@ -78,7 +78,7 @@ export default function ScoalaPrimara() {
             </Band>
 
             {/* Secțiune ALBĂ — Curriculum: arii curriculare + descărcare PDF oficial */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     label={t('primary_page.curriculum_eyebrow', 'Ce studiem')}
@@ -122,7 +122,7 @@ export default function ScoalaPrimara() {
             </Band>
 
             {/* Secțiune ALBASTRĂ — dotări (text verbatim + foto „sala cu proiector + elevi") */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <Reveal className="grid items-center gap-8 lg:grid-cols-[1fr_1.1fr] lg:gap-14">
                     <div>
                         <div className="flex flex-wrap items-center gap-3">
@@ -151,7 +151,7 @@ export default function ScoalaPrimara() {
             </Band>
 
             {/* Secțiune ALBĂ — galerie + CTA */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <SectionHeader
                     index="✦"
                     label={t('primary_page.gallery_eyebrow', 'Galerie')}

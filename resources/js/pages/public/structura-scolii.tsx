@@ -55,7 +55,7 @@ export default function StructuraScolii() {
             />
 
             {/* Secțiune ALBASTRĂ — cele 3 trepte ca trio editorial (foto + numeral roman + clase + body + CTA) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     variant="navy"
@@ -113,7 +113,7 @@ export default function StructuraScolii() {
             </Band>
 
             {/* Secțiune ALBĂ — CTA „pasul următor" */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <SectionHeader
                         index="✦"

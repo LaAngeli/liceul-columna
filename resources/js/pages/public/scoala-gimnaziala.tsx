@@ -50,7 +50,7 @@ export default function ScoalaGimnaziala() {
             />
 
             {/* Secțiune ALBASTRĂ — identitatea treptei (foto „sală cu proiector + elevi") */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="II"
                     variant="navy"
@@ -83,7 +83,7 @@ export default function ScoalaGimnaziala() {
             </Band>
 
             {/* Secțiune ALBĂ — Curriculum: cele 13 discipline cu PDF descărcabil */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     label={t('gymnasium_page.curriculum_eyebrow', 'Ce studiem')}
@@ -115,7 +115,7 @@ export default function ScoalaGimnaziala() {
             </Band>
 
             {/* Secțiune ALBASTRĂ — dotări (text verbatim + foto „laborator", imagine diferită) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <Reveal className="grid items-center gap-8 lg:grid-cols-[1fr_1.1fr] lg:gap-14">
                     <div>
                         <div className="flex flex-wrap items-center gap-3">
@@ -144,7 +144,7 @@ export default function ScoalaGimnaziala() {
             </Band>
 
             {/* Secțiune ALBĂ — galerie + CTA */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <SectionHeader
                     index="✦"
                     label={t('gymnasium_page.gallery_eyebrow', 'Galerie')}
