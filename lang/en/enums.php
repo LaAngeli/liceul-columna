@@ -154,4 +154,18 @@ return [
             'description' => 'Subject averages and absences for the current term.',
         ],
     ],
+    'staff_report_type' => [
+        'class_roster' => [
+            'label' => 'Class roster',
+            'description' => 'List of actively enrolled students.',
+        ],
+        'class_subject_situation' => [
+            'label' => 'Class situation by subject',
+            'description' => 'Each student\'s term average for a subject.',
+        ],
+        'class_full_situation' => [
+            'label' => 'Full class situation',
+            'description' => 'Each student\'s overall average and preliminary status.',
+        ],
+    ],
 ];

@@ -90,6 +90,13 @@ return [
             'event_time_all_day' => 'Toată ziua',
         ],
         'notifications' => ['title' => 'Notificări'],
+        'reports' => [
+            'title' => 'Rapoarte',
+            'hint' => 'Generează rapoarte pe clasă (PDF). Vezi doar clasele și disciplinele la care ai acces.',
+            'type' => 'Tip de raport',
+            'generate' => 'Generează PDF',
+            'forbidden' => 'Nu ai dreptul să generezi acest raport pentru clasa/disciplina aleasă.',
+        ],
         'profile' => [
             'title' => 'Profil',
             'section_general' => 'General',

@@ -157,4 +157,18 @@ return [
             'description' => 'Mediile pe discipline și absențele din semestrul curent.',
         ],
     ],
+    'staff_report_type' => [
+        'class_roster' => [
+            'label' => 'Lista de clasă',
+            'description' => 'Lista elevilor înmatriculați activ.',
+        ],
+        'class_subject_situation' => [
+            'label' => 'Situația clasei la disciplină',
+            'description' => 'Media semestrială a fiecărui elev la o disciplină.',
+        ],
+        'class_full_situation' => [
+            'label' => 'Situația completă a clasei',
+            'description' => 'Media generală și statutul preliminar al fiecărui elev.',
+        ],
+    ],
 ];

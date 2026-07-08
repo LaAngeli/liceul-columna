@@ -80,6 +80,13 @@ return [
             'event_time_all_day' => 'All day',
         ],
         'notifications' => ['title' => 'Notifications'],
+        'reports' => [
+            'title' => 'Reports',
+            'hint' => 'Generate class reports (PDF). You only see the classes and subjects you can access.',
+            'type' => 'Report type',
+            'generate' => 'Generate PDF',
+            'forbidden' => 'You are not allowed to generate this report for the selected class/subject.',
+        ],
         'profile' => [
             'title' => 'Profile',
             'section_general' => 'General',
