@@ -75,7 +75,7 @@ export default function Extracurriculare() {
             />
 
             {/* Secțiune ALBASTRĂ — viziunea CPAE (foto „lecție non-formală" + citat Ken Robinson) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="I"
                     variant="navy"
@@ -118,7 +118,7 @@ export default function Extracurriculare() {
             </Band>
 
             {/* Secțiune ALBĂ — obiective formative + direcții strategice (cele două liste) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     label={t('cpae.aims_eyebrow', 'Ce urmărim')}
@@ -162,7 +162,7 @@ export default function Extracurriculare() {
             </Band>
 
             {/* Secțiune ALBASTRĂ — ateliere și coordonatori (carduri-portret pe navy) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     variant="navy"
@@ -180,7 +180,7 @@ export default function Extracurriculare() {
             </Band>
 
             {/* Secțiune ALBĂ — CTA + bară „Vezi și" */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <SectionHeader
                         index="✦"

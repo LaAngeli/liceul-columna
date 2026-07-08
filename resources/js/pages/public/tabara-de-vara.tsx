@@ -41,7 +41,7 @@ export default function TabaraDeVara() {
             />
 
             {/* Secțiune ALBASTRĂ — despre tabără (concept + foto + badge „În pregătire") */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <Reveal className="grid items-center gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
                     <div>
                         <div className="flex flex-wrap items-center gap-3">
@@ -73,7 +73,7 @@ export default function TabaraDeVara() {
             </Band>
 
             {/* Secțiune ALBĂ — 6 categorii orientative de activități (NU lucruri confirmate; verbe la viitor/posibil) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     label={t('summer_camp.activities_eyebrow', 'Categorii de activități')}
@@ -95,7 +95,7 @@ export default function TabaraDeVara() {
             </Band>
 
             {/* Secțiune ALBASTRĂ — „În pregătire": 3 carduri cu ce urmează să fie comunicat */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     variant="navy"
@@ -120,7 +120,7 @@ export default function TabaraDeVara() {
             </Band>
 
             {/* Secțiune ALBĂ — CTA „rămâi la curent" */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <FourStar className="mx-auto size-5 text-brand-green" />
                     <SectionHeader

@@ -27,7 +27,7 @@ export default function ConsiliulScolar() {
             />
 
             {/* Secțiune ALBASTRĂ — despre consiliu + foto comunitate */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
                     <Reveal>
                         <div className="flex items-center gap-3">
@@ -60,7 +60,7 @@ export default function ConsiliulScolar() {
             </Band>
 
             {/* Secțiune ALBĂ — cele trei voci + notiță componență */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <SectionHeader
                     index="✦"
                     label={t('school_council.voices_eyebrow', 'Cine îl formează')}

@@ -61,7 +61,7 @@ export default function ConsiliulMetodic() {
             />
 
             {/* Secțiune ALBASTRĂ — rolul & scopul consiliului */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <Reveal className="flex items-center justify-center gap-3">
                     <span data-rule className="h-px w-12 origin-right bg-white/30" aria-hidden="true" />
                     <span className="eyebrow text-brand-green">{t('council.intro_eyebrow', 'Rolul consiliului')}</span>
@@ -81,7 +81,7 @@ export default function ConsiliulMetodic() {
             </Band>
 
             {/* Secțiune ALBĂ — componența nominală (Președinte featured + restul în grilă) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     label={t('council.members_eyebrow', 'Cine suntem')}
@@ -139,7 +139,7 @@ export default function ConsiliulMetodic() {
             </Band>
 
             {/* Secțiune ALBASTRĂ — atribuțiile consiliului */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="signature">
                 <SectionHeader
                     index="✦"
                     variant="navy"

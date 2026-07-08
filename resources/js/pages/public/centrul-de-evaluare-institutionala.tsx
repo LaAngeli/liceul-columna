@@ -31,7 +31,7 @@ export default function CentrulDeEvaluareInstitutionala() {
             />
 
             {/* Secțiune ALBASTRĂ — motto-ul latin + misiunea (inscripție ceremonială) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <Reveal className="mx-auto max-w-3xl text-center">
                     <FourStar className="mx-auto size-5 text-brand-green" />
                     <p className="display mt-5 text-[clamp(1.5rem,4vw,2.75rem)] tracking-wide text-[color:var(--brand-navy-foreground)]">
@@ -44,7 +44,7 @@ export default function CentrulDeEvaluareInstitutionala() {
             </Band>
 
             {/* Secțiune ALBĂ — sistemul SIERȘ: 4 carduri-listă (obiective / domenii / atribuții / cerințe) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     label={t('cei.framework_eyebrow', 'Cum evaluăm')}
@@ -71,7 +71,7 @@ export default function CentrulDeEvaluareInstitutionala() {
             </Band>
 
             {/* Secțiune ALBASTRĂ — documentele reglatoare SIERȘ */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     variant="navy"
@@ -96,7 +96,7 @@ export default function CentrulDeEvaluareInstitutionala() {
             </Band>
 
             {/* Secțiune ALBĂ — informarea beneficiarilor + acces la cabinet */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-3xl">
                     <SectionHeader
                         index="✦"
