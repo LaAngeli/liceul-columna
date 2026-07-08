@@ -136,7 +136,7 @@ return [];
             <PageBanner title={title} breadcrumbs={breadcrumbs} description={t('calendar.intro', description)} />
 
             {/* Statistici + selectorul de tip */}
-            <Band className="!py-[clamp(2rem,4vw,3.5rem)]">
+            <Band pattern="mesh" className="!py-[clamp(2rem,4vw,3.5rem)]">
                 <StatRibbon items={stats} />
 
                 <div className="mt-8 flex flex-wrap gap-2">

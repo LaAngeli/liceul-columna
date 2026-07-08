@@ -46,7 +46,7 @@ export default function Sponsorizare() {
             />
 
             {/* Bandă NAVY — Mecanismul 2% (cadru legal verbatim + IDNO evidențiat) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="01"
                     variant="navy"
@@ -95,7 +95,7 @@ export default function Sponsorizare() {
             </Band>
 
             {/* Bandă ALBĂ — 3 pași concreți + link-uri externe */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="02"
                     label={t('sponsorship_page.steps_eyebrow', 'Pași concreți')}
@@ -151,7 +151,7 @@ export default function Sponsorizare() {
             </Band>
 
             {/* Bandă NAVY — Donații directe (verbatim) + downloads */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="03"
                     variant="navy"
@@ -210,7 +210,7 @@ export default function Sponsorizare() {
             </Band>
 
             {/* Bandă ALBĂ — CTA */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <FourStar className="mx-auto size-5 text-brand-green" />
                     <SectionHeader

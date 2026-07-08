@@ -78,7 +78,7 @@ export default function Contacte() {
 
             <PageBanner title={heading} breadcrumbs={[{ title: heading }]} description={t('contact.lead')} />
 
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <div className="grid gap-6 lg:grid-cols-2 lg:items-stretch">
                     {/* Panou de contact */}
                     <Reveal className="flex flex-col rounded-[16px] border keyline bg-card p-6 sm:p-8">
@@ -209,7 +209,7 @@ export default function Contacte() {
             </Band>
 
             {/* CTA — vizită / înscriere */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <h2 className="display text-[clamp(1.5rem,3vw,2.25rem)] text-[color:var(--brand-navy-foreground)]">{t('contact.visit_title', 'Vino să ne cunoști')}</h2>
                     <p className="mt-3 leading-relaxed text-white/85">{t('contact.visit_text')}</p>

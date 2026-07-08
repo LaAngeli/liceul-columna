@@ -241,7 +241,7 @@ export default function ErrorPage({ status }: { status: number }) {
             {/* BANDA 1 — navy: identitatea erorii, cu simboluri educaționale care plutesc lent. */}
             <Band
                 variant="navy"
-                pattern="dotgrid"
+                pattern="mesh"
                 className="relative flex min-h-[60vh] items-center overflow-hidden"
             >
                 {/* Strat de simboluri educaționale (albe) — tocă, carte, peniță, atom, glob, soare, riglă, creion, idee. */}
@@ -362,7 +362,7 @@ export default function ErrorPage({ status }: { status: number }) {
             </Band>
 
             {/* BANDA 2 — albă: pagini utile pentru a-ți relua drumul, chiar înainte de footer. */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <Reveal className="mx-auto max-w-2xl text-center">
                     <div className="flex items-center justify-center gap-3">
                         <span

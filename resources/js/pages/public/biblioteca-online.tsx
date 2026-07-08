@@ -310,7 +310,7 @@ return [{ key: 'all', label: '', items: browseEntries }];
             <PageBanner title={title} breadcrumbs={breadcrumbs} description={t('biblioteca.lead', description)} />
 
             {/* Statistici + bară de unelte */}
-            <Band className="!py-[clamp(2rem,4vw,3.5rem)]">
+            <Band pattern="mesh" className="!py-[clamp(2rem,4vw,3.5rem)]">
                 <StatRibbon items={stats} />
 
                 {/* Căutare */}

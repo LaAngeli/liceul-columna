@@ -11,7 +11,7 @@ export default function ContactMultumim({ name }: { name: string }) {
         <>
             <Head title={heading} />
 
-            <Band variant="light" className="!py-[clamp(4rem,10vw,8rem)]">
+            <Band variant="light" pattern="signature" className="!py-[clamp(4rem,10vw,8rem)]">
                 <div className="mx-auto max-w-xl text-center">
                     <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-brand-green/15 text-brand-green">
                         <CheckCircle2 className="size-9" />
