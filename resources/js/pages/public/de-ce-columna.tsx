@@ -335,7 +335,7 @@ export default function DeCeColumna() {
             </section>
 
             {/* 01 — cinci motive (editorial „zig-zag" cu fotografii reale) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader index="01" label={t('why.reasons.eyebrow', 'Motivele noastre')} title={t('why.reasons.title', 'Cinci motive, spuse simplu')} lead={t('why.reasons.lead')} className="mb-12" />
                 <ol className="space-y-14 lg:space-y-20">
                     {REASONS.map((r, i) => {
@@ -378,7 +378,7 @@ export default function DeCeColumna() {
             </Band>
 
             {/* 02 — constelația valorilor (SIGNATURE — logo central + 7 valori în cerc, animat la scroll) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="signature">
                 <SectionHeader
                     index="02"
                     variant="navy"
@@ -396,7 +396,7 @@ export default function DeCeColumna() {
             </Band>
 
             {/* 03 — parcursul I → XII (timeline editorial: 3 trepte cu foto reală + numeral roman) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader index="03" label={t('why.path.eyebrow', 'Parcursul')} title={t('why.path.title', 'Un singur drum, de la prima literă la diplomă')} lead={t('why.path.lead')} className="mb-12" />
                 <ol className="space-y-10 md:space-y-14">
                     {STEPS.map((step) => (
@@ -440,7 +440,7 @@ export default function DeCeColumna() {
             </Band>
 
             {/* 04 — Cambridge English (sigiliu editorial: medalion centrat „2019" + cifră 20 000 + paragraf) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader index="04" variant="navy" align="center" label={t('why.cambridge.eyebrow', 'Standard internațional')} title={t('why.cambridge.title', 'Engleza, la nivel recunoscut în lume')} className="mb-10" />
                 <Reveal className="mx-auto grid max-w-4xl items-center gap-8 sm:grid-cols-[auto_1fr] sm:gap-12">
                     {/* sigiliu „2019" — medalion circular */}
@@ -467,7 +467,7 @@ export default function DeCeColumna() {
             </Band>
 
             {/* 05 — scrisoarea directorului */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <SectionHeader index="05" label={t('why.letter.eyebrow', 'De la conducere')} title={t('why.letter.title', 'Un cuvânt de la director')} className="mb-8" />
                 <Reveal>
                     <div className="overflow-hidden rounded-[18px] border keyline bg-card shadow-[0_24px_60px_-44px_rgba(15,77,119,0.55)] md:grid md:grid-cols-[minmax(0,18rem)_1fr]">

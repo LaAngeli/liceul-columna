@@ -26,7 +26,7 @@ export default function FilosofiaLiceului() {
             />
 
             {/* Secțiune ALBASTRĂ — principiile ca manifest numerotat (crez pe navy) + portret real sticky */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     variant="navy"
@@ -71,7 +71,7 @@ export default function FilosofiaLiceului() {
             </Band>
 
             {/* Secțiune ALBĂ — convingerea: foto reală + statement-citat + CTA */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
                     <Reveal>
                         <figure className="relative aspect-[4/3] overflow-hidden rounded-[18px] border keyline shadow-[0_30px_70px_-45px_rgba(15,77,119,0.5)]">

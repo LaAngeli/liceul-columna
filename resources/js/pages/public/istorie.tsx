@@ -33,7 +33,7 @@ export default function Istorie() {
             />
 
             {/* Secțiune ALBASTRĂ — cronologia „Din 1998 până azi" */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     variant="navy"
@@ -81,7 +81,7 @@ export default function Istorie() {
             </Band>
 
             {/* Secțiune ALBĂ — campusul azi + invitație */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
                     <Reveal>
                         <figure className="relative aspect-[3/2] overflow-hidden rounded-[16px] border keyline shadow-[0_24px_60px_-44px_rgba(15,77,119,0.55)]">

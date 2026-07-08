@@ -49,7 +49,7 @@ export default function Acreditari() {
             />
 
             {/* Secțiune ALBASTRĂ — certificatele reale, ca foi pe navy */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     variant="navy"
@@ -96,7 +96,7 @@ export default function Acreditari() {
             </Band>
 
             {/* Secțiune ALBĂ — CTA: cum monitorizăm calitatea (CEI) */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <SectionHeader
                         index="✦"

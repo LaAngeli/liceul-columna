@@ -52,7 +52,7 @@ export default function CambridgeEnglishExam() {
             />
 
             {/* Secțiune ALBASTRĂ — identitate „centru autorizat" + 3 fapte cheie */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     variant="navy"
@@ -96,7 +96,7 @@ export default function CambridgeEnglishExam() {
             </Band>
 
             {/* Secțiune ALBĂ — beneficii (recunoaștere internațională, CECRL, valabil pe viață) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     label={t('cambridge_page.benefits_eyebrow', 'Recunoaștere internațională')}
@@ -110,7 +110,7 @@ export default function CambridgeEnglishExam() {
             </Band>
 
             {/* Secțiune ALBASTRĂ — 3 pachete de curs (individual / semi / grup) cu tarife verbatim */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="✦"
                     variant="navy"
@@ -167,7 +167,7 @@ export default function CambridgeEnglishExam() {
             </Band>
 
             {/* Secțiune ALBĂ — CTA „aplică la curs" */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <FourStar className="mx-auto size-5 text-brand-green" />
                     <SectionHeader

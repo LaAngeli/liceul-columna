@@ -27,7 +27,7 @@ export default function ScrisoareaDirectorului() {
             />
 
             {/* Secțiune ALBASTRĂ — scrisoarea: rail-sigiliu sticky (emblema rotativă) + foaia de manuscris (sheet pe navy) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <div className="grid items-start gap-8 lg:grid-cols-[18rem_1fr] lg:gap-12">
                     {/* Rail-sigiliu — sticky pe lg: card translucid pe navy, cu emblema rotativă */}
                     <Reveal className="lg:sticky lg:top-28 lg:self-start">
@@ -110,7 +110,7 @@ export default function ScrisoareaDirectorului() {
             </Band>
 
             {/* Secțiune ALBĂ — CTA „pasul următor" */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <SectionHeader
                         index="✦"
