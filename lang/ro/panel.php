@@ -91,7 +91,7 @@ return [
         ],
         'notifications' => ['title' => 'Notificări'],
         'reports' => [
-            'title' => 'Rapoarte',
+            'title' => 'Generare rapoarte',
             'hint' => 'Generează rapoarte pe clasă (PDF). Vezi doar clasele și disciplinele la care ai acces.',
             'type' => 'Tip de raport',
             'generate' => 'Generează PDF',

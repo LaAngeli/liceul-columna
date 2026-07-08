@@ -1,11 +1,14 @@
 <?php
 
 use App\Enums\DocumentAccessLevel;
+use App\Enums\DocumentCategory;
 use App\Enums\UserRole;
 use App\Filament\Resources\Documents\DocumentResource;
+use App\Filament\Resources\Documents\Pages\ListDocuments;
 use App\Models\Document;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
 use function Pest\Laravel\actingAs;
@@ -87,4 +90,22 @@ it('gestiunea bibliotecii: profesorul NU poate crea documente, administratorul o
 
     actingAs(docUser(UserRole::AdministratorOperational->value));
     expect(DocumentResource::canCreate())->toBeTrue();
+});
+
+// ─── Taburi pe subcategorie: accesarea unui tab arată DOAR acea categorie ────────────────
+
+it('tabul unei categorii filtrează lista la documentele acelei categorii', function () {
+    $notice = Document::factory()->create(['is_published' => true, 'category' => DocumentCategory::Notices, 'title' => 'Înștiințare X']);
+    $form = Document::factory()->create(['is_published' => true, 'category' => DocumentCategory::Forms, 'title' => 'Formular Y']);
+
+    actingAs(docUser(UserRole::Admin->value));
+
+    Livewire::test(ListDocuments::class)
+        ->set('activeTab', DocumentCategory::Notices->value)
+        ->assertCanSeeTableRecords([$notice])
+        ->assertCanNotSeeTableRecords([$form]);
+
+    Livewire::test(ListDocuments::class)
+        ->set('activeTab', 'all')
+        ->assertCanSeeTableRecords([$notice, $form]);
 });

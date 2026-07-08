@@ -81,7 +81,7 @@ return [
         ],
         'notifications' => ['title' => 'Notifications'],
         'reports' => [
-            'title' => 'Reports',
+            'title' => 'Generate reports',
             'hint' => 'Generate class reports (PDF). You only see the classes and subjects you can access.',
             'type' => 'Report type',
             'generate' => 'Generate PDF',
