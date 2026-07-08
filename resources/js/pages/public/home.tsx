@@ -134,8 +134,11 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                     {/* scrim de jos desktop — lizibilitatea riglei peste foto */}
                     <div aria-hidden="true" className="absolute inset-x-0 bottom-0 hidden h-40 bg-gradient-to-t from-[color:var(--surface-navy)]/85 to-transparent lg:block" />
                 </div>
-                {/* dotgrid doar pe panoul de text din stânga, doar desktop */}
-                <div aria-hidden="true" className="dotgrid pointer-events-none absolute inset-y-0 left-0 hidden w-[42%] opacity-[0.10] [mask-image:linear-gradient(to_right,black,transparent)] lg:block" />
+                {/* Textură navy hero — puncte în tonul opus, CONFINATE la zona navy (nu ating foto la
+                    niciun ecran). Desktop: panoul de text stânga, până la 46% = muchia fotografiei.
+                    Mobil: zona navy de sub blocul foto (începe exact la finalul lui: min(38vh,290px)). */}
+                <div aria-hidden="true" className="tx-hero-dots-desktop pointer-events-none absolute inset-y-0 left-0 hidden w-[46%] lg:block" />
+                <div aria-hidden="true" className="tx-hero-dots-mobile pointer-events-none absolute inset-x-0 bottom-0 lg:hidden" style={{ top: 'min(38vh, 290px)' }} />
                 <Container className="relative z-10 -mt-10 lg:mt-0 lg:flex lg:min-h-[clamp(560px,76vh,800px)] lg:items-center">
                     <div className="flex flex-col gap-5 pb-10 lg:max-w-[42%] lg:gap-6 lg:pb-44">
                         <span className="hero-stage eyebrow text-white/70 [--stage:0]">{t('home.hero_eyebrow', 'Liceu privat · Chișinău · din 1998')}</span>
@@ -226,7 +229,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             </section>
 
             {/* ───────────────────────── 01 — PRESTIGIU (stat ribbon) ───────────────────────── */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader index="01" label={t('home.k_prestige', 'PRESTIGIU')} title={t('home.prestige_title', 'O instituție de încredere, din 1998')} />
                 <div className="mt-8">
                     <StatRibbon items={stats} />
@@ -234,7 +237,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             </Band>
 
             {/* ───────────────────────── 02 — INSTITUȚIA (hub cards) ───────────────────────── */}
-            <Band variant="navy">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader variant="navy" index="02" label={t('home.k_institution', 'INSTITUȚIA')} title={t('home.institution_title', 'Instituția Privată Liceul „Columna”')} />
                 <div className="mt-8 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
                     {institution.map((c) => {
@@ -259,7 +262,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             </Band>
 
             {/* ───────────────────────── 03 — PROGRAME (trei trepte) ───────────────────────── */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader index="03" label={t('home.k_programs', 'PROGRAME')} title={t('home.programs_title', 'Cele trei trepte de școlaritate')} lead={t('home.programs_lead', 'Un parcurs continuu, de la primii pași până la examenele de bacalaureat.')} />
                 <div className="mt-8 grid gap-5 sm:grid-cols-3">
                     {programs.map((p, i) => (
@@ -282,7 +285,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             </Band>
 
             {/* ───────────────────────── 04 — ADMITERE (funnel) ───────────────────────── */}
-            <Band variant="navy" pattern="dotgrid" id="admitere" className="scroll-mt-28">
+            <Band variant="navy" pattern="signature" id="admitere" className="scroll-mt-28">
                 <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.1fr]">
                     <SectionHeader
                         variant="navy"
@@ -313,7 +316,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
 
             {/* ───────────────────────── 05 — VIAȚA ȘCOLII (news) ───────────────────────── */}
             {latestNews.length > 0 && (
-                <Band variant="light">
+                <Band variant="light" pattern="mesh">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <SectionHeader index="05" label={t('home.k_life', 'VIAȚA ȘCOLII')} title={t('home.latest_news', 'Ultimele actualități')} />
                         <BrandButton href="/actualitati-si-evenimente" variant="link" icon={ArrowRight}>{t('home.all_news', 'Toate știrile')}</BrandButton>
@@ -346,7 +349,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             )}
 
             {/* ───────────────────────── 06 — DE CE COLUMNA (proof + valori) ───────────────────────── */}
-            <Band variant="navy">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader variant="navy" index="06" label={t('about.why', 'De ce Columna?')} title={t('home.why_title', 'De ce Liceul „Columna”')} lead={t('home.why_lead', 'Educăm elevii în spiritul valorilor naționale și general-umane, cu standarde academice riguroase.')} />
                 <Reveal className="mt-8">
                     <ValueChips t={t} />
@@ -368,7 +371,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
 
             {/* ───────────────────────── 07 — ECHIPA (tot personalul) ───────────────────────── */}
             {leadership.length > 0 && (
-                <Band variant="light">
+                <Band variant="light" pattern="mesh">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <SectionHeader index="07" label={t('home.k_team', 'ECHIPA')} title={t('home.staff_title', 'Personal')} />
                         <BrandButton href="/personal" variant="link" icon={ArrowRight}>{t('home.staff_see_all', 'Vezi toată echipa')}</BrandButton>
@@ -377,10 +380,20 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                 </Band>
             )}
 
+            {/* ── Punte navy: rotunjește ECHIPA + reface ritmul navy↔deschis între ECHIPA (deschis)
+                și CTA (deschis). Bandă slabă ca înălțime, o afirmație caldă despre rolul echipei. */}
+            <Band variant="navy" pattern="mesh" className="py-10 sm:py-14">
+                <div className="flex flex-col items-center gap-4 text-center">
+                    <FourStar className="size-5 text-brand-green" />
+                    <Display as="p" className="max-w-[26ch] text-[clamp(1.375rem,3vw,2rem)] leading-[1.1] text-[color:var(--brand-navy-foreground)]">
+                        {t('home.team_bridge', 'La Columna, fiecare copil are o echipă întreagă de partea lui.')}
+                    </Display>
+                </div>
+            </Band>
+
             {/* ───────────────────────── CTA final ─────────────────────────
-                Bandă DESCHISĂ, fără cusătură cu ECHIPA de deasupra: împreună formează
-                zona deschisă finală înainte de footerul navy (ritmul navy↔deschis). */}
-            <Band variant="light">
+                Bandă DESCHISĂ care încheie pagina înainte de footerul navy (ritmul navy↔deschis). */}
+            <Band variant="light" pattern="signature">
                 <div className="flex flex-col items-center gap-6 text-center">
                     <FourStar className="size-6 text-brand-green" />
                     <Display as="h2" className="max-w-[18ch] text-[clamp(1.75rem,4vw,3rem)] text-brand-navy">

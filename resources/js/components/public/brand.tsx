@@ -26,10 +26,18 @@ export function Band({
     children: ReactNode;
     variant?: 'light' | 'navy';
     className?: string;
-    pattern?: 'dotgrid' | 'none';
+    /**
+     * Textura de fundal a benzii (site public):
+     * - `mesh` = plasă rafinată de micro-puncte, ancorată în colț (sistemul universal);
+     * - `signature` = plasa + constelația de brand (steluțe) — pentru benzile-semnătură;
+     * - `dotgrid` = vechea plasă verde (păstrată pt. paginile care o folosesc deja);
+     * - `none`/absent = fără textură.
+     */
+    pattern?: 'mesh' | 'signature' | 'dotgrid' | 'none';
     id?: string;
 }) {
     const navy = variant === 'navy';
+    const textured = pattern === 'mesh' || pattern === 'signature';
 
     return (
         <section
@@ -42,6 +50,12 @@ export function Band({
         >
             {pattern === 'dotgrid' && navy && (
                 <div className="dotgrid pointer-events-none absolute inset-0 opacity-[0.14]" aria-hidden="true" />
+            )}
+            {textured && (
+                <div className={cn('pointer-events-none absolute inset-0', navy ? 'tx-mesh-navy' : 'tx-mesh-lite')} aria-hidden="true" />
+            )}
+            {pattern === 'signature' && (
+                <div className={cn('pointer-events-none absolute inset-0', navy ? 'tx-constellation-navy' : 'tx-constellation-lite')} aria-hidden="true" />
             )}
             <Container className="relative">{children}</Container>
         </section>

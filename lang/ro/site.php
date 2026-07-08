@@ -366,6 +366,7 @@ return [
         'staff_title' => 'Personal',
         'staff_intro' => 'Profesorii noștri folosesc metode didactice specifice învățământului internațional, formând oameni competenți, care respectă principiile morale, legile țării și valorile democrației.',
         'staff_see_all' => 'Vezi toată echipa',
+        'team_bridge' => 'La Columna, fiecare copil are o echipă întreagă de partea lui.',
         'contact_title' => 'Contactează-ne',
         'contact_subtitle' => 'Suntem convinși că educația schimbă lumea spre bine și contribuim cu pasiune și perseverență la acest nobil proces.',
         'contact_cta' => 'Scrie-ne',

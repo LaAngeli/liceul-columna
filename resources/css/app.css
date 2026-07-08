@@ -505,6 +505,72 @@
     background-size: 22px 22px;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Sistem de fundal „Plasă + Constelație" (site public). Straturi <div> absolute
+   inset-0 în <Band>. Culorile vin din TOKENI → se adaptează automat light/dark
+   (pe dark, `--brand-navy` devine alb-navy în `.site-shell`, deci punctele/steluțele
+   „navy" de pe benzile deschise rămân vizibile pe suprafața întunecată). Masca de
+   degrade în colț face ca textura să se adune într-un colț și să se stingă unde stă
+   textul → adâncime, nu „folie" uniformă peste conținut.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* A · Plasă rafinată — micro-puncte în ton opus, ancorate în colț prin mască de degrade. */
+.site-shell .tx-mesh-navy,
+.site-shell .tx-mesh-lite {
+    background-size: 26px 26px;
+}
+.site-shell .tx-mesh-navy {
+    background-image: radial-gradient(color-mix(in oklch, var(--brand-navy-foreground) 46%, transparent) 1.15px, transparent 1.6px);
+    -webkit-mask-image: radial-gradient(150% 135% at 100% 0%, #000 4%, transparent 60%);
+    mask-image: radial-gradient(150% 135% at 100% 0%, #000 4%, transparent 60%);
+}
+.site-shell .tx-mesh-lite {
+    /* navy 30% (nu 16%) — vizibil pe suprafața „gheață", fără a deveni zgomot */
+    background-image: radial-gradient(color-mix(in oklch, var(--brand-navy) 30%, transparent) 1.2px, transparent 1.6px);
+    -webkit-mask-image: radial-gradient(155% 140% at 0% 0%, #000 6%, transparent 66%);
+    mask-image: radial-gradient(155% 140% at 0% 0%, #000 6%, transparent 66%);
+}
+
+/* B · Constelație de brand — steluțe cu 4 colțuri + romburi, DECUPATE prin mască (același
+   motiv), iar culoarea vine din gradientul de fundal ancorat în colț (adaptabil + fade).
+   Navy band → constelație verde (strălucește pe navy); bandă deschisă → constelație navy
+   (contrast puternic pe „gheață"; devine alb-navy pe dark). */
+.site-shell .tx-constellation-navy,
+.site-shell .tx-constellation-lite {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170' viewBox='0 0 170 170'%3E%3Cpath transform='translate(42 46)' d='M0 -12 C1.2 -3 3 -1.2 12 0 C3 1.2 1.2 3 0 12 C-1.2 3 -3 1.2 -12 0 C-3 -1.2 -1.2 -3 0 -12 Z' fill='%23000'/%3E%3Cpath transform='translate(132 108) rotate(45)' d='M-5 -5 H5 V5 H-5 Z' fill='%23000'/%3E%3Cpath transform='translate(96 146) rotate(45)' d='M-3.5 -3.5 H3.5 V3.5 H-3.5 Z' fill='%23000'/%3E%3Cpath transform='translate(150 28) rotate(45)' d='M-3 -3 H3 V3 H-3 Z' fill='%23000'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170' viewBox='0 0 170 170'%3E%3Cpath transform='translate(42 46)' d='M0 -12 C1.2 -3 3 -1.2 12 0 C3 1.2 1.2 3 0 12 C-1.2 3 -3 1.2 -12 0 C-3 -1.2 -1.2 -3 0 -12 Z' fill='%23000'/%3E%3Cpath transform='translate(132 108) rotate(45)' d='M-5 -5 H5 V5 H-5 Z' fill='%23000'/%3E%3Cpath transform='translate(96 146) rotate(45)' d='M-3.5 -3.5 H3.5 V3.5 H-3.5 Z' fill='%23000'/%3E%3Cpath transform='translate(150 28) rotate(45)' d='M-3 -3 H3 V3 H-3 Z' fill='%23000'/%3E%3C/svg%3E");
+    /* tile mai mare = constelație mai RARĂ (accent, nu câmp) */
+    -webkit-mask-size: 208px 208px;
+    mask-size: 208px 208px;
+    -webkit-mask-repeat: repeat;
+    mask-repeat: repeat;
+}
+/* Gradientul e strâns în colț (rază mică + stingere la ~50%) → accentul rămâne în colț,
+   nu se întinde peste conținut/carduri. */
+.site-shell .tx-constellation-navy {
+    background-image: radial-gradient(118% 112% at 100% 0%, color-mix(in oklch, var(--brand-green) 66%, transparent) 0%, transparent 50%);
+}
+.site-shell .tx-constellation-lite {
+    background-image: radial-gradient(122% 116% at 0% 0%, color-mix(in oklch, var(--brand-navy) 86%, transparent) 0%, transparent 52%);
+}
+
+/* Hero — micro-puncte în tonul opus, pe zona NAVY, CONFINATE prin geometria div-ului ca să nu
+   atingă fotografia la niciun ecran (desktop: panoul de text stânga, până la 46% = muchia foto;
+   mobil: zona navy de sub blocul foto). Mască de fade din colțul de jos-stânga = adâncime, nu folie. */
+.site-shell .tx-hero-dots-desktop,
+.site-shell .tx-hero-dots-mobile {
+    background-image: radial-gradient(color-mix(in oklch, var(--brand-navy-foreground) 42%, transparent) 1.15px, transparent 1.6px);
+    background-size: 26px 26px;
+}
+.site-shell .tx-hero-dots-desktop {
+    -webkit-mask-image: radial-gradient(130% 130% at 0% 100%, #000 0%, transparent 68%);
+    mask-image: radial-gradient(130% 130% at 0% 100%, #000 0%, transparent 68%);
+}
+.site-shell .tx-hero-dots-mobile {
+    -webkit-mask-image: radial-gradient(150% 120% at 0% 100%, #000 0%, transparent 74%);
+    mask-image: radial-gradient(150% 120% at 0% 100%, #000 0%, transparent 74%);
+}
+
 /* 4-point star fleuron rotește lent DOAR în footer (altfel static) */
 @media (prefers-reduced-motion: no-preference) {
     .site-shell .star-spin { animation: site-star-spin 8s linear infinite; }

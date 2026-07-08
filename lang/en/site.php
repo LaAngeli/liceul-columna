@@ -366,6 +366,7 @@ return [
         'staff_title' => 'Staff',
         'staff_intro' => 'Our teachers apply methods specific to international education, shaping competent people who respect moral principles, the laws of the country and democratic values.',
         'staff_see_all' => 'See the whole team',
+        'team_bridge' => 'At Columna, every child has a whole team behind them.',
         'contact_title' => 'Contact us',
         'contact_subtitle' => 'We are convinced that education changes the world for the better, and we devote passion and perseverance to this noble process.',
         'contact_cta' => 'Write to us',
