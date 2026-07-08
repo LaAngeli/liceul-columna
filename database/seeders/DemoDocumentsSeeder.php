@@ -80,6 +80,7 @@ class DemoDocumentsSeeder extends Seeder
             // Elev / Părinte.
             ['title' => 'Drepturi și obligații ale elevului', 'description' => 'Extras pe scurt, pentru elevi și familii.', 'category' => DocumentCategory::Useful, 'roles' => $familie],
             ['title' => 'Cerere de învoire — formular', 'description' => 'Formular de învoire/absență planificată.', 'category' => DocumentCategory::Requests, 'roles' => $familie],
+            ['title' => 'Înștiințare — ședința cu părinții', 'description' => 'Anunț pentru părinți privind ședința de la finalul semestrului.', 'category' => DocumentCategory::Notices, 'roles' => $familie],
 
             // Profesor / Diriginte.
             ['title' => 'Metodologia de evaluare (integrală)', 'description' => 'Documentul metodologic complet pentru cadre didactice.', 'category' => DocumentCategory::Useful, 'roles' => $pedagogic, 'version' => 'ed. 2026'],

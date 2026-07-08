@@ -29,6 +29,11 @@ class CabinetDocumentsController extends Controller
         $user = $request->user('web');
 
         return Inertia::render('cabinet/documents', [
+            // Toate cele 5 subcategorii — pentru taburi mereu prezente (badge 0 când sunt goale).
+            'categories' => array_map(
+                fn (DocumentCategory $category): array => ['key' => $category->value, 'label' => $category->getLabel()],
+                DocumentCategory::cases(),
+            ),
             'schoolDocuments' => $this->schoolDocuments($user),
             'children' => $this->familyStudents($user)
                 ->map(fn (Student $student): array => [

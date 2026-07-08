@@ -1,7 +1,9 @@
 import { Head } from '@inertiajs/react';
 import { Download, FileBarChart, FileText, FolderOpen, GraduationCap, Inbox, Layers } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useState } from 'react';
 import { EmptyState } from '@/components/cabinet/empty-state';
+import { TabBar, TabPanel, type TabItem } from '@/components/cabinet/tab-bar';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 
@@ -43,7 +45,13 @@ interface Child {
     requests: RequestDoc[];
 }
 
+interface Category {
+    key: string;
+    label: string;
+}
+
 interface Props {
+    categories: Category[];
     schoolDocuments: SchoolCategory[];
     children: Child[];
 }
@@ -63,130 +71,206 @@ const GENERATED_ICONS: Record<string, LucideIcon> = {
     term_situation: FileBarChart,
 };
 
-export default function DocumentsPage({ schoolDocuments, children }: Props) {
+export default function DocumentsPage({ categories, schoolDocuments, children }: Props) {
     const t = useTranslations();
+
+    // Documentele statice ale școlii, indexate pe categorie pentru filtrarea per-tab.
+    const schoolByCategory: Record<string, SchoolDoc[]> = {};
+    for (const group of schoolDocuments) {
+        schoolByCategory[group.category] = group.items;
+    }
+
+    // Specificul cabinetului: generatele copilului aparțin categoriei „Rapoarte", cererile depuse
+    // categoriei „Cereri". Restul categoriilor conțin doar documentele școlii.
+    const childCountFor = (key: string): number => {
+        if (key === 'reports') {
+            return children.reduce((total, child) => total + child.generated.length, 0);
+        }
+        if (key === 'requests') {
+            return children.reduce((total, child) => total + child.requests.length, 0);
+        }
+        return 0;
+    };
+    const countFor = (key: string): number => (schoolByCategory[key]?.length ?? 0) + childCountFor(key);
+
+    const tabs: TabItem[] = categories.map((category) => ({
+        value: category.key,
+        label: category.label,
+        icon: CATEGORY_ICONS[category.key] ?? FileText,
+        // Badge ca string ⇒ se afișează inclusiv „0" pentru categoriile goale (cerință: taburile
+        // goale indică zero, nu dispar — cum se întâmpla înainte cu grupurile fără documente).
+        badge: String(countFor(category.key)),
+    }));
+
+    const [active, setActive] = useState<string>(categories[0]?.key ?? 'reports');
+
+    // Antet de copil — afișat doar când familia are mai mulți copii (altfel e redundant).
+    const showChildHeader = children.length > 1;
+
+    const childHeader = (child: Child) =>
+        showChildHeader ? (
+            <div className="flex items-baseline gap-2">
+                <h2 className="text-base font-semibold text-primary">{child.name}</h2>
+                {child.class && <span className="text-sm text-muted-foreground">{child.class}</span>}
+            </div>
+        ) : null;
+
+    const generatedGrid = (child: Child) => (
+        <div className="grid gap-3 sm:grid-cols-2">
+            {child.generated.map((doc) => {
+                const Icon = GENERATED_ICONS[doc.key] ?? FileText;
+
+                return (
+                    <a
+                        key={doc.key}
+                        href={doc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
+                            <Icon className="size-5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <p className="font-medium">{doc.label}</p>
+                            <p className="mt-0.5 text-sm text-muted-foreground">{doc.description}</p>
+                        </div>
+                        <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-primary" aria-hidden="true">
+                            <Download className="size-4" /> PDF
+                        </span>
+                    </a>
+                );
+            })}
+        </div>
+    );
+
+    const requestsList = (child: Child) => (
+        <div className="rounded-xl border border-sidebar-border/70 bg-card dark:border-sidebar-border">
+            <ul className="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
+                {child.requests.map((req) => (
+                    <li key={req.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                        <Inbox className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <span className="min-w-0 flex-1 truncate">{req.type}</span>
+                        {req.date && <span className="shrink-0 text-xs text-muted-foreground">{req.date}</span>}
+                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">{req.statusLabel}</span>
+                        {req.url && (
+                            <a
+                                href={req.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="shrink-0 text-primary hover:underline"
+                                aria-label={`${t('cabinet.documents_download')}: ${req.type}`}
+                            >
+                                <Download className="size-4" />
+                            </a>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+
+    const schoolGrid = (items: SchoolDoc[]) => (
+        <ul className="grid gap-2 sm:grid-cols-2">
+            {items.map((doc) => (
+                <li key={doc.id}>
+                    <a
+                        href={doc.url ?? '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-3 rounded-xl border border-sidebar-border/70 bg-card px-4 py-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-sidebar-border"
+                        aria-label={`${t('cabinet.documents_download')}: ${doc.title}`}
+                    >
+                        <FileText className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+                        <div className="min-w-0 flex-1">
+                            <p className="font-medium">{doc.title}</p>
+                            {doc.description && <p className="mt-0.5 text-sm text-muted-foreground">{doc.description}</p>}
+                            <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                                {doc.version && <span>{doc.version}</span>}
+                                {doc.size && <span>{doc.size}</span>}
+                            </p>
+                        </div>
+                        <Download className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    </a>
+                </li>
+            ))}
+        </ul>
+    );
+
+    const schoolBlock = (items: SchoolDoc[]) =>
+        items.length > 0 ? (
+            <section className="flex flex-col gap-2">
+                <h3 className="text-sm font-semibold text-muted-foreground">{t('cabinet.documents_school')}</h3>
+                {schoolGrid(items)}
+            </section>
+        ) : null;
+
+    const renderTab = (key: string) => {
+        const school = schoolByCategory[key] ?? [];
+
+        // „Rapoarte" — generatele fiecărui copil (foaie matricolă, situația) + rapoartele școlii.
+        if (key === 'reports') {
+            const childrenWithReports = children.filter((child) => child.generated.length > 0);
+
+            if (childrenWithReports.length === 0 && school.length === 0) {
+                return <EmptyState icon={FileBarChart} title={t('cabinet.documents_empty_tab')} />;
+            }
+
+            return (
+                <div className="flex flex-col gap-6">
+                    {childrenWithReports.map((child) => (
+                        <section key={child.id} className="flex flex-col gap-3">
+                            {childHeader(child)}
+                            {generatedGrid(child)}
+                        </section>
+                    ))}
+                    {schoolBlock(school)}
+                </div>
+            );
+        }
+
+        // „Cereri" — cererile depuse de fiecare copil + formularele de cerere ale școlii.
+        if (key === 'requests') {
+            const childrenWithRequests = children.filter((child) => child.requests.length > 0);
+
+            if (childrenWithRequests.length === 0 && school.length === 0) {
+                return <EmptyState icon={Inbox} title={t('cabinet.documents_empty_tab')} />;
+            }
+
+            return (
+                <div className="flex flex-col gap-6">
+                    {childrenWithRequests.map((child) => (
+                        <section key={child.id} className="flex flex-col gap-3">
+                            {childHeader(child)}
+                            {requestsList(child)}
+                        </section>
+                    ))}
+                    {schoolBlock(school)}
+                </div>
+            );
+        }
+
+        // „Înștiințări" / „Formulare" / „Utile" — doar documentele școlii din categorie.
+        if (school.length === 0) {
+            return <EmptyState icon={CATEGORY_ICONS[key] ?? FolderOpen} title={t('cabinet.documents_empty_tab')} />;
+        }
+
+        return schoolGrid(school);
+    };
 
     return (
         <>
             <Head title={t('cabinet.documents_title')} />
-            <div className="flex flex-col gap-8 p-4">
+            <div className="flex flex-col gap-6 p-4">
                 <h1 className="text-xl font-semibold">{t('cabinet.documents_title')}</h1>
 
-                {/* Documentele copilului — generate la cerere + cereri depuse */}
-                {children.map((child) => (
-                    <section key={child.id} className="flex flex-col gap-4">
-                        <div className="flex items-baseline gap-2">
-                            <h2 className="text-lg font-semibold text-primary">{child.name}</h2>
-                            {child.class && <span className="text-sm text-muted-foreground">{child.class}</span>}
-                        </div>
+                <TabBar items={tabs} active={active} onChange={setActive} ariaLabel={t('cabinet.documents_tabs_aria')} />
 
-                        {/* Documente generate (foaie matricolă, situația școlară) */}
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            {child.generated.map((doc) => {
-                                const Icon = GENERATED_ICONS[doc.key] ?? FileText;
-
-                                return (
-                                    <a
-                                        key={doc.key}
-                                        href={doc.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="group flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                    >
-                                        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
-                                            <Icon className="size-5" />
-                                        </span>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="font-medium">{doc.label}</p>
-                                            <p className="mt-0.5 text-sm text-muted-foreground">{doc.description}</p>
-                                        </div>
-                                        <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-primary" aria-hidden="true">
-                                            <Download className="size-4" /> PDF
-                                        </span>
-                                    </a>
-                                );
-                            })}
-                        </div>
-
-                        {/* Cererile depuse (cu PDF) */}
-                        {child.requests.length > 0 && (
-                            <div className="rounded-xl border border-sidebar-border/70 bg-card dark:border-sidebar-border">
-                                <p className="border-b border-sidebar-border/70 px-4 py-2 text-sm font-medium text-muted-foreground dark:border-sidebar-border">
-                                    {t('cabinet.documents_requests')}
-                                </p>
-                                <ul className="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
-                                    {child.requests.map((req) => (
-                                        <li key={req.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                                            <Inbox className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                                            <span className="min-w-0 flex-1 truncate">{req.type}</span>
-                                            {req.date && <span className="shrink-0 text-xs text-muted-foreground">{req.date}</span>}
-                                            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">{req.statusLabel}</span>
-                                            {req.url && (
-                                                <a
-                                                    href={req.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="shrink-0 text-primary hover:underline"
-                                                    aria-label={`${t('cabinet.documents_download')}: ${req.type}`}
-                                                >
-                                                    <Download className="size-4" />
-                                                </a>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </section>
+                {categories.map((category) => (
+                    <TabPanel key={category.key} value={category.key} active={active}>
+                        {renderTab(category.key)}
+                    </TabPanel>
                 ))}
-
-                {/* Documentele școlii — statice, publice sau vizibile rolului familiei */}
-                <section className="flex flex-col gap-4">
-                    <div>
-                        <h2 className="text-lg font-semibold">{t('cabinet.documents_school')}</h2>
-                        <p className="text-sm text-muted-foreground">{t('cabinet.documents_school_hint')}</p>
-                    </div>
-
-                    {schoolDocuments.length === 0 ? (
-                        <EmptyState icon={FolderOpen} title={t('cabinet.documents_empty_school')} />
-                    ) : (
-                        schoolDocuments.map((group) => {
-                            const Icon = CATEGORY_ICONS[group.category] ?? FileText;
-
-                            return (
-                                <div key={group.category} className="flex flex-col gap-2">
-                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                                        <Icon className="size-4" aria-hidden="true" /> {group.label}
-                                    </h3>
-                                    <ul className="grid gap-2 sm:grid-cols-2">
-                                        {group.items.map((doc) => (
-                                            <li key={doc.id}>
-                                                <a
-                                                    href={doc.url ?? '#'}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-start gap-3 rounded-xl border border-sidebar-border/70 bg-card px-4 py-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-sidebar-border"
-                                                    aria-label={`${t('cabinet.documents_download')}: ${doc.title}`}
-                                                >
-                                                    <FileText className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="font-medium">{doc.title}</p>
-                                                        {doc.description && <p className="mt-0.5 text-sm text-muted-foreground">{doc.description}</p>}
-                                                        <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                                                            {doc.version && <span>{doc.version}</span>}
-                                                            {doc.size && <span>{doc.size}</span>}
-                                                        </p>
-                                                    </div>
-                                                    <Download className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                                                </a>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            );
-                        })
-                    )}
-                </section>
             </div>
         </>
     );

@@ -616,6 +616,8 @@ return [
         'documents_requests' => 'Поданные заявления',
         'documents_download' => 'Скачать',
         'documents_empty_school' => 'Пока нет опубликованных документов.',
+        'documents_empty_tab' => 'В этой категории пока нет документов.',
+        'documents_tabs_aria' => 'Категории документов',
         'set_profile' => 'Профиль',
         'set_security' => 'Безопасность',
         'set_notifications' => 'Уведомления',

@@ -616,6 +616,8 @@ return [
         'documents_requests' => 'Cereri depuse',
         'documents_download' => 'Descarcă',
         'documents_empty_school' => 'Momentan nu există documente publicate.',
+        'documents_empty_tab' => 'Momentan nu există documente în această categorie.',
+        'documents_tabs_aria' => 'Categorii de documente',
         'set_profile' => 'Profil',
         'set_security' => 'Securitate',
         'set_notifications' => 'Notificări',

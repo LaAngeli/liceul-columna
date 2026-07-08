@@ -79,6 +79,7 @@ it('pagina Documente randează pentru familie: documentele copilului + cele ale 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('cabinet/documents')
+            ->has('categories', 5)                     // toate cele 5 subcategorii = taburi mereu prezente
             ->has('children', 1)
             ->has('children.0.generated', 2)          // foaie matricolă + situația școlară
             ->has('schoolDocuments')
