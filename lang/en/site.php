@@ -603,6 +603,7 @@ return [
 
     'cabinet' => [
         'grp_main' => 'Main',
+        'grp_documents' => 'Documents',
         'grp_events' => 'Events',
         'grp_communication' => 'Communication',
         'grp_settings' => 'Settings',

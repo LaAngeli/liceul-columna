@@ -36,8 +36,15 @@ export function AppSidebar() {
             label: t('cabinet.grp_main', 'Principal'),
             items: [
                 { title: t('cabinet.nav_home', 'Acasă'), href: dashboard(), icon: LayoutGrid },
-                { title: t('cabinet.nav_documents', 'Documente'), href: '/cabinet/documente', icon: FileText },
                 { title: t('profile.head', 'Profil'), href: '/cabinet/profil', icon: UserCircle },
+            ],
+        },
+        {
+            // „Documente" = categorie proprie (ca la staff: grup în sidebar + pagina cu taburi pe
+            // subcategorii în interior), nu un element sub „Principal".
+            label: t('cabinet.grp_documents', 'Documente'),
+            items: [
+                { title: t('cabinet.nav_documents', 'Documente'), href: '/cabinet/documente', icon: FileText },
             ],
         },
         {
