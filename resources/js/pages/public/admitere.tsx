@@ -86,7 +86,7 @@ export default function Admitere() {
             />
 
             {/* Bandă NAVY — cele 2 etape, cu blocul de programare */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="01"
                     variant="navy"
@@ -160,7 +160,7 @@ export default function Admitere() {
             </Band>
 
             {/* Bandă ALBĂ — „Ce primesc familiile în prima întâlnire" (vizual: foto + 4 highlights) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <Reveal className="grid items-center gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-14">
                     <figure className="relative aspect-[4/3] overflow-hidden rounded-[18px] border border-brand-navy/10 shadow-[0_30px_70px_-50px_rgba(15,77,119,0.45)]">
                         <img
@@ -195,7 +195,7 @@ export default function Admitere() {
             </Band>
 
             {/* Bandă NAVY — FAQ accordion (8 întrebări) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="03"
                     variant="navy"
@@ -256,7 +256,7 @@ export default function Admitere() {
             </Band>
 
             {/* Bandă ALBĂ — CTA „Înscrie-ți copilul" */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <FourStar className="mx-auto size-5 text-brand-green" />
                     <SectionHeader

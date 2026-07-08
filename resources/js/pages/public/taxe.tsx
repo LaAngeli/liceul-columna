@@ -40,7 +40,7 @@ export default function Taxe() {
             />
 
             {/* Bandă NAVY — cadrul + notă de onestitate (NU publicăm cifre) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <Reveal className="mx-auto max-w-3xl">
                     <SectionHeader
                         index="01"
@@ -56,7 +56,7 @@ export default function Taxe() {
             </Band>
 
             {/* Bandă ALBĂ — ce include taxa (4 carduri cu iconi) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="02"
                     label={t('tuition_page.includes_eyebrow', 'Ce include taxa')}
@@ -78,7 +78,7 @@ export default function Taxe() {
             </Band>
 
             {/* Bandă NAVY — cum afli taxa (2 pași + telefon) */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="03"
                     variant="navy"
@@ -143,7 +143,7 @@ export default function Taxe() {
             </Band>
 
             {/* Bandă ALBĂ — 3 principii (reducere / plată / fără înmatriculare) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="04"
                     label={t('tuition_page.bonus_eyebrow', 'Pentru familii')}
@@ -165,7 +165,7 @@ export default function Taxe() {
             </Band>
 
             {/* Bandă ALBĂ-LIGHT (CTA) — secretariat */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <FourStar className="mx-auto size-5 text-brand-green" />
                     <SectionHeader

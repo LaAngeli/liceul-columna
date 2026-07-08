@@ -76,7 +76,7 @@ export default function IntrebariFrecvente() {
             />
 
             {/* Bandă NAVY — 3 categorii (admitere/program/viața) cu listă scurtă + link */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="01"
                     variant="navy"
@@ -122,7 +122,7 @@ export default function IntrebariFrecvente() {
             </Band>
 
             {/* Bandă ALBĂ — FAQ accordion cu cele 6 întrebări (verbatim) */}
-            <Band variant="light">
+            <Band variant="light" pattern="mesh">
                 <SectionHeader
                     index="02"
                     label={t('faq_page.faq_eyebrow', 'Lista completă')}
@@ -169,7 +169,7 @@ export default function IntrebariFrecvente() {
             </Band>
 
             {/* Bandă NAVY — 4 carduri-linkuri către paginile dedicate */}
-            <Band variant="navy" pattern="dotgrid">
+            <Band variant="navy" pattern="mesh">
                 <SectionHeader
                     index="03"
                     variant="navy"
@@ -199,7 +199,7 @@ export default function IntrebariFrecvente() {
             </Band>
 
             {/* Bandă ALBĂ — CTA „Nu ai găsit răspunsul?" */}
-            <Band variant="light">
+            <Band variant="light" pattern="signature">
                 <div className="mx-auto max-w-2xl text-center">
                     <FourStar className="mx-auto size-5 text-brand-green" />
                     <SectionHeader
