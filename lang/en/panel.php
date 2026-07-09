@@ -774,6 +774,31 @@ return [
         ],
     ],
 
+    // Internal staff mailbox (threads, folders, per-user star/trash).
+    'mailbox' => [
+        'thread' => 'Conversation',
+        'you' => 'You',
+        'open' => 'Open',
+        'with' => 'Correspondent',
+        'last_activity' => 'Last activity',
+        'star' => 'Add to favourites',
+        'unstar' => 'Remove from favourites',
+        'trash' => 'Move to trash',
+        'restore' => 'Restore',
+        'trashed' => 'Conversation moved to trash.',
+        'restored' => 'Conversation restored.',
+        'trash_bulk' => 'Move to trash',
+        'trash_bulk_success' => 'Conversations moved to trash: :count.',
+        'folders' => [
+            'all' => 'All',
+            'inbox' => 'Inbox',
+            'sent' => 'Sent',
+            'unread' => 'Unread',
+            'starred' => 'Starred',
+            'audience' => 'Audiences',
+            'trash' => 'Trash',
+        ],
+    ],
     'empty' => [
         'grades' => ['heading' => 'No grades', 'description' => 'Grades appear here once entered in the gradebook.'],
         'absences' => ['heading' => 'No absences', 'description' => 'Recorded absences appear here.'],

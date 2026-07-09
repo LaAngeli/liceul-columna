@@ -83,28 +83,14 @@ class Message extends Model
     |--------------------------------------------------------------------------
     | Primitivele poștei — sursă unică pentru AMBELE cutii (cabinet + panou staff)
     |--------------------------------------------------------------------------
-    | Definesc ce înseamnă „fir", „particip", „în coșul meu", „preferat de mine",
-    | „necitit de mine". Se folosesc prin {@see \App\Support\MessageMailbox}. Dacă le
-    | schimbi, se schimbă simultan în ambele poște — exact ce vrem (fără divergență).
+    | Definesc ce înseamnă „în coșul meu", „preferat de mine", „necitit de mine". Se folosesc
+    | prin {@see \App\Support\MessageMailbox}; dacă le schimbi, se schimbă simultan în ambele
+    | poște — exact ce vrem (fără divergență tăcută).
+    |
+    | Baza („fir-rădăcină la care particip") NU e un scope, ci
+    | {@see \App\Support\MessageMailbox::threadsForParticipant()} — trebuie să se poată aplica și
+    | pe `Builder<Model>`-ul cu care pornește Filament.
     */
-
-    /** Firele = mesajele-rădăcină (un răspuns nu e o conversație de sine stătătoare).
-     *
-     * @param  Builder<Message>  $query
-     */
-    public function scopeThreadRoots(Builder $query): void
-    {
-        $query->whereNull('parent_id');
-    }
-
-    /** Conversațiile la care utilizatorul participă (le-a inițiat sau le-a primit).
-     *
-     * @param  Builder<Message>  $query
-     */
-    public function scopeForParticipant(Builder $query, int $userId): void
-    {
-        $query->where(fn (Builder $inner) => $inner->where('recipient_user_id', $userId)->orWhere('sender_user_id', $userId));
-    }
 
     /** Firele care NU sunt în coșul acestui utilizator (coșul e per-utilizator).
      *

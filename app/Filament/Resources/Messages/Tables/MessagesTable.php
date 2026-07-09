@@ -2,62 +2,109 @@
 
 namespace App\Filament\Resources\Messages\Tables;
 
-use App\Actions\SendMessage;
 use App\Enums\AudienceDomain;
 use App\Enums\MessageType;
+use App\Filament\Resources\Messages\MessageResource;
 use App\Models\Message;
 use App\Models\User;
-use Filament\Actions\Action;
+use App\Support\MessageMailbox;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
-use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Str;
 
+/**
+ * Lista poștei personalului: fiecare rând e o CONVERSAȚIE (firul-rădăcină), nu un mesaj individual.
+ *
+ * Baza vine din `MessageResource::getEloquentQuery()` (fire-rădăcină la care particip); folderul
+ * activ e aplicat de tab prin {@see MessageMailbox::applyFolder()} — aceeași definiție ca la cabinet.
+ */
 class MessagesTable
 {
     public static function configure(Table $table): Table
     {
+        $uid = (int) auth()->id();
+
         return $table
             ->emptyStateHeading(__('panel.empty.messages.heading'))
             ->emptyStateDescription(__('panel.empty.messages.description'))
             ->emptyStateIcon('heroicon-o-chat-bubble-left-right')
-            ->defaultSort('created_at', 'desc')
-            ->poll('60s') // inbox — la 60s ca să nu fie agresiv pe firele lungi.
+            ->poll('30s')
+            ->defaultSort('last_activity_at', 'desc')
+            // Rândul întreg duce în conversație (tipar de client de poștă).
+            ->recordUrl(fn (Message $record): string => MessageResource::getUrl('thread', ['record' => $record]))
+            ->modifyQueryUsing(fn (Builder $query): Builder => self::hydrate($query, $uid))
             ->columns([
-                IconColumn::make('read_at')
+                // Plic închis/deschis — semnalul cel mai rapid de scanat.
+                IconColumn::make('unread')
                     ->label('')
-                    ->boolean()
-                    ->trueIcon('heroicon-o-envelope-open')
-                    ->falseIcon('heroicon-s-envelope')
-                    ->getStateUsing(fn (Message $record): bool => $record->read_at !== null),
-                TextColumn::make('sender.name')
-                    ->label(__('panel.tables.messages.from'))
-                    ->searchable(),
+                    ->icon(fn (Message $record): string => self::unreadCount($record, $uid) > 0
+                        ? 'heroicon-s-envelope'
+                        : 'heroicon-o-envelope-open')
+                    ->color(fn (Message $record): string => self::unreadCount($record, $uid) > 0 ? 'info' : 'gray'),
+
+                // Stea — comutabilă direct din listă, stare PER-UTILIZATOR.
+                IconColumn::make('starred')
+                    ->label('')
+                    ->icon(fn (Message $record): string => self::isStarred($record) ? 'heroicon-s-star' : 'heroicon-o-star')
+                    ->color(fn (Message $record): string => self::isStarred($record) ? 'warning' : 'gray')
+                    ->tooltip(fn (Message $record): string => self::isStarred($record)
+                        ? __('panel.mailbox.unstar')
+                        : __('panel.mailbox.star'))
+                    ->action(function (Message $record): void {
+                        $user = self::currentUser();
+
+                        if (! $user instanceof User) {
+                            return;
+                        }
+
+                        $state = MessageMailbox::for($user)->stateForThread($record);
+                        $state->starred_at = $state->starred_at === null ? now() : null;
+                        $state->save();
+                    }),
+
+                TextColumn::make('with')
+                    ->label(__('panel.mailbox.with'))
+                    ->getStateUsing(fn (Message $record): string => self::counterpartName($record, $uid))
+                    ->weight(fn (Message $record): ?string => self::unreadCount($record, $uid) > 0 ? 'bold' : null),
+
+                // Subiect (bold la necitit) + fragmentul ultimului mesaj, ca la un client de poștă.
                 TextColumn::make('subject')
                     ->label(__('panel.tables.messages.subject'))
-                    ->limit(45)
-                    ->placeholder(__('panel.common.dash')),
+                    ->placeholder(__('panel.common.dash'))
+                    ->limit(46)
+                    ->weight(fn (Message $record): ?string => self::unreadCount($record, $uid) > 0 ? 'bold' : null)
+                    ->description(fn (Message $record): ?string => self::snippet($record))
+                    ->searchable(),
+
                 TextColumn::make('type')
                     ->label(__('panel.fields.type'))
-                    ->badge(),
-                TextColumn::make('audience_domain')
-                    ->label(__('panel.tables.messages.domain'))
                     ->badge()
-                    ->placeholder(__('panel.common.dash'))
                     ->toggleable(),
+
                 TextColumn::make('student.full_name')
                     ->label(__('panel.fields.student'))
                     ->placeholder(__('panel.common.dash'))
                     ->toggleable(),
-                TextColumn::make('created_at')
-                    ->label(__('panel.fields.received_at'))
+
+                IconColumn::make('attachments_count')
+                    ->label('')
+                    ->boolean()
+                    ->getStateUsing(fn (Message $record): bool => (int) ($record->attachments_count ?? 0) > 0)
+                    ->trueIcon('heroicon-o-paper-clip')
+                    ->falseIcon('heroicon-o-minus')
+                    ->trueColor('gray')
+                    ->falseColor('gray')
+                    ->toggleable(),
+
+                TextColumn::make('last_activity_at')
+                    ->label(__('panel.mailbox.last_activity'))
                     ->dateTime('d.m.Y H:i')
                     ->sortable(),
             ])
@@ -65,58 +112,9 @@ class MessagesTable
                 SelectFilter::make('type')
                     ->label(__('panel.fields.type'))
                     ->options(MessageType::class),
-                TernaryFilter::make('read')
-                    ->label(__('panel.tables.messages.read_filter'))
-                    ->placeholder(__('panel.common.all'))
-                    ->trueLabel(__('panel.tables.messages.read_yes'))
-                    ->falseLabel(__('panel.tables.messages.read_no'))
-                    ->queries(
-                        true: fn (Builder $q) => $q->whereNotNull('read_at'),
-                        false: fn (Builder $q) => $q->whereNull('read_at'),
-                    ),
                 SelectFilter::make('audience_domain')
                     ->label(__('panel.tables.messages.domain'))
                     ->options(AudienceDomain::class),
-            ])
-            ->recordActions([
-                Action::make('reply')
-                    ->label(__('panel.actions.reply.label'))
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->visible(fn (Message $record): bool => in_array(
-                        auth()->id(),
-                        [$record->sender_user_id, $record->recipient_user_id],
-                        true,
-                    ))
-                    ->modalHeading(fn (): string => __('panel.actions.reply.heading'))
-                    ->modalDescription(fn (Message $record): string => $record->body)
-                    ->schema([
-                        Textarea::make('body')
-                            ->label(__('panel.actions.reply.body'))
-                            ->required()
-                            ->maxLength(2000),
-                    ])
-                    ->action(function (Message $record, array $data): void {
-                        $user = auth('web')->user();
-
-                        if (! $user instanceof User) {
-                            return;
-                        }
-
-                        app(SendMessage::class)->reply($user, $record, $data['body']);
-
-                        if ($record->recipient_user_id === $user->id) {
-                            $record->markRead();
-                        }
-
-                        Notification::make()->success()->title(__('panel.actions.reply.success'))->send();
-                    }),
-                Action::make('markRead')
-                    ->label(__('panel.actions.mark_read.label'))
-                    ->icon('heroicon-o-check')
-                    ->color('gray')
-                    ->visible(fn (Message $record): bool => $record->recipient_user_id === auth()->id()
-                        && $record->read_at === null)
-                    ->action(fn (Message $record) => $record->markRead()),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
@@ -124,32 +122,139 @@ class MessagesTable
                         ->label(__('panel.actions.mark_read_bulk.label'))
                         ->icon('heroicon-o-check')
                         ->color('gray')
-                        ->action(function (Collection $records): void {
-                            self::markReadBulk($records);
-                        })
+                        ->action(fn (Collection $records) => self::markReadBulk($records))
+                        ->deselectRecordsAfterCompletion(),
+
+                    BulkAction::make('trashSelected')
+                        ->label(__('panel.mailbox.trash_bulk'))
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->action(fn (Collection $records) => self::trashBulk($records))
                         ->deselectRecordsAfterCompletion(),
                 ]),
             ]);
     }
 
     /**
-     * Marchează în masă ca citite doar mesajele primite (destinatar = userul curent) care încă
-     * sunt necitite. Nu afectează mesajele trimise de el și nici pe cele deja citite.
+     * Eager-load scopat + agregatele listei, ca fiecare rând să nu mai interogheze separat:
+     *  • `states` DOAR ale utilizatorului curent (stea/coș) — altfel N+1 la fiecare render;
+     *  • numărul de răspunsuri necitite de mine + de atașamente;
+     *  • `last_activity_at` = ultimul mesaj din fir (răspuns sau, în lipsă, rădăcina).
+     *
+     * @param  Builder<Message>  $query
+     * @return Builder<Message>
+     */
+    private static function hydrate(Builder $query, int $uid): Builder
+    {
+        return $query
+            ->with([
+                'sender:id,name',
+                'recipient:id,name',
+                'student',
+                'states' => fn ($relation) => $relation->where('user_id', $uid),
+            ])
+            ->withCount([
+                'attachments',
+                'replies as unread_replies_count' => fn (Builder $reply) => $reply
+                    ->where('recipient_user_id', $uid)
+                    ->whereNull('read_at'),
+            ])
+            ->selectRaw(
+                'messages.*, COALESCE((SELECT MAX(r.created_at) FROM messages r WHERE r.parent_id = messages.id AND r.deleted_at IS NULL), messages.created_at) AS last_activity_at'
+            );
+    }
+
+    /** Necitite de MINE în fir: rădăcina (dacă mi-e adresată) + răspunsurile neatinse. */
+    private static function unreadCount(Message $record, int $uid): int
+    {
+        $root = ((int) $record->recipient_user_id === $uid && $record->read_at === null) ? 1 : 0;
+
+        return $root + (int) ($record->unread_replies_count ?? 0);
+    }
+
+    private static function isStarred(Message $record): bool
+    {
+        return $record->states->first()?->starred_at !== null;
+    }
+
+    private static function counterpartName(Message $record, int $uid): string
+    {
+        return (int) $record->sender_user_id === $uid
+            ? (string) $record->recipient?->name
+            : (string) $record->sender?->name;
+    }
+
+    private static function snippet(Message $record): ?string
+    {
+        $body = (string) preg_replace('/\s+/', ' ', $record->body);
+
+        return $body === '' ? null : Str::limit($body, 78);
+    }
+
+    private static function currentUser(): ?User
+    {
+        $user = auth('web')->user();
+
+        return $user instanceof User ? $user : null;
+    }
+
+    /**
+     * Marchează citite conversațiile selectate — doar mesajele PRIMITE de utilizator.
+     * Rândurile vin deja din query-ul scopat pe participant; re-verificăm oricum (anti-IDOR).
      *
      * @param  Collection<int, Message>  $records
      */
     private static function markReadBulk(Collection $records): void
     {
-        $userId = (int) auth()->id();
+        $user = self::currentUser();
+
+        if (! $user instanceof User) {
+            return;
+        }
+
+        $mailbox = MessageMailbox::for($user);
         $count = 0;
 
         foreach ($records as $record) {
-            if ($record->recipient_user_id === $userId && $record->read_at === null) {
-                $record->markRead();
-                $count++;
+            if (! $mailbox->participatesIn($record)) {
+                continue;
             }
+
+            $mailbox->markThreadRead($record);
+            $count++;
         }
 
         Notification::make()->success()->title(__('panel.actions.mark_read_bulk.success_count', ['count' => $count]))->send();
+    }
+
+    /**
+     * Mută conversațiile selectate în coșul PROPRIU (nu afectează cutia celuilalt participant).
+     *
+     * @param  Collection<int, Message>  $records
+     */
+    private static function trashBulk(Collection $records): void
+    {
+        $user = self::currentUser();
+
+        if (! $user instanceof User) {
+            return;
+        }
+
+        $mailbox = MessageMailbox::for($user);
+        $count = 0;
+
+        foreach ($records as $record) {
+            if (! $mailbox->participatesIn($record)) {
+                continue;
+            }
+
+            $state = $mailbox->stateForThread($record);
+            $state->trashed_at = now();
+            $state->save();
+            $count++;
+        }
+
+        Notification::make()->success()->title(__('panel.mailbox.trash_bulk_success', ['count' => $count]))->send();
     }
 }

@@ -788,6 +788,31 @@ return [
     ],
 
     // Empty states contextuale — afișate când tabelul e gol (ex. profesor nou, coadă goală, inbox gol).
+    // Poșta internă a personalului (fire de conversație, foldere, stea/coș per-utilizator).
+    'mailbox' => [
+        'thread' => 'Conversație',
+        'you' => 'Tu',
+        'open' => 'Deschide',
+        'with' => 'Corespondent',
+        'last_activity' => 'Ultima activitate',
+        'star' => 'Marchează preferat',
+        'unstar' => 'Scoate din preferate',
+        'trash' => 'Mută în coș',
+        'restore' => 'Restaurează',
+        'trashed' => 'Conversația a fost mutată în coș.',
+        'restored' => 'Conversația a fost restaurată.',
+        'trash_bulk' => 'Mută în coș',
+        'trash_bulk_success' => 'Conversații mutate în coș: :count.',
+        'folders' => [
+            'all' => 'Toate',
+            'inbox' => 'Primite',
+            'sent' => 'Trimise',
+            'unread' => 'Necitite',
+            'starred' => 'Preferate',
+            'audience' => 'Audiențe',
+            'trash' => 'Șterse',
+        ],
+    ],
     'empty' => [
         'grades' => ['heading' => 'Nicio notă', 'description' => 'Notele apar aici după ce sunt introduse în catalog.'],
         'absences' => ['heading' => 'Nicio absență', 'description' => 'Absențele consemnate apar aici.'],

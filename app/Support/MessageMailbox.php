@@ -8,6 +8,7 @@ use App\Models\Message;
 use App\Models\MessageState;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * SURSA UNICĂ a logicii de poștă, folosită de AMBELE cutii:
@@ -50,6 +51,25 @@ final class MessageMailbox
     }
 
     /**
+     * Baza oricărei cutii: CONVERSAȚIILE (fire-rădăcină) la care participă utilizatorul.
+     *
+     * Statică și generică deliberat: Filament pornește de la `Builder<Model>`
+     * (`parent::getEloquentQuery()`), cabinetul de la `Builder<Message>`. Definiția stă AICI, o
+     * singură dată, ca resursa Filament să nu-și rescrie propriile predicate.
+     *
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
+     */
+    public static function threadsForParticipant(Builder $query, int $userId): Builder
+    {
+        return $query
+            ->whereNull('parent_id')
+            ->where(fn (Builder $inner) => $inner->where('recipient_user_id', $userId)->orWhere('sender_user_id', $userId));
+    }
+
+    /**
      * Query-ul unui folder, pornit de la zero (fire-rădăcină la care particip).
      * Fără ordonare/limită/eager-load — acelea se adaugă de apelant.
      *
@@ -58,7 +78,7 @@ final class MessageMailbox
     public function folder(string $folder): Builder
     {
         return $this->applyFolder(
-            Message::query()->threadRoots()->forParticipant($this->userId),
+            self::threadsForParticipant(Message::query(), $this->userId),
             $folder,
         );
     }
