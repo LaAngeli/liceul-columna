@@ -1170,6 +1170,7 @@ return [
         'banner_lead' => 'Consiliul Metodic — coordonarea didactică internă a liceului.',
         'seealso_label' => 'Vezi și:',
         'related_school_council' => 'Consiliul școlar',
+        'closing_quote' => 'Un profesor care învață mereu — un elev care crește mereu.',
         'intro_eyebrow' => 'Rolul consiliului',
         'intro_p1' => 'Odată cu majorarea numărului de elevi, a crescut și efectivul cadrelor didactice din instituție. Astfel, a devenit iminentă analiza, evaluarea și perfecționarea continuă a activității metodice.',
         'intro_p2' => 'Prin ordinul directorului nr. 108A din 30.08.2022 a fost înființat, ca structură de funcționare a instituției, Consiliul Metodic, subordonat funcțional și organizațional Consiliului Profesoral și Consiliului de Administrație.',

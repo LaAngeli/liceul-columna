@@ -1170,6 +1170,7 @@ return [
         'banner_lead' => 'The Methodical Council — internal academic coordination.',
         'seealso_label' => 'See also:',
         'related_school_council' => 'School Council',
+        'closing_quote' => 'A teacher who keeps learning — a student who keeps growing.',
         'intro_eyebrow' => 'The council’s role',
         'intro_p1' => 'As the number of students grew, so did the institution’s teaching staff. The analysis, evaluation and continuous improvement of methodical work thus became imperative.',
         'intro_p2' => 'By the principal’s order no. 108A of 30.08.2022, the Methodical Council was established as an operating structure of the institution, functionally and organizationally subordinate to the Teaching Council and the Administration Council.',

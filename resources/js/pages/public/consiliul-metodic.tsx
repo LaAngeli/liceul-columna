@@ -1,18 +1,11 @@
 import { Head } from '@inertiajs/react';
-import { ArrowRight } from 'lucide-react';
 import { LocaleLink } from '@/components/locale-link';
-import { Band, Container, FourStar, Reveal, SectionHeader } from '@/components/public/brand';
+import { Band, Display, FourStar, Reveal, SectionHeader } from '@/components/public/brand';
 import { PageBanner } from '@/components/public/page-banner';
 import { useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 type Tr = (k: string, f?: string) => string;
-
-const RELATED = [
-    { href: '/consiliul-scolar', labelKey: 'council.related_school_council' },
-    { href: '/personal', labelKey: 'nav.staff' },
-    { href: '/filosofia-liceului', labelKey: 'about.philosophy' },
-];
 
 const MEMBERS = [
     { name: 'Pascaru Irina', photo: 'pascaru-irina', slug: 'pascaru-irina', fn: 'president', role: 'm1' },
@@ -160,22 +153,17 @@ export default function ConsiliulMetodic() {
                 </ol>
             </Band>
 
-            {/* Bară slim ALBĂ — „Vezi și": legături către pagini conexe */}
-            <section className="border-t keyline bg-background">
-                <Container className="flex flex-wrap items-center gap-x-2 gap-y-2 py-4">
-                    <span className="eyebrow mr-1 text-brand-gray">{t('council.seealso_label', 'Vezi și:')}</span>
-                    {RELATED.map((r) => (
-                        <LocaleLink
-                            key={r.href}
-                            href={r.href}
-                            className="group inline-flex min-h-9 items-center gap-1.5 rounded-full border keyline bg-card px-3.5 text-sm font-semibold text-brand-navy transition-colors hover:bg-surface-navy hover:text-[color:var(--brand-navy-foreground)]"
-                        >
-                            {t(r.labelKey)}
-                            <ArrowRight className="size-3.5 text-brand-green transition-transform group-hover:translate-x-0.5" />
-                        </LocaleLink>
-                    ))}
-                </Container>
-            </section>
+            {/* ── Punte deschisă cu citat: rotunjește pagina cu misiunea consiliului metodic
+                (dezvoltarea profesorului = creșterea elevului). Aceeași formulă ca punțile de pe
+                homepage și taxe, dar în variantă light — banda anterioară e deja navy. */}
+            <Band variant="light" pattern="mesh" className="py-10 sm:py-14">
+                <div className="flex flex-col items-center gap-4 text-center">
+                    <FourStar className="size-5 text-brand-green" />
+                    <Display as="p" className="max-w-[26ch] text-[clamp(1.375rem,3vw,2rem)] leading-[1.1] text-brand-navy">
+                        {t('council.closing_quote', 'Un profesor care învață mereu — un elev care crește mereu.')}
+                    </Display>
+                </div>
+            </Band>
         </>
     );
 }
