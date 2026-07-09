@@ -1614,6 +1614,7 @@ return [
         'bonus_eyebrow' => 'For families',
         'bonus_title' => 'Discounts and payment flexibility',
         'bonus_lead' => 'Three principles that have stayed the same over the years — and that matter for the family’s financial decision.',
+        'family_bridge' => 'At Columna, tuition is designed to support the family — clear, fair, predictable.',
         'bonus_discount_title' => 'Up to 15% reduction',
         'bonus_discount_body' => 'Families with two or more children studying at Liceul Columna receive a reduction of up to 15% on the annual tuition cost.',
         'bonus_payment_title' => 'Pay in full or in instalments',

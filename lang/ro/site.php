@@ -1623,6 +1623,7 @@ return [
         'bonus_eyebrow' => 'Pentru familii',
         'bonus_title' => 'Reducere și flexibilitate la plată',
         'bonus_lead' => 'Trei principii rămase neschimbate de-a lungul anilor — care contează în decizia financiară a familiei.',
+        'family_bridge' => 'La Columna, taxa școlară este proiectată să susțină familia — clar, corect, previzibil.',
         'bonus_discount_title' => 'Reducere până la 15%',
         'bonus_discount_body' => 'Familiile cu doi sau mai mulți copii – elevi la Liceul Columna, se bucură de o reducere până la 15% din costul anual al studiilor.',
         'bonus_payment_title' => 'Plată integrală sau în rate',

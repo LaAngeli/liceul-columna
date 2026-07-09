@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { BookOpenCheck, ClipboardCheck, GraduationCap, Handshake, LayoutGrid, Mail, MonitorSmartphone, Percent, Phone, Sparkles, Wallet } from 'lucide-react';
-import { Band, BrandButton, FourStar, Reveal, SectionHeader } from '@/components/public/brand';
+import { Band, BrandButton, Display, FourStar, Reveal, SectionHeader } from '@/components/public/brand';
 import { PageBanner } from '@/components/public/page-banner';
 import { useTranslations } from '@/lib/i18n';
 
@@ -161,6 +161,18 @@ export default function Taxe() {
                             <p className="mt-3 leading-relaxed text-brand-dark/85">{t(b.body)}</p>
                         </Reveal>
                     ))}
+                </div>
+            </Band>
+
+            {/* ── Punte navy: rotunjește secțiunea „Pentru familii" + reface ritmul navy↔deschis
+                între 04 (deschis) și 05 (deschis). Bandă slabă ca înălțime, o afirmație caldă
+                despre filozofia taxelor. */}
+            <Band variant="navy" pattern="mesh" className="py-10 sm:py-14">
+                <div className="flex flex-col items-center gap-4 text-center">
+                    <FourStar className="size-5 text-brand-green" />
+                    <Display as="p" className="max-w-[26ch] text-[clamp(1.375rem,3vw,2rem)] leading-[1.1] text-[color:var(--brand-navy-foreground)]">
+                        {t('tuition_page.family_bridge', 'La Columna, taxa școlară este proiectată să susțină familia — clar, corect, previzibil.')}
+                    </Display>
                 </div>
             </Band>
 
