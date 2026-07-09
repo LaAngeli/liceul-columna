@@ -71,10 +71,24 @@
                     <span>{{ __('panel.mailbox.reply_to', ['name' => $this->counterpart()?->name ?? '']) }}</span>
                 </div>
 
-                {{ $this->form }}
+                {{--
+                    Cheia versionată: FileUpload poartă `wire:ignore`, deci Livewire nu-i curăță
+                    niciodată DOM-ul. Schimbând cheia acestui părinte (care NU e ignorat), subarborele
+                    e șters și reinserat după expediere, iar FilePond repornește gol.
+                --}}
+                <div wire:key="reply-composer-{{ $this->composerKey }}">
+                    {{ $this->form }}
+                </div>
 
                 <div class="cx-reply__actions">
-                    <x-filament::button type="submit" icon="heroicon-o-paper-airplane" wire:loading.attr="disabled">
+                    {{-- `wire:target` pe încărcare: nu se poate expedia cât un fișier urcă încă,
+                         altfel mesajul ar pleca fără atașamentul pe care utilizatorul îl vede. --}}
+                    <x-filament::button
+                        type="submit"
+                        icon="heroicon-o-paper-airplane"
+                        wire:loading.attr="disabled"
+                        wire:target="sendReply,data.files"
+                    >
                         {{ __('panel.mailbox.send') }}
                     </x-filament::button>
                 </div>

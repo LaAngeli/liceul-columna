@@ -45,6 +45,20 @@ class ViewThread extends Page
      */
     public ?array $data = [];
 
+    /**
+     * Versiunea compozitorului — se incrementează după fiecare expediere.
+     *
+     * De ce e nevoie: `FileUpload` are `wire:ignore` pe rădăcina lui, deci Livewire nu-i atinge
+     * niciodată DOM-ul, iar FilePond (componenta JS) își ține fișierele acolo. Singura punte e
+     * watcher-ul Alpine pe stare, dar el sare peste sincronizare cât timp starea conține markeri
+     * `livewire-file:` — exact cazul nostru, fiindcă `storeFiles(false)` păstrează fișierele brute.
+     * Rezultat: golirea stării pe server NU curăța previzualizarea.
+     *
+     * Cheia de mai jos e pe un părinte care NU e `wire:ignore`: schimbând-o, Livewire șterge și
+     * reinserează subarborele, iar FilePond se reinițializează gol. Determinist, fără hack-uri JS.
+     */
+    public int $composerKey = 0;
+
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
@@ -83,7 +97,10 @@ class ViewThread extends Page
 
         ComposeSchema::storeFiles($reply, $data);
 
+        // Golește starea (corp + fișiere) ȘI forțează recrearea compozitorului, altfel
+        // previzualizarea FilePond ar rămâne pe ecran (vezi comentariul de la $composerKey).
         $this->form->fill();
+        $this->composerKey++;
 
         Notification::make()->success()->title(__('panel.actions.reply.success'))->send();
     }

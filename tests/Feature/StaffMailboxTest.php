@@ -398,3 +398,32 @@ it('răspunsul inline validează corpul gol', function () {
 
     expect(Message::query()->where('parent_id', $root->id)->exists())->toBeFalse();
 });
+
+it('după expediere compozitorul se golește complet: corp, fișiere ȘI previzualizarea FilePond', function () {
+    Storage::fake('local');
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $parent = sbxParentOf($student);
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Subiect', $student);
+
+    actingAs($teacher);
+
+    $page = Livewire::test(ViewThread::class, ['record' => $root->id])
+        ->assertSet('composerKey', 0)
+        ->fillForm([
+            'body' => 'Vă trimit documentul.',
+            'files' => [UploadedFile::fake()->create('nota.pdf', 30, 'application/pdf')],
+        ])
+        ->call('sendReply')
+        ->assertHasNoFormErrors();
+
+    // Atașamentul a plecat cu mesajul...
+    $reply = Message::query()->where('parent_id', $root->id)->firstOrFail();
+    expect($reply->attachments()->count())->toBe(1);
+
+    // ...iar compozitorul e curat: starea golită + cheia incrementată (recreează FilePond, care
+    // are wire:ignore și altfel ar rămâne cu previzualizarea pe ecran).
+    $page->assertSet('data.body', null)
+        ->assertSet('data.files', [])
+        ->assertSet('composerKey', 1);
+});
