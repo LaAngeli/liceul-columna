@@ -8,45 +8,56 @@ interface Crumb {
 }
 
 /** Page Hero V2 (pagini interioare): breadcrumb cu steluțe + titlu Cervino + lead, watermark crest.
- *  Fundal NAVY imersiv cu textura mesh (identică cu benzile navy din site) — consistență completă. */
+ *  Fundal ALBASTRU DESCHIS (pastelat — amestec de `--surface-navy` cu `--background`) + textura mesh.
+ *  Nu e navy imersiv (prea închis, „domină") și nu e alb pur (nu se distinge) — un albastru clar dar aerisit.
+ *  Textul rămâne navy pentru contrast pe pastelat. */
 export function PageBanner({ title, breadcrumbs = [], description }: { title: string; breadcrumbs?: Crumb[]; description?: string }) {
     const t = useTranslations();
 
     return (
-        <section className="on-navy relative overflow-hidden bg-surface-navy text-[color:var(--brand-navy-foreground)]">
-            {/* Textura mesh — aceleași puncte în ton opus ca pe <Band variant="navy" pattern="mesh"> */}
-            <div className="tx-mesh-navy pointer-events-none absolute inset-0" aria-hidden="true" />
+        <section
+            className="relative overflow-hidden border-b keyline text-[color:var(--brand-dark)]"
+            style={{ backgroundColor: 'color-mix(in oklch, var(--surface-navy) 18%, var(--background))' }}
+        >
+            {/* Textura mesh — puncte navy peste fundalul albăstriu pastelat (aceeași ca pe benzile light). */}
+            <div className="tx-mesh-lite pointer-events-none absolute inset-0" aria-hidden="true" />
             {/* Altitudine FIXĂ pe toate paginile (h-[13rem] = 208px) pentru consistență vizuală absolută.
                Lead-urile trebuie să încapă pe UN SINGUR RÂND — vezi reformulările din i18n. */}
             <Container className="relative flex h-[13rem] flex-col justify-center">
-                {/* Crest — varianta ALBĂ pe fundal navy, cu opacitate joasă (watermark discret) */}
+                {/* Crest COLOR pe fundal deschis (light), varianta albă doar pe dark. */}
+                <img
+                    src="/images/logo/columna-crest-color.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-1/2 right-0 hidden aspect-square h-[10rem] max-w-[44%] -translate-y-1/2 object-contain select-none md:block dark:hidden"
+                />
                 <img
                     src="/images/logo/columna-crest-white.png"
                     alt=""
                     aria-hidden="true"
-                    className="pointer-events-none absolute top-1/2 right-0 hidden aspect-square h-[10rem] max-w-[44%] -translate-y-1/2 object-contain opacity-[0.14] select-none md:block"
+                    className="pointer-events-none absolute top-1/2 right-0 hidden aspect-square h-[10rem] max-w-[44%] -translate-y-1/2 object-contain opacity-[0.14] select-none md:dark:block"
                 />
-                <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/70">
-                    <LocaleLink href="/" className="inline-flex min-h-9 items-center hover:text-white">
+                <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-brand-gray">
+                    <LocaleLink href="/" className="inline-flex min-h-9 items-center hover:text-brand-navy">
                         {t('breadcrumb.home', 'Acasă')}
                     </LocaleLink>
                     {breadcrumbs.map((crumb) => (
                         <span key={crumb.title} className="flex items-center gap-2">
-                            <FourStar className="size-2 text-brand-green" />
+                            <FourStar className="size-2 text-brand-green/60" />
                             {crumb.href ? (
-                                <LocaleLink href={crumb.href} className="inline-flex min-h-9 items-center hover:text-white">
+                                <LocaleLink href={crumb.href} className="inline-flex min-h-9 items-center hover:text-brand-navy">
                                     {crumb.title}
                                 </LocaleLink>
                             ) : (
-                                <span className="inline-flex min-h-9 items-center font-semibold text-[color:var(--brand-navy-foreground)]">{crumb.title}</span>
+                                <span className="inline-flex min-h-9 items-center font-semibold text-brand-navy">{crumb.title}</span>
                             )}
                         </span>
                     ))}
                 </nav>
-                <h1 className="display mt-3 max-w-[20ch] text-[clamp(1.875rem,4vw,3rem)] text-[color:var(--brand-navy-foreground)]">{title}</h1>
+                <h1 className="display mt-3 max-w-[20ch] text-[clamp(1.875rem,4vw,3rem)] text-brand-navy">{title}</h1>
                 <span className="mt-4 block h-1 w-20 rounded-full bg-brand-green" aria-hidden="true" />
                 {description && (
-                    <p className="mt-4 max-w-[62ch] text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-white/80">{description}</p>
+                    <p className="mt-4 max-w-[62ch] text-[clamp(1.125rem,1.6vw,1.25rem)] leading-relaxed text-brand-gray">{description}</p>
                 )}
             </Container>
         </section>
