@@ -42,6 +42,36 @@ it('staff-ul fără 2FA e blocat pe pagina de configurare (required_staff=true)'
         ->assertRedirect(route('two-factor.setup'));
 });
 
+it('site-ul public rămâne accesibil fără 2FA — gate-ul se aplică doar în zona autentificată (site ≠ dashboard)', function () {
+    config(['security.two_factor.required_staff' => true]);
+    $staff = staffUser();
+
+    // Navigarea publică (logo → home, pagini publice, comutator de limbă) NU forțează 2FA.
+    $this->actingAs($staff)->get('/')->assertOk();
+    $this->actingAs($staff)->get(route('contacte'))->assertOk();
+    // Comutatorul de limbă NU trebuie deturnat spre pagina de configurare 2FA.
+    $setLocale = $this->actingAs($staff)->get(route('set-locale', 'ru'));
+    $setLocale->assertRedirect();
+    expect($setLocale->headers->get('Location'))->not->toContain('configurare-2fa');
+
+    // Zona autentificată (panou) — gate-ul se aplică.
+    $this->actingAs($staff)->get('/admin')->assertRedirect(route('two-factor.setup'));
+});
+
+it('întreg lanțul de onboarding (parolă/consimțământ/2FA) nu blochează site-ul public', function () {
+    config(['security.two_factor.required_cabinet' => true]);
+
+    // Elev migrat, fără consimțământ, fără 2FA — cumulează toate cele trei gate-uri.
+    $member = cabinetMember();
+    $member->forceFill(['must_change_password' => true])->save();
+
+    // Public: liber.
+    $this->actingAs($member)->get('/')->assertOk();
+
+    // Cabinet: blocat de primul gate din lanț (schimbarea parolei).
+    $this->actingAs($member)->get(route('dashboard'))->assertRedirect(route('password.change'));
+});
+
 it('staff-ul cu TOTP confirmat trece de gate', function () {
     config(['security.two_factor.required_staff' => true]);
     $staff = staffUser();

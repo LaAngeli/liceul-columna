@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\UserRole;
+use App\Http\Middleware\Concerns\ExemptsPublicRoutes;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -13,10 +14,12 @@ use Symfony\Component\HttpFoundation\Response;
  * cabinetul după anunțul școlii) e blocat pe pagina de configurare 2FA până alege o metodă
  * (aplicație TOTP sau cod pe email). Tiparul EnsurePasswordChanged: înregistrat și pe grupul
  * web, și în authMiddleware-ul panoului Filament. Lanț: login → challenge → parolă forțată →
- * consimțământ → ACEST gate.
+ * consimțământ → ACEST gate. Site-ul public e exceptat ({@see ExemptsPublicRoutes}).
  */
 class EnsureTwoFactorEnrolled
 {
+    use ExemptsPublicRoutes;
+
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user('web');
@@ -48,27 +51,28 @@ class EnsureTwoFactorEnrolled
      */
     private function isExempt(Request $request): bool
     {
-        return $request->routeIs(
-            'two-factor.setup',
-            // Activare TOTP (Fortify).
-            'two-factor.enable',
-            'two-factor.confirm',
-            'two-factor.qr-code',
-            'two-factor.secret-key',
-            'two-factor.recovery-codes',
-            // Activare cod pe email.
-            'two-factor-email.send',
-            'two-factor-email.confirm',
-            // Confirmarea parolei (protejează endpoint-urile de activare).
-            'password.confirm',
-            'password.confirm.store',
-            'password.confirmation',
-            // Pașii obligatorii anteriori + ieșirea.
-            'password.change',
-            'password.change.update',
-            'privacy.consent',
-            'privacy.consent.store',
-            'logout',
-        );
+        return $this->isPublicRoute($request)
+            || $request->routeIs(
+                'two-factor.setup',
+                // Activare TOTP (Fortify).
+                'two-factor.enable',
+                'two-factor.confirm',
+                'two-factor.qr-code',
+                'two-factor.secret-key',
+                'two-factor.recovery-codes',
+                // Activare cod pe email.
+                'two-factor-email.send',
+                'two-factor-email.confirm',
+                // Confirmarea parolei (protejează endpoint-urile de activare).
+                'password.confirm',
+                'password.confirm.store',
+                'password.confirmation',
+                // Pașii obligatorii anteriori + ieșirea.
+                'password.change',
+                'password.change.update',
+                'privacy.consent',
+                'privacy.consent.store',
+                'logout',
+            );
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\UserRole;
+use App\Http\Middleware\Concerns\ExemptsPublicRoutes;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -11,10 +12,13 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Blochează elevii/părinții pe pagina notei de informare (luare la cunoștință, Legea 133/2011 §7)
  * până confirmă versiunea curentă. Personalul (panou) nu e vizat — el prelucrează datele pe temei de
- * rol. Rulează DUPĂ schimbarea forțată a parolei (rutele acesteia sunt exceptate).
+ * rol. Rulează DUPĂ schimbarea forțată a parolei (rutele acesteia sunt exceptate). Site-ul public e
+ * exceptat ({@see ExemptsPublicRoutes}) — navigarea publică rămâne posibilă.
  */
 class EnsurePrivacyAcknowledged
 {
+    use ExemptsPublicRoutes;
+
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user('web');
@@ -35,12 +39,13 @@ class EnsurePrivacyAcknowledged
      */
     private function isExempt(Request $request): bool
     {
-        return $request->routeIs(
-            'privacy.consent',
-            'privacy.consent.store',
-            'password.change',
-            'password.change.update',
-            'logout',
-        );
+        return $this->isPublicRoute($request)
+            || $request->routeIs(
+                'privacy.consent',
+                'privacy.consent.store',
+                'password.change',
+                'password.change.update',
+                'logout',
+            );
     }
 }
