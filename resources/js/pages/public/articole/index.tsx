@@ -83,31 +83,36 @@ export default function ArticoleIndex({ pageTitle, category, posts }: { pageTitl
 
             <PageBanner title={title} breadcrumbs={[{ title }]} description={t('article.list_lead', 'Anunțuri, evenimente și momente din viața Liceului Columna.')} />
 
-            <Band variant="light" className="!py-[clamp(2.5rem,5vw,4rem)]">
+            {/* Bandă NAVY — articolul featured (cel mai recent) ca „hero" secundar imersiv;
+                textele adaptate pentru fundal navy (foreground alb, subtext alb/70). */}
+            {featured && (
+                <Band variant="navy" pattern="mesh" className="!py-[clamp(2.5rem,5vw,4rem)]">
+                    <Reveal>
+                        <LocaleLink href={`/articol/${featured.slug}`} className="group grid overflow-hidden rounded-[16px] border border-white/15 bg-white/[0.04] lg:grid-cols-2">
+                            <Thumb image={featured.image} title={featured.title} />
+                            <div className="flex flex-col justify-center gap-3 p-6 sm:p-9">
+                                <span className="eyebrow inline-flex items-center gap-2 text-[color:var(--brand-navy-foreground)]">
+                                    <FourStar className="size-3 text-brand-green" /> {t('article.featured', 'Cel mai recent')}
+                                </span>
+                                <h2 className="display text-[clamp(1.5rem,3vw,2.25rem)] text-[color:var(--brand-navy-foreground)]">{featured.title}</h2>
+                                {featured.date && <span className="text-sm text-white/70">{featured.date}</span>}
+                                {featured.excerpt && <p className="line-clamp-3 leading-relaxed text-white/80">{featured.excerpt}</p>}
+                                <span className="mt-2 inline-flex w-fit items-center gap-2 rounded-[12px] bg-brand-green px-5 py-2.5 font-semibold text-[color:var(--brand-green-foreground)] shadow-sm transition-all group-hover:brightness-[1.04]">
+                                    {t('article.read_article', 'Citește articolul')} <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                                </span>
+                            </div>
+                        </LocaleLink>
+                    </Reveal>
+                </Band>
+            )}
+
+            {/* Bandă DESCHISĂ — căutare + filtru + grila de articole rămase (pe fundal light,
+                mai potrivit editorial pentru scanning). */}
+            <Band variant="light" pattern="mesh" className="!py-[clamp(2.5rem,5vw,4rem)]">
                 {posts.length === 0 ? (
                     <p className="text-brand-gray">{t('article.none', 'Nu există articole publicate momentan.')}</p>
                 ) : (
                     <>
-                        {/* Articol recomandat (cel mai recent) */}
-                        {featured && (
-                            <Reveal className="mb-10">
-                                <LocaleLink href={`/articol/${featured.slug}`} className="group grid overflow-hidden rounded-[16px] border keyline lg:grid-cols-2">
-                                    <Thumb image={featured.image} title={featured.title} />
-                                    <div className="flex flex-col justify-center gap-3 p-6 sm:p-9">
-                                        <span className="eyebrow inline-flex items-center gap-2 text-brand-navy">
-                                            <FourStar className="size-3 text-brand-green" /> {t('article.featured', 'Cel mai recent')}
-                                        </span>
-                                        <h2 className="display text-[clamp(1.5rem,3vw,2.25rem)] text-brand-navy">{featured.title}</h2>
-                                        {featured.date && <span className="text-sm text-brand-gray">{featured.date}</span>}
-                                        {featured.excerpt && <p className="line-clamp-3 leading-relaxed text-brand-gray">{featured.excerpt}</p>}
-                                        <span className="mt-2 inline-flex w-fit items-center gap-2 rounded-[12px] bg-brand-green px-5 py-2.5 font-semibold text-[color:var(--brand-green-foreground)] shadow-sm transition-all group-hover:brightness-[1.04]">
-                                            {t('article.read_article', 'Citește articolul')} <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-                                        </span>
-                                    </div>
-                                </LocaleLink>
-                            </Reveal>
-                        )}
-
                         {/* Căutare + filtru pe an */}
                         <div className="mb-8 flex flex-col gap-4">
                             <label className="relative block max-w-xl">
