@@ -314,3 +314,112 @@ it('elevul care POST-ează direct o audiență primește 403 (backend defensiv)'
         'body' => 'Vreau audiență.',
     ])->assertForbidden();
 });
+
+// ─── Ancorarea pe elev în mesajele interne staff↔staff (PII de minor) ────────────────────
+
+it('staff→staff: NU poate ancora mesajul pe un elev cu care nu are legătură', function () {
+    [$student] = studentInClass();
+    [, $otherClass] = studentInClass();
+
+    $sender = teacherTeaching($otherClass);          // predă la ALTĂ clasă
+    $colleague = teacherTeaching($otherClass);
+
+    expect(fn () => app(SendMessage::class)->direct($sender, $colleague, 'Despre elev.', 'Subiect', $student))
+        ->toThrow(HttpException::class);
+});
+
+it('staff→staff: mesajul NEancorat pe un elev e permis (comunicare internă)', function () {
+    [, $class] = studentInClass();
+    $sender = teacherTeaching($class);
+    $colleague = teacherTeaching($class);
+
+    $message = app(SendMessage::class)->direct($sender, $colleague, 'Ședință la 15:00.', 'Organizatoric');
+
+    expect($message->student_id)->toBeNull()
+        ->and($message->recipient_user_id)->toBe($colleague->id);
+});
+
+it('staff→staff: profesorul care PREDĂ elevul poate ancora mesajul pe el', function () {
+    [$student, $class] = studentInClass();
+    $sender = teacherTeaching($class);
+    $colleague = teacherTeaching($class);
+
+    $message = app(SendMessage::class)->direct($sender, $colleague, 'Despre situația lui.', 'Elev', $student);
+
+    expect($message->student_id)->toBe($student->id);
+});
+
+it('staff→staff: administrația academică poate ancora pe orice elev (vede tot catalogul), fără fișă de profesor', function () {
+    [$student, $class] = studentInClass();
+
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);   // fără Teacher
+    $diriginte = teacherTeaching($class, UserRole::Diriginte);
+
+    $message = app(SendMessage::class)->direct($director, $diriginte, 'Vă rog o notă informativă.', 'Elev', $student);
+
+    expect($message->student_id)->toBe($student->id);
+});
+
+it('staff→staff: administratorul TEHNIC nu poate ancora pe un elev (fără date academice)', function () {
+    [$student, $class] = studentInClass();
+
+    $tehnic = User::factory()->create();
+    $tehnic->assignRole(UserRole::AdministratorTehnic->value);
+    $colleague = teacherTeaching($class);
+
+    expect(fn () => app(SendMessage::class)->direct($tehnic, $colleague, 'Ceva.', 'Subiect', $student))
+        ->toThrow(HttpException::class);
+});
+
+// ─── Destinatarii permiși pentru personal ───────────────────────────────────────────────
+
+it('familyRecipientsForStudent întoarce tutorele ȘI contul elevului, ca utilizatori distincți', function () {
+    [$student] = studentInClass();
+    $parent = parentOf($student);
+
+    $studentUser = User::factory()->create();
+    $studentUser->assignRole(UserRole::Elev->value);
+    $student->update(['user_id' => $studentUser->id]);
+
+    $recipients = app(SendMessage::class)->familyRecipientsForStudent($student->refresh());
+
+    expect($recipients)->toHaveCount(2);
+    $byId = collect($recipients)->keyBy('id');
+    expect($byId[$parent->id]['relation'])->toBe('parinte')
+        ->and($byId[$studentUser->id]['relation'])->toBe('elev');
+});
+
+it('allowedRecipientsForStaff: profesorul vede familiile elevilor PREDAȚI + colegii, nu familiile altor elevi', function () {
+    [$mine, $myClass] = studentInClass();
+    [$other] = studentInClass();
+    parentOf($mine);
+    parentOf($other);
+
+    $teacher = teacherTeaching($myClass);
+    $colleague = teacherTeaching($myClass);
+
+    $allowed = app(SendMessage::class)->allowedRecipientsForStaff($teacher);
+
+    $studentIds = collect($allowed['families'])->pluck('studentId');
+    expect($studentIds)->toContain($mine->id)
+        ->and($studentIds)->not->toContain($other->id);
+
+    expect(collect($allowed['colleagues'])->pluck('id'))
+        ->toContain($colleague->id)
+        ->not->toContain($teacher->id);
+});
+
+it('allowedRecipientsForStaff: conducerea nu are familii de inițiat (răspunde doar la audiențe)', function () {
+    [$student, $class] = studentInClass();
+    parentOf($student);
+    teacherTeaching($class);
+
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+
+    $allowed = app(SendMessage::class)->allowedRecipientsForStaff($director);
+
+    expect($allowed['families'])->toBe([])
+        ->and($allowed['colleagues'])->not->toBeEmpty();
+});

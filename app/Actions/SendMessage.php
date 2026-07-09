@@ -131,7 +131,21 @@ class SendMessage
                 && $this->teachesStudent($sender, $student);
         }
 
-        // Personal → personal: permis (comunicare internă / escaladare ierarhică).
+        // Personal → personal: permis (comunicare internă / escaladare ierarhică). DAR dacă mesajul
+        // e ANCORAT pe un elev (student_id), expeditorul trebuie să aibă o legătură reală cu acel
+        // MINOR — altfel oricine din personal ar putea deschide corespondență despre ORICE elev,
+        // expunându-i contextul (nume, clasă) unui coleg fără temei (L133, proporționalitate).
+        // Legătura legitimă:
+        //  • îl predă / e dirigintele lui;
+        //  • e administrație ACADEMICĂ (director / prim-vicedirector / AO — văd tot catalogul prin
+        //    rol); NU include administratorul tehnic, exclus din isAdministrator();
+        //  • e familia lui (caz de margine: un cadru didactic care e și părintele elevului).
+        if ($student !== null) {
+            return $this->teachesStudent($sender, $student)
+                || $sender->isAdministrator()
+                || $this->isFamilyOf($sender, $student);
+        }
+
         return true;
     }
 
@@ -176,6 +190,90 @@ class SendMessage
         }
 
         return array_values($recipients);
+    }
+
+    /**
+     * Familia unui elev, ca destinatari: tutorii legali + contul PROPRIU al elevului.
+     *
+     * ⚠️ Părintele și elevul sunt utilizatori DISTINCȚI (`guardians()` vs `user()`). Fără această
+     * distincție, personalul ar putea trimite din greșeală unui minor un mesaj destinat tutorelui.
+     *
+     * @return list<array{id: int, name: string, relation: string}>
+     */
+    public function familyRecipientsForStudent(Student $student): array
+    {
+        $recipients = [];
+
+        foreach ($student->guardians as $guardian) {
+            $recipients[(int) $guardian->id] = [
+                'id' => (int) $guardian->id,
+                'name' => $guardian->name,
+                'relation' => 'parinte',
+            ];
+        }
+
+        if ($student->user_id !== null) {
+            $recipients[(int) $student->user_id] = [
+                'id' => (int) $student->user_id,
+                'name' => $student->full_name,
+                'relation' => 'elev',
+            ];
+        }
+
+        return array_values($recipients);
+    }
+
+    /**
+     * Destinatarii permiși pentru un membru al PERSONALULUI (inversul lui
+     * {@see allowedRecipientsForStudent}) — calculați pe SERVER, nu în interfață:
+     *  • colegi: orice alt membru al personalului (§4.2 — comunicare internă / escaladare);
+     *  • familii: doar ale elevilor pe care îi predă / cărora le e diriginte.
+     *
+     * Conducerea (director/prim-vicedirector/AO) NU are fișă de cadru didactic, deci lista ei de
+     * familii e goală: ea NU inițiază spre familii, ci răspunde la solicitările de audiență —
+     * exact regula ierarhică din spec. Lista rămâne consultativă; poarta reală e
+     * {@see canSendDirect}, verificată la fiecare scriere.
+     *
+     * @return array{
+     *     colleagues: array<int, array{id: int, name: string}>,
+     *     families: array<int, array{studentId: int, studentName: string, classLabel: string|null, recipients: list<array{id: int, name: string, relation: string}>}>
+     * }
+     */
+    public function allowedRecipientsForStaff(User $staff): array
+    {
+        $colleagues = User::query()
+            ->whereHas('roles', fn (Builder $query) => $query->whereIn('name', UserRole::panelRoleValues()))
+            ->whereKeyNot($staff->id)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user): array => ['id' => (int) $user->id, 'name' => $user->name])
+            ->all();
+
+        $classIds = $staff->teacher?->visibleSchoolClassIds() ?? [];
+
+        if ($classIds === []) {
+            return ['colleagues' => $colleagues, 'families' => []];
+        }
+
+        $families = Student::query()
+            ->whereHas('enrollments', fn (Builder $query) => $query->whereIn('school_class_id', $classIds))
+            ->with(['guardians', 'enrollments.schoolClass'])
+            ->get()
+            ->map(function (Student $student): array {
+                $class = $student->enrollments->last()?->schoolClass;
+
+                return [
+                    'studentId' => (int) $student->id,
+                    'studentName' => $student->full_name,
+                    'classLabel' => $class !== null ? trim($class->name.' '.($class->section ?? '')) : null,
+                    'recipients' => $this->familyRecipientsForStudent($student),
+                ];
+            })
+            ->filter(fn (array $family): bool => $family['recipients'] !== [])
+            ->values()
+            ->all();
+
+        return ['colleagues' => $colleagues, 'families' => $families];
     }
 
     private function isFamilyOf(User $user, Student $student): bool
