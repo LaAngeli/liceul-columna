@@ -14,7 +14,7 @@ import {
     validateChild,
     validateContact,
 } from '@/components/public/admission-kit';
-import { BrandButton, Container, FourStar } from '@/components/public/brand';
+import { Band, BrandButton, FourStar } from '@/components/public/brand';
 import { PageBanner } from '@/components/public/page-banner';
 import { useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -145,8 +145,11 @@ export default function Inregistrare() {
                 description={t('admission.description')}
             />
 
-            <Container className="py-[clamp(2.5rem,6vw,5rem)]">
-                <div className="mx-auto max-w-2xl">
+            {/* Bandă NAVY imersivă cu formularul plutind într-un card alb central (bg-card).
+                Aceeași logică ca la /programeaza-vizita — nu ating `admission-kit` (stiluri navy
+                hardcodate refolosite). */}
+            <Band variant="navy" pattern="mesh">
+                <div className="mx-auto max-w-2xl rounded-[16px] border keyline bg-card p-6 sm:p-8">
                     {wasSuccessful ? (
                         <div
                             ref={successRef}
@@ -321,7 +324,7 @@ export default function Inregistrare() {
                         </>
                     )}
                 </div>
-            </Container>
+            </Band>
         </>
     );
 }
