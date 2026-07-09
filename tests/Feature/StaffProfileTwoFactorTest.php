@@ -29,6 +29,22 @@ it('profilul staff se randează cu secțiunea 2FA (stare inactivă)', function (
         ->assertSee(__('panel.pages.profile.twofa.status_off'));
 });
 
+it('afișează ghidul de descărcare a aplicației (QR Android + iOS) când TOTP nu e activat', function () {
+    Livewire::test(EditProfile::class)
+        ->assertOk()
+        ->assertSee('images/authenticator/google-authenticator-android.svg')
+        ->assertSee('images/authenticator/google-authenticator-ios.svg');
+});
+
+it('ascunde ghidul de descărcare a aplicației după ce TOTP e activat', function () {
+    app(EnableTwoFactorAuthentication::class)($this->director);
+    $this->director->refresh()->forceFill(['two_factor_confirmed_at' => now()])->save();
+
+    Livewire::test(EditProfile::class)
+        ->assertOk()
+        ->assertDontSee('images/authenticator/google-authenticator-android.svg');
+});
+
 it('activează 2FA din profil cu un cod TOTP valid + parola actuală', function () {
     // Pre-generăm secretul (mountUsing îl păstrează — force: false), ca să putem calcula OTP-ul.
     app(EnableTwoFactorAuthentication::class)($this->director, force: false);

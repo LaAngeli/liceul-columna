@@ -181,6 +181,12 @@ class EditProfile extends BaseEditProfile
                 Text::make(__('panel.pages.profile.twofa.status_off'))
                     ->color('warning')
                     ->visible(fn (): bool => ! $this->twoFactorUser()->hasEnabledTwoFactorAuthentication()),
+
+                // Ghid de descărcare a aplicației de autentificare — pentru cei care nu au încă una
+                // instalată (ex. s-au logat inițial cu cod pe e-mail). Doar când TOTP NU e activat;
+                // când e activ, utilizatorul are deja aplicația → l-ar aglomera degeaba.
+                $this->getAuthenticatorAppGuide(),
+
                 Actions::make([
                     $this->getEnableTwoFactorAction(),
                     $this->getRecoveryCodesAction(),
@@ -201,6 +207,65 @@ class EditProfile extends BaseEditProfile
                     $this->getDisableEmailTwoFactorAction(),
                 ])->key('twoFactorEmailActions'),
             ]);
+    }
+
+    /**
+     * Bloc informativ „ai nevoie de o aplicație de autentificare" cu cele 2 coduri QR de descărcare
+     * (Android + iOS), afișat în secțiunea 2FA cât timp TOTP nu e activat. Oglindește ghidul din
+     * cabinet/pagina de configurare forțată (componenta React `AuthenticatorAppGuide`); reutilizează
+     * aceleași chei `site.settings.authapp_*` și aceleași QR-uri statice din public/images/authenticator.
+     * Stiluri neutre (rgba gri) — lizibile pe tema light și dark a panoului.
+     */
+    private function getAuthenticatorAppGuide(): Text
+    {
+        $androidUrl = 'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2';
+        $iosUrl = 'https://apps.apple.com/md/app/google-authenticator/id388497605';
+
+        $card = static function (string $img, string $url, string $label, string $store, string $open): string {
+            $label = e($label);
+            $store = e($store);
+            $open = e($open);
+
+            return <<<HTML
+                <a href="{$url}" target="_blank" rel="noopener noreferrer" style="display:flex;gap:.75rem;align-items:center;flex:1 1 220px;padding:.75rem;border:1px solid rgba(120,120,120,.3);border-radius:.75rem;text-decoration:none;color:inherit;">
+                    <img src="{$img}" alt="{$label}" width="80" height="80" style="width:80px;height:80px;flex:0 0 auto;border-radius:.5rem;">
+                    <span style="min-width:0;">
+                        <span style="display:block;font-weight:600;">{$label}</span>
+                        <span style="display:block;font-size:.8rem;opacity:.7;">{$store}</span>
+                        <span style="display:inline-block;margin-top:.25rem;font-size:.8rem;font-weight:600;text-decoration:underline;">{$open} ↗</span>
+                    </span>
+                </a>
+                HTML;
+        };
+
+        $androidCard = $card(
+            asset('images/authenticator/google-authenticator-android.svg'),
+            $androidUrl,
+            (string) __('site.settings.authapp_android_label'),
+            (string) __('site.settings.authapp_android_store'),
+            (string) __('site.settings.authapp_open_store'),
+        );
+        $iosCard = $card(
+            asset('images/authenticator/google-authenticator-ios.svg'),
+            $iosUrl,
+            (string) __('site.settings.authapp_ios_label'),
+            (string) __('site.settings.authapp_ios_store'),
+            (string) __('site.settings.authapp_open_store'),
+        );
+
+        $title = e((string) __('site.settings.authapp_title'));
+        $download = e((string) __('site.settings.authapp_download'));
+        $other = e((string) __('site.settings.authapp_other'));
+
+        return Text::make(new HtmlString(<<<HTML
+            <div style="border:1px solid rgba(120,120,120,.25);border-radius:.75rem;padding:1rem;">
+                <p style="font-weight:600;margin:0 0 .25rem;">{$title}</p>
+                <p style="margin:0 0 .75rem;font-size:.85rem;opacity:.8;">{$download}</p>
+                <div style="display:flex;gap:.75rem;flex-wrap:wrap;">{$androidCard}{$iosCard}</div>
+                <p style="margin:.75rem 0 0;font-size:.8rem;opacity:.7;">{$other}</p>
+            </div>
+            HTML))
+            ->visible(fn (): bool => ! $this->twoFactorUser()->hasEnabledTwoFactorAuthentication());
     }
 
     private function getSendEmailCodeAction(): Action
