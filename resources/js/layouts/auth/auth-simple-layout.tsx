@@ -11,7 +11,7 @@ export default function AuthSimpleLayout({
     const t = useTranslations();
 
     return (
-        <div className="relative flex min-h-svh flex-col items-center justify-center gap-8 bg-gradient-to-b from-muted/40 to-background p-6 md:p-10">
+        <div className="auth-shell relative flex min-h-svh flex-col items-center justify-center gap-8 p-6 md:p-10">
             <div className="w-full max-w-sm">
                 <div className="flex flex-col gap-7">
                     <div className="flex flex-col items-center gap-4">

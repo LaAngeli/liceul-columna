@@ -577,6 +577,60 @@
 }
 @keyframes site-star-spin { to { transform: rotate(360deg); } }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Fundal pagini AUTH (login/register/reset) — pagină ÎNTREAGĂ, nu secțiune.
+   Logica de răspândire diferă de `.tx-mesh-*` (care e ancorată-în-colț printr-o
+   mască de degrade pentru a se stinge sub textul unei benzi):
+    · plasa acoperă ÎNTREG viewportul,
+    · masca e INVERSĂ — transparent central (unde plutește cardul), opac la
+      margini → cardul apare ca o „insulă" liniștită într-un câmp de puncte,
+    · două accente radiale ambientale (verde jos-stânga, navy sus-dreapta) dau
+      firul de brand fără să concureze cu emblema.
+   Nu e sub `.site-shell` (auth are propriul contract de tokeni). Contrastul
+   punctelor e calibrat pe fundalul pastelat (light) și pe surface-navy (dark).
+   ───────────────────────────────────────────────────────────────────────────── */
+.auth-shell {
+    background-color: color-mix(in oklch, var(--surface-navy) 12%, var(--background));
+    position: relative;
+    isolation: isolate;
+}
+.auth-shell::before {
+    /* plasa de puncte pe TOATĂ pagina, cu mască inversă (halou central curat) */
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image: radial-gradient(color-mix(in oklch, var(--brand-navy) 26%, transparent) 1.2px, transparent 1.6px);
+    background-size: 28px 28px;
+    -webkit-mask-image: radial-gradient(60% 55% at 50% 50%, transparent 12%, rgba(0, 0, 0, 0.35) 42%, #000 78%);
+    mask-image: radial-gradient(60% 55% at 50% 50%, transparent 12%, rgba(0, 0, 0, 0.35) 42%, #000 78%);
+    pointer-events: none;
+}
+.auth-shell::after {
+    /* accente ambientale — verde stânga-jos + navy dreapta-sus, ca semnătura de brand
+       fără să concureze cu emblema; păstrează suprafața principală a paginii neutră */
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+        radial-gradient(55% 45% at 100% 0%, color-mix(in oklch, var(--brand-navy) 10%, transparent) 0%, transparent 62%),
+        radial-gradient(50% 40% at 0% 100%, color-mix(in oklch, var(--brand-green) 9%, transparent) 0%, transparent 56%);
+    pointer-events: none;
+}
+/* Dark — fundal navy profund; punctele devin foreground-navy (alb-navy) ca să reziste */
+.dark .auth-shell {
+    background-color: color-mix(in oklch, var(--surface-navy) 84%, var(--background));
+}
+.dark .auth-shell::before {
+    background-image: radial-gradient(color-mix(in oklch, var(--brand-navy-foreground) 38%, transparent) 1.15px, transparent 1.6px);
+}
+.dark .auth-shell::after {
+    background:
+        radial-gradient(55% 45% at 100% 0%, color-mix(in oklch, var(--brand-green) 14%, transparent) 0%, transparent 62%),
+        radial-gradient(50% 40% at 0% 100%, color-mix(in oklch, var(--brand-navy-foreground) 9%, transparent) 0%, transparent 56%);
+}
+
 /* Scroll-reveal (fade-up 16px, o singură dată); rule-draw (linie ledger st→dr).
    Sub reduced-motion: elementele rămân vizibile (fără opacity:0/scaleX:0). */
 @media (prefers-reduced-motion: no-preference) {
