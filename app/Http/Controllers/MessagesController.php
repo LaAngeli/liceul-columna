@@ -8,42 +8,43 @@ use App\Enums\AudienceDomain;
 use App\Enums\UserRole;
 use App\Models\Message;
 use App\Models\MessageAttachment;
-use App\Models\MessageState;
 use App\Models\Student;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
+use App\Support\MessageMailbox;
+use App\Support\ThreadPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Enum;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Poșta internă a cabinetului (spec §4): foldere ca la un client de e-mail — Primite / Trimise /
- * Preferate / Șterse — peste firele de conversație. Trimiterea rămâne filtrată ierarhic (prin
- * {@see SendMessage}); preferatul și coșul sunt stare PER-UTILIZATOR ({@see MessageState}), deci
- * ce șterge un participant nu afectează cutia celuilalt. Totul e comunicare INTERNĂ (fără e-mail extern).
+ * Poșta internă a cabinetului (spec §4): filtre ca la un client de e-mail — Toate / Necitite /
+ * Preferate / Coș — peste firele de conversație. Trimiterea rămâne filtrată ierarhic (prin
+ * {@see SendMessage}); preferatul și coșul sunt stare PER-UTILIZATOR, deci ce șterge un participant
+ * nu afectează cutia celuilalt. Totul e comunicare INTERNĂ (fără e-mail extern).
+ *
+ * Logica de foldere/stare NU trăiește aici, ci în {@see MessageMailbox} — aceeași sursă pe care o
+ * folosește și poșta personalului (Filament), ca cele două cutii să nu diveargă.
  */
 class MessagesController extends Controller
 {
-    /** Pastilele-filtru ale poștei (folderele clasice, retrogradate la filtre peste roster). */
-    private const FOLDERS = ['all', 'unread', 'starred', 'trash'];
-
     public function index(Request $request): Response
     {
         $user = $request->user('web');
         $uid = (int) $user->id;
+        $mailbox = MessageMailbox::for($user);
 
         $folder = (string) $request->query('folder', 'all');
-        if (! in_array($folder, self::FOLDERS, true)) {
+        if (! in_array($folder, MessageMailbox::CABINET_FOLDERS, true)) {
             $folder = 'all';
         }
 
-        $threads = $this->folderQuery($uid, $folder)
+        $presenter = app(ThreadPresenter::class);
+
+        $threads = $mailbox->folder($folder)
             ->with([
                 'sender', 'recipient', 'student', 'attachments',
                 'states' => fn ($q) => $q->where('user_id', $uid),
@@ -52,13 +53,13 @@ class MessagesController extends Controller
             ->latest()
             ->limit(50)
             ->get()
-            ->map(fn (Message $message): array => $this->presentThread($message, $uid))
+            ->map(fn (Message $message): array => $presenter->present($message, $uid))
             ->all();
 
         return Inertia::render('cabinet/messages', [
             'folder' => $folder,
             'threads' => $threads,
-            'counts' => $this->folderCounts($uid),
+            'counts' => $mailbox->counts(MessageMailbox::CABINET_FOLDERS),
             'compose' => $this->composeContext($user),
         ]);
     }
@@ -152,15 +153,7 @@ class MessagesController extends Controller
 
     public function markRead(Request $request, Message $message): RedirectResponse
     {
-        $rootId = $message->parent_id ?? $message->id;
-
-        Message::query()
-            ->where(function (Builder $query) use ($rootId): void {
-                $query->whereKey($rootId)->orWhere('parent_id', $rootId);
-            })
-            ->where('recipient_user_id', $request->user('web')->id)
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+        MessageMailbox::for($request->user('web'))->markThreadRead($message);
 
         return back();
     }
@@ -168,7 +161,7 @@ class MessagesController extends Controller
     /** Comută marcajul „preferat" pe firul din care face parte mesajul. */
     public function toggleStar(Request $request, Message $message): RedirectResponse
     {
-        $state = $this->stateForThread($request, $message);
+        $state = MessageMailbox::for($request->user('web'))->stateForThread($message);
         $state->starred_at = $state->starred_at === null ? now() : null;
         $state->save();
 
@@ -178,151 +171,21 @@ class MessagesController extends Controller
     /** Mută firul în coșul PROPRIU (nu afectează cutia celuilalt participant). */
     public function trash(Request $request, Message $message): RedirectResponse
     {
-        $state = $this->stateForThread($request, $message);
+        $state = MessageMailbox::for($request->user('web'))->stateForThread($message);
         $state->trashed_at = now();
         $state->save();
 
         return back()->with('success', 'Conversația a fost mutată în coș.');
     }
 
-    /** Restaurează firul din coș înapoi în folderul lui firesc (Primite / Trimise). */
+    /** Restaurează firul din coș înapoi în folderul lui firesc. */
     public function restore(Request $request, Message $message): RedirectResponse
     {
-        $state = $this->stateForThread($request, $message);
+        $state = MessageMailbox::for($request->user('web'))->stateForThread($message);
         $state->trashed_at = null;
         $state->save();
 
         return back()->with('success', 'Conversația a fost restaurată.');
-    }
-
-    /**
-     * Starea (preferat/coș) a firului pentru utilizatorul curent — creată la nevoie. Autorizează
-     * mai întâi: doar cei doi participanți la conversație pot acționa asupra ei.
-     */
-    private function stateForThread(Request $request, Message $message): MessageState
-    {
-        $uid = (int) $request->user('web')->id;
-        $rootId = $message->parent_id ?? $message->id;
-        $root = Message::query()->findOrFail($rootId);
-
-        abort_unless(
-            in_array($uid, [(int) $root->sender_user_id, (int) $root->recipient_user_id], true),
-            403,
-            'Nu faci parte din această conversație.',
-        );
-
-        return MessageState::query()->firstOrNew(['message_id' => $rootId, 'user_id' => $uid]);
-    }
-
-    /**
-     * Query-ul de bază pentru un folder (fire-rădăcină, din perspectiva userului). FĂRĂ ordine/limită/
-     * eager-load — acelea se adaugă separat (listare vs. numărare).
-     *
-     * @return Builder<Message>
-     */
-    private function folderQuery(int $uid, string $folder): Builder
-    {
-        $query = Message::query()
-            ->whereNull('parent_id')
-            ->where(fn (Builder $q) => $q->where('recipient_user_id', $uid)->orWhere('sender_user_id', $uid));
-
-        return match ($folder) {
-            // Toate = orice conversație în care particip, care nu e în coșul meu (fără distincția
-            // Primite/Trimise — pentru o familie o conversație cu un profesor e UNA, indiferent cine
-            // a scris primul; direcția rămâne doar ca prefix „Tu:" pe fragment).
-            'all' => $query->whereDoesntHave('states', fn (Builder $q) => $q->where('user_id', $uid)->whereNotNull('trashed_at')),
-            // Necitite = firele necitite, care nu-s în coș.
-            'unread' => $this->withUnread(
-                $query->whereDoesntHave('states', fn (Builder $q) => $q->where('user_id', $uid)->whereNotNull('trashed_at')),
-                $uid,
-            ),
-            // Preferate = firele cu stea de la mine, care nu-s în coș (overlay, nu mutare).
-            'starred' => $query
-                ->whereDoesntHave('states', fn (Builder $q) => $q->where('user_id', $uid)->whereNotNull('trashed_at'))
-                ->whereHas('states', fn (Builder $q) => $q->where('user_id', $uid)->whereNotNull('starred_at')),
-            // Arhivă (coș) = firele mutate de mine în coș.
-            'trash' => $query->whereHas('states', fn (Builder $q) => $q->where('user_id', $uid)->whereNotNull('trashed_at')),
-            default => $query,
-        };
-    }
-
-    /**
-     * Totaluri + necitite pe fiecare folder (pentru navigația poștei).
-     *
-     * @return array<string, array{total: int, unread: int}>
-     */
-    private function folderCounts(int $uid): array
-    {
-        $counts = [];
-        foreach (self::FOLDERS as $folder) {
-            $counts[$folder] = [
-                'total' => $this->folderQuery($uid, $folder)->count(),
-                'unread' => $this->withUnread($this->folderQuery($uid, $folder), $uid)->count(),
-            ];
-        }
-
-        return $counts;
-    }
-
-    /**
-     * Restrânge la firele cu cel puțin un mesaj NECITIT primit de utilizator (rădăcină sau răspuns).
-     *
-     * @param  Builder<Message>  $query
-     * @return Builder<Message>
-     */
-    private function withUnread(Builder $query, int $uid): Builder
-    {
-        return $query->where(function (Builder $q) use ($uid): void {
-            $q->where(fn (Builder $r) => $r->where('recipient_user_id', $uid)->whereNull('read_at'))
-                ->orWhereHas('replies', fn (Builder $r) => $r->where('recipient_user_id', $uid)->whereNull('read_at'));
-        });
-    }
-
-    /**
-     * Un fir = mesajul-rădăcină + răspunsurile, prezentat din perspectiva userului curent.
-     *
-     * @return array<string, mixed>
-     */
-    private function presentThread(Message $root, int $userId): array
-    {
-        /** @var Collection<int, Message> $all */
-        $all = collect([$root])->merge($root->replies)->sortBy('created_at')->values();
-        $last = $all->last();
-        $mineRoot = (int) $root->sender_user_id === $userId;
-
-        $attachmentCount = $all->sum(fn (Message $m): int => $m->attachments->count());
-
-        return [
-            'id' => $root->id,
-            'subject' => $root->subject ?? $root->type->label(),
-            'type' => $root->type->value,
-            'student' => $root->student?->full_name,
-            'studentId' => $root->student_id,
-            // Id-ul CELUILALT participant — cheia de mapare fir ↔ persoană din roster.
-            'withId' => $mineRoot ? (int) $root->recipient_user_id : (int) $root->sender_user_id,
-            'with' => $mineRoot ? $root->recipient->name : $root->sender->name,
-            'direction' => $mineRoot ? 'sent' : 'received',
-            'starred' => $root->states->first()?->starred_at !== null,
-            'trashed' => $root->states->first()?->trashed_at !== null,
-            'snippet' => $last !== null ? Str::limit((string) preg_replace('/\s+/', ' ', $last->body), 110) : '',
-            'lastAt' => $last?->created_at?->format('d.m.Y H:i'),
-            'unread' => $all->where('recipient_user_id', $userId)->whereNull('read_at')->count(),
-            'attachmentCount' => $attachmentCount,
-            'messages' => $all->map(fn (Message $message): array => [
-                'id' => $message->id,
-                'body' => $message->body,
-                'mine' => (int) $message->sender_user_id === $userId,
-                'senderName' => $message->sender->name,
-                'at' => $message->created_at?->format('d.m.Y H:i'),
-                'attachments' => $message->attachments->map(fn (MessageAttachment $a): array => [
-                    'id' => $a->id,
-                    'name' => $a->original_name,
-                    'size' => $a->humanSize(),
-                    'isImage' => $a->isImage(),
-                    'url' => route('cabinet.messages.attachment', $a),
-                ])->all(),
-            ])->all(),
-        ];
     }
 
     /**

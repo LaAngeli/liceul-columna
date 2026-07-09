@@ -79,6 +79,72 @@ class Message extends Model
         $query->where('recipient_user_id', $userId);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Primitivele poștei — sursă unică pentru AMBELE cutii (cabinet + panou staff)
+    |--------------------------------------------------------------------------
+    | Definesc ce înseamnă „fir", „particip", „în coșul meu", „preferat de mine",
+    | „necitit de mine". Se folosesc prin {@see \App\Support\MessageMailbox}. Dacă le
+    | schimbi, se schimbă simultan în ambele poște — exact ce vrem (fără divergență).
+    */
+
+    /** Firele = mesajele-rădăcină (un răspuns nu e o conversație de sine stătătoare).
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeThreadRoots(Builder $query): void
+    {
+        $query->whereNull('parent_id');
+    }
+
+    /** Conversațiile la care utilizatorul participă (le-a inițiat sau le-a primit).
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeForParticipant(Builder $query, int $userId): void
+    {
+        $query->where(fn (Builder $inner) => $inner->where('recipient_user_id', $userId)->orWhere('sender_user_id', $userId));
+    }
+
+    /** Firele care NU sunt în coșul acestui utilizator (coșul e per-utilizator).
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeNotTrashedBy(Builder $query, int $userId): void
+    {
+        $query->whereDoesntHave('states', fn (Builder $inner) => $inner->where('user_id', $userId)->whereNotNull('trashed_at'));
+    }
+
+    /** Firele mutate de acest utilizator în coșul propriu.
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeTrashedBy(Builder $query, int $userId): void
+    {
+        $query->whereHas('states', fn (Builder $inner) => $inner->where('user_id', $userId)->whereNotNull('trashed_at'));
+    }
+
+    /** Firele marcate cu stea de acest utilizator (overlay peste folder, nu mutare).
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeStarredBy(Builder $query, int $userId): void
+    {
+        $query->whereHas('states', fn (Builder $inner) => $inner->where('user_id', $userId)->whereNotNull('starred_at'));
+    }
+
+    /** Firele cu cel puțin un mesaj NECITIT primit de utilizator — în rădăcină SAU într-un răspuns.
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeUnreadFor(Builder $query, int $userId): void
+    {
+        $query->where(function (Builder $inner) use ($userId): void {
+            $inner->where(fn (Builder $root) => $root->where('recipient_user_id', $userId)->whereNull('read_at'))
+                ->orWhereHas('replies', fn (Builder $reply) => $reply->where('recipient_user_id', $userId)->whereNull('read_at'));
+        });
+    }
+
     /** @return BelongsTo<User, $this> */
     public function sender(): BelongsTo
     {
