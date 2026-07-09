@@ -287,14 +287,20 @@ function SectionBlock({ section }: { section: PageSection }) {
 
 export function PageSections({ sections }: { sections: PageSection[] }) {
     return (
-        <Container className="py-[clamp(2.5rem,6vw,5rem)]">
-            <div className="space-y-10 sm:space-y-14">
-                {sections.map((section, i) => (
-                    <Reveal key={i}>
-                        <SectionBlock section={section} />
-                    </Reveal>
-                ))}
-            </div>
-        </Container>
+        // Container-ul motorului generic primește textura mesh (aceeași ca `<Band variant="light" pattern="mesh">`),
+        // ca paginile generate din PublicPageContent (juridice + toate cele „pagină simplă") să fie consistente
+        // vizual cu restul site-ului. Textura e absolut-poziționată, sub conținut (Container relative).
+        <section className="relative bg-background text-[color:var(--brand-dark)]">
+            <div className="tx-mesh-lite pointer-events-none absolute inset-0" aria-hidden="true" />
+            <Container className="relative py-[clamp(2.5rem,6vw,5rem)]">
+                <div className="space-y-10 sm:space-y-14">
+                    {sections.map((section, i) => (
+                        <Reveal key={i}>
+                            <SectionBlock section={section} />
+                        </Reveal>
+                    ))}
+                </div>
+            </Container>
+        </section>
     );
 }
