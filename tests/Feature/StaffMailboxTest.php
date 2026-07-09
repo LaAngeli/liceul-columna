@@ -2,6 +2,7 @@
 
 use App\Actions\SendMessage;
 use App\Enums\UserRole;
+use App\Filament\Resources\Messages\ComposeSchema;
 use App\Filament\Resources\Messages\MessageResource;
 use App\Filament\Resources\Messages\Pages\ListMessages;
 use App\Models\AcademicYear;
@@ -14,8 +15,13 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\User;
+use App\Support\MessageMailbox;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 use function Pest\Laravel\actingAs;
 
@@ -259,4 +265,94 @@ it('sincronizare: răspunsul profesorului din panou ajunge în firul părintelui
         ->values();
 
     expect($participants->all())->toBe(collect([$parent->id, $teacher->id])->sort()->values()->all());
+});
+
+// ─── Compunere din panou (Mesaj nou) ────────────────────────────────────────────────────
+
+it('personalul compune către familia unui elev pe care îl PREDĂ, iar mesajul ajunge la părinte', function () {
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $parent = sbxParentOf($student);
+
+    $message = ComposeSchema::send($teacher, [
+        'kind' => 'family',
+        'student_id' => $student->id,
+        'family_user_id' => $parent->id,
+        'subject' => 'Situația la clasă',
+        'body' => 'Vă informez despre progres.',
+    ]);
+
+    expect($message->sender_user_id)->toBe($teacher->id)
+        ->and($message->recipient_user_id)->toBe($parent->id)
+        ->and($message->student_id)->toBe($student->id);
+
+    // Firul apare în poșta părintelui (cabinet) — aceleași rânduri, fără sincronizare separată.
+    expect(MessageMailbox::for($parent)->folder('all')->pluck('id')->all())->toContain($message->id);
+});
+
+it('personalul NU poate compune către familia unui elev pe care nu îl predă (403)', function () {
+    [$mine, $myClass] = sbxStudentInClass();
+    [$other] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($myClass);
+    $otherParent = sbxParentOf($other);
+    sbxParentOf($mine);
+
+    expect(fn () => ComposeSchema::send($teacher, [
+        'kind' => 'family',
+        'student_id' => $other->id,
+        'family_user_id' => $otherParent->id,
+        'subject' => 'Nepermis',
+        'body' => 'Text.',
+    ]))->toThrow(HttpException::class);
+});
+
+it('personalul compune către un coleg, fără ancoră pe elev', function () {
+    [, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $colleague = sbxTeacherOf($class);
+
+    $message = ComposeSchema::send($teacher, [
+        'kind' => 'colleague',
+        'recipient_user_id' => $colleague->id,
+        'subject' => 'Organizatoric',
+        'body' => 'Ședință la 15:00.',
+    ]);
+
+    expect($message->recipient_user_id)->toBe($colleague->id)
+        ->and($message->student_id)->toBeNull();
+});
+
+it('atașamentul din panou ajunge pe discul privat', function () {
+    Storage::fake('local');
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $parent = sbxParentOf($student);
+
+    $message = ComposeSchema::send($teacher, [
+        'kind' => 'family',
+        'student_id' => $student->id,
+        'family_user_id' => $parent->id,
+        'subject' => 'Cu atașament',
+        'body' => 'Vedeți fișierul.',
+        'files' => [UploadedFile::fake()->create('nota.pdf', 40, 'application/pdf')],
+    ]);
+
+    expect($message->attachments()->count())->toBe(1);
+    Storage::disk('local')->assertExists($message->attachments()->first()->path);
+});
+
+it('panoul respinge tipurile interzise (svg) — aceeași listă albă ca la cabinet', function () {
+    Storage::fake('local');
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $parent = sbxParentOf($student);
+
+    expect(fn () => ComposeSchema::send($teacher, [
+        'kind' => 'family',
+        'student_id' => $student->id,
+        'family_user_id' => $parent->id,
+        'subject' => 'XSS',
+        'body' => 'Text.',
+        'files' => [UploadedFile::fake()->create('x.svg', 5, 'image/svg+xml')],
+    ]))->toThrow(ValidationException::class);
 });

@@ -790,6 +790,17 @@ return [
     // Empty states contextuale — afișate când tabelul e gol (ex. profesor nou, coadă goală, inbox gol).
     // Poșta internă a personalului (fire de conversație, foldere, stea/coș per-utilizator).
     'mailbox' => [
+        'compose' => 'Mesaj nou',
+        'send' => 'Trimite',
+        'sent' => 'Mesajul a fost trimis.',
+        'recipient' => 'Destinatar',
+        'recipient_kind' => 'Trimite către',
+        'kind_colleague' => 'Coleg (personal)',
+        'kind_family' => 'Familia unui elev',
+        'relation_parinte' => 'părinte',
+        'relation_elev' => 'elev',
+        'attachments' => 'Atașamente',
+        'attachments_hint' => 'Maximum :files fișiere, :size MB fiecare.',
         'thread' => 'Conversație',
         'you' => 'Tu',
         'open' => 'Deschide',

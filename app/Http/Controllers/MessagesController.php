@@ -113,19 +113,14 @@ class MessagesController extends Controller
     }
 
     /**
-     * Reguli de validare pentru atașamente (partajate de send/reply). Limitele vin din
-     * `config/messaging.php` — o singură sursă, oglindită și în interfață.
+     * Reguli de validare pentru atașamente (partajate de send/reply) — delegate sursei unice,
+     * ca poșta personalului să aplice EXACT aceleași limite și aceeași listă albă de tipuri.
      *
      * @return array<string, array<int, string>>
      */
     private function attachmentRules(): array
     {
-        $extensions = implode(',', (array) config('messaging.attachments.extensions', []));
-
-        return [
-            'files' => ['nullable', 'array', 'max:'.(int) config('messaging.attachments.max_files', 5)],
-            'files.*' => ['file', 'max:'.(int) config('messaging.attachments.max_file_kb', 8192), 'mimes:'.$extensions],
-        ];
+        return StoreMessageAttachments::validationRules();
     }
 
     /**

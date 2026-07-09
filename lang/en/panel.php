@@ -776,6 +776,17 @@ return [
 
     // Internal staff mailbox (threads, folders, per-user star/trash).
     'mailbox' => [
+        'compose' => 'New message',
+        'send' => 'Send',
+        'sent' => 'Message sent.',
+        'recipient' => 'Recipient',
+        'recipient_kind' => 'Send to',
+        'kind_colleague' => 'Colleague (staff)',
+        'kind_family' => 'A student\x27s family',
+        'relation_parinte' => 'parent',
+        'relation_elev' => 'student',
+        'attachments' => 'Attachments',
+        'attachments_hint' => 'Up to :files files, :size MB each.',
         'thread' => 'Conversation',
         'you' => 'You',
         'open' => 'Open',

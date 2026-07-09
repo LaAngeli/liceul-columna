@@ -2,11 +2,15 @@
 
 namespace App\Filament\Resources\Messages\Pages;
 
+use App\Filament\Resources\Messages\ComposeSchema;
 use App\Filament\Resources\Messages\MessageResource;
 use App\Models\User;
 use App\Support\MessageMailbox;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Support\Enums\Width;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -24,6 +28,24 @@ class ListMessages extends ListRecords
      * @var array<string, array{total: int, unread: int}>|null
      */
     private ?array $folderCounts = null;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('compose')
+                ->label(__('panel.mailbox.compose'))
+                ->icon('heroicon-o-pencil-square')
+                ->modalHeading(__('panel.mailbox.compose'))
+                ->modalSubmitActionLabel(__('panel.mailbox.send'))
+                ->modalWidth(Width::TwoExtraLarge)
+                ->schema(fn (): array => ComposeSchema::compose($this->currentUser()))
+                ->action(function (array $data): void {
+                    ComposeSchema::send($this->currentUser(), $data);
+
+                    Notification::make()->success()->title(__('panel.mailbox.sent'))->send();
+                }),
+        ];
+    }
 
     /**
      * Un tab pentru fiecare folder. „Audiențe" apare doar dacă utilizatorul chiar are audiențe —
@@ -72,12 +94,17 @@ class ListMessages extends ListRecords
         return $this->folderCounts ??= $this->mailbox()->counts(MessageMailbox::FOLDERS);
     }
 
-    private function mailbox(): MessageMailbox
+    private function currentUser(): User
     {
         $user = auth('web')->user();
         assert($user instanceof User);
 
-        return MessageMailbox::for($user);
+        return $user;
+    }
+
+    private function mailbox(): MessageMailbox
+    {
+        return MessageMailbox::for($this->currentUser());
     }
 
     private static function icon(string $folder): string

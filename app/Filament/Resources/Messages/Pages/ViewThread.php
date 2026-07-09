@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Messages\Pages;
 
 use App\Actions\SendMessage;
+use App\Filament\Resources\Messages\ComposeSchema;
 use App\Filament\Resources\Messages\MessageResource;
 use App\Models\Message;
 use App\Models\User;
@@ -144,9 +145,12 @@ class ViewThread extends Page
                     ->required()
                     ->maxLength(2000)
                     ->rows(5),
+                ComposeSchema::files(),
             ])
             ->action(function (array $data): void {
-                app(SendMessage::class)->reply($this->currentUser(), $this->thread(), (string) $data['body']);
+                $reply = app(SendMessage::class)->reply($this->currentUser(), $this->thread(), (string) $data['body']);
+
+                ComposeSchema::storeFiles($reply, $data);
 
                 Notification::make()->success()->title(__('panel.actions.reply.success'))->send();
             });
