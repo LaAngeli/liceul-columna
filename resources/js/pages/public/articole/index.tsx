@@ -38,7 +38,7 @@ function PostTile({ post, t }: { post: PostCard; t: (k: string, f?: string) => s
     return (
         <LocaleLink
             href={`/articol/${post.slug}`}
-            className="group flex h-full flex-col overflow-hidden rounded-[12px] border keyline border-l-[5px] border-l-brand-navy bg-card transition-all hover:-translate-y-0.5 hover:border-l-brand-green hover:shadow-[0_16px_36px_-26px_rgba(15,77,119,0.5)]"
+            className="group flex h-full flex-col overflow-hidden rounded-[12px] border keyline border-l-[5px] border-l-brand-navy bg-card transition-[border-color,box-shadow] hover:border-l-brand-green hover:shadow-[0_16px_36px_-26px_rgba(15,77,119,0.5)]"
         >
             <Thumb image={post.image} title={post.title} />
             <div className="flex flex-1 flex-col p-5">

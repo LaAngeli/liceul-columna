@@ -80,7 +80,7 @@ export default function ArticolShow({ post, related = [] }: { post: PostShow; re
                                 <LocaleLink
                                     key={r.slug}
                                     href={`/articol/${r.slug}`}
-                                    className="group flex h-full flex-col overflow-hidden rounded-[12px] border keyline border-l-[5px] border-l-brand-navy bg-card transition-all hover:-translate-y-0.5 hover:border-l-brand-green"
+                                    className="group flex h-full flex-col overflow-hidden rounded-[12px] border keyline border-l-[5px] border-l-brand-navy bg-card transition-[border-color] hover:border-l-brand-green"
                                 >
                                     {r.image ? (
                                         <div className="photo-frame aspect-video overflow-hidden">
