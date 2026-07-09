@@ -27,6 +27,9 @@ export default function TwoFactorSetup({ twoFactor, configured, continueTo, stat
     setLayoutProps({
         title: 'auth.twofa_setup_title',
         description: 'auth.twofa_setup_subtitle',
+        // Card lat pe desktop cât timp se configurează (conține ghidul cu QR-uri pe 2 coloane);
+        // ecranul de succes „configurat" rămâne îngust. Mobilul nu e afectat.
+        wide: !configured,
     });
 
     return (

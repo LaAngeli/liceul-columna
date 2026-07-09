@@ -18,4 +18,6 @@ export type AuthLayoutProps = {
     name?: string;
     title?: string;
     description?: string;
+    /** Card mai lat pe desktop (mobilul rămâne îngust). Pentru pagini cu conținut lat, ex. configurarea 2FA. */
+    wide?: boolean;
 };

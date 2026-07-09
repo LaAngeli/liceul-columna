@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { useTranslations } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
 
@@ -7,12 +8,15 @@ export default function AuthSimpleLayout({
     children,
     title,
     description,
+    wide = false,
 }: AuthLayoutProps) {
     const t = useTranslations();
 
     return (
         <div className="auth-shell relative flex min-h-svh flex-col items-center justify-center gap-8 p-6 md:p-10">
-            <div className="w-full max-w-sm">
+            {/* Îngust implicit (login/register etc.); `wide` lărgește DOAR pe desktop (≥sm), mobilul
+                rămâne neschimbat — pentru pagini cu conținut lat precum configurarea 2FA. */}
+            <div className={cn('w-full', wide ? 'max-w-sm sm:max-w-2xl' : 'max-w-sm')}>
                 <div className="flex flex-col gap-7">
                     <div className="flex flex-col items-center gap-4">
                         <Link href={home()} aria-label="Liceul Columna" className="block">
