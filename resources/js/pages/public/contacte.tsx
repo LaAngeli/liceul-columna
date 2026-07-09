@@ -26,17 +26,19 @@ function InstagramIcon({ className }: { className?: string }) {
     );
 }
 
+// Input-uri albe (bg-card) și pe fundal navy — cea mai bună lizibilitate în timpul tastării.
+// Textul introdus rămâne navy pe alb; label-ul și mesajele de eroare se colorează pentru navy.
 const INPUT =
     'h-12 w-full rounded-[12px] border keyline bg-card px-4 text-base text-brand-navy shadow-sm outline-none transition-colors placeholder:text-brand-gray/60 focus:border-brand-green focus:ring-2 focus:ring-brand-green/30';
 
 function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: ReactNode }) {
     return (
         <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-brand-navy">
-                {label} {hint && <span className="font-normal text-brand-gray">{hint}</span>}
+            <span className="mb-1.5 block text-sm font-semibold text-[color:var(--brand-navy-foreground)]">
+                {label} {hint && <span className="font-normal text-white/60">{hint}</span>}
             </span>
             {children}
-            {error && <span className="mt-1 block text-sm text-red-600">{error}</span>}
+            {error && <span className="mt-1 block text-sm text-red-300">{error}</span>}
         </label>
     );
 }
@@ -78,35 +80,37 @@ export default function Contacte() {
 
             <PageBanner title={heading} breadcrumbs={[{ title: heading }]} description={t('contact.lead')} />
 
-            <Band variant="light" pattern="mesh">
+            {/* Bandă NAVY — panou de contact + formular (pe fundal navy, carduri semi-transparente
+                cu ton alb, ca în alte secțiuni „content pe navy" — ex. Home „Instituția"). */}
+            <Band variant="navy" pattern="mesh">
                 <div className="grid gap-6 lg:grid-cols-2 lg:items-stretch">
                     {/* Panou de contact */}
-                    <Reveal className="flex flex-col rounded-[16px] border keyline bg-card p-6 sm:p-8">
-                        <span className="eyebrow inline-flex items-center gap-2 text-brand-navy">
+                    <Reveal className="flex flex-col rounded-[16px] border border-white/15 bg-white/[0.04] p-6 sm:p-8">
+                        <span className="eyebrow inline-flex items-center gap-2 text-[color:var(--brand-navy-foreground)]">
                             <FourStar className="size-3 text-brand-green" /> {t('contact.details', 'Date de contact')}
                         </span>
-                        <p className="display mt-3 text-[clamp(1.25rem,4.5vw,1.5rem)] text-brand-navy">{siteContact.name}</p>
-                        <p className="mt-1 text-sm text-brand-gray">{siteContact.tagline}</p>
+                        <p className="display mt-3 text-[clamp(1.25rem,4.5vw,1.5rem)] text-[color:var(--brand-navy-foreground)]">{siteContact.name}</p>
+                        <p className="mt-1 text-sm text-white/70">{siteContact.tagline}</p>
 
                         <ul className="mt-6 space-y-3">
                             {rows.map((row) => {
                                 const inner = (
                                     <>
-                                        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-brand-navy/8 text-brand-green">
+                                        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-white/10 text-brand-green">
                                             <row.icon className="size-5" />
                                         </span>
                                         <span className="min-w-0 flex-1">
-                                            <span className="block text-xs font-semibold tracking-wide text-brand-gray uppercase">{row.label}</span>
-                                            <span className="block font-semibold break-words text-brand-navy">{row.value}</span>
+                                            <span className="block text-xs font-semibold tracking-wide text-white/60 uppercase">{row.label}</span>
+                                            <span className="block font-semibold break-words text-[color:var(--brand-navy-foreground)]">{row.value}</span>
                                         </span>
                                     </>
                                 );
-                                const cls = 'flex items-center gap-3 rounded-[10px] border keyline border-l-[5px] border-l-brand-navy bg-card p-3';
+                                const cls = 'flex items-center gap-3 rounded-[10px] border border-white/15 border-l-[5px] border-l-brand-green bg-white/[0.04] p-3';
 
                                 return (
                                     <li key={row.label}>
                                         {row.href ? (
-                                            <a href={row.href} {...(row.external ? { target: '_blank', rel: 'noreferrer' } : {})} className={`${cls} group transition-all hover:-translate-y-0.5 hover:border-l-brand-green`}>
+                                            <a href={row.href} {...(row.external ? { target: '_blank', rel: 'noreferrer' } : {})} className={`${cls} group transition-all hover:-translate-y-0.5 hover:border-l-brand-green hover:bg-white/[0.07]`}>
                                                 {inner}
                                             </a>
                                         ) : (
@@ -117,8 +121,8 @@ export default function Contacte() {
                             })}
                         </ul>
 
-                        <div className="mt-6 border-t keyline pt-5 lg:mt-auto">
-                            <span className="eyebrow text-brand-gray">{t('contact.follow', 'Urmărește-ne')}</span>
+                        <div className="mt-6 border-t border-white/15 pt-5 lg:mt-auto">
+                            <span className="eyebrow text-white/60">{t('contact.follow', 'Urmărește-ne')}</span>
                             <div className="mt-3 flex gap-3">
                                 {social.map(({ Icon, label, href }) => (
                                     <a
@@ -128,7 +132,7 @@ export default function Contacte() {
                                         rel="noreferrer"
                                         aria-label={label}
                                         title={label}
-                                        className="flex size-11 items-center justify-center rounded-full border keyline text-brand-navy transition-colors hover:border-brand-green hover:bg-brand-green/10"
+                                        className="flex size-11 items-center justify-center rounded-full border border-white/25 text-white/85 transition-colors hover:border-brand-green hover:text-brand-green"
                                     >
                                         <Icon className="size-5" />
                                     </a>
@@ -138,9 +142,9 @@ export default function Contacte() {
                     </Reveal>
 
                     {/* Formular de contact */}
-                    <Reveal className="rounded-[16px] border keyline bg-card p-6 sm:p-8">
-                        <h2 className="display text-[1.5rem] text-brand-navy">{t('contact.form_title', 'Trimite-ne un mesaj')}</h2>
-                        <p className="mt-1.5 text-sm leading-relaxed text-brand-gray">{t('contact.form_intro')}</p>
+                    <Reveal className="rounded-[16px] border border-white/15 bg-white/[0.04] p-6 sm:p-8">
+                        <h2 className="display text-[1.5rem] text-[color:var(--brand-navy-foreground)]">{t('contact.form_title', 'Trimite-ne un mesaj')}</h2>
+                        <p className="mt-1.5 text-sm leading-relaxed text-white/70">{t('contact.form_intro')}</p>
 
                         <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
                             <div className="grid gap-4 sm:grid-cols-2">
@@ -176,17 +180,17 @@ export default function Contacte() {
                                     type="checkbox"
                                     checked={form.data.consent}
                                     onChange={(e) => form.setData('consent', e.target.checked)}
-                                    className="mt-0.5 size-5 shrink-0 rounded border-brand-navy/30 text-brand-green focus:ring-brand-green/40"
+                                    className="mt-0.5 size-5 shrink-0 rounded border-white/30 bg-white/[0.06] text-brand-green focus:ring-brand-green/40"
                                 />
-                                <span className="text-sm text-brand-gray">
+                                <span className="text-sm text-white/80">
                                     {t('contact.consent_pre', 'Sunt de acord cu prelucrarea datelor mele conform')}{' '}
-                                    <LocaleLink href="/confidentialitate" className="font-semibold text-brand-navy underline decoration-brand-green decoration-2 underline-offset-2">
+                                    <LocaleLink href="/confidentialitate" className="font-semibold text-[color:var(--brand-navy-foreground)] underline decoration-brand-green decoration-2 underline-offset-2">
                                         {t('contact.consent_link', 'Politicii de confidențialitate')}
                                     </LocaleLink>
                                     .
                                 </span>
                             </label>
-                            {form.errors.consent && <span className="block text-sm text-red-600">{form.errors.consent}</span>}
+                            {form.errors.consent && <span className="block text-sm text-red-300">{form.errors.consent}</span>}
 
                             <button
                                 type="submit"
@@ -201,8 +205,9 @@ export default function Contacte() {
                 </div>
             </Band>
 
-            {/* Hartă pe toată lățimea */}
-            <Band variant="light" className="!pt-0">
+            {/* Bandă DESCHISĂ — harta pe toată lățimea (secțiune separată, cu propriul padding
+                vertical → distincție clară față de banda navy de sus). */}
+            <Band variant="light" pattern="mesh">
                 <Reveal className="overflow-hidden rounded-[16px] border keyline">
                     <iframe src={MAP} title={t('contact.map_title', 'Liceul „Columna" pe hartă')} className="h-[360px] w-full sm:h-[440px]" loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
                 </Reveal>
