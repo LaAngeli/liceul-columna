@@ -209,7 +209,7 @@ it('ruta de trimitere blochează canalele nepermise (HTTP 403)', function () {
     ])->assertForbidden();
 });
 
-it('inboxul cabinetului se randează cu firele și contextul de compunere', function () {
+it('poșta cabinetului se randează cu firele și contextul de compunere', function () {
     [$student, $class] = studentInClass();
     $parent = parentOf($student);
     $prof = teacherTeaching($class);
@@ -219,7 +219,9 @@ it('inboxul cabinetului se randează cu firele și contextul de compunere', func
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('cabinet/messages')
+            ->where('folder', 'all')
             ->has('threads', 1)
+            ->has('counts.all')
             ->has('compose.students'));
 });
 

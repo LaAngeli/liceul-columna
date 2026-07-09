@@ -108,4 +108,24 @@ class Message extends Model
     {
         return $this->hasMany(Message::class, 'parent_id');
     }
+
+    /**
+     * Stările per-utilizator ale firului (preferat/coș). Se atașează RĂDĂCINII conversației.
+     *
+     * @return HasMany<MessageState, $this>
+     */
+    public function states(): HasMany
+    {
+        return $this->hasMany(MessageState::class);
+    }
+
+    /**
+     * Fișierele/imaginile atașate ACESTUI mesaj (nu firului).
+     *
+     * @return HasMany<MessageAttachment, $this>
+     */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(MessageAttachment::class);
+    }
 }

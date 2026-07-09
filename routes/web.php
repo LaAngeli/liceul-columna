@@ -175,13 +175,19 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     // controller (familie / administrație / diriginte). Accesibil ȘI personalului → fără gardul „doar familie".
     Route::get('cabinet/elev/{student}/document/{type}', [CabinetController::class, 'downloadGeneratedDocument'])->name('cabinet.document.generate');
 
-    // Comunicare (spec §4): inbox + trimitere filtrată ierarhic + răspuns în fir.
+    // Comunicare (spec §4): poștă internă cu foldere (Primite/Trimise/Preferate/Șterse) + trimitere
+    // filtrată ierarhic + răspuns în fir + stare per-utilizator (stea/coș).
     Route::get('cabinet/mesaje', [MessagesController::class, 'index'])
         ->middleware(EnsureFamilyCabinet::class)
         ->name('cabinet.messages');
     Route::post('cabinet/mesaje', [MessagesController::class, 'send'])->name('cabinet.messages.send');
     Route::post('cabinet/mesaje/{message}/raspunde', [MessagesController::class, 'reply'])->name('cabinet.messages.reply');
     Route::post('cabinet/mesaje/{message}/citit', [MessagesController::class, 'markRead'])->name('cabinet.messages.read');
+    Route::post('cabinet/mesaje/{message}/stea', [MessagesController::class, 'toggleStar'])->name('cabinet.messages.star');
+    Route::post('cabinet/mesaje/{message}/cos', [MessagesController::class, 'trash'])->name('cabinet.messages.trash');
+    Route::post('cabinet/mesaje/{message}/restaurare', [MessagesController::class, 'restore'])->name('cabinet.messages.restore');
+    // Descărcare atașament — autorizată la participanții firului (PII de minori), în controller.
+    Route::get('cabinet/mesaje/atasament/{attachment}', [MessagesController::class, 'downloadAttachment'])->name('cabinet.messages.attachment');
 
     // Cereri tipice (spec §4.3): depunere (→ PDF, secretariat) + descărcare PDF privat.
     Route::post('cabinet/elev/{student}/cereri', [CabinetController::class, 'requestDocument'])->name('cabinet.requests.store');
