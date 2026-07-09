@@ -943,6 +943,9 @@ return [
         'thanks_title' => 'Mulțumim!',
         'thanks_body' => 'Programarea vizitei a fost trimisă. Te contactăm pentru confirmare.',
         'submit' => 'Trimite programarea',
+        'quote_text' => 'Cel mai bun mod de a cunoaște un liceu este să-i treci pragul — să vezi oamenii, să simți atmosfera și să-ți imaginezi copilul crescând aici.',
+        'quote_name' => 'Liceul Columna',
+        'quote_role' => 'Succesul copilului începe aici.',
     ],
 
     /* ----------------------------------------------------------- pagina /scrisoarea-directorului (bespoke) */

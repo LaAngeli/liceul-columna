@@ -943,6 +943,9 @@ return [
         'thanks_title' => 'Thank you!',
         'thanks_body' => 'Your visit booking has been sent. We will contact you to confirm.',
         'submit' => 'Send booking',
+        'quote_text' => 'The best way to know a school is to cross its threshold — to meet the people, feel the atmosphere, and imagine your child growing here.',
+        'quote_name' => 'Liceul Columna',
+        'quote_role' => 'A child’s success starts here.',
     ],
 
     /* ----------------------------------------------------------- /scrisoarea-directorului page (bespoke) */

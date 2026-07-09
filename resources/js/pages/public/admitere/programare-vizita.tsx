@@ -16,7 +16,7 @@ import {
     validateContact,
     VisitScheduler,
 } from '@/components/public/admission-kit';
-import { Band, BrandButton, FourStar } from '@/components/public/brand';
+import { Band, BrandButton, FourStar, Reveal } from '@/components/public/brand';
 import { PageBanner } from '@/components/public/page-banner';
 import { useLocale, useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -182,12 +182,14 @@ export default function ProgramareVizita() {
                 description={t('visit.description', 'Alege ziua și ora — te așteptăm să cunoști liceul. Confirmăm programarea telefonic.')}
             />
 
-            {/* Bandă NAVY imersivă cu formularul plutind într-un card alb central (bg-card).
-                Elementele din interior (labels, input-uri, wizard) rămân navy pe alb — nu ating
-                `admission-kit`, care are stiluri navy hardcodate refolosite pe formularul de
-                înregistrare. Ritm: navy (form) → footer navy = deschidere pe direcție. */}
+            {/* Bandă NAVY imersivă cu formularul plutind într-un card central. Cardul poartă culoarea
+                secțiunilor DESCHISE (`bg-background` = icy navy-pală, tipică benzilor de după navy), iar
+                câmpurile de introducere devin ALBE (`bg-card`) — inversul schemei inițiale, ca input-urile
+                să „iasă" pe cardul pastelat. Override-ul alb e SCOPED pe input/select din acest card
+                (`[&_input]`/`[&_select]`), ca să NU atingem `admission-kit` (partajat cu /inregistrarea-student,
+                unde input-urile rămân pe `bg-background`). Ritm: navy (form) → light (citat) → footer. */}
             <Band variant="navy" pattern="mesh">
-                <div className="mx-auto max-w-2xl rounded-[16px] border keyline bg-card p-6 sm:p-8">
+                <div className="mx-auto max-w-2xl rounded-[16px] border keyline bg-background p-6 sm:p-8 [&_input]:bg-card [&_select]:bg-card">
                     {wasSuccessful ? (
                         <div
                             ref={successRef}
@@ -362,6 +364,30 @@ export default function ProgramareVizita() {
                         </>
                     )}
                 </div>
+            </Band>
+
+            {/* Bandă DESCHISĂ — închide pagina pe culoarea secțiunilor light (icy navy-pală, specifică
+                benzilor de după navy), cu semnătura de brand (constelație). Citat-invitație: motivează
+                vizita înainte de a decide. Ritm: navy (formular) → light (citat) → footer. */}
+            <Band variant="light" pattern="signature">
+                <Reveal className="mx-auto max-w-3xl text-center">
+                    <span className="display block text-[clamp(3.5rem,8vw,5.5rem)] leading-[0.55] text-brand-green/30" aria-hidden="true">
+                        „
+                    </span>
+                    <blockquote className="mt-1">
+                        <p className="display text-balance text-[clamp(1.5rem,3.4vw,2.375rem)] leading-snug text-brand-navy">
+                            {t(
+                                'visit.quote_text',
+                                'Cel mai bun mod de a cunoaște un liceu este să-i treci pragul — să vezi oamenii, să simți atmosfera și să-ți imaginezi copilul crescând aici.',
+                            )}
+                        </p>
+                    </blockquote>
+                    <div className="mt-9 flex flex-col items-center gap-2.5">
+                        <FourStar className="size-3 text-brand-green" />
+                        <span className="display text-lg text-brand-navy">{t('visit.quote_name', 'Liceul Columna')}</span>
+                        <span className="eyebrow text-brand-gray">{t('visit.quote_role', 'Succesul copilului începe aici.')}</span>
+                    </div>
+                </Reveal>
             </Band>
         </>
     );
