@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { LocaleLink } from '@/components/locale-link';
-import { Band, Display, FourStar, Reveal, SectionHeader } from '@/components/public/brand';
+import { Band, FourStar, Reveal, SectionHeader } from '@/components/public/brand';
 import { PageBanner } from '@/components/public/page-banner';
 import { useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -153,16 +153,25 @@ export default function ConsiliulMetodic() {
                 </ol>
             </Band>
 
-            {/* ── Punte deschisă cu citat: rotunjește pagina cu misiunea consiliului metodic
-                (dezvoltarea profesorului = creșterea elevului). Aceeași formulă ca punțile de pe
-                homepage și taxe, dar în variantă light — banda anterioară e deja navy. */}
-            <Band variant="light" pattern="mesh" className="py-10 sm:py-14">
-                <div className="flex flex-col items-center gap-4 text-center">
-                    <FourStar className="size-5 text-brand-green" />
-                    <Display as="p" className="max-w-[26ch] text-[clamp(1.375rem,3vw,2rem)] leading-[1.1] text-brand-navy">
-                        {t('council.closing_quote', 'Un profesor care învață mereu — un elev care crește mereu.')}
-                    </Display>
-                </div>
+            {/* ── Punte deschisă cu citat — aceeași structură/design ca punțile-citat de pe
+                /programeaza-vizita și /inregistrarea-student (ghilimea mare verde + blockquote Cervino
+                + semnătură). Închide pagina pe deschis; banda anterioară e navy. */}
+            <Band variant="light" pattern="signature">
+                <Reveal className="mx-auto max-w-3xl text-center">
+                    <span className="display block text-[clamp(3.5rem,8vw,5.5rem)] leading-[0.55] text-brand-green/30" aria-hidden="true">
+                        „
+                    </span>
+                    <blockquote className="mt-1">
+                        <p className="display text-balance text-[clamp(1.5rem,3.4vw,2.375rem)] leading-snug text-brand-navy">
+                            {t('council.closing_quote', 'Un profesor care învață mereu — un elev care crește mereu.')}
+                        </p>
+                    </blockquote>
+                    <div className="mt-9 flex flex-col items-center gap-2.5">
+                        <FourStar className="size-3 text-brand-green" />
+                        <span className="display text-lg text-brand-navy">{t('council.title', 'Consiliul Metodic')}</span>
+                        <span className="eyebrow text-brand-gray">{t('council.quote_role', 'Liceul Columna')}</span>
+                    </div>
+                </Reveal>
             </Band>
         </>
     );
