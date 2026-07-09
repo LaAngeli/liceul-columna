@@ -130,6 +130,8 @@ class MessagesTable
                         ->icon('heroicon-o-trash')
                         ->color('danger')
                         ->requiresConfirmation()
+                        // Altfel butonul modalului rămâne „Executați" (implicitul Filament).
+                        ->modalSubmitActionLabel(__('panel.mailbox.trash'))
                         ->action(fn (Collection $records) => self::trashBulk($records))
                         ->deselectRecordsAfterCompletion(),
                 ]),

@@ -778,6 +778,8 @@ return [
     'mailbox' => [
         'compose' => 'New message',
         'send' => 'Send',
+        'reply_placeholder' => 'Write your reply…',
+        'reply_to' => 'Reply to :name',
         'sent' => 'Message sent.',
         'recipient' => 'Recipient',
         'recipient_kind' => 'Send to',

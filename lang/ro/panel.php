@@ -791,7 +791,9 @@ return [
     // Poșta internă a personalului (fire de conversație, foldere, stea/coș per-utilizator).
     'mailbox' => [
         'compose' => 'Mesaj nou',
-        'send' => 'Trimite',
+        'send' => 'Expediați',
+        'reply_placeholder' => 'Scrieți răspunsul…',
+        'reply_to' => 'Răspunde către :name',
         'sent' => 'Mesajul a fost trimis.',
         'recipient' => 'Destinatar',
         'recipient_kind' => 'Trimite către',

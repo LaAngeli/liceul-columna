@@ -776,6 +776,8 @@ return [
     'mailbox' => [
         'compose' => 'Новое сообщение',
         'send' => 'Отправить',
+        'reply_placeholder' => 'Напишите ответ…',
+        'reply_to' => 'Ответ для :name',
         'sent' => 'Сообщение отправлено.',
         'recipient' => 'Получатель',
         'recipient_kind' => 'Кому',

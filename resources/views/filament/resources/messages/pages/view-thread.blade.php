@@ -1,5 +1,6 @@
 {{--
-    Firul unei conversații din poșta personalului.
+    Firul unei conversații din poșta personalului + compunerea răspunsului INLINE, dedesubt.
+    Mesajul la care răspunzi rămâne vizibil cât timp scrii — logica unui client de e-mail obișnuit.
 
     ⚠️ UN SINGUR element rădăcină: Livewire face morphing pe re-render, iar un frate al rădăcinii
     (ex. un bloc <style>) e eliminat tăcut. Stilurile stau în resources/css/filament/admin/theme.css
@@ -61,5 +62,23 @@
                 </div>
             @endforeach
         </div>
+
+        {{-- Compunerea răspunsului, pe ACEEAȘI pagină: firul de deasupra rămâne lizibil. --}}
+        @if (! $this->isTrashed())
+            <form wire:submit="sendReply" class="cx-reply">
+                <div class="cx-reply__head">
+                    <x-filament::icon icon="heroicon-o-arrow-uturn-left" class="cx-reply__icon" />
+                    <span>{{ __('panel.mailbox.reply_to', ['name' => $this->counterpart()?->name ?? '']) }}</span>
+                </div>
+
+                {{ $this->form }}
+
+                <div class="cx-reply__actions">
+                    <x-filament::button type="submit" icon="heroicon-o-paper-airplane" wire:loading.attr="disabled">
+                        {{ __('panel.mailbox.send') }}
+                    </x-filament::button>
+                </div>
+            </form>
+        @endif
     </div>
 </x-filament-panels::page>

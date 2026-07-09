@@ -5,6 +5,7 @@ use App\Enums\UserRole;
 use App\Filament\Resources\Messages\ComposeSchema;
 use App\Filament\Resources\Messages\MessageResource;
 use App\Filament\Resources\Messages\Pages\ListMessages;
+use App\Filament\Resources\Messages\Pages\ViewThread;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\Message;
@@ -355,4 +356,45 @@ it('panoul respinge tipurile interzise (svg) — aceeași listă albă ca la cab
         'body' => 'Text.',
         'files' => [UploadedFile::fake()->create('x.svg', 5, 'image/svg+xml')],
     ]))->toThrow(ValidationException::class);
+});
+
+// ─── Răspuns INLINE, pe aceeași pagină (nu într-o modală) ───────────────────────────────
+
+it('răspunsul se compune inline pe pagina firului și ajunge la celălalt participant', function () {
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $parent = sbxParentOf($student);
+
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Subiect', $student);
+
+    actingAs($teacher);
+
+    Livewire::test(ViewThread::class, ['record' => $root->id])
+        ->assertOk()
+        // Formularul de răspuns e pe pagină, nu ascuns într-o acțiune modală.
+        ->assertFormExists()
+        ->fillForm(['body' => 'Vă răspund imediat.'])
+        ->call('sendReply')
+        ->assertHasNoFormErrors();
+
+    $reply = Message::query()->where('parent_id', $root->id)->firstOrFail();
+    expect($reply->body)->toBe('Vă răspund imediat.')
+        ->and($reply->sender_user_id)->toBe($teacher->id)
+        ->and($reply->recipient_user_id)->toBe($parent->id);
+});
+
+it('răspunsul inline validează corpul gol', function () {
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $parent = sbxParentOf($student);
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Subiect', $student);
+
+    actingAs($teacher);
+
+    Livewire::test(ViewThread::class, ['record' => $root->id])
+        ->fillForm(['body' => ''])
+        ->call('sendReply')
+        ->assertHasFormErrors(['body' => 'required']);
+
+    expect(Message::query()->where('parent_id', $root->id)->exists())->toBeFalse();
 });

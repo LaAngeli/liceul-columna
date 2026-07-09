@@ -13,16 +13,22 @@ use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
+use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 /**
  * Pagina unei CONVERSAȚII din poșta personalului: firul complet (rădăcină + răspunsuri), cu
- * atașamente, plus acțiunile pe fir (răspuns, stea, coș).
+ * atașamente, iar dedesubt compunerea răspunsului — INLINE, ca la orice client de e-mail.
+ *
+ * Răspunsul NU stă într-o fereastră modală: ar acoperi exact mesajul la care răspunzi, iar ca
+ * să-l recitești ar trebui să închizi fereastra și să pierzi ce ai scris.
  *
  * ⚠️ Pagina e o cale NOUĂ de acces după id (deep-link). Filtrarea din `getEloquentQuery()` a
- * resursei NU se aplică aici, deci autorizarea se face explicit în `mount()`, ÎNAINTE de a
- * randa vreun mesaj sau atașament (altfel: IDOR clasic pe corespondența despre minori).
+ * resursei NU se aplică aici, deci autorizarea se face explicit în `resolveRecord()`, ÎNAINTE de
+ * a randa vreun mesaj sau atașament (altfel: IDOR clasic pe corespondența despre minori).
+ *
+ * @property-read Schema $form
  */
 class ViewThread extends Page
 {
@@ -32,12 +38,54 @@ class ViewThread extends Page
 
     protected string $view = 'filament.resources.messages.pages.view-thread';
 
+    /**
+     * Starea compunerii inline (corp + atașamente).
+     *
+     * @var array<string, mixed>|null
+     */
+    public ?array $data = [];
+
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
 
         // Deschiderea firului = citirea lui (doar mesajele PRIMITE de mine).
         $this->mailbox()->markThreadRead($this->thread());
+
+        $this->form->fill();
+    }
+
+    /** Compunerea răspunsului, pe aceeași pagină cu firul. */
+    public function form(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Textarea::make('body')
+                    ->hiddenLabel()
+                    ->placeholder(__('panel.mailbox.reply_placeholder'))
+                    ->required()
+                    ->maxLength(2000)
+                    ->rows(4),
+                ComposeSchema::files(),
+            ])
+            ->statePath('data');
+    }
+
+    /**
+     * Trimite răspunsul. EXCLUSIV prin SendMessage::reply() — care re-autorizează participanții și
+     * derivă destinatarul ca celălalt capăt al firului. Niciodată `direct()` cu un destinatar ales.
+     */
+    public function sendReply(): void
+    {
+        $data = $this->form->getState();
+
+        $reply = app(SendMessage::class)->reply($this->currentUser(), $this->thread(), (string) $data['body']);
+
+        ComposeSchema::storeFiles($reply, $data);
+
+        $this->form->fill();
+
+        Notification::make()->success()->title(__('panel.actions.reply.success'))->send();
     }
 
     /**
@@ -120,40 +168,13 @@ class ViewThread extends Page
             ->exists();
     }
 
+    /** Răspunsul NU e aici: se compune inline, sub fir (vezi `form()` / `sendReply()`). */
     protected function getHeaderActions(): array
     {
         return [
-            $this->replyAction(),
             $this->starAction(),
             $this->trashAction(),
         ];
-    }
-
-    /**
-     * Răspunsul trece EXCLUSIV prin SendMessage::reply() — care re-autorizează participanții și
-     * derivă destinatarul ca celălalt capăt al firului. Niciodată `direct()` cu un destinatar ales.
-     */
-    private function replyAction(): Action
-    {
-        return Action::make('reply')
-            ->label(__('panel.actions.reply.label'))
-            ->icon('heroicon-o-arrow-uturn-left')
-            ->modalHeading(__('panel.actions.reply.heading'))
-            ->schema([
-                Textarea::make('body')
-                    ->label(__('panel.actions.reply.body'))
-                    ->required()
-                    ->maxLength(2000)
-                    ->rows(5),
-                ComposeSchema::files(),
-            ])
-            ->action(function (array $data): void {
-                $reply = app(SendMessage::class)->reply($this->currentUser(), $this->thread(), (string) $data['body']);
-
-                ComposeSchema::storeFiles($reply, $data);
-
-                Notification::make()->success()->title(__('panel.actions.reply.success'))->send();
-            });
     }
 
     private function starAction(): Action
@@ -176,6 +197,8 @@ class ViewThread extends Page
             ->icon(fn (): string => $this->isTrashed() ? 'heroicon-o-arrow-uturn-up' : 'heroicon-o-trash')
             ->color(fn (): string => $this->isTrashed() ? 'gray' : 'danger')
             ->requiresConfirmation(fn (): bool => ! $this->isTrashed())
+            // Fără asta, butonul de confirmare al modalului rămâne „Executați" (implicitul Filament).
+            ->modalSubmitActionLabel(fn (): string => $this->isTrashed() ? __('panel.mailbox.restore') : __('panel.mailbox.trash'))
             ->action(function (): void {
                 $state = $this->mailbox()->stateForThread($this->thread());
                 $state->trashed_at = $state->trashed_at === null ? now() : null;
