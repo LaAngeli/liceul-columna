@@ -14,7 +14,7 @@ import {
     validateChild,
     validateContact,
 } from '@/components/public/admission-kit';
-import { Band, BrandButton, FourStar } from '@/components/public/brand';
+import { Band, BrandButton, FourStar, Reveal } from '@/components/public/brand';
 import { PageBanner } from '@/components/public/page-banner';
 import { useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -145,11 +145,12 @@ export default function Inregistrare() {
                 description={t('admission.description')}
             />
 
-            {/* Bandă NAVY imersivă cu formularul plutind într-un card alb central (bg-card).
-                Aceeași logică ca la /programeaza-vizita — nu ating `admission-kit` (stiluri navy
-                hardcodate refolosite). */}
+            {/* Bandă NAVY imersivă cu formularul plutind într-un card central. Ca la /programeaza-vizita:
+                cardul poartă culoarea secțiunilor DESCHISE (`bg-background` = icy navy-pală), iar câmpurile
+                devin ALBE (`bg-card`) — override scoped pe input/select din card (`[&_input]`/`[&_select]`),
+                fără a atinge `admission-kit` (partajat). Ritm: navy (form) → light (citat) → footer. */}
             <Band variant="navy" pattern="mesh">
-                <div className="mx-auto max-w-2xl rounded-[16px] border keyline bg-card p-6 sm:p-8">
+                <div className="mx-auto max-w-2xl rounded-[16px] border keyline bg-background p-6 sm:p-8 [&_input]:bg-card [&_select]:bg-card">
                     {wasSuccessful ? (
                         <div
                             ref={successRef}
@@ -324,6 +325,30 @@ export default function Inregistrare() {
                         </>
                     )}
                 </div>
+            </Band>
+
+            {/* Bandă DESCHISĂ — închide pagina pe culoarea secțiunilor light (icy navy-pală, specifică
+                benzilor de după navy), cu semnătura de brand (constelație). Citat despre înscriere ca
+                prim pas al drumului comun. Ritm: navy (formular) → light (citat) → footer. */}
+            <Band variant="light" pattern="signature">
+                <Reveal className="mx-auto max-w-3xl text-center">
+                    <span className="display block text-[clamp(3.5rem,8vw,5.5rem)] leading-[0.55] text-brand-green/30" aria-hidden="true">
+                        „
+                    </span>
+                    <blockquote className="mt-1">
+                        <p className="display text-balance text-[clamp(1.5rem,3.4vw,2.375rem)] leading-snug text-brand-navy">
+                            {t(
+                                'admission.quote_text',
+                                'Înscrierea este primul pas al unui drum pe care îl parcurgem împreună — familia, copilul și școala — spre încrederea și reușita de mâine.',
+                            )}
+                        </p>
+                    </blockquote>
+                    <div className="mt-9 flex flex-col items-center gap-2.5">
+                        <FourStar className="size-3 text-brand-green" />
+                        <span className="display text-lg text-brand-navy">{t('admission.quote_name', 'Liceul Columna')}</span>
+                        <span className="eyebrow text-brand-gray">{t('admission.quote_role', 'Succesul copilului începe aici.')}</span>
+                    </div>
+                </Reveal>
             </Band>
         </>
     );
