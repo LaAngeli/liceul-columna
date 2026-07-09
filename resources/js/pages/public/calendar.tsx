@@ -135,8 +135,9 @@ return [];
 
             <PageBanner title={title} breadcrumbs={breadcrumbs} description={t('calendar.intro', description)} />
 
-            {/* Statistici + selectorul de tip */}
-            <Band pattern="mesh" className="!py-[clamp(2rem,4vw,3.5rem)]">
+            {/* Bandă NAVY — statistici + selectorul de tip; chip-urile inactive semi-transparente,
+                cel activ verde (pop coeziv pe navy). */}
+            <Band variant="navy" pattern="mesh" className="!py-[clamp(2rem,4vw,3.5rem)]">
                 <StatRibbon items={stats} />
 
                 <div className="mt-8 flex flex-wrap gap-2">
@@ -151,19 +152,21 @@ return [];
                                 onClick={() => selectType(ty.key)}
                                 className={cn(
                                     'inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors',
-                                    isActive ? 'border-brand-navy bg-surface-navy text-[color:var(--brand-navy-foreground)]' : 'keyline bg-card text-brand-navy hover:border-brand-navy',
+                                    isActive
+                                        ? 'border-brand-green bg-brand-green text-[color:var(--brand-green-foreground)]'
+                                        : 'border-white/20 bg-white/[0.06] text-[color:var(--brand-navy-foreground)] hover:border-white/40 hover:bg-white/10',
                                     empty && !isActive && 'opacity-55',
                                 )}
                             >
                                 {typeLabel(ty)}
-                                <span className={cn('numeral text-xs', isActive ? 'text-white/70' : 'text-brand-gray')}>{ty.count}</span>
+                                <span className={cn('numeral text-xs', isActive ? 'text-[color:var(--brand-green-foreground)]/80' : 'text-white/60')}>{ty.count}</span>
                             </button>
                         );
                     })}
                 </div>
             </Band>
 
-            <Band variant="light" className="!pt-0">
+            <Band variant="light" pattern="mesh">
                 {active && (
                     <Reveal>
                         <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b keyline pb-5">

@@ -141,21 +141,24 @@ export default function Galerie({ title, description, breadcrumbs = [], albums, 
 
             <PageBanner title={title} breadcrumbs={breadcrumbs} description={t('gallery.lead', description)} />
 
-            <Band className="!py-[clamp(2.5rem,5vw,4rem)]">
-                {albums.length === 0 ? (
+            {albums.length === 0 ? (
+                <Band variant="light" pattern="mesh" className="!py-[clamp(2.5rem,5vw,4rem)]">
                     <div className="flex flex-col items-center gap-3 rounded-[14px] border border-dashed keyline bg-card px-6 py-16 text-center">
                         <Images className="size-9 text-brand-navy/30" />
                         <p className="max-w-sm text-brand-gray">{t('gallery.empty', 'Galeria va fi completată în curând.')}</p>
                     </div>
-                ) : (
-                    <>
+                </Band>
+            ) : (
+                <>
+                    {/* Bandă NAVY — antet + filtrele de album; chip-urile inactive sunt semi-transparente
+                        pe navy (bg-white/[0.06] + border-white/20), cel activ verde. */}
+                    <Band variant="navy" pattern="mesh" className="!py-[clamp(2rem,4vw,3.5rem)]">
                         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
-                            <SectionHeader index="01" label={`${view.length} ${t('gallery.photos', 'fotografii')}`} title={active === 'all' ? t('gallery.all', 'Toate') : chips.find((c) => c.key === active)?.label} />
+                            <SectionHeader variant="navy" index="01" label={`${view.length} ${t('gallery.photos', 'fotografii')}`} title={active === 'all' ? t('gallery.all', 'Toate') : chips.find((c) => c.key === active)?.label} />
                         </div>
 
-                        {/* Filtre de album */}
                         {albums.length > 1 && (
-                            <div className="mb-7 flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 {chips.map((c) => {
                                     const isActive = c.key === active;
 
@@ -166,18 +169,23 @@ export default function Galerie({ title, description, breadcrumbs = [], albums, 
                                             onClick={() => selectAlbum(c.key)}
                                             className={cn(
                                                 'inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors',
-                                                isActive ? 'border-brand-navy bg-surface-navy text-[color:var(--brand-navy-foreground)]' : 'keyline bg-card text-brand-navy hover:border-brand-navy',
+                                                isActive
+                                                    ? 'border-brand-green bg-brand-green text-[color:var(--brand-green-foreground)]'
+                                                    : 'border-white/20 bg-white/[0.06] text-[color:var(--brand-navy-foreground)] hover:border-white/40 hover:bg-white/10',
                                             )}
                                         >
                                             {c.label}
-                                            <span className={cn('numeral text-xs', isActive ? 'text-white/70' : 'text-brand-gray')}>{c.count}</span>
+                                            <span className={cn('numeral text-xs', isActive ? 'text-[color:var(--brand-green-foreground)]/80' : 'text-white/60')}>{c.count}</span>
                                         </button>
                                     );
                                 })}
                             </div>
                         )}
+                    </Band>
 
-                        {/* Grila foto */}
+                    {/* Bandă DESCHISĂ — grila foto (editorial pe fundal light, imagini își găsesc
+                        greutatea naturală). */}
+                    <Band variant="light" pattern="mesh" className="!py-[clamp(2.5rem,5vw,4rem)]">
                         <Reveal className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                             {view.map((e, i) => (
                                 <button
@@ -194,9 +202,9 @@ export default function Galerie({ title, description, breadcrumbs = [], albums, 
                                 </button>
                             ))}
                         </Reveal>
-                    </>
-                )}
-            </Band>
+                    </Band>
+                </>
+            )}
 
             {lightbox !== null && view[lightbox] && (
                 <Lightbox

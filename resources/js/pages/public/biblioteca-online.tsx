@@ -309,8 +309,9 @@ return [{ key: 'all', label: '', items: browseEntries }];
 
             <PageBanner title={title} breadcrumbs={breadcrumbs} description={t('biblioteca.lead', description)} />
 
-            {/* Statistici + bară de unelte */}
-            <Band pattern="mesh" className="!py-[clamp(2rem,4vw,3.5rem)]">
+            {/* Bandă NAVY — statistici + căutare + chip-uri; căutarea rămâne `bg-card` (input alb
+                pentru claritatea tastării), chip-urile adaptate pentru fundal navy. */}
+            <Band variant="navy" pattern="mesh" className="!py-[clamp(2rem,4vw,3.5rem)]">
                 <StatRibbon items={stats} />
 
                 {/* Căutare */}
@@ -350,12 +351,12 @@ return [{ key: 'all', label: '', items: browseEntries }];
                                     className={cn(
                                         'inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors',
                                         active
-                                            ? 'border-brand-navy bg-surface-navy text-[color:var(--brand-navy-foreground)]'
-                                            : 'keyline bg-card text-brand-navy hover:border-brand-navy',
+                                            ? 'border-brand-green bg-brand-green text-[color:var(--brand-green-foreground)]'
+                                            : 'border-white/20 bg-white/[0.06] text-[color:var(--brand-navy-foreground)] hover:border-white/40 hover:bg-white/10',
                                     )}
                                 >
                                     {catLabel(c.key)}
-                                    <span className={cn('numeral text-xs', active ? 'text-white/70' : 'text-brand-gray')}>{c.count}</span>
+                                    <span className={cn('numeral text-xs', active ? 'text-[color:var(--brand-green-foreground)]/80' : 'text-white/60')}>{c.count}</span>
                                 </button>
                             );
                         })}
@@ -363,7 +364,7 @@ return [{ key: 'all', label: '', items: browseEntries }];
                 </div>
             </Band>
 
-            <Band variant="light" className="!pt-0">
+            <Band variant="light" pattern="mesh">
                 {searching ? (
                     /* ---------------------------------------------------- rezultate căutare */
                     <Reveal>
