@@ -1,6 +1,7 @@
 import { Form } from '@inertiajs/react';
 import { ShieldCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import AuthenticatorAppGuide from '@/components/authenticator-app-guide';
 import Heading from '@/components/heading';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
@@ -84,6 +85,10 @@ export default function ManageTwoFactor(props: Props) {
                     <p className="text-sm text-muted-foreground">
                         {t('settings.twofa_off_desc', 'Când activezi autentificarea în doi pași, ți se va cere un cod PIN securizat la autentificare, obținut dintr-o aplicație TOTP de pe telefon.')}
                     </p>
+
+                    {/* Ghid pentru utilizatorii fără aplicație de autentificare instalată — apare
+                        și în cabinet, și pe pagina de configurare forțată (ambele folosesc componenta). */}
+                    <AuthenticatorAppGuide />
 
                     <div>
                         {hasSetupData ? (
