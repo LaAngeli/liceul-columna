@@ -92,6 +92,50 @@ class Message extends Model
     | pe `Builder<Model>`-ul cu care pornește Filament.
     */
 
+    /** Firele cu cel puțin un mesaj PRIMIT de utilizator (semantica „Primite" a unui client de
+     * e-mail: conversația pe care am inițiat-o eu intră în Primite abia când mi se răspunde).
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeThreadReceivedBy(Builder $query, int $userId): void
+    {
+        $query->where(function (Builder $inner) use ($userId): void {
+            $inner->where('recipient_user_id', $userId)
+                ->orWhereHas('replies', fn (Builder $reply) => $reply->where('recipient_user_id', $userId));
+        });
+    }
+
+    /** Firele cu cel puțin un mesaj TRIMIS de utilizator (semantica „Trimise": rămâne acolo și
+     * după arhivare — arhiva scoate doar din Primite).
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeThreadSentBy(Builder $query, int $userId): void
+    {
+        $query->where(function (Builder $inner) use ($userId): void {
+            $inner->where('sender_user_id', $userId)
+                ->orWhereHas('replies', fn (Builder $reply) => $reply->where('sender_user_id', $userId));
+        });
+    }
+
+    /** Firele arhivate de acest utilizator (arhiva e per-utilizator).
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeArchivedBy(Builder $query, int $userId): void
+    {
+        $query->whereHas('states', fn (Builder $inner) => $inner->where('user_id', $userId)->whereNotNull('archived_at'));
+    }
+
+    /** Firele care NU sunt în arhiva acestui utilizator.
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeNotArchivedBy(Builder $query, int $userId): void
+    {
+        $query->whereDoesntHave('states', fn (Builder $inner) => $inner->where('user_id', $userId)->whereNotNull('archived_at'));
+    }
+
     /** Firele care NU sunt în coșul acestui utilizator (coșul e per-utilizator).
      *
      * @param  Builder<Message>  $query

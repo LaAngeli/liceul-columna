@@ -790,6 +790,24 @@ return [
     // Empty states contextuale — afișate când tabelul e gol (ex. profesor nou, coadă goală, inbox gol).
     // Poșta internă a personalului (fire de conversație, foldere, stea/coș per-utilizator).
     'mailbox' => [
+        'folders_aria' => 'Folderele poștei',
+        'search_placeholder' => 'Caută în mesaje…',
+        'archive' => 'Arhivează',
+        'unarchive' => 'Mută în Primite',
+        'archived' => 'Conversația a fost arhivată.',
+        'unarchived' => 'Conversația a revenit în Primite.',
+        'mark_unread' => 'Marchează necitit',
+        'close' => 'Închide',
+        'back' => 'Înapoi la listă',
+        'cap_note' => 'Se afișează cele mai recente 50 de conversații — folosește căutarea pentru restul.',
+        'empty' => [
+            'inbox' => 'Niciun mesaj primit. Aici apar conversațiile în care ți se scrie.',
+            'starred' => 'Nicio conversație cu stea.',
+            'sent' => 'Niciun mesaj trimis încă.',
+            'archive' => 'Arhiva e goală.',
+            'trash' => 'Coșul e gol.',
+            'audience' => 'Nicio solicitare de audiență.',
+        ],
         'body' => 'Mesaj',
         'compose' => 'Mesaj nou',
         'send' => 'Expediați',
@@ -819,13 +837,12 @@ return [
         'trash_bulk' => 'Mută în coș',
         'trash_bulk_success' => 'Conversații mutate în coș: :count.',
         'folders' => [
-            'all' => 'Toate',
             'inbox' => 'Primite',
+            'starred' => 'Cu stea',
             'sent' => 'Trimise',
-            'unread' => 'Necitite',
-            'starred' => 'Preferate',
+            'archive' => 'Arhivă',
+            'trash' => 'Coș',
             'audience' => 'Audiențe',
-            'trash' => 'Șterse',
         ],
     ],
     'empty' => [

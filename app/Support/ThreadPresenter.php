@@ -37,6 +37,7 @@ final class ThreadPresenter
             'with' => $mineRoot ? $root->recipient->name : $root->sender->name,
             'direction' => $mineRoot ? 'sent' : 'received',
             'starred' => $root->states->first()?->starred_at !== null,
+            'archived' => $root->states->first()?->archived_at !== null,
             'trashed' => $root->states->first()?->trashed_at !== null,
             'snippet' => $last !== null ? Str::limit((string) preg_replace('/\s+/', ' ', $last->body), 110) : '',
             'lastAt' => $last?->created_at?->format('d.m.Y H:i'),

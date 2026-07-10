@@ -9,12 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Starea per-utilizator a unui fir de mesaje (poșta cabinetului): preferat (stea) + coș.
- * Cheiată pe (mesajul-rădăcină, utilizator) — vezi migrarea. Independentă între participanți.
+ * Starea per-utilizator a unui fir de mesaje (poșta internă): preferat (stea) + arhivă + coș.
+ * Cheiată pe (mesajul-rădăcină, utilizator) — vezi migrarea. Independentă între participanți:
+ * ce arhivează/aruncă un participant nu atinge cutia celuilalt.
  *
  * @property int $message_id
  * @property int $user_id
  * @property CarbonImmutable|null $starred_at
+ * @property CarbonImmutable|null $archived_at
  * @property CarbonImmutable|null $trashed_at
  */
 class MessageState extends Model
@@ -26,6 +28,7 @@ class MessageState extends Model
         'message_id',
         'user_id',
         'starred_at',
+        'archived_at',
         'trashed_at',
     ];
 
@@ -33,6 +36,7 @@ class MessageState extends Model
     {
         return [
             'starred_at' => 'immutable_datetime',
+            'archived_at' => 'immutable_datetime',
             'trashed_at' => 'immutable_datetime',
         ];
     }

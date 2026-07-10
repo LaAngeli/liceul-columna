@@ -37,14 +37,24 @@ class MessagesController extends Controller
         $uid = (int) $user->id;
         $mailbox = MessageMailbox::for($user);
 
-        $folder = (string) $request->query('folder', 'all');
-        if (! in_array($folder, MessageMailbox::CABINET_FOLDERS, true)) {
-            $folder = 'all';
+        $folder = (string) $request->query('folder', 'inbox');
+        if (! in_array($folder, MessageMailbox::FOLDERS, true)) {
+            $folder = 'inbox';
         }
 
         $presenter = app(ThreadPresenter::class);
 
+        // Căutare server-side (subiect + corp + numele corespondentului), imbricată ca OR-ul să nu
+        // evadeze din scoping-ul pe participant.
+        $search = trim((string) $request->query('q', ''));
+
         $threads = $mailbox->folder($folder)
+            ->when($search !== '', fn ($query) => $query->where(function ($inner) use ($search): void {
+                $inner->where('subject', 'like', "%{$search}%")
+                    ->orWhere('body', 'like', "%{$search}%")
+                    ->orWhereHas('sender', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('recipient', fn ($q) => $q->where('name', 'like', "%{$search}%"));
+            }))
             ->with([
                 'sender', 'recipient', 'student', 'attachments',
                 'states' => fn ($q) => $q->where('user_id', $uid),
@@ -58,8 +68,9 @@ class MessagesController extends Controller
 
         return Inertia::render('cabinet/messages', [
             'folder' => $folder,
+            'q' => $search,
             'threads' => $threads,
-            'counts' => $mailbox->counts(MessageMailbox::CABINET_FOLDERS),
+            'counts' => $mailbox->counts(MessageMailbox::FOLDERS),
             'compose' => $this->composeContext($user),
         ]);
     }
@@ -153,12 +164,26 @@ class MessagesController extends Controller
         return back();
     }
 
+    /** Marchează firul NECITIT (mesajele primite de mine din el). */
+    public function markUnread(Request $request, Message $message): RedirectResponse
+    {
+        MessageMailbox::for($request->user('web'))->markThreadUnread($message);
+
+        return back();
+    }
+
     /** Comută marcajul „preferat" pe firul din care face parte mesajul. */
     public function toggleStar(Request $request, Message $message): RedirectResponse
     {
-        $state = MessageMailbox::for($request->user('web'))->stateForThread($message);
-        $state->starred_at = $state->starred_at === null ? now() : null;
-        $state->save();
+        MessageMailbox::for($request->user('web'))->toggleStar($message);
+
+        return back();
+    }
+
+    /** Arhivează / dezarhivează firul (iese/revine în Primite; nimic nu se pierde). */
+    public function toggleArchive(Request $request, Message $message): RedirectResponse
+    {
+        MessageMailbox::for($request->user('web'))->toggleArchive($message);
 
         return back();
     }
@@ -166,9 +191,7 @@ class MessagesController extends Controller
     /** Mută firul în coșul PROPRIU (nu afectează cutia celuilalt participant). */
     public function trash(Request $request, Message $message): RedirectResponse
     {
-        $state = MessageMailbox::for($request->user('web'))->stateForThread($message);
-        $state->trashed_at = now();
-        $state->save();
+        MessageMailbox::for($request->user('web'))->trash($message);
 
         return back()->with('success', 'Conversația a fost mutată în coș.');
     }
@@ -176,9 +199,7 @@ class MessagesController extends Controller
     /** Restaurează firul din coș înapoi în folderul lui firesc. */
     public function restore(Request $request, Message $message): RedirectResponse
     {
-        $state = MessageMailbox::for($request->user('web'))->stateForThread($message);
-        $state->trashed_at = null;
-        $state->save();
+        MessageMailbox::for($request->user('web'))->restore($message);
 
         return back()->with('success', 'Conversația a fost restaurată.');
     }

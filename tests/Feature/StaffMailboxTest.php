@@ -1,11 +1,10 @@
 <?php
 
 use App\Actions\SendMessage;
+use App\Enums\AudienceDomain;
 use App\Enums\UserRole;
+use App\Filament\Pages\Mailbox;
 use App\Filament\Resources\Messages\ComposeSchema;
-use App\Filament\Resources\Messages\MessageResource;
-use App\Filament\Resources\Messages\Pages\ListMessages;
-use App\Filament\Resources\Messages\Pages\ViewThread;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\Message;
@@ -22,13 +21,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 use function Pest\Laravel\actingAs;
 
 /**
- * Poșta personalului (Filament): fire, foldere, stare per-utilizator + sincronizarea cu poșta
- * cabinetului elev/părinte (aceleași rânduri `messages`).
+ * Poșta personalului (pagina Mailbox, tipar Gmail): foldere, fir, compunere, stare per-utilizator
+ * + sincronizarea cu poșta cabinetului (aceleași rânduri `messages`, aceeași MessageMailbox).
  */
 beforeEach(function () {
     foreach (UserRole::cases() as $role) {
@@ -71,275 +69,282 @@ function sbxTeacherOf(SchoolClass $class): User
     return $user;
 }
 
-// ─── Scoping: fiecare vede DOAR firele la care participă ─────────────────────────────────
+// ─── Scoping: fiecare vede DOAR conversațiile la care participă ──────────────────────────
 
-it('personalul vede doar conversațiile la care participă', function () {
+it('personalul vede doar conversațiile lui; ale altora nu apar în nicio cutie', function () {
     [$student, $class] = sbxStudentInClass();
     $teacher = sbxTeacherOf($class);
     $parent = sbxParentOf($student);
+    app(SendMessage::class)->direct($parent, $teacher, 'Bună ziua.', 'Subiect-al-meu', $student);
 
-    $mine = app(SendMessage::class)->direct($parent, $teacher, 'Bună ziua.', 'Despre teme', $student);
-
-    // Fir între ALȚI doi, la care profesorul nu participă.
     [$other, $otherClass] = sbxStudentInClass();
-    $otherTeacher = sbxTeacherOf($otherClass);
-    $otherParent = sbxParentOf($other);
-    $notMine = app(SendMessage::class)->direct($otherParent, $otherTeacher, 'Salut.', 'Altceva', $other);
+    app(SendMessage::class)->direct(sbxParentOf($other), sbxTeacherOf($otherClass), 'Salut.', 'Subiect-strain', $other);
 
     actingAs($teacher);
 
-    Livewire::test(ListMessages::class)
-        ->assertCanSeeTableRecords([$mine])
-        ->assertCanNotSeeTableRecords([$notMine]);
+    Livewire::test(Mailbox::class)
+        ->set('folder', 'inbox')
+        ->assertSee('Subiect-al-meu')
+        ->assertDontSee('Subiect-strain');
 });
 
 it('directorul NU vede firele altora — nu există „administrația vede tot"', function () {
     [$student, $class] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($class);
-    $parent = sbxParentOf($student);
-    $thread = app(SendMessage::class)->direct($parent, $teacher, 'Confidențial.', 'Subiect', $student);
+    app(SendMessage::class)->direct(sbxParentOf($student), sbxTeacherOf($class), 'Confidențial.', 'Fir-privat', $student);
 
     $director = User::factory()->create(['email_verified_at' => now()]);
     $director->assignRole(UserRole::Director->value);
 
     actingAs($director);
 
-    Livewire::test(ListMessages::class)->assertCanNotSeeTableRecords([$thread]);
+    Livewire::test(Mailbox::class)->set('folder', 'inbox')->assertDontSee('Fir-privat');
 });
 
-// ─── Foldere ────────────────────────────────────────────────────────────────────────────
+// ─── Semantica folderelor (e-mail) ────────────────────────────────────────────────────────
 
-it('Primite conține firele primite, Trimise pe cele inițiate de mine', function () {
+it('firul inițiat de mine stă în Trimise și intră în Primite abia la răspuns', function () {
     [$student, $class] = sbxStudentInClass();
     $teacher = sbxTeacherOf($class);
     $parent = sbxParentOf($student);
 
-    $received = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'De la părinte', $student);
-    $sent = app(SendMessage::class)->direct($teacher, $parent, 'Informare.', 'De la profesor', $student);
+    $root = app(SendMessage::class)->direct($teacher, $parent, 'Informare.', 'Fir-initiat', $student);
 
     actingAs($teacher);
 
-    Livewire::test(ListMessages::class)
-        ->set('activeTab', 'inbox')
-        ->assertCanSeeTableRecords([$received])
-        ->assertCanNotSeeTableRecords([$sent]);
+    Livewire::test(Mailbox::class)->set('folder', 'sent')->assertSee('Fir-initiat');
+    Livewire::test(Mailbox::class)->set('folder', 'inbox')->assertDontSee('Fir-initiat');
 
-    Livewire::test(ListMessages::class)
-        ->set('activeTab', 'sent')
-        ->assertCanSeeTableRecords([$sent])
-        ->assertCanNotSeeTableRecords([$received]);
+    app(SendMessage::class)->reply($parent, $root, 'Vă mulțumesc.');
 
-    Livewire::test(ListMessages::class)
-        ->set('activeTab', 'all')
-        ->assertCanSeeTableRecords([$received, $sent]);
+    Livewire::test(Mailbox::class)->set('folder', 'inbox')->assertSee('Fir-initiat');
 });
 
-it('coșul e per-utilizator: firul dispare din cutia mea, rămâne în a celuilalt', function () {
+it('arhivarea scoate firul din Primite, îl ține în Arhivă și Trimise, fără să atingă cutia celuilalt', function () {
     [$student, $class] = sbxStudentInClass();
     $teacher = sbxTeacherOf($class);
     $parent = sbxParentOf($student);
-    $thread = app(SendMessage::class)->direct($parent, $teacher, 'Text.', 'Subiect', $student);
 
-    MessageState::create(['message_id' => $thread->id, 'user_id' => $teacher->id, 'trashed_at' => now()]);
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Fir-arhivabil', $student);
+    app(SendMessage::class)->reply($teacher, $root, 'Răspund.');
 
     actingAs($teacher);
-    Livewire::test(ListMessages::class)
-        ->set('activeTab', 'all')
-        ->assertCanNotSeeTableRecords([$thread]);
 
-    Livewire::test(ListMessages::class)
-        ->set('activeTab', 'trash')
-        ->assertCanSeeTableRecords([$thread]);
+    Livewire::test(Mailbox::class)->call('toggleArchive', $root->id);
 
-    // Cutia părintelui (cabinet) nu e afectată — firul e tot acolo.
-    expect(Message::query()->whereKey($thread->id)->notTrashedBy($parent->id)->exists())->toBeTrue();
+    Livewire::test(Mailbox::class)->set('folder', 'inbox')->assertDontSee('Fir-arhivabil');
+    Livewire::test(Mailbox::class)->set('folder', 'archive')->assertSee('Fir-arhivabil');
+    Livewire::test(Mailbox::class)->set('folder', 'sent')->assertSee('Fir-arhivabil');
+
+    // Cutia părintelui nu e atinsă (a primit răspunsul → firul îi stă în Primite).
+    expect(MessageMailbox::for($parent)->folder('inbox')->pluck('id')->all())->toContain($root->id);
 });
 
-it('preferatele sunt un overlay per-utilizator', function () {
+it('coșul e per-utilizator, iar restaurarea readuce firul', function () {
     [$student, $class] = sbxStudentInClass();
     $teacher = sbxTeacherOf($class);
     $parent = sbxParentOf($student);
-    $thread = app(SendMessage::class)->direct($parent, $teacher, 'Text.', 'Subiect', $student);
-
-    MessageState::create(['message_id' => $thread->id, 'user_id' => $teacher->id, 'starred_at' => now()]);
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Text.', 'Fir-la-cos', $student);
 
     actingAs($teacher);
-    Livewire::test(ListMessages::class)
-        ->set('activeTab', 'starred')
-        ->assertCanSeeTableRecords([$thread]);
+
+    Livewire::test(Mailbox::class)->call('moveToTrash', $root->id);
+    Livewire::test(Mailbox::class)->set('folder', 'inbox')->assertDontSee('Fir-la-cos');
+    Livewire::test(Mailbox::class)->set('folder', 'trash')->assertSee('Fir-la-cos');
+
+    // Cutia părintelui rămâne neatinsă.
+    expect(Message::query()->whereKey($root->id)->notTrashedBy($parent->id)->exists())->toBeTrue();
+
+    Livewire::test(Mailbox::class)->call('restoreThread', $root->id);
+    Livewire::test(Mailbox::class)->set('folder', 'inbox')->assertSee('Fir-la-cos');
+});
+
+it('steaua e per-utilizator și umple folderul Cu stea', function () {
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $parent = sbxParentOf($student);
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Text.', 'Fir-cu-stea', $student);
+
+    actingAs($teacher);
+
+    Livewire::test(Mailbox::class)->call('toggleStar', $root->id);
+    Livewire::test(Mailbox::class)->set('folder', 'starred')->assertSee('Fir-cu-stea');
 
     // Steaua profesorului nu apare la părinte.
-    expect(MessageState::query()->where('message_id', $thread->id)->where('user_id', $parent->id)->exists())->toBeFalse();
+    expect(MessageState::query()->where('message_id', $root->id)->where('user_id', $parent->id)->exists())->toBeFalse();
+
+    Livewire::test(Mailbox::class)->call('toggleStar', $root->id);
+    Livewire::test(Mailbox::class)->set('folder', 'starred')->assertDontSee('Fir-cu-stea');
 });
 
-// ─── Pagina de conversație: IDOR + citire ───────────────────────────────────────────────
+// ─── Conversația: acces + citire ─────────────────────────────────────────────────────────
 
-it('pagina conversației e interzisă (403) unui neparticipant', function () {
+it('deschiderea unui fir străin e interzisă (403), inclusiv prin deep-link', function () {
     [$student, $class] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($class);
-    $parent = sbxParentOf($student);
-    $thread = app(SendMessage::class)->direct($parent, $teacher, 'Confidențial.', 'Subiect', $student);
+    $root = app(SendMessage::class)->direct(sbxParentOf($student), sbxTeacherOf($class), 'Confidențial.', 'Nu-al-tau', $student);
 
     [, $otherClass] = sbxStudentInClass();
     $stranger = sbxTeacherOf($otherClass);
 
+    actingAs($stranger);
+
+    // Abort-ul din acțiune trece prin kernel (nu se propagă ca excepție în harness) —
+    // dovada blocării = EFECTELE: firul nu se deschide și nu e marcat citit.
+    Livewire::test(Mailbox::class)
+        ->call('openThread', $root->id)
+        ->assertSet('thread', null);
+    expect($root->refresh()->read_at)->toBeNull();
+
+    // Deep-link (?fir=id) — mount() autorizează înainte de a randa orice.
     actingAs($stranger)
-        ->get(MessageResource::getUrl('thread', ['record' => $thread]))
+        ->get(Mailbox::getUrl(['fir' => $root->id]))
         ->assertForbidden();
 });
 
-it('deschiderea conversației marchează citite doar mesajele PRIMITE de mine', function () {
+it('deschiderea firului îl marchează citit doar pentru mine; „necitit" îl readuce necitit', function () {
     [$student, $class] = sbxStudentInClass();
     $teacher = sbxTeacherOf($class);
     $parent = sbxParentOf($student);
 
-    $fromParent = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Subiect', $student);
-    $fromTeacher = app(SendMessage::class)->reply($teacher, $fromParent, 'Răspuns.');
-
-    actingAs($teacher)
-        ->get(MessageResource::getUrl('thread', ['record' => $fromParent]))
-        ->assertOk();
-
-    // Mesajul primit de profesor e citit; cel trimis DE el rămâne necitit (îl citește părintele).
-    expect($fromParent->refresh()->read_at)->not->toBeNull()
-        ->and($fromTeacher->refresh()->read_at)->toBeNull();
-});
-
-it('un deep-link către un RĂSPUNS deschide tot conversația (rădăcina)', function () {
-    [$student, $class] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($class);
-    $parent = sbxParentOf($student);
-
-    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Subiect', $student);
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Fir-citire', $student);
     $reply = app(SendMessage::class)->reply($teacher, $root, 'Răspuns.');
 
-    actingAs($teacher)
-        ->get(MessageResource::getUrl('thread', ['record' => $reply]))
-        ->assertOk()
-        ->assertSee('Întrebare.');
-});
-
-// ─── Sincronizarea celor două poște ─────────────────────────────────────────────────────
-
-it('sincronizare: mesajul trimis de părinte din cabinet apare în poșta staff a profesorului', function () {
-    [$student, $class] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($class);
-    $parent = sbxParentOf($student);
-
-    // Părintele scrie prin ruta cabinetului (fluxul real, nu direct din Action).
-    actingAs($parent)->post(route('cabinet.messages.send'), [
-        'type' => 'direct',
-        'student_id' => $student->id,
-        'recipient_user_id' => $teacher->id,
-        'subject' => 'Din cabinet',
-        'body' => 'Bună ziua, am o întrebare.',
-    ])->assertRedirect();
-
-    $thread = Message::query()->where('subject', 'Din cabinet')->firstOrFail();
-
     actingAs($teacher);
-    Livewire::test(ListMessages::class)
-        ->set('activeTab', 'inbox')
-        ->assertCanSeeTableRecords([$thread]);
+
+    Livewire::test(Mailbox::class)->call('openThread', $root->id)->assertSee('Întrebare.');
+
+    // Primit de profesor → citit; trimis DE el → neatins (îl citește părintele).
+    expect($root->refresh()->read_at)->not->toBeNull()
+        ->and($reply->refresh()->read_at)->toBeNull();
+
+    Livewire::test(Mailbox::class)->call('markUnread', $root->id);
+    expect($root->refresh()->read_at)->toBeNull();
 });
 
-it('sincronizare: răspunsul profesorului din panou ajunge în firul părintelui, cu aceiași doi participanți', function () {
+it('un deep-link către un RĂSPUNS deschide conversația întreagă (rădăcina)', function () {
     [$student, $class] = sbxStudentInClass();
     $teacher = sbxTeacherOf($class);
     $parent = sbxParentOf($student);
 
-    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Subiect', $student);
-    $reply = app(SendMessage::class)->reply($teacher, $root, 'Vă răspund.');
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Prima întrebare.', 'Fir-deep', $student);
+    $reply = app(SendMessage::class)->reply($teacher, $root, 'Primul răspuns.');
 
-    expect($reply->parent_id)->toBe($root->id)
-        ->and($reply->sender_user_id)->toBe($teacher->id)
-        ->and($reply->recipient_user_id)->toBe($parent->id)
-        ->and($reply->student_id)->toBe($root->student_id);
-
-    // Invariant: firul are exact doi participanți, aceiași ca rădăcina.
-    $participants = Message::query()
-        ->where(fn ($q) => $q->whereKey($root->id)->orWhere('parent_id', $root->id))
-        ->get()
-        ->flatMap(fn (Message $m) => [$m->sender_user_id, $m->recipient_user_id])
-        ->unique()
-        ->sort()
-        ->values();
-
-    expect($participants->all())->toBe(collect([$parent->id, $teacher->id])->sort()->values()->all());
+    actingAs($teacher)
+        ->get(Mailbox::getUrl(['fir' => $reply->id]))
+        ->assertOk()
+        ->assertSee('Prima întrebare.');
 });
 
-// ─── Compunere din panou (Mesaj nou) ────────────────────────────────────────────────────
+// ─── Răspuns inline + compunere ──────────────────────────────────────────────────────────
 
-it('personalul compune către familia unui elev pe care îl PREDĂ, iar mesajul ajunge la părinte', function () {
-    [$student, $class] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($class);
-    $parent = sbxParentOf($student);
-
-    $message = ComposeSchema::send($teacher, [
-        'kind' => 'parent',
-        'parent_target' => $student->id.':'.$parent->id,
-        'subject' => 'Situația la clasă',
-        'body' => 'Vă informez despre progres.',
-    ]);
-
-    expect($message->sender_user_id)->toBe($teacher->id)
-        ->and($message->recipient_user_id)->toBe($parent->id)
-        ->and($message->student_id)->toBe($student->id);
-
-    // Firul apare în poșta părintelui (cabinet) — aceleași rânduri, fără sincronizare separată.
-    expect(MessageMailbox::for($parent)->folder('all')->pluck('id')->all())->toContain($message->id);
-});
-
-it('personalul NU poate compune către familia unui elev pe care nu îl predă (403)', function () {
-    [$mine, $myClass] = sbxStudentInClass();
-    [$other] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($myClass);
-    $otherParent = sbxParentOf($other);
-    sbxParentOf($mine);
-
-    expect(fn () => ComposeSchema::send($teacher, [
-        'kind' => 'parent',
-        'parent_target' => $other->id.':'.$otherParent->id,
-        'subject' => 'Nepermis',
-        'body' => 'Text.',
-    ]))->toThrow(HttpException::class);
-});
-
-it('personalul compune către un coleg, fără ancoră pe elev', function () {
-    [, $class] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($class);
-    $colleague = sbxTeacherOf($class);
-
-    $message = ComposeSchema::send($teacher, [
-        'kind' => 'colleague',
-        'recipient_user_id' => $colleague->id,
-        'subject' => 'Organizatoric',
-        'body' => 'Ședință la 15:00.',
-    ]);
-
-    expect($message->recipient_user_id)->toBe($colleague->id)
-        ->and($message->student_id)->toBeNull();
-});
-
-it('atașamentul din panou ajunge pe discul privat', function () {
+it('răspunsul inline pleacă spre celălalt participant, iar compozitorul se golește complet', function () {
     Storage::fake('local');
     [$student, $class] = sbxStudentInClass();
     $teacher = sbxTeacherOf($class);
     $parent = sbxParentOf($student);
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Fir-reply', $student);
 
-    $message = ComposeSchema::send($teacher, [
-        'kind' => 'parent',
-        'parent_target' => $student->id.':'.$parent->id,
-        'subject' => 'Cu atașament',
-        'body' => 'Vedeți fișierul.',
-        'files' => [UploadedFile::fake()->create('nota.pdf', 40, 'application/pdf')],
-    ]);
+    actingAs($teacher);
 
-    expect($message->attachments()->count())->toBe(1);
-    Storage::disk('local')->assertExists($message->attachments()->first()->path);
+    $page = Livewire::test(Mailbox::class)
+        ->call('openThread', $root->id)
+        ->assertSet('replyKey', 1) // deschiderea resetează compozitorul
+        ->set('reply.body', 'Vă răspund cu document.')
+        ->set('reply.files', [UploadedFile::fake()->create('nota.pdf', 30, 'application/pdf')])
+        ->call('sendReply');
+
+    $reply = Message::query()->where('parent_id', $root->id)->firstOrFail();
+    expect($reply->recipient_user_id)->toBe($parent->id)
+        ->and($reply->attachments()->count())->toBe(1);
+
+    $page->assertSet('reply.body', null)
+        ->assertSet('reply.files', [])
+        ->assertSet('replyKey', 2);
 });
 
-it('panoul respinge tipurile interzise (svg) — aceeași listă albă ca la cabinet', function () {
+it('răspunsul cu corp gol e respins', function () {
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $parent = sbxParentOf($student);
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Fir-gol', $student);
+
+    actingAs($teacher);
+
+    Livewire::test(Mailbox::class)
+        ->call('openThread', $root->id)
+        ->set('reply.body', '')
+        ->call('sendReply')
+        ->assertHasErrors(['reply.body']);
+
+    expect(Message::query()->where('parent_id', $root->id)->exists())->toBeFalse();
+});
+
+it('compunerea către un părinte (elev predat) pleacă și apare în cutia lui de cabinet', function () {
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $parent = sbxParentOf($student);
+
+    actingAs($teacher);
+
+    Livewire::test(Mailbox::class)
+        ->call('openCompose')
+        ->set('compose.kind', 'parent')
+        ->set('compose.parent_target', $student->id.':'.$parent->id)
+        ->set('compose.subject', 'Compus-din-posta')
+        ->set('compose.body', 'Vă informez.')
+        ->call('sendCompose')
+        ->assertSet('composeOpen', false);
+
+    $message = Message::query()->where('subject', 'Compus-din-posta')->firstOrFail();
+    expect($message->recipient_user_id)->toBe($parent->id)
+        ->and($message->student_id)->toBe($student->id);
+
+    // Sincronizare: firul apare în Trimise la profesor și în Primite la părinte (cabinet).
+    expect(MessageMailbox::for($teacher)->folder('sent')->pluck('id')->all())->toContain($message->id)
+        ->and(MessageMailbox::for($parent)->folder('inbox')->pluck('id')->all())->toContain($message->id);
+});
+
+it('compunerea către familia unui elev NEPREDAT e respinsă cu 403 (poarta serverului)', function () {
+    [$mine, $myClass] = sbxStudentInClass();
+    [$other] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($myClass);
+    $strangerParent = sbxParentOf($other);
+    sbxParentOf($mine);
+
+    actingAs($teacher);
+
+    // Poarta canSendDirect() răspunde 403 prin kernel; dovada blocării = mesajul NU există
+    // și compunerea a rămas deschisă (nu s-a „expediat").
+    Livewire::test(Mailbox::class)
+        ->call('openCompose')
+        ->set('compose.kind', 'parent')
+        ->set('compose.parent_target', $other->id.':'.$strangerParent->id)
+        ->set('compose.subject', 'Nepermis')
+        ->set('compose.body', 'Text.')
+        ->call('sendCompose')
+        ->assertSet('composeOpen', true);
+
+    expect(Message::query()->where('subject', 'Nepermis')->exists())->toBeFalse();
+});
+
+it('un atașament neterminat de încărcat blochează expedierea (nu dispare tăcut)', function () {
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $parent = sbxParentOf($student);
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Fir-upload', $student);
+
+    actingAs($teacher);
+
+    Livewire::test(Mailbox::class)
+        ->call('openThread', $root->id)
+        ->set('reply.body', 'Cu fișier în curs.')
+        ->set('reply.files', ['livewire-file:tmp-neterminat.pdf'])
+        ->call('sendReply')
+        ->assertHasErrors(['reply.files']);
+
+    expect(Message::query()->where('parent_id', $root->id)->exists())->toBeFalse();
+});
+
+it('tipurile interzise (svg) sunt respinse din compunere — aceeași listă albă ca la cabinet', function () {
     Storage::fake('local');
     [$student, $class] = sbxStudentInClass();
     $teacher = sbxTeacherOf($class);
@@ -353,144 +358,63 @@ it('panoul respinge tipurile interzise (svg) — aceeași listă albă ca la cab
         'files' => [UploadedFile::fake()->create('x.svg', 5, 'image/svg+xml')],
     ]))->toThrow(ValidationException::class);
 
-    // Validarea rulează ÎNAINTE de creare: nu rămâne un mesaj expediat fără fișier.
     expect(Message::query()->where('subject', 'XSS')->exists())->toBeFalse();
 });
 
-it('compunere către administrație: profesorul scrie directorului, fără ancoră pe elev', function () {
-    [, $class] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($class);
-    $director = User::factory()->create(['email_verified_at' => now()]);
-    $director->assignRole(UserRole::Director->value);
+// ─── Sincronizarea celor două cutii ──────────────────────────────────────────────────────
 
-    $message = ComposeSchema::send($teacher, [
-        'kind' => 'administration',
-        'recipient_user_id' => $director->id,
-        'subject' => 'Raport săptămânal',
-        'body' => 'Vă transmit situația.',
-    ]);
-
-    expect($message->recipient_user_id)->toBe($director->id)
-        ->and($message->student_id)->toBeNull();
-});
-
-it('compunere către un elev: mesajul merge pe contul elevului, ancorat pe elev', function () {
-    [$student, $class] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($class);
-    $studentUser = User::factory()->create(['email_verified_at' => now()]);
-    $studentUser->assignRole(UserRole::Elev->value);
-    $student->update(['user_id' => $studentUser->id]);
-
-    $message = ComposeSchema::send($teacher, [
-        'kind' => 'student',
-        'student_target' => $student->id.':'.$studentUser->id,
-        'subject' => 'Tema restantă',
-        'body' => 'Te rog să predai tema.',
-    ]);
-
-    expect($message->recipient_user_id)->toBe($studentUser->id)
-        ->and($message->student_id)->toBe($student->id);
-});
-
-it('ancora falsificată (destinatar care NU e familia elevului) e respinsă cu 403', function () {
-    [$mine, $myClass] = sbxStudentInClass();
-    [$other] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($myClass);
-    $strangerParent = sbxParentOf($other); // tutore al ALTUI elev
-
-    expect(fn () => ComposeSchema::send($teacher, [
-        'kind' => 'parent',
-        'parent_target' => $mine->id.':'.$strangerParent->id,
-        'subject' => 'Falsificat',
-        'body' => 'Text.',
-    ]))->toThrow(HttpException::class);
-
-    expect(Message::query()->where('subject', 'Falsificat')->exists())->toBeFalse();
-});
-
-it('un atașament neterminat de încărcat blochează expedierea în loc să dispară tăcut', function () {
+it('mesajul trimis de părinte din cabinet apare în Primite la profesor, cu aceiași doi participanți pe fir', function () {
     [$student, $class] = sbxStudentInClass();
     $teacher = sbxTeacherOf($class);
     $parent = sbxParentOf($student);
 
-    expect(fn () => ComposeSchema::send($teacher, [
-        'kind' => 'parent',
-        'parent_target' => $student->id.':'.$parent->id,
-        'subject' => 'Cu fișier în curs',
-        'body' => 'Text.',
-        // Exact ce conține starea Livewire cât timp un upload NU s-a terminat.
-        'files' => ['livewire-file:tmp-neterminat.pdf'],
-    ]))->toThrow(ValidationException::class);
+    actingAs($parent)->post(route('cabinet.messages.send'), [
+        'type' => 'direct',
+        'student_id' => $student->id,
+        'recipient_user_id' => $teacher->id,
+        'subject' => 'Din-cabinet',
+        'body' => 'Bună ziua, o întrebare.',
+    ])->assertRedirect();
 
-    expect(Message::query()->where('subject', 'Cu fișier în curs')->exists())->toBeFalse();
-});
-
-// ─── Răspuns INLINE, pe aceeași pagină (nu într-o modală) ───────────────────────────────
-
-it('răspunsul se compune inline pe pagina firului și ajunge la celălalt participant', function () {
-    [$student, $class] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($class);
-    $parent = sbxParentOf($student);
-
-    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Subiect', $student);
+    $root = Message::query()->where('subject', 'Din-cabinet')->firstOrFail();
 
     actingAs($teacher);
+    Livewire::test(Mailbox::class)->set('folder', 'inbox')->assertSee('Din-cabinet');
 
-    Livewire::test(ViewThread::class, ['record' => $root->id])
-        ->assertOk()
-        // Formularul de răspuns e pe pagină, nu ascuns într-o acțiune modală.
-        ->assertFormExists()
-        ->fillForm(['body' => 'Vă răspund imediat.'])
-        ->call('sendReply')
-        ->assertHasNoFormErrors();
+    // Răspunsul profesorului din poștă ajunge înapoi la părinte, pe ACELAȘI fir.
+    Livewire::test(Mailbox::class)
+        ->call('openThread', $root->id)
+        ->set('reply.body', 'Răspunsul meu.')
+        ->call('sendReply');
 
     $reply = Message::query()->where('parent_id', $root->id)->firstOrFail();
-    expect($reply->body)->toBe('Vă răspund imediat.')
-        ->and($reply->sender_user_id)->toBe($teacher->id)
-        ->and($reply->recipient_user_id)->toBe($parent->id);
+    expect($reply->recipient_user_id)->toBe($parent->id)
+        ->and($reply->student_id)->toBe($root->student_id);
+
+    $participants = Message::query()
+        ->where(fn ($q) => $q->whereKey($root->id)->orWhere('parent_id', $root->id))
+        ->get()
+        ->flatMap(fn (Message $m) => [$m->sender_user_id, $m->recipient_user_id])
+        ->unique()->sort()->values()->all();
+
+    expect($participants)->toBe(collect([$parent->id, $teacher->id])->sort()->values()->all());
 });
 
-it('răspunsul inline validează corpul gol', function () {
+it('folderul Audiențe apare doar când există audiențe și le listează', function () {
     [$student, $class] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($class);
+    sbxTeacherOf($class);
     $parent = sbxParentOf($student);
-    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Subiect', $student);
 
-    actingAs($teacher);
+    $vice = User::factory()->create(['email_verified_at' => now()]);
+    $vice->assignRole(UserRole::PrimVicedirector->value);
 
-    Livewire::test(ViewThread::class, ['record' => $root->id])
-        ->fillForm(['body' => ''])
-        ->call('sendReply')
-        ->assertHasFormErrors(['body' => 'required']);
+    actingAs($vice);
+    Livewire::test(Mailbox::class)->assertDontSee(__('panel.mailbox.folders.audience'));
 
-    expect(Message::query()->where('parent_id', $root->id)->exists())->toBeFalse();
-});
+    app(SendMessage::class)->audience($parent, $student, 'Solicitare-audienta', 'Aș dori o discuție.', AudienceDomain::Educatie);
 
-it('după expediere compozitorul se golește complet: corp, fișiere ȘI previzualizarea FilePond', function () {
-    Storage::fake('local');
-    [$student, $class] = sbxStudentInClass();
-    $teacher = sbxTeacherOf($class);
-    $parent = sbxParentOf($student);
-    $root = app(SendMessage::class)->direct($parent, $teacher, 'Întrebare.', 'Subiect', $student);
-
-    actingAs($teacher);
-
-    $page = Livewire::test(ViewThread::class, ['record' => $root->id])
-        ->assertSet('composerKey', 0)
-        ->fillForm([
-            'body' => 'Vă trimit documentul.',
-            'files' => [UploadedFile::fake()->create('nota.pdf', 30, 'application/pdf')],
-        ])
-        ->call('sendReply')
-        ->assertHasNoFormErrors();
-
-    // Atașamentul a plecat cu mesajul...
-    $reply = Message::query()->where('parent_id', $root->id)->firstOrFail();
-    expect($reply->attachments()->count())->toBe(1);
-
-    // ...iar compozitorul e curat: starea golită + cheia incrementată (recreează FilePond, care
-    // are wire:ignore și altfel ar rămâne cu previzualizarea pe ecran).
-    $page->assertSet('data.body', null)
-        ->assertSet('data.files', [])
-        ->assertSet('composerKey', 1);
+    Livewire::test(Mailbox::class)
+        ->set('folder', 'audience')
+        ->assertSee(__('panel.mailbox.folders.audience'))
+        ->assertSee('Solicitare-audienta');
 });

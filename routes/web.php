@@ -183,7 +183,9 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     Route::post('cabinet/mesaje', [MessagesController::class, 'send'])->name('cabinet.messages.send');
     Route::post('cabinet/mesaje/{message}/raspunde', [MessagesController::class, 'reply'])->name('cabinet.messages.reply');
     Route::post('cabinet/mesaje/{message}/citit', [MessagesController::class, 'markRead'])->name('cabinet.messages.read');
+    Route::post('cabinet/mesaje/{message}/necitit', [MessagesController::class, 'markUnread'])->name('cabinet.messages.unread');
     Route::post('cabinet/mesaje/{message}/stea', [MessagesController::class, 'toggleStar'])->name('cabinet.messages.star');
+    Route::post('cabinet/mesaje/{message}/arhiva', [MessagesController::class, 'toggleArchive'])->name('cabinet.messages.archive');
     Route::post('cabinet/mesaje/{message}/cos', [MessagesController::class, 'trash'])->name('cabinet.messages.trash');
     Route::post('cabinet/mesaje/{message}/restaurare', [MessagesController::class, 'restore'])->name('cabinet.messages.restore');
     // Descărcare atașament — autorizată la participanții firului (PII de minori), în controller.

@@ -776,6 +776,24 @@ return [
 
     // Internal staff mailbox (threads, folders, per-user star/trash).
     'mailbox' => [
+        'folders_aria' => 'Mail folders',
+        'search_placeholder' => 'Search mail…',
+        'archive' => 'Archive',
+        'unarchive' => 'Move to inbox',
+        'archived' => 'Conversation archived.',
+        'unarchived' => 'Conversation moved back to inbox.',
+        'mark_unread' => 'Mark as unread',
+        'close' => 'Close',
+        'back' => 'Back to list',
+        'cap_note' => 'Showing the latest 50 conversations — use search for the rest.',
+        'empty' => [
+            'inbox' => 'No received messages yet. Conversations addressed to you appear here.',
+            'starred' => 'No starred conversations.',
+            'sent' => 'Nothing sent yet.',
+            'archive' => 'The archive is empty.',
+            'trash' => 'The trash is empty.',
+            'audience' => 'No audience requests.',
+        ],
         'body' => 'Message',
         'compose' => 'New message',
         'send' => 'Send',
@@ -805,13 +823,12 @@ return [
         'trash_bulk' => 'Move to trash',
         'trash_bulk_success' => 'Conversations moved to trash: :count.',
         'folders' => [
-            'all' => 'All',
             'inbox' => 'Inbox',
-            'sent' => 'Sent',
-            'unread' => 'Unread',
             'starred' => 'Starred',
-            'audience' => 'Audiences',
+            'sent' => 'Sent',
+            'archive' => 'Archive',
             'trash' => 'Trash',
+            'audience' => 'Audiences',
         ],
     ],
     'empty' => [

@@ -27,11 +27,19 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class MessageMailbox
 {
-    /** Setul complet — poșta personalului (Filament). */
-    public const FOLDERS = ['all', 'inbox', 'sent', 'unread', 'starred', 'audience', 'trash'];
+    /**
+     * Folderele poștei — ACELEAȘI pe ambele suprafețe (semantică de client de e-mail):
+     *  • inbox   — fire cu ≥1 mesaj PRIMIT de mine, nearhivate, neajunse la coș
+     *              (conversația inițiată de mine intră în Primite abia când mi se răspunde);
+     *  • starred — fire cu stea (rămân vizibile și dacă-s arhivate);
+     *  • sent    — fire cu ≥1 mesaj TRIMIS de mine (arhivarea NU le scoate de aici);
+     *  • archive — fire arhivate de mine (scoase din Primite, nimic pierdut);
+     *  • trash   — coșul meu (exclusiv: singurul folder care le arată).
+     */
+    public const FOLDERS = ['inbox', 'starred', 'sent', 'archive', 'trash'];
 
-    /** Subsetul comasat — poșta cabinetului (Primite/Trimise unite în „Toate"). */
-    public const CABINET_FOLDERS = ['all', 'unread', 'starred', 'trash'];
+    /** Folder suplimentar DOAR în panoul personalului: solicitările de audiență (conducerea). */
+    public const STAFF_EXTRA_FOLDERS = ['audience'];
 
     private function __construct(private readonly int $userId) {}
 
@@ -95,16 +103,13 @@ final class MessageMailbox
         $uid = $this->userId;
 
         return match ($folder) {
-            // Toate = orice conversație în care particip, care nu e în coșul meu.
-            'all' => $query->notTrashedBy($uid),
-            // Primite / Trimise — după INIȚIATORUL firului (rădăcina), nu după ultimul mesaj.
-            'inbox' => $query->notTrashedBy($uid)->where('recipient_user_id', $uid),
-            'sent' => $query->notTrashedBy($uid)->where('sender_user_id', $uid),
-            'unread' => $query->notTrashedBy($uid)->unreadFor($uid),
-            'starred' => $query->notTrashedBy($uid)->starredBy($uid),
-            'audience' => $query->notTrashedBy($uid)->where('type', MessageType::Audience->value),
+            'inbox' => $query->threadReceivedBy($uid)->notArchivedBy($uid)->notTrashedBy($uid),
+            'starred' => $query->starredBy($uid)->notTrashedBy($uid),
+            'sent' => $query->threadSentBy($uid)->notTrashedBy($uid),
+            'archive' => $query->archivedBy($uid)->notTrashedBy($uid),
             // Coșul e EXCLUSIV (singurul folder care arată firele aruncate de mine).
             'trash' => $query->trashedBy($uid),
+            'audience' => $query->where('type', MessageType::Audience->value)->notTrashedBy($uid),
             default => $query,
         };
     }
@@ -151,7 +156,24 @@ final class MessageMailbox
     }
 
     /**
-     * Starea (preferat/coș) a firului pentru utilizatorul curent — creată la nevoie.
+     * Marchează NECITITE mesajele primite de utilizator din fir („marchează ca necitit" din
+     * clientul de e-mail). Atinge doar rândurile în care el e destinatar.
+     */
+    public function markThreadUnread(Message $message): void
+    {
+        $rootId = $this->rootId($message);
+        $root = Message::query()->findOrFail($rootId);
+
+        abort_unless($this->participatesIn($root), 403, 'Nu faci parte din această conversație.');
+
+        Message::query()
+            ->where(fn (Builder $query) => $query->whereKey($rootId)->orWhere('parent_id', $rootId))
+            ->where('recipient_user_id', $this->userId)
+            ->update(['read_at' => null]);
+    }
+
+    /**
+     * Starea (preferat/arhivă/coș) a firului pentru utilizatorul curent — creată la nevoie.
      * Autorizează întâi: doar cei doi participanți la conversație pot acționa asupra ei.
      */
     public function stateForThread(Message $message): MessageState
@@ -162,6 +184,46 @@ final class MessageMailbox
         abort_unless($this->participatesIn($root), 403, 'Nu faci parte din această conversație.');
 
         return MessageState::query()->firstOrNew(['message_id' => $rootId, 'user_id' => $this->userId]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Acțiunile pe fir — UN singur loc pentru ambele suprafețe (staff + cabinet)
+    |--------------------------------------------------------------------------
+    */
+
+    /** @return bool starea nouă (true = cu stea) */
+    public function toggleStar(Message $message): bool
+    {
+        $state = $this->stateForThread($message);
+        $state->starred_at = $state->starred_at === null ? now() : null;
+        $state->save();
+
+        return $state->starred_at !== null;
+    }
+
+    /** @return bool starea nouă (true = arhivat) */
+    public function toggleArchive(Message $message): bool
+    {
+        $state = $this->stateForThread($message);
+        $state->archived_at = $state->archived_at === null ? now() : null;
+        $state->save();
+
+        return $state->archived_at !== null;
+    }
+
+    public function trash(Message $message): void
+    {
+        $state = $this->stateForThread($message);
+        $state->trashed_at = now();
+        $state->save();
+    }
+
+    public function restore(Message $message): void
+    {
+        $state = $this->stateForThread($message);
+        $state->trashed_at = null;
+        $state->save();
     }
 
     /** Participă utilizatorul la firul cu această RĂDĂCINĂ? (firul are exact doi participanți) */

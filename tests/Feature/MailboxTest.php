@@ -14,6 +14,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\User;
+use App\Support\MessageMailbox;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -56,31 +57,45 @@ function mailboxParties(): array
     return [$parent, $teacherUser, $student];
 }
 
-it('firul inițiat de mine apare în „Toate" (direcția sent) și NU în „Necitite"', function () {
+it('firul inițiat de mine stă în „Trimise" și intră în „Primite" abia când mi se răspunde (semantică de e-mail)', function () {
     [$parent, $teacher, $student] = mailboxParties();
-    app(SendMessage::class)->direct($parent, $teacher, 'Bună ziua.', 'Întrebare', $student);
+    $root = app(SendMessage::class)->direct($parent, $teacher, 'Bună ziua.', 'Întrebare', $student);
 
-    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'all']))
+    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'sent']))
         ->assertInertia(fn (Assert $page) => $page->has('threads', 1)->where('threads.0.direction', 'sent'));
 
-    // Un fir pe care l-am inițiat (fără răspuns) nu are mesaje necitite pentru mine.
-    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'unread']))
+    // Fără răspuns, conversația mea nu e „primită".
+    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'inbox']))
         ->assertInertia(fn (Assert $page) => $page->has('threads', 0));
+
+    // Profesorul răspunde → firul apare și în Primite, cu necitit.
+    app(SendMessage::class)->reply($teacher, $root, 'Vă răspund.');
+
+    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'inbox']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('threads', 1)
+            ->where('counts.inbox.unread', 1));
 });
 
-it('firul primit apare în „Toate" (direcția received) și în „Necitite"', function () {
+it('firul primit apare în „Primite" (direcția received) cu contor de necitite; marcarea „necitit" îl readuce', function () {
     [$parent, $teacher, $student] = mailboxParties();
     // Profesorul inițiază → pentru părinte firul e „primit" (received).
-    app(SendMessage::class)->direct($teacher, $parent, 'O informare.', 'Anunț', $student);
+    $root = app(SendMessage::class)->direct($teacher, $parent, 'O informare.', 'Anunț', $student);
 
-    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'all']))
+    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'inbox']))
         ->assertInertia(fn (Assert $page) => $page
             ->has('threads', 1)
             ->where('threads.0.direction', 'received')
-            ->where('counts.unread.total', 1));
+            ->where('counts.inbox.unread', 1));
 
-    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'unread']))
-        ->assertInertia(fn (Assert $page) => $page->has('threads', 1));
+    // Citit → contorul scade; „marchează necitit" → revine.
+    $this->actingAs($parent)->post(route('cabinet.messages.read', $root))->assertRedirect();
+    $this->actingAs($parent)->get(route('cabinet.messages'))
+        ->assertInertia(fn (Assert $page) => $page->where('counts.inbox.unread', 0));
+
+    $this->actingAs($parent)->post(route('cabinet.messages.unread', $root))->assertRedirect();
+    $this->actingAs($parent)->get(route('cabinet.messages'))
+        ->assertInertia(fn (Assert $page) => $page->where('counts.inbox.unread', 1));
 });
 
 it('marcarea cu stea e per-utilizator și apare în folderul „Preferate"', function () {
@@ -101,32 +116,60 @@ it('marcarea cu stea e per-utilizator și apare în folderul „Preferate"', fun
     expect(MessageState::query()->where('message_id', $message->id)->where('user_id', $parent->id)->whereNotNull('starred_at')->exists())->toBeFalse();
 });
 
-it('arhiva e per-utilizator: mutarea scoate firul din „Toate", îl pune în „Arhivă", fără să șteargă mesajul', function () {
+it('coșul e per-utilizator: firul dispare din Primite/Trimise, apare în Coș, mesajul NU se șterge', function () {
     [$parent, $teacher, $student] = mailboxParties();
-    $message = app(SendMessage::class)->direct($parent, $teacher, 'Text.', 'Subiect', $student);
+    // Profesorul inițiază → firul e în Primite la părinte.
+    $message = app(SendMessage::class)->direct($teacher, $parent, 'Text.', 'Subiect', $student);
 
     $this->actingAs($parent)->post(route('cabinet.messages.trash', $message))->assertRedirect();
 
-    // Mesajul NU e șters global (profesorul îl vede în continuare în panou) — doar starea părintelui.
+    // Mesajul NU e șters global (profesorul îl vede în continuare) — doar starea părintelui.
     expect(Message::query()->whereKey($message->id)->exists())->toBeTrue()
         ->and(MessageState::query()->where('message_id', $message->id)->where('user_id', $parent->id)->whereNotNull('trashed_at')->exists())->toBeTrue();
 
-    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'all']))
+    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'inbox']))
         ->assertInertia(fn (Assert $page) => $page->has('threads', 0));
     $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'trash']))
         ->assertInertia(fn (Assert $page) => $page->has('threads', 1)->where('threads.0.trashed', true));
 });
 
-it('restaurarea readuce firul din arhivă înapoi în „Toate"', function () {
+it('restaurarea readuce firul din Coș înapoi în Primite', function () {
     [$parent, $teacher, $student] = mailboxParties();
-    $message = app(SendMessage::class)->direct($parent, $teacher, 'Text.', 'Subiect', $student);
+    $message = app(SendMessage::class)->direct($teacher, $parent, 'Text.', 'Subiect', $student);
 
     $this->actingAs($parent)->post(route('cabinet.messages.trash', $message))->assertRedirect();
     $this->actingAs($parent)->post(route('cabinet.messages.restore', $message))->assertRedirect();
 
     $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'trash']))
         ->assertInertia(fn (Assert $page) => $page->has('threads', 0));
-    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'all']))
+    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'inbox']))
+        ->assertInertia(fn (Assert $page) => $page->has('threads', 1));
+});
+
+it('arhivarea (Gmail) scoate firul din Primite fără să-l piardă: rămâne în Arhivă ȘI în Trimise, iar celălalt participant nu e afectat', function () {
+    [$parent, $teacher, $student] = mailboxParties();
+    // Profesorul inițiază, părintele răspunde → firul e „primit" ȘI „trimis" pentru părinte.
+    $root = app(SendMessage::class)->direct($teacher, $parent, 'Informare.', 'Subiect', $student);
+    app(SendMessage::class)->reply($parent, $root, 'Mulțumesc.');
+
+    $this->actingAs($parent)->post(route('cabinet.messages.archive', $root))->assertRedirect();
+
+    // Iese din Primite…
+    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'inbox']))
+        ->assertInertia(fn (Assert $page) => $page->has('threads', 0));
+    // …stă în Arhivă…
+    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'archive']))
+        ->assertInertia(fn (Assert $page) => $page->has('threads', 1)->where('threads.0.archived', true));
+    // …și rămâne în Trimise (arhiva scoate doar din Primite — semantică Gmail).
+    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'sent']))
+        ->assertInertia(fn (Assert $page) => $page->has('threads', 1));
+
+    // Cutia profesorului nu e atinsă: firul e în continuare „primit" pentru el (a primit răspunsul).
+    expect(MessageMailbox::for($teacher)->folder('inbox')->pluck('id')->all())->toContain($root->id);
+
+    // Dezarhivarea îl readuce în Primite.
+    $this->actingAs($parent)->post(route('cabinet.messages.archive', $root))->assertRedirect();
+    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'inbox']))
         ->assertInertia(fn (Assert $page) => $page->has('threads', 1));
 });
 

@@ -140,10 +140,11 @@ class ComposeSchema
      * expediat fără fișier), apoi `SendMessage::direct()` re-verifică regula ierarhică pe server.
      *
      * @param  array<string, mixed>  $data
+     * @param  string|null  $statePath  prefixul stării formularului (pentru cheile erorilor de validare)
      */
-    public static function send(User $staff, array $data): Message
+    public static function send(User $staff, array $data, ?string $statePath = null): Message
     {
-        $files = self::extractFiles($data);
+        $files = self::extractFiles($data, $statePath);
 
         $kind = (string) ($data['kind'] ?? '');
 
@@ -176,10 +177,17 @@ class ComposeSchema
      *  • aceeași listă albă de tipuri + limite ca la cabinet ({@see StoreMessageAttachments}).
      *
      * @param  array<string, mixed>  $data
+     * @param  string|null  $statePath  prefixul stării formularului — erorile trebuie cheiate pe el
+     *                                  (ex. „reply.files") ca să apară SUB câmp, nu pierdute
      * @return array<int, UploadedFile>
      */
-    public static function extractFiles(array $data): array
+    public static function extractFiles(array $data, ?string $statePath = null): array
     {
+        $errorKeys = array_values(array_unique([
+            $statePath !== null ? "{$statePath}.files" : 'files',
+            'files',
+        ]));
+
         $raw = array_values(array_filter(
             (array) ($data['files'] ?? []),
             static fn (mixed $file): bool => $file !== null && $file !== '',
@@ -190,9 +198,7 @@ class ComposeSchema
         if (count($files) !== count($raw)) {
             $message = (string) __('panel.mailbox.attachments_uploading');
 
-            // Cheia dublă: `data.files` pentru compunerea inline (statePath „data"),
-            // `files` pentru formularul acțiunii modale.
-            throw ValidationException::withMessages(['data.files' => $message, 'files' => $message]);
+            throw ValidationException::withMessages(array_fill_keys($errorKeys, $message));
         }
 
         if ($files === []) {
@@ -204,7 +210,7 @@ class ComposeSchema
         } catch (ValidationException $exception) {
             $messages = collect($exception->errors())->flatten()->all();
 
-            throw ValidationException::withMessages(['data.files' => $messages, 'files' => $messages]);
+            throw ValidationException::withMessages(array_fill_keys($errorKeys, $messages));
         }
 
         return $files;

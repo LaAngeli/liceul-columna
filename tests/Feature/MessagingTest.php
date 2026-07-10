@@ -215,14 +215,17 @@ it('poșta cabinetului se randează cu firele și contextul de compunere', funct
     $prof = teacherTeaching($class);
     app(SendMessage::class)->direct($parent, $prof, 'test', 'Subiect', $student);
 
+    // Implicit se deschide Primite; firul INIȚIAT de părinte stă în Trimise (semantică de e-mail).
     $this->actingAs($parent)->get(route('cabinet.messages'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('cabinet/messages')
-            ->where('folder', 'all')
-            ->has('threads', 1)
-            ->has('counts.all')
+            ->where('folder', 'inbox')
+            ->has('counts.inbox')
             ->has('compose.students'));
+
+    $this->actingAs($parent)->get(route('cabinet.messages', ['folder' => 'sent']))
+        ->assertInertia(fn (Assert $page) => $page->has('threads', 1));
 });
 
 it('ruta de cabinet trimite o audiență pe domeniu (HTTP)', function () {
