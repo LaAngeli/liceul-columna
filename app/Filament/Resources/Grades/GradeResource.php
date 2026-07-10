@@ -15,6 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 
@@ -62,6 +63,22 @@ class GradeResource extends Resource
         $user = auth('web')->user();
 
         return $user !== null && ($user->teacher !== null || $user->canAdministerCatalog());
+    }
+
+    /**
+     * Pagina de editare a notei e rezervată autorității academice: valoarea unei note se schimbă
+     * DOAR prin cerere de corecție aprobată (§3.1). Profesorul introduce note noi, solicită
+     * corecții și anulează cu motiv — nu rescrie valori (audit staff, finding CRITIC #1).
+     */
+    public static function canEdit(Model $record): bool
+    {
+        return auth('web')->user()?->canAdministerCatalog() ?? false;
+    }
+
+    /** Notele nu se șterg niciodată (§1) — se anulează cu motiv, rămânând în istoric. */
+    public static function canDelete(Model $record): bool
+    {
+        return false;
     }
 
     public static function form(Schema $schema): Schema

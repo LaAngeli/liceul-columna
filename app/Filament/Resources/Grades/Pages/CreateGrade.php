@@ -14,6 +14,13 @@ class CreateGrade extends CreateRecord
 
     protected static string $resource = GradeResource::class;
 
+    // După creare, revenire la listă (pagina de editare e inaccesibilă profesorului) — același
+    // comportament ca la absențe, și mai rapid pentru introducerea notelor în serie.
+    protected function getRedirectUrl(): string
+    {
+        return static::getResource()::getUrl('index');
+    }
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>

@@ -5,9 +5,18 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\User;
+use App\Policies\Concerns\ConfiguredBySchoolAdmins;
 
 class StudentPolicy
 {
+    // Fișa de elev se creează/editează/șterge doar de configuratorii școlii (§3.3).
+    use ConfiguredBySchoolAdmins;
+
+    public function viewAny(User $user): bool
+    {
+        return $user->canSeeAcademicData();
+    }
+
     /**
      * Cine poate vedea profilul unui elev:
      * - personalul academic (tot personalul cu acces la panou, mai puțin administratorul tehnic,
