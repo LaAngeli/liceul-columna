@@ -23,7 +23,7 @@
 
 ## 🔴 BUG-uri de corectat
 
-### 1. CRITIC — Profesorul poate modifica DIRECT valoarea notei (ocolește fluxul de corecție)
+### 1. ✅ REZOLVAT — Profesorul poate modifica DIRECT valoarea notei (ocolește fluxul de corecție)
 - **Repro**: Note → deschide o notă proprie (Editare) → schimbă Nota 9 → 8 → Salvare → **salvat**
   (audit: `updated value 9.00 → 8.00`, nota #52363).
 - **Problema**: contrazice spec §3.1 / regula proiectului: „Corecție de VALOARE doar prin aprobare;
@@ -46,7 +46,7 @@
   (sau intrări în `validation.attributes`) ca perechea să apară cu numele prietenos
   („calificativ corect").
 
-### 3. MAJOR — Se pot depune corecții DUPLICATE pe aceeași notă
+### 3. ✅ REZOLVAT — Se pot depune corecții DUPLICATE pe aceeași notă
 - Butonul „Solicită corecție" rămâne activ și după depunere; nimic nu împiedică a doua cerere
   `pending` pe aceeași notă.
 - **Fix**: ascunde acțiunea când există deja o cerere `pending` pe notă (+ gardă pe server la
@@ -65,11 +65,11 @@
 - **Fix**: lăsă serverul să valideze (mesaj RO sub câmp): elimină atributele native min/max de pe
   input (păstrând regulile server) sau adaugă mesaj localizat persistent.
 
-### 6. MINOR — Butonul modalului de corecție = „Executați"
+### 6. ✅ REZOLVAT — Butonul modalului de corecție = „Executați"
 - Eticheta implicită Filament; inconsecvent cu restul (poșta folosește „Expediați", anularea
   „Confirmare"). **Fix**: `modalSubmitActionLabel(__('…'))` → „Trimite corecția".
 
-### 7. MINOR — Formatul datei în listă: „iul. 31, 2026"
+### 7. ✅ REZOLVAT — Formatul datei în listă: „iul. 31, 2026"
 - Ordine anglo-saxonă (lună zi, an); restul aplicației folosește `d.m.Y` / „31 iul. 2026".
 - **Fix**: `->date('d.m.Y')` (sau `j M Y`) pe coloana Data, consecvent cu Mesaje/cabinet.
 

@@ -1,10 +1,10 @@
 # SINTEZĂ — audit live al panoului staff (rol Profesor/Diriginte)
 
-> **STARE (10.07.2026, după remediere):** cele două CRITICE sunt închise, la fel majorul cu
-> corecțiile duplicate, fix-ul sistemic (Policies) și toate minorele. Un finding s-a dovedit
-> GREȘIT la re-verificare și a fost retractat (bulk delete — funcționa). Un singur punct rămâne
-> deschis: cere o **decizie de produs** (vezi §6, motivarea absențelor).
-> Commit-uri: `598645f` (policies), `e501526` (ciclu corecții), `e96e567` (minore + retractare).
+> **STARE (10.07.2026): TOATE findings-urile sunt închise.** Cele două CRITICE, majorul cu
+> corecțiile duplicate, fix-ul sistemic (Policies), decizia despre motivare și toate minorele.
+> Un finding s-a dovedit GREȘIT la re-verificare și a fost retractat (bulk delete — funcționa).
+> Commit-uri: `598645f` (policies) · `e501526` (ciclu corecții) · `e96e567` (minore + retractare)
+> · `e9b7d57` (motivarea la diriginte). 800/800 teste verzi.
 
 > Navigare fizică prin browser, 10.07.2026, cont demo `profesor@columna.test` ([DEMO]
 > Bujor-Cobili Carolina — profesoară de Chimie + Dezvoltare personală în 11 clase, **dirigintă
@@ -72,11 +72,12 @@ autorizează prin policies, care nu există) → clic = „403 | Forbidden" pe p
 `User` (`canConfigureSchool()`, `canManageDocuments()`, `canAdministerCatalog()`…). Bonus:
 pagină de eroare branduită și pentru rutele panoului (site-ul public are deja una frumoasă).
 
-### 6. ⏸ MEDIU — Două uși pentru motivarea absențelor — **AȘTEAPTĂ DECIZIA TA** (Absențe ↔ Motivări)
+### 6. ✅ MEDIU — Două uși pentru motivarea absențelor (Absențe ↔ Motivări)
 Spec §2.1 dă validarea dirigintelui; dar acțiunea „Motivează cu dovadă" din lista de Absențe
-lasă ORICE profesor de disciplină să motiveze absențele elevului **pe toate disciplinele** din
-perioadă. De ales: restrânge acțiunea la diriginte/administrație (recomand) sau documentează
-explicit devierea.
+lăsa ORICE profesor de disciplină să motiveze absențele elevului **pe toate disciplinele** din
+perioadă. **Decis: doar dirigintele clasei + administrația.** Regula stă în
+`User::canMotivateAbsencesFor()` și închide ambele uși (acțiunea din listă + bifa „Motivează
+acum" din formular), cu gardă pe server.
 
 ### 7. ✅ MEDIU — Desincronizare motivare ↔ dată (Absențe)
 Mutarea datei unei absențe motivate păstrează `is_motivated=1` deși dovada acoperă altă zi.

@@ -39,7 +39,7 @@
 
 ## 🔴 BUG-uri de corectat
 
-### 1. CRITIC — Profesorul poate ȘTERGE DEFINITIV absențe (+ Restaurare), ocolind regula administrației
+### 1. ✅ REZOLVAT — Profesorul poate ȘTERGE DEFINITIV absențe (+ Restaurare), ocolind regula administrației
 - **Repro (demonstrat funcțional)**: Editare absență → „Ștergere" (soft) → redeschide
   înregistrarea din coș (`/admin/absences/{id}/edit`) → apar butoanele „**Ștergerea forțată**"
   și „**Restaurare**" → confirmare → **rândul dispare DEFINITIV din DB** (absența de test
@@ -67,7 +67,7 @@
   Lecție: un finding despre „nu se întâmplă nimic" într-un mediu cu randare throttled trebuie
   confirmat pe payload, nu pe captură de ecran.
 
-### 3. MAJOR (design/spec) — Motivarea directă de către profesorul de DISCIPLINĂ acoperă TOATE disciplinele
+### 3. ✅ REZOLVAT — Motivarea revine dirigintelui (decizie 10.07.2026)
 - Gate-ul acțiunii „Motivează" = poate consemna absențe la (clasa, disciplina) — dar
   `AbsenceMotivation::approve()` marchează motivate **toate absențele elevului din perioadă,
   indiferent de disciplină** (inclusiv ale altor profesori). Profesorul de Chimie poate deci
@@ -80,7 +80,7 @@
   „oricine are dovada motivează tot intervalul". Aceeași chestiune se aplică fluxului
   „Motivează acum" de la creare.
 
-### 4. MEDIU — Desincronizare motivare ↔ absență la EDITAREA datei
+### 4. ✅ REZOLVAT — Desincronizare motivare ↔ absență la EDITAREA datei
 - **Repro (demonstrat)**: absență pe 10.07 motivată cu dovadă pe perioada 10.07–10.07 →
   Editare → data schimbată în 09.07 → salvare OK → absența rămâne `is_motivated=1`, deși
   dovada acoperă DOAR 10.07.
@@ -88,7 +88,7 @@
   motivare APROBATĂ care acoperă noua zi; alternativ, blochează editarea datei pe absențele
   deja motivate (cere de-motivare întâi). Test pe ambele sensuri (iese/intră în perioadă).
 
-### 5. MEDIU — „Retragerea propriilor absențe" nu se limitează la AUTOR
+### 5. ✅ REZOLVAT — „Retragerea propriilor absențe" se limitează la autor (sau absențe fără autor)
 - Ștergerea (single sau, după fix, bulk) e permisă pe orice absență din scope-ul de VIZUALIZARE
   (dirigintele = toată clasa; profesorul = (clasa, disciplina) lui indiferent cine a
   consemnat-o), nu doar pe cele consemnate de el (`teacher_id` propriu). Un diriginte poate
@@ -97,7 +97,7 @@
   (comentariul din cod — „profesorul își poate retrage PROPRIILE absențe" — sugerează că asta
   era intenția).
 
-### 6. MINOR — Formatul datei în listă: „iul. 9, 2026" (ordine anglo)
+### 6. ✅ REZOLVAT — Formatul datei în listă: „iul. 9, 2026" (ordine anglo)
 - Identic cu finding-ul #7 de la Note — de consolidat global pe `d.m.Y`.
 
 ### 7. MINOR — Mesajul gărzii de dată include ora cu secunde
