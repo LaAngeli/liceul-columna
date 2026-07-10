@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Messages\Pages;
 
 use App\Actions\SendMessage;
+use App\Actions\StoreMessageAttachments;
 use App\Filament\Resources\Messages\ComposeSchema;
 use App\Filament\Resources\Messages\MessageResource;
 use App\Models\Message;
@@ -93,9 +94,13 @@ class ViewThread extends Page
     {
         $data = $this->form->getState();
 
+        // Fișierele se validează ÎNAINTE de a crea răspunsul: un atașament neterminat de încărcat
+        // sau de tip interzis oprește expedierea — nu lasă un mesaj deja trimis, fără fișier.
+        $files = ComposeSchema::extractFiles($data);
+
         $reply = app(SendMessage::class)->reply($this->currentUser(), $this->thread(), (string) $data['body']);
 
-        ComposeSchema::storeFiles($reply, $data);
+        app(StoreMessageAttachments::class)->handle($reply, $files);
 
         // Golește starea (corp + fișiere) ȘI forțează recrearea compozitorului, altfel
         // previzualizarea FilePond ar rămâne pe ecran (vezi comentariul de la $composerKey).

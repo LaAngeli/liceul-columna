@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Messages;
 
 use App\Actions\SendMessage;
 use App\Actions\StoreMessageAttachments;
+use App\Enums\UserRole;
 use App\Models\Message;
 use App\Models\Student;
 use App\Models\User;
@@ -14,20 +15,25 @@ use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 /**
- * Câmpurile comune de compunere din poșta personalului (mesaj nou + răspuns).
+ * Compunerea din poșta personalului (mesaj nou + răspuns).
  *
- * Destinatarii NU sunt o listă de convenienţă: se calculează pe SERVER din rolul expeditorului
- * ({@see SendMessage::allowedRecipientsForStaff()}), iar poarta reală rămâne `canSendDirect()`,
- * verificată la fiecare scriere. Atașamentele trec prin ACELEAȘI reguli ca la cabinet.
+ * Destinatarii sunt organizați pe 4 categorii ABSOLUTE (Administrație / Colegi / Părinți / Elevi),
+ * calculate pe SERVER din rolul expeditorului ({@see SendMessage::allowedRecipientsForStaff()}).
+ * Pentru părinți/elevi, opțiunea poartă ancora pe elev („studentId:userId") — mesajul către o
+ * familie e mereu despre un elev concret, iar poarta reală rămâne `canSendDirect()`, verificată
+ * la fiecare scriere (o valoare falsificată ⇒ 403). Atașamentele trec prin ACELEAȘI reguli ca la
+ * cabinet și sunt validate ÎNAINTE de crearea mesajului — un fișier neterminat de încărcat sau de
+ * tip interzis blochează expedierea, nu dispare tăcut.
  */
 class ComposeSchema
 {
     /**
      * Selectorul de fișiere. `storeFiles(false)` ne dă `TemporaryUploadedFile` (care extinde
      * `UploadedFile`), ca să le putem valida și muta noi pe discul privat — Filament nu le poate
-     * atașa singur unei relații polimorfe de mesaj.
+     * atașa singur unei relații de mesaj.
      */
     public static function files(): FileUpload
     {
@@ -44,7 +50,7 @@ class ComposeSchema
     }
 
     /**
-     * Schema „Mesaj nou": întâi tipul de destinatar (coleg / familie), apoi selecțiile dependente.
+     * Schema „Mesaj nou": categoria de destinatar, apoi selecțiile dependente.
      *
      * @return array<int, mixed>
      */
@@ -52,44 +58,67 @@ class ComposeSchema
     {
         $allowed = app(SendMessage::class)->allowedRecipientsForStaff($staff);
 
-        $colleagues = collect($allowed['colleagues'])->pluck('name', 'id')->all();
-        $students = collect($allowed['families'])
-            ->mapWithKeys(fn (array $family): array => [
-                $family['studentId'] => $family['studentName'].($family['classLabel'] !== null ? ' · '.$family['classLabel'] : ''),
-            ])->all();
+        // Categoriile fără destinatari dispar (ex. un profesor fără elevi cu cont; conducerea
+        // fără elevi predați nu vede deloc Părinți/Elevi — ea răspunde la audiențe, §4.2).
+        $kinds = array_filter([
+            'administration' => $allowed['administration'] === [] ? null : __('panel.mailbox.kind_administration'),
+            'colleague' => $allowed['colleagues'] === [] ? null : __('panel.mailbox.kind_colleague'),
+            'parent' => $allowed['parents'] === [] ? null : __('panel.mailbox.kind_parent'),
+            'student' => $allowed['students'] === [] ? null : __('panel.mailbox.kind_student'),
+        ]);
+
+        $staffOptions = static fn (array $entries): array => collect($entries)
+            ->mapWithKeys(fn (array $entry): array => [
+                $entry['id'] => $entry['name'].' — '.self::roleLabel($entry['role']),
+            ])
+            ->all();
+
+        // Ancora pe elev călătorește în valoarea opțiunii: „studentId:userId".
+        $parentOptions = collect($allowed['parents'])
+            ->mapWithKeys(fn (array $p): array => [
+                $p['studentId'].':'.$p['userId'] => $p['name']
+                    .' — '.__('panel.fields.student').': '.$p['studentName']
+                    .($p['classLabel'] !== null ? ' · '.$p['classLabel'] : ''),
+            ])
+            ->all();
+
+        $studentOptions = collect($allowed['students'])
+            ->mapWithKeys(fn (array $s): array => [
+                $s['studentId'].':'.$s['userId'] => $s['name']
+                    .($s['classLabel'] !== null ? ' · '.$s['classLabel'] : ''),
+            ])
+            ->all();
 
         return [
             Select::make('kind')
                 ->label(__('panel.mailbox.recipient_kind'))
-                ->options(array_filter([
-                    'colleague' => __('panel.mailbox.kind_colleague'),
-                    // Conducerea n-are familii de inițiat (răspunde la audiențe) → opțiunea dispare.
-                    'family' => $students === [] ? null : __('panel.mailbox.kind_family'),
-                ]))
-                ->default('colleague')
+                ->options($kinds)
+                ->default(array_key_first($kinds))
                 ->required()
                 ->live(),
 
             Select::make('recipient_user_id')
                 ->label(__('panel.mailbox.recipient'))
-                ->options($colleagues)
+                ->options(fn (Get $get): array => $staffOptions(
+                    $get('kind') === 'administration' ? $allowed['administration'] : $allowed['colleagues'],
+                ))
                 ->searchable()
                 ->required()
-                ->visible(fn (Get $get): bool => $get('kind') === 'colleague'),
+                ->visible(fn (Get $get): bool => in_array($get('kind'), ['administration', 'colleague'], true)),
 
-            Select::make('student_id')
-                ->label(__('panel.fields.student'))
-                ->options($students)
-                ->searchable()
-                ->required()
-                ->live()
-                ->visible(fn (Get $get): bool => $get('kind') === 'family'),
-
-            Select::make('family_user_id')
+            Select::make('parent_target')
                 ->label(__('panel.mailbox.recipient'))
-                ->options(fn (Get $get): array => self::familyOptions($allowed, (int) $get('student_id')))
+                ->options($parentOptions)
+                ->searchable()
                 ->required()
-                ->visible(fn (Get $get): bool => $get('kind') === 'family' && filled($get('student_id'))),
+                ->visible(fn (Get $get): bool => $get('kind') === 'parent'),
+
+            Select::make('student_target')
+                ->label(__('panel.mailbox.recipient'))
+                ->options($studentOptions)
+                ->searchable()
+                ->required()
+                ->visible(fn (Get $get): bool => $get('kind') === 'student'),
 
             TextInput::make('subject')
                 ->label(__('panel.tables.messages.subject'))
@@ -97,7 +126,7 @@ class ComposeSchema
                 ->maxLength(120),
 
             Textarea::make('body')
-                ->label(__('panel.actions.reply.body'))
+                ->label(__('panel.mailbox.body'))
                 ->required()
                 ->maxLength(2000)
                 ->rows(6),
@@ -107,19 +136,25 @@ class ComposeSchema
     }
 
     /**
-     * Trimite mesajul compus. `SendMessage::direct()` re-verifică regula ierarhică pe server —
-     * dacă interfața a fost falsificată, aici se oprește (403).
+     * Trimite mesajul compus. Atașamentele se validează ÎNTÂI (un eșec nu lasă un mesaj deja
+     * expediat fără fișier), apoi `SendMessage::direct()` re-verifică regula ierarhică pe server.
      *
      * @param  array<string, mixed>  $data
      */
     public static function send(User $staff, array $data): Message
     {
-        $isFamily = ($data['kind'] ?? 'colleague') === 'family';
+        $files = self::extractFiles($data);
 
-        $recipient = User::query()->findOrFail((int) ($isFamily ? $data['family_user_id'] : $data['recipient_user_id']));
-        $student = $isFamily
-            ? Student::query()->findOrFail((int) $data['student_id'])
-            : null;
+        $kind = (string) ($data['kind'] ?? '');
+
+        if (in_array($kind, ['administration', 'colleague'], true)) {
+            $recipient = User::query()->findOrFail((int) ($data['recipient_user_id'] ?? 0));
+            $student = null;
+        } else {
+            [$student, $recipient] = self::resolveFamilyTarget(
+                (string) ($data[$kind.'_target'] ?? ''),
+            );
+        }
 
         $message = app(SendMessage::class)->direct(
             $staff,
@@ -129,52 +164,73 @@ class ComposeSchema
             $student,
         );
 
-        self::storeFiles($message, $data);
+        app(StoreMessageAttachments::class)->handle($message, $files);
 
         return $message;
     }
 
     /**
-     * Validează și stochează fișierele cu ACELEAȘI reguli ca la cabinet (listă albă de tipuri,
-     * mărime, număr) — `acceptedFileTypes` din interfață e doar de curtoazie, poarta e aici.
+     * Extrage și VALIDEAZĂ fișierele din starea formularului, înainte de orice scriere:
+     *  • un marker de încărcare neterminată (`livewire-file:*`) blochează expedierea cu o eroare
+     *    vizibilă — altfel mesajul ar pleca tăcut FĂRĂ fișierul pe care expeditorul îl vede atașat;
+     *  • aceeași listă albă de tipuri + limite ca la cabinet ({@see StoreMessageAttachments}).
      *
      * @param  array<string, mixed>  $data
+     * @return array<int, UploadedFile>
      */
-    public static function storeFiles(Message $message, array $data): void
+    public static function extractFiles(array $data): array
     {
-        /** @var array<int, UploadedFile> $files */
-        $files = array_values(array_filter(
+        $raw = array_values(array_filter(
             (array) ($data['files'] ?? []),
-            static fn (mixed $file): bool => $file instanceof UploadedFile,
+            static fn (mixed $file): bool => $file !== null && $file !== '',
         ));
 
-        if ($files === []) {
-            return;
+        $files = array_values(array_filter($raw, static fn (mixed $file): bool => $file instanceof UploadedFile));
+
+        if (count($files) !== count($raw)) {
+            $message = (string) __('panel.mailbox.attachments_uploading');
+
+            // Cheia dublă: `data.files` pentru compunerea inline (statePath „data"),
+            // `files` pentru formularul acțiunii modale.
+            throw ValidationException::withMessages(['data.files' => $message, 'files' => $message]);
         }
 
-        Validator::make(['files' => $files], StoreMessageAttachments::validationRules())->validate();
+        if ($files === []) {
+            return [];
+        }
 
-        app(StoreMessageAttachments::class)->handle($message, $files);
+        try {
+            Validator::make(['files' => $files], StoreMessageAttachments::validationRules())->validate();
+        } catch (ValidationException $exception) {
+            $messages = collect($exception->errors())->flatten()->all();
+
+            throw ValidationException::withMessages(['data.files' => $messages, 'files' => $messages]);
+        }
+
+        return $files;
     }
 
     /**
-     * @param  array{colleagues: array<int, array{id: int, name: string}>, families: array<int, array{studentId: int, studentName: string, classLabel: string|null, recipients: list<array{id: int, name: string, relation: string}>}>}  $allowed
-     * @return array<int, string>
+     * Desface ancora „studentId:userId" a unei opțiuni de familie. Valorile falsificate nu trec:
+     * perechea e re-verificată de `canSendDirect()` (tutorele/contul trebuie să aparțină REAL
+     * elevului, iar expeditorul să-l predea).
+     *
+     * @return array{0: Student, 1: User}
      */
-    private static function familyOptions(array $allowed, int $studentId): array
+    private static function resolveFamilyTarget(string $target): array
     {
-        foreach ($allowed['families'] as $family) {
-            if ($family['studentId'] !== $studentId) {
-                continue;
-            }
+        [$studentId, $userId] = array_pad(explode(':', $target, 2), 2, '');
 
-            return collect($family['recipients'])
-                ->mapWithKeys(fn (array $recipient): array => [
-                    $recipient['id'] => $recipient['name'].' · '.__("panel.mailbox.relation_{$recipient['relation']}"),
-                ])
-                ->all();
-        }
+        abort_unless(ctype_digit($studentId) && ctype_digit($userId), 422, 'Destinatar invalid.');
 
-        return [];
+        return [
+            Student::query()->findOrFail((int) $studentId),
+            User::query()->findOrFail((int) $userId),
+        ];
+    }
+
+    private static function roleLabel(string $role): string
+    {
+        return UserRole::tryFrom($role)?->label() ?? $role;
     }
 }

@@ -390,36 +390,56 @@ it('familyRecipientsForStudent întoarce tutorele ȘI contul elevului, ca utiliz
         ->and($byId[$studentUser->id]['relation'])->toBe('elev');
 });
 
-it('allowedRecipientsForStaff: profesorul vede familiile elevilor PREDAȚI + colegii, nu familiile altor elevi', function () {
+it('allowedRecipientsForStaff: agendă pe 4 categorii — părinții/elevii DOAR ai claselor predate, administrația separată de colegi', function () {
     [$mine, $myClass] = studentInClass();
     [$other] = studentInClass();
-    parentOf($mine);
+    $myParent = parentOf($mine);
     parentOf($other);
+
+    $studentUser = User::factory()->create();
+    $studentUser->assignRole(UserRole::Elev->value);
+    $mine->update(['user_id' => $studentUser->id]);
 
     $teacher = teacherTeaching($myClass);
     $colleague = teacherTeaching($myClass);
 
-    $allowed = app(SendMessage::class)->allowedRecipientsForStaff($teacher);
-
-    $studentIds = collect($allowed['families'])->pluck('studentId');
-    expect($studentIds)->toContain($mine->id)
-        ->and($studentIds)->not->toContain($other->id);
-
-    expect(collect($allowed['colleagues'])->pluck('id'))
-        ->toContain($colleague->id)
-        ->not->toContain($teacher->id);
-});
-
-it('allowedRecipientsForStaff: conducerea nu are familii de inițiat (răspunde doar la audiențe)', function () {
-    [$student, $class] = studentInClass();
-    parentOf($student);
-    teacherTeaching($class);
-
     $director = User::factory()->create();
     $director->assignRole(UserRole::Director->value);
 
+    $allowed = app(SendMessage::class)->allowedRecipientsForStaff($teacher);
+
+    // Părinți: tutorele elevului PREDAT — da; elevul nepredat — nu.
+    expect(collect($allowed['parents'])->pluck('userId'))->toContain($myParent->id)
+        ->and(collect($allowed['parents'])->pluck('studentId'))->not->toContain($other->id);
+
+    // Elevi: contul propriu al elevului predat (utilizator distinct de tutore).
+    expect(collect($allowed['students'])->pluck('userId'))->toContain($studentUser->id);
+
+    // Categorii ABSOLUTE, nu relative: directorul stă la Administrație, profesorul la Colegi.
+    expect(collect($allowed['administration'])->pluck('id'))->toContain($director->id)
+        ->and(collect($allowed['administration'])->pluck('id'))->not->toContain($colleague->id);
+    expect(collect($allowed['colleagues'])->pluck('id'))->toContain($colleague->id)
+        ->and(collect($allowed['colleagues'])->pluck('id'))->not->toContain($director->id)
+        ->and(collect($allowed['colleagues'])->pluck('id'))->not->toContain($teacher->id);
+});
+
+it('allowedRecipientsForStaff: conducerea nu are părinți/elevi de inițiat (răspunde la audiențe); super-adminul nu apare în agendă', function () {
+    [$student, $class] = studentInClass();
+    parentOf($student);
+    $teacher = teacherTeaching($class);
+
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+    $operational = User::factory()->create();
+    $operational->assignRole(UserRole::AdministratorOperational->value);
+    $breakGlass = User::factory()->create();
+    $breakGlass->assignRole(UserRole::Admin->value);
+
     $allowed = app(SendMessage::class)->allowedRecipientsForStaff($director);
 
-    expect($allowed['families'])->toBe([])
-        ->and($allowed['colleagues'])->not->toBeEmpty();
+    expect($allowed['parents'])->toBe([])
+        ->and($allowed['students'])->toBe([])
+        ->and(collect($allowed['colleagues'])->pluck('id'))->toContain($teacher->id)
+        ->and(collect($allowed['administration'])->pluck('id'))->toContain($operational->id)
+        ->and(collect($allowed['administration'])->pluck('id'))->not->toContain($breakGlass->id);
 });

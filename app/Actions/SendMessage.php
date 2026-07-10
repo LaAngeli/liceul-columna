@@ -224,56 +224,101 @@ class SendMessage
     }
 
     /**
-     * Destinatarii permiși pentru un membru al PERSONALULUI (inversul lui
-     * {@see allowedRecipientsForStudent}) — calculați pe SERVER, nu în interfață:
-     *  • colegi: orice alt membru al personalului (§4.2 — comunicare internă / escaladare);
-     *  • familii: doar ale elevilor pe care îi predă / cărora le e diriginte.
+     * Agenda de destinatari a unui membru al PERSONALULUI, pe 4 categorii ABSOLUTE (nu relative
+     * la expeditor — „colegii" unui administrator nu sunt „doar ceilalți administratori"):
      *
-     * Conducerea (director/prim-vicedirector/AO) NU are fișă de cadru didactic, deci lista ei de
-     * familii e goală: ea NU inițiază spre familii, ci răspunde la solicitările de audiență —
-     * exact regula ierarhică din spec. Lista rămâne consultativă; poarta reală e
+     *  • administration — conducerea/administrația (director, prim-vicedirector, administrator
+     *    operațional, administrator tehnic). Super-adminul (break-glass IT) NU e listat: e un cont
+     *    de urgență, nu o destinație de corespondență școlară.
+     *  • colleagues — cadrele didactice (profesori + diriginți).
+     *  • parents — tutorii elevilor pe care expeditorul îi PREDĂ / le e diriginte, câte o intrare
+     *    per (tutore, elev) — elevul e ancora obligatorie a mesajului.
+     *  • students — conturile PROPRII ale acelorași elevi (utilizatori distincți de tutori!).
+     *
+     * Conducerea nu are fișă de cadru didactic ⇒ parents/students goale: ea NU inițiază spre
+     * familii, ci răspunde la audiențe (§4.2). Agenda e consultativă; poarta reală rămâne
      * {@see canSendDirect}, verificată la fiecare scriere.
      *
      * @return array{
-     *     colleagues: array<int, array{id: int, name: string}>,
-     *     families: array<int, array{studentId: int, studentName: string, classLabel: string|null, recipients: list<array{id: int, name: string, relation: string}>}>
+     *     administration: array<int, array{id: int, name: string, role: string}>,
+     *     colleagues: array<int, array{id: int, name: string, role: string}>,
+     *     parents: array<int, array{userId: int, name: string, studentId: int, studentName: string, classLabel: string|null}>,
+     *     students: array<int, array{userId: int, name: string, studentId: int, classLabel: string|null}>
      * }
      */
     public function allowedRecipientsForStaff(User $staff): array
     {
-        $colleagues = User::query()
+        $pedagogical = [UserRole::Profesor->value, UserRole::Diriginte->value];
+
+        $panelUsers = User::query()
             ->whereHas('roles', fn (Builder $query) => $query->whereIn('name', UserRole::panelRoleValues()))
             ->whereKeyNot($staff->id)
+            ->with('roles')
             ->orderBy('name')
-            ->get()
-            ->map(fn (User $user): array => ['id' => (int) $user->id, 'name' => $user->name])
-            ->all();
+            ->get();
 
-        $classIds = $staff->teacher?->visibleSchoolClassIds() ?? [];
+        $administration = [];
+        $colleagues = [];
 
-        if ($classIds === []) {
-            return ['colleagues' => $colleagues, 'families' => []];
+        foreach ($panelUsers as $user) {
+            $role = (string) $user->getRoleNames()->first();
+
+            if ($role === UserRole::Admin->value) {
+                continue; // break-glass IT — nu e o destinație de corespondență
+            }
+
+            $entry = ['id' => (int) $user->id, 'name' => $user->name, 'role' => $role];
+
+            if (in_array($role, $pedagogical, true)) {
+                $colleagues[] = $entry;
+            } else {
+                $administration[] = $entry;
+            }
         }
 
-        $families = Student::query()
-            ->whereHas('enrollments', fn (Builder $query) => $query->whereIn('school_class_id', $classIds))
-            ->with(['guardians', 'enrollments.schoolClass'])
-            ->get()
-            ->map(function (Student $student): array {
+        $parents = [];
+        $students = [];
+        $classIds = $staff->teacher?->visibleSchoolClassIds() ?? [];
+
+        if ($classIds !== []) {
+            $taught = Student::query()
+                ->whereHas('enrollments', fn (Builder $query) => $query->whereIn('school_class_id', $classIds))
+                ->with(['guardians', 'enrollments.schoolClass'])
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->get();
+
+            foreach ($taught as $student) {
                 $class = $student->enrollments->last()?->schoolClass;
+                $classLabel = $class !== null ? trim($class->name.' '.($class->section ?? '')) : null;
 
-                return [
-                    'studentId' => (int) $student->id,
-                    'studentName' => $student->full_name,
-                    'classLabel' => $class !== null ? trim($class->name.' '.($class->section ?? '')) : null,
-                    'recipients' => $this->familyRecipientsForStudent($student),
-                ];
-            })
-            ->filter(fn (array $family): bool => $family['recipients'] !== [])
-            ->values()
-            ->all();
+                foreach ($student->guardians as $guardian) {
+                    $parents[] = [
+                        'userId' => (int) $guardian->id,
+                        'name' => $guardian->name,
+                        'studentId' => (int) $student->id,
+                        'studentName' => $student->full_name,
+                        'classLabel' => $classLabel,
+                    ];
+                }
 
-        return ['colleagues' => $colleagues, 'families' => $families];
+                if ($student->user_id !== null) {
+                    $students[] = [
+                        'userId' => (int) $student->user_id,
+                        'name' => $student->full_name,
+                        'studentId' => (int) $student->id,
+                        'classLabel' => $classLabel,
+                    ];
+                }
+            }
+        }
+
+        return [
+            'administration' => $administration,
+            'colleagues' => $colleagues,
+            'parents' => $parents,
+            'students' => $students,
+        ];
     }
 
     private function isFamilyOf(User $user, Student $student): bool

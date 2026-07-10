@@ -774,6 +774,7 @@ return [
 
     // Внутренняя почта персонала (цепочки, папки, звезда/корзина у каждого своя).
     'mailbox' => [
+        'body' => 'Сообщение',
         'compose' => 'Новое сообщение',
         'send' => 'Отправить',
         'reply_placeholder' => 'Напишите ответ…',
@@ -781,10 +782,11 @@ return [
         'sent' => 'Сообщение отправлено.',
         'recipient' => 'Получатель',
         'recipient_kind' => 'Кому',
-        'kind_colleague' => 'Коллега (персонал)',
-        'kind_family' => 'Семья ученика',
-        'relation_parinte' => 'родитель',
-        'relation_elev' => 'ученик',
+        'kind_administration' => 'Администрация',
+        'kind_colleague' => 'Коллега (педагог)',
+        'kind_parent' => 'Родитель ученика',
+        'kind_student' => 'Ученик',
+        'attachments_uploading' => 'Вложения ещё загружаются — дождитесь завершения загрузки.',
         'attachments' => 'Вложения',
         'attachments_hint' => 'Не более :files файлов, по :size МБ.',
         'thread' => 'Переписка',

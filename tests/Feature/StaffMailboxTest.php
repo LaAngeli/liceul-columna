@@ -276,9 +276,8 @@ it('personalul compune către familia unui elev pe care îl PREDĂ, iar mesajul 
     $parent = sbxParentOf($student);
 
     $message = ComposeSchema::send($teacher, [
-        'kind' => 'family',
-        'student_id' => $student->id,
-        'family_user_id' => $parent->id,
+        'kind' => 'parent',
+        'parent_target' => $student->id.':'.$parent->id,
         'subject' => 'Situația la clasă',
         'body' => 'Vă informez despre progres.',
     ]);
@@ -299,9 +298,8 @@ it('personalul NU poate compune către familia unui elev pe care nu îl predă (
     sbxParentOf($mine);
 
     expect(fn () => ComposeSchema::send($teacher, [
-        'kind' => 'family',
-        'student_id' => $other->id,
-        'family_user_id' => $otherParent->id,
+        'kind' => 'parent',
+        'parent_target' => $other->id.':'.$otherParent->id,
         'subject' => 'Nepermis',
         'body' => 'Text.',
     ]))->toThrow(HttpException::class);
@@ -330,9 +328,8 @@ it('atașamentul din panou ajunge pe discul privat', function () {
     $parent = sbxParentOf($student);
 
     $message = ComposeSchema::send($teacher, [
-        'kind' => 'family',
-        'student_id' => $student->id,
-        'family_user_id' => $parent->id,
+        'kind' => 'parent',
+        'parent_target' => $student->id.':'.$parent->id,
         'subject' => 'Cu atașament',
         'body' => 'Vedeți fișierul.',
         'files' => [UploadedFile::fake()->create('nota.pdf', 40, 'application/pdf')],
@@ -349,13 +346,83 @@ it('panoul respinge tipurile interzise (svg) — aceeași listă albă ca la cab
     $parent = sbxParentOf($student);
 
     expect(fn () => ComposeSchema::send($teacher, [
-        'kind' => 'family',
-        'student_id' => $student->id,
-        'family_user_id' => $parent->id,
+        'kind' => 'parent',
+        'parent_target' => $student->id.':'.$parent->id,
         'subject' => 'XSS',
         'body' => 'Text.',
         'files' => [UploadedFile::fake()->create('x.svg', 5, 'image/svg+xml')],
     ]))->toThrow(ValidationException::class);
+
+    // Validarea rulează ÎNAINTE de creare: nu rămâne un mesaj expediat fără fișier.
+    expect(Message::query()->where('subject', 'XSS')->exists())->toBeFalse();
+});
+
+it('compunere către administrație: profesorul scrie directorului, fără ancoră pe elev', function () {
+    [, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $director = User::factory()->create(['email_verified_at' => now()]);
+    $director->assignRole(UserRole::Director->value);
+
+    $message = ComposeSchema::send($teacher, [
+        'kind' => 'administration',
+        'recipient_user_id' => $director->id,
+        'subject' => 'Raport săptămânal',
+        'body' => 'Vă transmit situația.',
+    ]);
+
+    expect($message->recipient_user_id)->toBe($director->id)
+        ->and($message->student_id)->toBeNull();
+});
+
+it('compunere către un elev: mesajul merge pe contul elevului, ancorat pe elev', function () {
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $studentUser = User::factory()->create(['email_verified_at' => now()]);
+    $studentUser->assignRole(UserRole::Elev->value);
+    $student->update(['user_id' => $studentUser->id]);
+
+    $message = ComposeSchema::send($teacher, [
+        'kind' => 'student',
+        'student_target' => $student->id.':'.$studentUser->id,
+        'subject' => 'Tema restantă',
+        'body' => 'Te rog să predai tema.',
+    ]);
+
+    expect($message->recipient_user_id)->toBe($studentUser->id)
+        ->and($message->student_id)->toBe($student->id);
+});
+
+it('ancora falsificată (destinatar care NU e familia elevului) e respinsă cu 403', function () {
+    [$mine, $myClass] = sbxStudentInClass();
+    [$other] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($myClass);
+    $strangerParent = sbxParentOf($other); // tutore al ALTUI elev
+
+    expect(fn () => ComposeSchema::send($teacher, [
+        'kind' => 'parent',
+        'parent_target' => $mine->id.':'.$strangerParent->id,
+        'subject' => 'Falsificat',
+        'body' => 'Text.',
+    ]))->toThrow(HttpException::class);
+
+    expect(Message::query()->where('subject', 'Falsificat')->exists())->toBeFalse();
+});
+
+it('un atașament neterminat de încărcat blochează expedierea în loc să dispară tăcut', function () {
+    [$student, $class] = sbxStudentInClass();
+    $teacher = sbxTeacherOf($class);
+    $parent = sbxParentOf($student);
+
+    expect(fn () => ComposeSchema::send($teacher, [
+        'kind' => 'parent',
+        'parent_target' => $student->id.':'.$parent->id,
+        'subject' => 'Cu fișier în curs',
+        'body' => 'Text.',
+        // Exact ce conține starea Livewire cât timp un upload NU s-a terminat.
+        'files' => ['livewire-file:tmp-neterminat.pdf'],
+    ]))->toThrow(ValidationException::class);
+
+    expect(Message::query()->where('subject', 'Cu fișier în curs')->exists())->toBeFalse();
 });
 
 // ─── Răspuns INLINE, pe aceeași pagină (nu într-o modală) ───────────────────────────────

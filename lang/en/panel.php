@@ -776,6 +776,7 @@ return [
 
     // Internal staff mailbox (threads, folders, per-user star/trash).
     'mailbox' => [
+        'body' => 'Message',
         'compose' => 'New message',
         'send' => 'Send',
         'reply_placeholder' => 'Write your reply…',
@@ -783,10 +784,11 @@ return [
         'sent' => 'Message sent.',
         'recipient' => 'Recipient',
         'recipient_kind' => 'Send to',
-        'kind_colleague' => 'Colleague (staff)',
-        'kind_family' => 'A student\x27s family',
-        'relation_parinte' => 'parent',
-        'relation_elev' => 'student',
+        'kind_administration' => 'Administration',
+        'kind_colleague' => 'Colleague (teaching staff)',
+        'kind_parent' => 'A student\x27s parent',
+        'kind_student' => 'A student',
+        'attachments_uploading' => 'Attachments are still uploading — wait for them to finish.',
         'attachments' => 'Attachments',
         'attachments_hint' => 'Up to :files files, :size MB each.',
         'thread' => 'Conversation',

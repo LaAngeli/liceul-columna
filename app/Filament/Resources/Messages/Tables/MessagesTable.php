@@ -42,18 +42,20 @@ class MessagesTable
             ->modifyQueryUsing(fn (Builder $query): Builder => self::hydrate($query, $uid))
             ->columns([
                 // Plic închis/deschis — semnalul cel mai rapid de scanat.
+                // ⚠️ IconColumn NU randează nimic dacă starea e null (atributul „unread" nu există
+                // pe model) — starea trebuie furnizată explicit prin getStateUsing.
                 IconColumn::make('unread')
                     ->label('')
-                    ->icon(fn (Message $record): string => self::unreadCount($record, $uid) > 0
-                        ? 'heroicon-s-envelope'
-                        : 'heroicon-o-envelope-open')
-                    ->color(fn (Message $record): string => self::unreadCount($record, $uid) > 0 ? 'info' : 'gray'),
+                    ->getStateUsing(fn (Message $record): bool => self::unreadCount($record, $uid) > 0)
+                    ->icon(fn (bool $state): string => $state ? 'heroicon-s-envelope' : 'heroicon-o-envelope-open')
+                    ->color(fn (bool $state): string => $state ? 'info' : 'gray'),
 
                 // Stea — comutabilă direct din listă, stare PER-UTILIZATOR.
                 IconColumn::make('starred')
                     ->label('')
-                    ->icon(fn (Message $record): string => self::isStarred($record) ? 'heroicon-s-star' : 'heroicon-o-star')
-                    ->color(fn (Message $record): string => self::isStarred($record) ? 'warning' : 'gray')
+                    ->getStateUsing(fn (Message $record): bool => self::isStarred($record))
+                    ->icon(fn (bool $state): string => $state ? 'heroicon-s-star' : 'heroicon-o-star')
+                    ->color(fn (bool $state): string => $state ? 'warning' : 'gray')
                     ->tooltip(fn (Message $record): string => self::isStarred($record)
                         ? __('panel.mailbox.unstar')
                         : __('panel.mailbox.star'))
@@ -75,13 +77,21 @@ class MessagesTable
                     ->weight(fn (Message $record): ?string => self::unreadCount($record, $uid) > 0 ? 'bold' : null),
 
                 // Subiect (bold la necitit) + fragmentul ultimului mesaj, ca la un client de poștă.
+                // Căutarea acoperă subiectul, corpul și NUMELE corespondentului — totul într-un
+                // grup imbricat, ca OR-ul să nu evadeze din scoping-ul pe participant al bazei.
                 TextColumn::make('subject')
                     ->label(__('panel.tables.messages.subject'))
                     ->placeholder(__('panel.common.dash'))
                     ->limit(46)
                     ->weight(fn (Message $record): ?string => self::unreadCount($record, $uid) > 0 ? 'bold' : null)
                     ->description(fn (Message $record): ?string => self::snippet($record))
-                    ->searchable(),
+                    ->searchable(query: fn (Builder $query, string $search): Builder => $query
+                        ->where(function (Builder $inner) use ($search): void {
+                            $inner->where('subject', 'like', "%{$search}%")
+                                ->orWhere('body', 'like', "%{$search}%")
+                                ->orWhereHas('sender', fn (Builder $q) => $q->where('name', 'like', "%{$search}%"))
+                                ->orWhereHas('recipient', fn (Builder $q) => $q->where('name', 'like', "%{$search}%"));
+                        })),
 
                 TextColumn::make('type')
                     ->label(__('panel.fields.type'))
@@ -93,14 +103,13 @@ class MessagesTable
                     ->placeholder(__('panel.common.dash'))
                     ->toggleable(),
 
+                // Agrafă doar când firul chiar are atașamente (fără „minus" de umplutură).
                 IconColumn::make('attachments_count')
                     ->label('')
-                    ->boolean()
-                    ->getStateUsing(fn (Message $record): bool => (int) ($record->attachments_count ?? 0) > 0)
-                    ->trueIcon('heroicon-o-paper-clip')
-                    ->falseIcon('heroicon-o-minus')
-                    ->trueColor('gray')
-                    ->falseColor('gray')
+                    ->icon(fn (Message $record): ?string => (int) ($record->attachments_count ?? 0) > 0
+                        ? 'heroicon-o-paper-clip'
+                        : null)
+                    ->color('gray')
                     ->toggleable(),
 
                 TextColumn::make('last_activity_at')
