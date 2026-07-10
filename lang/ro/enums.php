@@ -20,6 +20,8 @@ return [
         'pending' => 'În așteptare',
         'approved' => 'Aprobată',
         'rejected' => 'Respinsă',
+        'expired' => 'Caducă',
+        'withdrawn' => 'Retrasă',
     ],
     'student_status' => [
         'promovat' => 'Promovat',

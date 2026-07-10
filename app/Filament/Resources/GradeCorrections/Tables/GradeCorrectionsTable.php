@@ -78,10 +78,28 @@ class GradeCorrectionsTable
                     ->options(CorrectionStatus::class),
             ])
             ->recordActions([
+                // Solicitantul își poate RETRAGE cererea cât timp e în așteptare (a greșit valoarea
+                // sau motivul) — altfel ar aglomera coada administrației cu cereri moarte.
+                Action::make('withdraw')
+                    ->label(__('panel.actions.request_correction.withdraw'))
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (): string => __('panel.actions.request_correction.withdraw_heading'))
+                    ->modalDescription(fn (): string => __('panel.actions.request_correction.withdraw_description'))
+                    ->modalSubmitActionLabel(__('panel.actions.request_correction.withdraw_submit'))
+                    ->visible(fn (GradeCorrection $record): bool => $record->isPending()
+                        && $record->requested_by_user_id === auth('web')->id())
+                    ->action(function (GradeCorrection $record): void {
+                        $record->withdraw();
+
+                        Notification::make()->success()->title(__('panel.actions.request_correction.withdraw_success'))->send();
+                    }),
                 Action::make('approve')
                     ->label(__('panel.actions.approve.label'))
                     ->icon('heroicon-o-check')
                     ->color('success')
+                    ->modalSubmitActionLabel(__('panel.actions.approve.label'))
                     ->visible(fn (GradeCorrection $record): bool => $record->isPending()
                         && (auth('web')->user()?->canApproveGradeCorrections() ?? false))
                     ->modalHeading(fn (): string => __('panel.actions.approve.label'))

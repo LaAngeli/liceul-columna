@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
 use App\Observers\GradeObserver;
 use Database\Factories\GradeFactory;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use OwenIt\Auditing\Auditable as AuditableTrait;
@@ -74,6 +76,32 @@ class Grade extends Model implements Auditable
     public function scopeActive(Builder $query): void
     {
         $query->whereNull('annulled_at');
+    }
+
+    /**
+     * Există deja o cerere de corecție nesoluționată pe această notă? Blochează depunerea unei a
+     * doua cereri (o notă nu poate avea două propuneri de valoare în așteptare simultan).
+     *
+     * Folosește `pending_corrections_count` dacă lista l-a preîncărcat cu `withCount` — altfel
+     * fiecare rând de tabel ar declanșa propria interogare.
+     */
+    public function hasPendingCorrection(): bool
+    {
+        $preloaded = $this->getAttribute('pending_corrections_count');
+
+        if ($preloaded !== null) {
+            return (int) $preloaded > 0;
+        }
+
+        return $this->corrections()
+            ->where('status', CorrectionStatus::Pending)
+            ->exists();
+    }
+
+    /** @return HasMany<GradeCorrection, $this> */
+    public function corrections(): HasMany
+    {
+        return $this->hasMany(GradeCorrection::class);
     }
 
     /** @return BelongsTo<Student, $this> */

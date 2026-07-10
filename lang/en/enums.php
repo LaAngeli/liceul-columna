@@ -17,6 +17,8 @@ return [
         'pending' => 'Pending',
         'approved' => 'Approved',
         'rejected' => 'Rejected',
+        'expired' => 'Void',
+        'withdrawn' => 'Withdrawn',
     ],
     'student_status' => [
         'promovat' => 'Promoted',

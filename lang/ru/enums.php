@@ -17,6 +17,8 @@ return [
         'pending' => 'В ожидании',
         'approved' => 'Одобрено',
         'rejected' => 'Отклонено',
+        'expired' => 'Утратило силу',
+        'withdrawn' => 'Отозвано',
     ],
     'student_status' => [
         'promovat' => 'Переведён',

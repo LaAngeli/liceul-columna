@@ -9,6 +9,7 @@ use App\Enums\NotificationType;
 use App\Enums\UserRole;
 use App\Models\GradeCorrection;
 use App\Notifications\CatalogNotification;
+use Illuminate\Validation\ValidationException;
 
 /**
  * La o cerere NOUĂ de corecție de notă, anunță aprobatorii (prim-vicedirector + director, plus
@@ -21,6 +22,29 @@ class GradeCorrectionObserver
         private NotifyStaff $notifier,
         private NotifyStudentFamily $family,
     ) {}
+
+    /**
+     * Invariant: o notă nu poate avea două cereri de corecție în așteptare simultan (administrația
+     * ar judeca două propuneri de valoare pentru aceeași notă). UI-ul ascunde deja acțiunea, dar
+     * regula trăiește aici, unde nicio cale — seeder, import, API viitor — nu o poate ocoli.
+     */
+    public function creating(GradeCorrection $correction): void
+    {
+        if ($correction->status !== CorrectionStatus::Pending) {
+            return;
+        }
+
+        $exists = GradeCorrection::query()
+            ->where('grade_id', $correction->grade_id)
+            ->where('status', CorrectionStatus::Pending)
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'grade_id' => __('panel.actions.request_correction.already_pending'),
+            ]);
+        }
+    }
 
     public function created(GradeCorrection $correction): void
     {

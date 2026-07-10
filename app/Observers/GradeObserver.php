@@ -3,9 +3,11 @@
 namespace App\Observers;
 
 use App\Actions\NotifyStudentFamily;
+use App\Enums\CorrectionStatus;
 use App\Enums\NotificationType;
 use App\Jobs\RecomputeTermAverage;
 use App\Models\Grade;
+use App\Models\GradeCorrection;
 use App\Notifications\CatalogNotification;
 use App\Support\Summatives;
 use Illuminate\Validation\ValidationException;
@@ -60,6 +62,23 @@ class GradeObserver
             ],
             route('cabinet.student', ['student' => $student->id], false),
         ));
+    }
+
+    /**
+     * Anularea unei note lasă fără obiect cererile de corecție nesoluționate pe ea: aprobarea lor
+     * ar rescrie valoarea unei note moarte, iar coada administrației ar rămâne cu cereri imposibil
+     * de judecat. Le închidem ca „caduce", indiferent de calea prin care s-a anulat nota.
+     */
+    public function updated(Grade $grade): void
+    {
+        if (! $grade->wasChanged('annulled_at') || ! $grade->isAnnulled()) {
+            return;
+        }
+
+        $grade->corrections()
+            ->where('status', CorrectionStatus::Pending)
+            ->get()
+            ->each(fn (GradeCorrection $correction) => $correction->expire());
     }
 
     public function saved(Grade $grade): void

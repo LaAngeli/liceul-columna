@@ -83,6 +83,28 @@ class GradeCorrection extends Model
         ]);
     }
 
+    /**
+     * Cererea rămâne fără obiect (nota a fost anulată între timp). Nu e o respingere — administrația
+     * nu s-a pronunțat asupra ei — deci nu consemnăm un recenzent, doar motivul de sistem.
+     */
+    public function expire(): void
+    {
+        $this->update([
+            'status' => CorrectionStatus::Expired,
+            'reviewed_at' => now(),
+            'review_note' => __('panel.actions.request_correction.expired_note'),
+        ]);
+    }
+
+    /** Solicitantul retrage cererea înainte să fie judecată. Rămâne în arhivă, nu se șterge. */
+    public function withdraw(): void
+    {
+        $this->update([
+            'status' => CorrectionStatus::Withdrawn,
+            'reviewed_at' => now(),
+        ]);
+    }
+
     /** @return BelongsTo<Grade, $this> */
     public function grade(): BelongsTo
     {

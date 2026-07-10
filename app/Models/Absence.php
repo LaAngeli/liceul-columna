@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\RequestStatus;
 use App\Observers\AbsenceObserver;
 use Database\Factories\AbsenceFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -47,6 +48,20 @@ class Absence extends Model implements Auditable
             'motivation_deadline' => 'date',
             'motivation_locked_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Elevul are o motivare APROBATĂ care acoperă ziua dată? Sursă pentru recalcularea lui
+     * `is_motivated` când data absenței se mută (dovada acoperă o perioadă, nu o absență anume).
+     */
+    public function hasApprovedMotivationOn(Carbon|string $date): bool
+    {
+        return AbsenceMotivation::query()
+            ->where('student_id', $this->student_id)
+            ->where('status', RequestStatus::Approved)
+            ->whereDate('period_start', '<=', $date)
+            ->whereDate('period_end', '>=', $date)
+            ->exists();
     }
 
     /** @return BelongsTo<Student, $this> */

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Grades\Tables;
 
+use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
 use App\Enums\SchoolCycle;
@@ -31,10 +32,12 @@ class GradesTable
             ->emptyStateDescription(__('panel.empty.grades.description'))
             ->emptyStateIcon('heroicon-o-academic-cap')
             ->defaultSort('graded_on', 'desc')
-            ->modifyQueryUsing(fn ($query) => $query->with('student'))
             // Restructurat: 6 coloane vizibile default (față de 10 înainte). Info secundară în
             // `description()` (rând 2 al celulei). Vezi memoria filament-table-width-compaction.
-            ->modifyQueryUsing(fn ($query) => $query->with(['student', 'schoolClass', 'subject']))
+            // `withCount` alimentează `hasPendingCorrection()` fără o interogare per rând (N+1).
+            ->modifyQueryUsing(fn ($query) => $query
+                ->with(['student', 'schoolClass', 'subject'])
+                ->withCount(['corrections as pending_corrections_count' => fn ($q) => $q->where('status', CorrectionStatus::Pending)]))
             ->columns([
                 // ELEV + clasa (fost coloană „Clasă" separată).
                 TextColumn::make('student.full_name')
@@ -56,13 +59,20 @@ class GradesTable
                             ? SchoolCycle::fromGradeLevel((int) $record->schoolClass->grade_level)
                             : null
                     )),
-                // NOTĂ + calificativ ca sub-text (fost coloană „Calif." separată).
+                // NOTĂ + calificativ ca sub-text (fost coloană „Calif." separată). Iconița de ceas
+                // marchează nota cu o corecție nesoluționată — altfel nu s-ar vedea de ce a dispărut
+                // acțiunea „Solicită corecție" de pe rând. Fără coloană nouă (fără scroll orizontal).
                 TextColumn::make('value')
                     ->label(__('panel.fields.value'))
                     ->numeric()
                     ->color(fn (Grade $record): ?string => $record->isAnnulled() ? 'gray' : null)
                     ->sortable()
-                    ->description(fn (Grade $record): ?string => $record->calificativ),
+                    ->description(fn (Grade $record): ?string => $record->calificativ)
+                    ->icon(fn (Grade $record): ?string => $record->hasPendingCorrection() ? 'heroicon-o-clock' : null)
+                    ->iconColor('warning')
+                    ->tooltip(fn (Grade $record): ?string => $record->hasPendingCorrection()
+                        ? (string) __('panel.tables.grades.pending_correction_tooltip')
+                        : null),
                 // SEM.
                 TextColumn::make('term.number')
                     ->label(__('panel.fields.term_short')),
@@ -116,11 +126,14 @@ class GradesTable
                     ->label(__('panel.actions.request_correction.label'))
                     ->icon('heroicon-o-pencil-square')
                     ->color('warning')
+                    ->modalSubmitActionLabel(__('panel.actions.request_correction.submit'))
                     // Doar profesorul care PREDĂ (clasa, disciplina) notei poate cere corecția — nu
                     // dirigintele pe o disciplină străină lui, deși vede nota clasei (audit M-1/#10).
+                    // O notă nu poate avea două cereri în așteptare simultan.
                     ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
                         && ! (auth('web')->user()?->canAdministerCatalog() ?? false)
-                        && self::teacherTeachesGrade($record))
+                        && self::teacherTeachesGrade($record)
+                        && ! $record->hasPendingCorrection())
                     ->modalHeading(fn (): string => __('panel.actions.request_correction.heading'))
                     ->modalDescription(fn (): string => __('panel.actions.request_correction.description'))
                     ->schema([
@@ -130,8 +143,11 @@ class GradesTable
                         // disciplina (audit M-5/#11). CORECȚIE: Subject::min_grade/max_grade NU sunt
                         // limitele notei — sunt „De la clasă / Până la clasă" (treapta la care se predă
                         // disciplina, ex. Chimie 7–12 = clasele VII-XII); le folosisem greșit ca bounds.
+                        // `validationAttribute` pe AMBELE câmpuri: fără el, mesajul `requiredWithout`
+                        // scurgea calea internă a perechii („mounted actions.0.data.new calificativ").
                         TextInput::make('new_value')
                             ->label(__('panel.actions.request_correction.new_value'))
+                            ->validationAttribute(__('panel.actions.request_correction.new_value'))
                             ->numeric()
                             ->minValue(1)
                             ->maxValue(10)
@@ -139,6 +155,7 @@ class GradesTable
                             ->requiredWithout('new_calificativ'),
                         TextInput::make('new_calificativ')
                             ->label(__('panel.actions.request_correction.new_calificativ'))
+                            ->validationAttribute(__('panel.actions.request_correction.new_calificativ'))
                             ->maxLength(10)
                             ->visible(fn (Grade $record): bool => $record->subject->grading_type !== GradingType::Numeric)
                             ->requiredWithout('new_value'),
@@ -147,6 +164,9 @@ class GradesTable
                             ->required()
                             ->maxLength(255),
                     ])
+                    // Unicitatea cererii în așteptare e impusă în `GradeCorrectionObserver::creating`,
+                    // nu aici: Filament reevaluează `visible()` și la execuția acțiunii, deci o gardă
+                    // în acest closure ar fi cod mort — invariantul trebuie să stea lângă model.
                     ->action(function (Grade $record, array $data): void {
                         GradeCorrection::create([
                             'grade_id' => $record->id,
