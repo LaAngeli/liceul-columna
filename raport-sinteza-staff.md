@@ -1,5 +1,11 @@
 # SINTEZĂ — audit live al panoului staff (rol Profesor/Diriginte)
 
+> **STARE (10.07.2026, după remediere):** cele două CRITICE sunt închise, la fel majorul cu
+> corecțiile duplicate, fix-ul sistemic (Policies) și toate minorele. Un finding s-a dovedit
+> GREȘIT la re-verificare și a fost retractat (bulk delete — funcționa). Un singur punct rămâne
+> deschis: cere o **decizie de produs** (vezi §6, motivarea absențelor).
+> Commit-uri: `598645f` (policies), `e501526` (ciclu corecții), `e96e567` (minore + retractare).
+
 > Navigare fizică prin browser, 10.07.2026, cont demo `profesor@columna.test` ([DEMO]
 > Bujor-Cobili Carolina — profesoară de Chimie + Dezvoltare personală în 11 clase, **dirigintă
 > la XI R**). Fiecare secțiune a fost parcursă cu mouse-ul: liste, filtre, formulare de creare/
@@ -31,51 +37,54 @@
 
 ## Ce trebuie reparat, în ordinea în care aș repara
 
-### 1. CRITIC — Profesorul modifică valoarea notei direct (Note)
+> ✅ = remediat și acoperit de teste care pică pe codul de dinainte.
+
+### 1. ✅ CRITIC — Profesorul modifică valoarea notei direct (Note)
 Editarea unei note proprii schimbă valoarea fără aprobare (dovedit: audit `9.00 → 8.00`).
 Contrazice §3.1 („corecția de valoare doar prin aprobare") și face fluxul „Solicită corecție"
 decorativ. **Fix**: `disabled + dehydrated(false)` pe `value`/`calificativ` pentru cine nu are
 `canAdministerCatalog()`.
 
-### 2. CRITIC — Profesorul șterge DEFINITIV date de catalog (Absențe; același tipar la Teme)
+### 2. ✅ CRITIC — Profesorul șterge DEFINITIV date de catalog (Absențe; același tipar la Teme)
 Soft-delete → redeschizi înregistrarea din coș → apar „Ștergerea forțată" + „Restaurare",
 negate. **Am executat efectiv ștergerea permanentă** a absenței de test #14037. Regula
 „ștergerea permanentă = doar autoritatea academică" e aplicată pe bulk-uri și UITATĂ pe
 acțiunile de header. **Fix**: gate pe `ForceDeleteAction`/`RestoreAction` în toate paginile
 Edit (Absences, HomeworkAssignments, și de verificat restul).
 
-### 3. MAJOR — „Ștergeți înregistrările selectate" nu face nimic (Absențe, probabil global)
-Selecția nu ajunge la server la montarea acțiunii (`selectedTableRecords=[]`), mount-ul e
-abandonat tăcut. Montarea directă a acțiunii funcționează → bug în puntea JS a tabelului
-(vendor Filament **v4.11.7**). **Pași**: update `filament/*` în `^4` și retestare; dacă
-persistă → repro minim + issue upstream; workaround: scoate `DeleteBulkAction` din
-`BulkActionGroup`. ⚠️ Testele Livewire NU prind bug-ul (e în JS).
+### 3. ❌ RETRACTAT — „Ștergeți înregistrările selectate" **funcționează**
+Re-verificat la nivel de payload: modalul se deschide, selecția ajunge intactă. Ce m-a păcălit:
+modalele se randează cu întârziere mare când fereastra nu e focusată (`requestAnimationFrame`
+throttled), iar `selectedTableRecords` chiar lipsește din `updates`-ul Livewire — dar asta e
+**corect**: valoarea e deja în `canonical`, deci se transmite prin snapshot, nu ca diff. Am
+citit `updates: {}` ca „selecția nu ajunge la server". Nu există bug de vendor, nu e nevoie de
+update Filament, nici de workaround.
 
-### 4. MAJOR — Corecții duplicate pe aceeași notă (Note)
+### 4. ✅ MAJOR — Corecții duplicate pe aceeași notă (Note)
 „Solicită corecție" rămâne activ după depunere; se pot acumula cereri `pending` pe aceeași
 notă. **Fix**: ascunde acțiunea când există `pending` + gardă pe server; badge „corecție în
 așteptare" pe rând.
 
-### 5. MEDIU (sistemic) — Butoane care duc la 403 (Elevi, Discipline, Clase, Documente, Teme)
+### 5. ✅ MEDIU (sistemic) — Butoane care duc la 403 (Elevi, Discipline, Clase, Documente, Teme)
 `canCreate/canEdit` statice gate-uiesc paginile, dar butoanele rămân vizibile (v4 le
 autorizează prin policies, care nu există) → clic = „403 | Forbidden" pe pagină albă.
 **Fix o dată pentru tot**: Policies per model care deleagă la capabilitățile deja existente pe
 `User` (`canConfigureSchool()`, `canManageDocuments()`, `canAdministerCatalog()`…). Bonus:
 pagină de eroare branduită și pentru rutele panoului (site-ul public are deja una frumoasă).
 
-### 6. MEDIU — Două uși pentru motivarea absențelor (Absențe ↔ Motivări)
+### 6. ⏸ MEDIU — Două uși pentru motivarea absențelor — **AȘTEAPTĂ DECIZIA TA** (Absențe ↔ Motivări)
 Spec §2.1 dă validarea dirigintelui; dar acțiunea „Motivează cu dovadă" din lista de Absențe
 lasă ORICE profesor de disciplină să motiveze absențele elevului **pe toate disciplinele** din
 perioadă. De ales: restrânge acțiunea la diriginte/administrație (recomand) sau documentează
 explicit devierea.
 
-### 7. MEDIU — Desincronizare motivare ↔ dată (Absențe)
+### 7. ✅ MEDIU — Desincronizare motivare ↔ dată (Absențe)
 Mutarea datei unei absențe motivate păstrează `is_motivated=1` deși dovada acoperă altă zi.
 
-### 8. MEDIU — Corecție `pending` pe o notă ANULATĂ (Corecții)
+### 8. ✅ MEDIU — Corecție `pending` pe o notă ANULATĂ (Corecții)
 Anularea notei nu închide cererile ei în așteptare (caz real în DB acum: cererea #46).
 
-### 9. Restul (minore, dar multe și ieftine)
+### 9. ✅ Restul (minore, dar multe și ieftine)
 Etichete implicite „Executați" în modale (Note, Corecții, Motivări); format de dată anglo
 („iul. 9, 2026") în Note/Absențe/Teme vs `d.m.Y` în Corecții; mesaje de validare care scurg
 căi interne (`mounted actions.0.data.new calificativ`); redirect după creare inconsecvent
@@ -101,7 +110,7 @@ după generarea PDF-ului.
 
 | Ce | Unde | Acțiune |
 |---|---|---|
-| Cerere de corecție `pending`, motiv `[TEST UI]…` (id 46, nota 52363) | Corecții note | respinge |
+| ~~Cerere de corecție `pending` `[TEST UI]` (id 46)~~ | Corecții note | **rezolvat automat**: a devenit „Caducă" prin migrarea de date |
 | Nota #52363 — ANULATĂ prin flux, motiv `[TEST UI]…` | Note | nimic (istoric corect) |
 | Motivarea #17 (Popescu Daniela) — aprobată cu notă `[TEST UI]` | Motivări absențe | opțional: re-seed demo |
 | Motivarea #16 (Lungu Iuliana) — respinsă în test | Motivări absențe | opțional: re-seed demo |
