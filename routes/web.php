@@ -7,6 +7,7 @@ use App\Http\Controllers\CabinetController;
 use App\Http\Controllers\CabinetDocumentsController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\Dev\DemoLoginController;
 use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\ForcedPasswordController;
 use App\Http\Controllers\ForcedTwoFactorController;
@@ -257,3 +258,13 @@ Route::middleware(['guest:web', 'throttle:two-factor', SetUserLocale::class])->g
     Route::post('two-factor-challenge/email/send', [TwoFactorEmailChallengeController::class, 'send'])->name('two-factor-email.challenge.send');
     Route::post('two-factor-challenge/email', [TwoFactorEmailChallengeController::class, 'verify'])->name('two-factor-email.challenge.verify');
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// Login de DEZVOLTARE pentru conturile demo (testare rapidă a fiecărui rol, fără parole).
+// STRICT local: în producție ruta nici nu se înregistrează. De eliminat la deploy împreună cu
+// conturile [DEMO]. Vezi App\Http\Controllers\Dev\DemoLoginController.
+if (app()->environment(['local', 'testing'])) {
+    Route::get('_demo/login/{role}', DemoLoginController::class)
+        ->middleware(SetUserLocale::class)
+        ->name('demo.login');
+}
