@@ -181,26 +181,14 @@ class AbsencesTable
     }
 
     /**
-     * Cine poate motiva o absență cu dovadă: autoritatea academică, sau profesorul/dirigintele care
-     * poate consemna absențe pentru acea clasă/disciplină (aceeași regulă ca la înregistrarea absenței).
+     * Cine poate motiva o absență cu dovadă: DIRIGINTELE clasei elevului sau administrația academică.
+     *
+     * Nu și profesorul de disciplină, deși consemnează absențe: o dovadă (certificat medical, cerere)
+     * acoperă ziua/perioada ÎNTREAGĂ, deci ar motiva și absențele de la orele colegilor. Validarea
+     * motivărilor e atribuția dirigintelui (spec §2.1) — de-aceea există coada „Motivări absențe".
      */
     private static function canMotivate(Absence $record): bool
     {
-        $user = auth('web')->user();
-
-        if ($user === null) {
-            return false;
-        }
-
-        if ($user->canAdministerCatalog()) {
-            return true;
-        }
-
-        $teacher = $user->teacher;
-
-        return $teacher !== null && $teacher->canRecordAbsence(
-            (int) $record->school_class_id,
-            $record->subject_id !== null ? (int) $record->subject_id : null,
-        );
+        return auth('web')->user()?->canMotivateAbsencesFor((int) $record->school_class_id) ?? false;
     }
 }

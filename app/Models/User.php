@@ -619,6 +619,23 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * Poate motiva absențele elevilor unei clase, pe baza unei dovezi: DIRIGINTELE clasei sau
+     * administrația academică (spec §2.1). NU și profesorul de disciplină, deși consemnează
+     * absențe: o dovadă acoperă ziua/perioada întreagă, deci ar motiva și orele colegilor.
+     *
+     * Sursă unică pentru ambele uși: acțiunea „Motivează cu dovadă" din lista de absențe și
+     * bifa „Motivează acum" din formularul de creare.
+     */
+    public function canMotivateAbsencesFor(int $schoolClassId): bool
+    {
+        if ($this->canAdministerCatalog()) {
+            return true;
+        }
+
+        return in_array($schoolClassId, $this->homeroomSchoolClassIds(), true);
+    }
+
+    /**
      * Poate VEDEA datele academice din panou (catalogul: elevi, note, absențe, foaie matricolă,
      * discipline, clase, teme etc.). Administrația academică (`isAdministrator`) + personalul
      * pedagogic (are fișă de profesor) — scoping-ul fin rămâne în `getEloquentQuery`. Administratorul

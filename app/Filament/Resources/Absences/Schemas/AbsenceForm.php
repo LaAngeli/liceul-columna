@@ -34,6 +34,8 @@ class AbsenceForm
                     ->afterStateUpdated(function (Set $set): void {
                         $set('student_id', null);
                         $set('subject_id', null);
+                        // Dirigenția e pe clasă: la schimbarea clasei, dreptul de a motiva pe loc se pierde.
+                        $set('motivate_now', false);
                     }),
                 Select::make('subject_id')
                     ->label(__('panel.fields.subject'))
@@ -66,13 +68,13 @@ class AbsenceForm
                 Toggle::make('motivate_now')
                     ->label(__('panel.forms.absence.motivate_now'))
                     ->helperText(__('panel.forms.absence.motivate_now_hint'))
-                    ->visible(fn (string $operation): bool => $operation === 'create')
+                    ->visible(fn (string $operation, Get $get): bool => $operation === 'create' && self::canMotivate($get))
                     ->live(),
                 Textarea::make('motivation_reason')
                     ->label(__('panel.fields.reason'))
                     ->rows(2)
                     ->maxLength(500)
-                    ->visible(fn (string $operation, Get $get): bool => $operation === 'create' && (bool) $get('motivate_now'))
+                    ->visible(fn (string $operation, Get $get): bool => $operation === 'create' && self::canMotivate($get) && (bool) $get('motivate_now'))
                     ->required(fn (Get $get): bool => (bool) $get('motivate_now')),
                 FileUpload::make('motivation_document')
                     ->label(__('panel.tables.absences.motivate.document'))
@@ -82,7 +84,7 @@ class AbsenceForm
                     ->visibility('private')
                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])
                     ->maxSize(5120)
-                    ->visible(fn (string $operation, Get $get): bool => $operation === 'create' && (bool) $get('motivate_now'))
+                    ->visible(fn (string $operation, Get $get): bool => $operation === 'create' && self::canMotivate($get) && (bool) $get('motivate_now'))
                     ->required(fn (Get $get): bool => (bool) $get('motivate_now')),
                 Hidden::make('teacher_id')
                     ->default(fn (): ?int => auth('web')->user()?->teacher?->id),
@@ -94,6 +96,21 @@ class AbsenceForm
         $user = auth('web')->user();
 
         return ($user && ! $user->isAdministrator()) ? $user->teacher : null;
+    }
+
+    /**
+     * Motivarea pe loc (cu dovadă) e a dirigintelui clasei alese sau a administrației — nu a
+     * profesorului de disciplină. Aceeași regulă ca acțiunea „Motivează cu dovadă" din listă.
+     */
+    private static function canMotivate(Get $get): bool
+    {
+        $classId = ($c = $get('school_class_id')) !== null && $c !== '' ? (int) $c : null;
+
+        if ($classId === null) {
+            return false;
+        }
+
+        return auth('web')->user()?->canMotivateAbsencesFor($classId) ?? false;
     }
 
     /**

@@ -35,7 +35,11 @@ class CreateAbsence extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         // Extrage motivarea inline (nu sunt coloane pe absences) și scoate-le din payload-ul absenței.
-        if (! empty($data['motivate_now']) && ! empty($data['motivation_document'])) {
+        // Garda de pe SERVER: motivarea pe loc e a dirigintelui clasei sau a administrației — bifa
+        // ascunsă în formular nu e o protecție (spec §2.1).
+        $canMotivate = auth('web')->user()?->canMotivateAbsencesFor((int) ($data['school_class_id'] ?? 0)) ?? false;
+
+        if ($canMotivate && ! empty($data['motivate_now']) && ! empty($data['motivation_document'])) {
             $this->motivationReason = (string) ($data['motivation_reason'] ?? '');
             $this->motivationDocumentPath = (string) $data['motivation_document'];
         }
