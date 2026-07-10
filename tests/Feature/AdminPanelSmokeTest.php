@@ -30,7 +30,7 @@ it('adminul poate deschide paginile principale ale panoului', function (string $
     '/admin/homework-assignments',
     '/admin/grade-corrections',
     '/admin/absence-motivations',
-    '/admin/messages',
+    '/admin/mesaje',
     '/admin/schedules',
     '/admin/document-requests',
     '/admin/users',
