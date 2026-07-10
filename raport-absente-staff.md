@@ -54,21 +54,18 @@
   `forceDelete/restore` ca plasă de siguranță. Test Pest: profesorul primește 403/acțiune
   invizibilă pe force-delete.
 
-### 2. MAJOR — „Operațiuni în masă → Ștergeți înregistrările selectate" NU face NIMIC
-- **Repro (repetat, inclusiv după reload complet)**: bifezi un rând → „Operațiuni în masă" →
-  „Ștergeți înregistrările selectate" → **niciun modal, nicio notificare, nimic** (nici la a
-  doua încercare). Serverul primește mount-ul cu selecția GOALĂ și îl abandonează tăcut
-  (verificat: `selectedTableRecords=[]` server-side deși UI arată „1 înregistrare selectată";
-  `mountedActions=[]` după request).
-- Montarea DIRECTĂ prin `$wire.mountAction('delete', {}, {table:true,bulk:true})` (cu selecția
-  deja sincronizată) deschide modalul și ștergerea funcționează — deci problema e în puntea
-  JS Alpine (sincronizarea selecției la mount), strat **vendor Filament v4.11.7**.
-- **Pași recomandați**: (1) `composer update "filament/*" -W` în constrângerea `^4` și
-  retestează (posibil patch upstream); (2) dacă persistă, repro minim + issue upstream;
-  (3) workaround aplicativ: scoate `DeleteBulkAction` din `BulkActionGroup` (buton direct în
-  toolbar) și retestează — grupul e parte din lanțul suspect. Notă: testul Livewire
-  (`callTableBulkAction`) NU prinde bug-ul (e în JS) — doar test de browser l-ar acoperi.
-- Impact: „retragerea" în masă a absențelor e nefuncțională pentru toți utilizatorii.
+### 2. ~~MAJOR — „Ștergeți înregistrările selectate" nu face nimic~~ **RETRACTAT — funcționează**
+- **Re-verificat la rece (10.07, după fix-urile de autorizare), la nivel de rețea**: bifezi un
+  rând → „Operațiuni în masă" → „Ștergeți înregistrările selectate" → modalul de confirmare
+  **se deschide corect**, cu selecția intactă („1 înregistrare selectată").
+- Ce m-a indus în eroare: (a) modalele se randează cu întârziere mare când fereastra nu e
+  focusată (`requestAnimationFrame` throttled în mediul de automatizare) — le fotografiam
+  înainte să apară; (b) `selectedTableRecords` chiar lipsește din `updates`-ul cererii
+  Livewire, dar **asta e corect**: valoarea e deja în `canonical`, deci se transmite prin
+  snapshot, nu ca diff. Am citit `updates: {}` ca „selecția nu ajunge la server" — greșit.
+- Nu există bug de vendor, nu e nevoie de update Filament, nu e nevoie de workaround.
+  Lecție: un finding despre „nu se întâmplă nimic" într-un mediu cu randare throttled trebuie
+  confirmat pe payload, nu pe captură de ecran.
 
 ### 3. MAJOR (design/spec) — Motivarea directă de către profesorul de DISCIPLINĂ acoperă TOATE disciplinele
 - Gate-ul acțiunii „Motivează" = poate consemna absențe la (clasa, disciplina) — dar

@@ -31,6 +31,9 @@ class Reports extends Page
 
     protected static ?int $navigationSort = 20;
 
+    // Slug RO, ca restul panoului (poșta e la /admin/mesaje).
+    protected static ?string $slug = 'rapoarte';
+
     protected string $view = 'filament.pages.reports';
 
     /** @var array<string, mixed>|null */
@@ -122,6 +125,10 @@ class Reports extends Page
             $type->blade(),
             app(BuildStaffReportData::class)->build($type, $classId, $subjectId),
         );
+
+        // Fără asta, un browser care blochează descărcarea lasă pagina fără niciun semn că s-a
+        // întâmplat ceva (audit staff, raport-generare-rapoarte-staff.md #2).
+        Notification::make()->success()->title(__('panel.pages.reports.generated'))->send();
 
         return response()->streamDownload(
             function () use ($content): void {

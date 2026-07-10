@@ -96,6 +96,7 @@ return [
             'type' => 'Tip de raport',
             'generate' => 'Generează PDF',
             'forbidden' => 'Nu ai dreptul să generezi acest raport pentru clasa/disciplina aleasă.',
+            'generated' => 'Raportul a fost generat și descărcat.',
         ],
         'profile' => [
             'title' => 'Profil',

@@ -27,6 +27,14 @@ trait PreparesHomeworkData
             $data['author_name'] = $teacher->full_name;
         }
 
+        // Rândul gol al repeater-ului ajungea în DB ca `[null]`, iar cabinetul afișa un chip gol.
+        if (array_key_exists('links', $data)) {
+            $data['links'] = array_values(array_filter(
+                (array) $data['links'],
+                static fn (mixed $link): bool => filled($link),
+            ));
+        }
+
         return $data;
     }
 }

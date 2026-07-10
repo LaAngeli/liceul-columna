@@ -88,6 +88,7 @@ class AbsenceMotivationsTable
                     ->label(__('panel.actions.validate.label'))
                     ->icon('heroicon-o-check')
                     ->color('success')
+                    ->modalSubmitActionLabel(__('panel.actions.validate.label'))
                     ->visible(fn (AbsenceMotivation $record): bool => self::canReview($record))
                     ->modalHeading(fn (): string => __('panel.actions.validate.label'))
                     ->modalDescription(fn (): string => __('panel.actions.validate_bulk.description'))
@@ -105,11 +106,15 @@ class AbsenceMotivationsTable
                     ->label(__('panel.actions.reject.label'))
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
+                    ->modalSubmitActionLabel(__('panel.actions.reject.label'))
                     ->visible(fn (AbsenceMotivation $record): bool => self::canReview($record))
                     ->modalHeading(fn (): string => __('panel.actions.reject.label'))
                     ->schema([
+                        // Familia vede în cabinet doar starea „Respinsă" — fără motiv, ar rămâne cu o
+                        // decizie neexplicată (și cu un drum inutil spre secretariat).
                         Textarea::make('review_note')
                             ->label(__('panel.common.rejection_reason'))
+                            ->required()
                             ->maxLength(255),
                     ])
                     ->action(function (AbsenceMotivation $record, array $data): void {
@@ -145,6 +150,7 @@ class AbsenceMotivationsTable
                         ->schema([
                             Textarea::make('review_note')
                                 ->label(__('panel.common.rejection_reason'))
+                                ->required()
                                 ->maxLength(255),
                         ])
                         ->action(function (Collection $records, array $data): void {

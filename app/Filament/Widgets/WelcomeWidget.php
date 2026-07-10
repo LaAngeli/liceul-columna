@@ -161,19 +161,22 @@ class WelcomeWidget extends Widget
     }
 
     /**
-     * Inițialele pentru avatar — primele litere ale primelor două cuvinte din nume, majuscule
-     * (aliniat cu avatarul generat de Filament în topbar: „Russu Ionela" → „RI").
+     * Inițialele pentru avatar — primele litere ale primelor două cuvinte CU LITERE din nume
+     * („Russu Ionela" → „RI"). Cuvintele fără litere se sar: altfel „[DEMO] Bujor-Cobili Carolina"
+     * dădea „[B", iar un nume cu prefix („Gh. Popescu") ar da „GP", nu „G.".
      */
     private static function initialsFrom(string $name): string
     {
-        $parts = array_values(array_filter(
+        $words = array_values(array_filter(
             explode(' ', trim($name)),
-            static fn (string $part): bool => $part !== '',
+            static fn (string $word): bool => preg_match('/\p{L}/u', $word) === 1,
         ));
 
         $initials = '';
-        foreach (array_slice($parts, 0, 2) as $part) {
-            $initials .= mb_strtoupper(mb_substr($part, 0, 1));
+        foreach (array_slice($words, 0, 2) as $word) {
+            if (preg_match('/\p{L}/u', $word, $match) === 1) {
+                $initials .= mb_strtoupper($match[0]);
+            }
         }
 
         return $initials;

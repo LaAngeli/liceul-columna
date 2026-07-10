@@ -14,6 +14,12 @@ class CreateHomeworkAssignment extends CreateRecord
 
     protected static string $resource = HomeworkAssignmentResource::class;
 
+    // După creare, revenire la listă — consecvent cu Note și Absențe.
+    protected function getRedirectUrl(): string
+    {
+        return static::getResource()::getUrl('index');
+    }
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>

@@ -86,6 +86,7 @@ return [
             'type' => 'Report type',
             'generate' => 'Generate PDF',
             'forbidden' => 'You are not allowed to generate this report for the selected class/subject.',
+            'generated' => 'The report has been generated and downloaded.',
         ],
         'profile' => [
             'title' => 'Profile',

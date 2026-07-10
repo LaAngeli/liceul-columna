@@ -161,9 +161,9 @@ export function ScheduleTab({
                                         {h.optional}
                                     </p>
                                 )}
-                                {h.links.length > 0 && (
+                                {h.links.filter(Boolean).length > 0 && (
                                     <div className="mt-2 flex flex-wrap gap-2">
-                                        {h.links.map((link, i) =>
+                                        {h.links.filter(Boolean).map((link, i) =>
                                             isUrl(link) ? (
                                                 <a
                                                     key={i}

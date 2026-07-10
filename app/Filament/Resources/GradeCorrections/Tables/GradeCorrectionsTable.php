@@ -118,12 +118,15 @@ class GradeCorrectionsTable
                     ->label(__('panel.actions.reject.label'))
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
+                    ->modalSubmitActionLabel(__('panel.actions.reject.label'))
                     ->visible(fn (GradeCorrection $record): bool => $record->isPending()
                         && (auth('web')->user()?->canApproveGradeCorrections() ?? false))
                     ->modalHeading(fn (): string => __('panel.actions.reject.label'))
                     ->schema([
+                        // Profesorul trebuie să afle DE CE i s-a respins corecția, altfel o redepune.
                         Textarea::make('review_note')
                             ->label(__('panel.common.rejection_reason'))
+                            ->required()
                             ->maxLength(255),
                     ])
                     ->action(function (GradeCorrection $record, array $data): void {
@@ -159,6 +162,7 @@ class GradeCorrectionsTable
                         ->schema([
                             Textarea::make('review_note')
                                 ->label(__('panel.common.rejection_reason'))
+                                ->required()
                                 ->maxLength(255),
                         ])
                         ->action(function (Collection $records, array $data): void {

@@ -11,6 +11,8 @@ use App\Calendar\Projectors\ManualEventProjector;
 use App\Calendar\Projectors\StructureProjector;
 use App\Support\Locale;
 use Carbon\CarbonImmutable;
+use Filament\Schemas\Schema;
+use Filament\Tables\Table;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -46,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureErrorPages();
+        $this->configureFilamentDateFormats();
 
         // La login parola tocmai a fost dovedită → marcăm confirmarea în sesiune. Fără asta,
         // gate-ul obligatoriu de 2FA (care duce imediat la endpoint-uri sub password.confirm)
@@ -53,6 +56,22 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Login::class, function (): void {
             session(['auth.password_confirmed_at' => time()]);
         });
+    }
+
+    /**
+     * Datele din panouri se scriu românește (`31.07.2026`), nu anglo-saxon („iul. 31, 2026").
+     * Se configurează O SINGURĂ DATĂ, la nivel de tabel și de schemă — coloanele care își dau
+     * explicit formatul rămân neatinse (audit staff: format inconsecvent între Note și Corecții).
+     */
+    protected function configureFilamentDateFormats(): void
+    {
+        Table::configureUsing(fn (Table $table): Table => $table
+            ->defaultDateDisplayFormat('d.m.Y')
+            ->defaultDateTimeDisplayFormat('d.m.Y H:i'));
+
+        Schema::configureUsing(fn (Schema $schema): Schema => $schema
+            ->defaultDateDisplayFormat('d.m.Y')
+            ->defaultDateTimeDisplayFormat('d.m.Y H:i'));
     }
 
     /**
