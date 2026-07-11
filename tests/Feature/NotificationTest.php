@@ -316,6 +316,33 @@ it('o cerere de corecție de notă notifică aprobatorii (nișa conducerii)', fu
     );
 });
 
+it('aprobarea unei corecții anunță FAMILIA că nota a fost corectată (nu „schimbare de statut")', function () {
+    $year = AcademicYear::factory()->create();
+    $class = SchoolClass::factory()->for($year)->create();
+    $student = Student::factory()->create();
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+    $teacher = User::factory()->create();
+
+    $grade = Grade::factory()->create([
+        'student_id' => $student->id, 'subject_id' => Subject::factory()->create()->id,
+        'school_class_id' => $class->id, 'term_id' => Term::factory()->for($year)->create()->id,
+        'value' => 5,
+    ]);
+    $correction = GradeCorrection::factory()->create([
+        'grade_id' => $grade->id, 'requested_by_user_id' => $teacher->id, 'new_value' => 8,
+    ]);
+
+    Notification::fake();
+    $correction->approve($teacher->id);
+
+    Notification::assertSentTo($parent, fn (CatalogNotification $n): bool => $n->type === NotificationType::GradeCorrected);
+    // NU mai trimite tipul de „schimbare de statut" (rezervat statutului elevului: promovat/corigent).
+    Notification::assertNotSentTo($parent, fn (CatalogNotification $n): bool => $n->type === NotificationType::StatusChange);
+    // (Respingerea → solicitant, NU familia: vezi StatusChangeNotificationTest.)
+});
+
 it('pagina Setări → Notificări din panou se randează și salvează pentru personal', function () {
     $staff = User::factory()->create();
     $staff->assignRole(UserRole::Profesor->value);

@@ -8,12 +8,14 @@ return [
     'types' => [
         'new_grade' => 'Новая оценка',
         'grade_annulled' => 'Оценка аннулирована',
+        'grade_corrected' => 'Оценка исправлена',
         'new_absence' => 'Новый пропуск',
         'new_homework' => 'Ежедневная сводка заданий',
         'new_message' => 'Новое сообщение',
         'status_change' => 'Изменение статуса',
         'announcement' => 'Объявление руководства',
         'grade_correction_request' => 'Исправление оценки на утверждение',
+        'grade_correction_rejected' => 'Исправление оценки отклонено',
         'absence_motivation_submitted' => 'Новое заявление об оправдании',
         'document_request_submitted' => 'Новое типовое заявление',
         'admission_request_submitted' => 'Новая заявка на зачисление',
@@ -36,6 +38,10 @@ return [
     'grade_annulled' => [
         'title' => 'Оценка аннулирована',
         'body' => 'Оценка ученика :student по предмету :subject аннулирована. Причина: :reason',
+    ],
+    'grade_corrected' => [
+        'title' => 'Оценка исправлена',
+        'body' => 'Оценка ученика :student по предмету :subject была исправлена.',
     ],
     'new_absence' => [
         'title' => 'Новый пропуск',
@@ -60,6 +66,10 @@ return [
     'grade_correction_request' => [
         'title' => 'Исправление оценки на утверждение',
         'body' => 'Учитель :teacher запросил исправление оценки для :student. Требуется утверждение.',
+    ],
+    'grade_correction_rejected' => [
+        'title' => 'Исправление оценки отклонено',
+        'body' => 'Запрошенное исправление оценки для :student отклонено. Причину см. в архиве исправлений.',
     ],
     'absence_motivation_submitted' => [
         'title' => 'Новое заявление об оправдании',

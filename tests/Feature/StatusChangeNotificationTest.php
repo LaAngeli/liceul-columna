@@ -15,8 +15,10 @@ use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
 
 /**
- * Lot 8.C / audit #2: la finalizarea (aprobare/respingere) unei cereri depuse de familie,
- * familia primește o notificare StatusChange (bucla de feedback închisă).
+ * Lot 8.C / audit #2: la finalizarea (aprobare/respingere) unei cereri depuse de FAMILIE
+ * (motivare, cerere de document), familia primește o notificare StatusChange (bucla de feedback).
+ * EXCEPȚIE — corecțiile de notă NU sunt cereri ale familiei (teacher↔conducere): verdictul lor
+ * merge la solicitant (respingere) / familia află „notă corectată" (aprobare) — vezi cluster Corecții.
  */
 beforeEach(function () {
     foreach (UserRole::cases() as $role) {
@@ -51,24 +53,31 @@ it('aprobarea unei motivări notifică familia (StatusChange)', function () {
     );
 });
 
-it('respingerea unei corecții de notă notifică familia', function () {
-    Notification::fake();
+it('respingerea unei corecții de notă notifică SOLICITANTUL, nu familia', function () {
     $student = studentWithFamily();
     $reviewer = User::factory()->create();
+    $requester = User::factory()->create();
+    $requester->assignRole(UserRole::Profesor->value);
 
     $grade = Grade::factory()->create(['student_id' => $student->id]);
     $correction = GradeCorrection::factory()->create([
         'grade_id' => $grade->id,
+        'requested_by_user_id' => $requester->id,
         'status' => CorrectionStatus::Pending,
     ]);
 
+    // Interceptăm ABIA acum, ca să izolăm respingerea (nu notificarea de notă nouă din setup).
+    Notification::fake();
     $correction->reject($reviewer->id, 'nejustificat');
 
+    // Solicitantul (profesorul) află verdictul + are motivul în arhivă.
     Notification::assertSentTo(
-        $student->user,
+        $requester,
         CatalogNotification::class,
-        fn (CatalogNotification $n): bool => $n->type === NotificationType::StatusChange,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::GradeCorrectionRejected,
     );
+    // Familia n-a fost implicată și nota n-a fost atinsă → fără zgomot pentru ea.
+    Notification::assertNotSentTo($student->user, CatalogNotification::class);
 });
 
 it('procesarea unei cereri de document notifică familia', function () {

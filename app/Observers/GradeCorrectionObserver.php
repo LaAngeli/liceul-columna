@@ -13,8 +13,11 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * La o cerere NOUĂ de corecție de notă, anunță aprobatorii (prim-vicedirector + director, plus
- * super-admin) — „pe nișa lor" (spec §3.1 / §5). La APROBARE/RESPINGERE, anunță familia elevului
- * că statutul corecției s-a schimbat (bucla de feedback, tipul StatusChange).
+ * super-admin) — „pe nișa lor" (spec §3.1 / §5). La soluționare, notificarea urmează CINE e afectat:
+ *  - APROBARE → valoarea notei s-a schimbat, deci FAMILIA e anunțată (eveniment de notă, simetric cu
+ *    notă nouă / anulare). Solicitantul vede rezultatul în arhivă.
+ *  - RESPINGERE → nota NU s-a schimbat și familia n-a fost implicată (corecția e teacher↔conducere) →
+ *    anunțăm SOLICITANTUL (cu motivul în arhivă), NU familia. Fără zgomot pentru familie.
  */
 class GradeCorrectionObserver
 {
@@ -66,21 +69,34 @@ class GradeCorrectionObserver
 
     public function updated(GradeCorrection $correction): void
     {
-        if (! $correction->wasChanged('status')
-            || ! in_array($correction->status, [CorrectionStatus::Approved, CorrectionStatus::Rejected], true)) {
+        if (! $correction->wasChanged('status')) {
             return;
         }
 
-        $student = $correction->grade?->student;
+        $grade = $correction->grade;
+        $student = $grade?->student;
 
-        if ($student === null) {
+        if ($correction->status === CorrectionStatus::Approved && $grade !== null && $student !== null) {
+            // Valoarea notei tocmai s-a schimbat → familia află (eveniment de notă).
+            $this->family->send($student, new CatalogNotification(
+                NotificationType::GradeCorrected,
+                ['student' => $student->full_name, 'subject' => $grade->subject->name],
+                route('cabinet.student', ['student' => $student->id], false),
+            ));
+
             return;
         }
 
-        $this->family->send($student, new CatalogNotification(
-            NotificationType::StatusChange,
-            ['student' => $student->full_name, 'status' => $correction->status->getLabel()],
-            route('cabinet.student', ['student' => $student->id], false),
-        ));
+        if ($correction->status === CorrectionStatus::Rejected) {
+            // Solicitantul (profesorul) trebuie să afle verdictul + motivul (arhivă), altfel redepune
+            // orbește. Familia n-a fost implicată și nota n-a fost atinsă → nu o notificăm.
+            $this->notifier->toUser(
+                $correction->requestedBy,
+                new CatalogNotification(
+                    NotificationType::GradeCorrectionRejected,
+                    ['student' => $student !== null ? $student->full_name : ''],
+                ),
+            );
+        }
     }
 }

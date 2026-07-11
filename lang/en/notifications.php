@@ -8,12 +8,14 @@ return [
     'types' => [
         'new_grade' => 'New grade',
         'grade_annulled' => 'Grade annulled',
+        'grade_corrected' => 'Grade corrected',
         'new_absence' => 'New absence',
         'new_homework' => 'Daily homework summary',
         'new_message' => 'New message',
         'status_change' => 'Status change',
         'announcement' => 'Management announcement',
         'grade_correction_request' => 'Grade correction to approve',
+        'grade_correction_rejected' => 'Grade correction rejected',
         'absence_motivation_submitted' => 'New absence-excuse request',
         'document_request_submitted' => 'New document request',
         'admission_request_submitted' => 'New admission request',
@@ -36,6 +38,10 @@ return [
     'grade_annulled' => [
         'title' => 'Grade annulled',
         'body' => 'A grade of :student in :subject was annulled. Reason: :reason',
+    ],
+    'grade_corrected' => [
+        'title' => 'Grade corrected',
+        'body' => 'A grade of :student in :subject was corrected.',
     ],
     'new_absence' => [
         'title' => 'New absence',
@@ -60,6 +66,10 @@ return [
     'grade_correction_request' => [
         'title' => 'Grade correction to approve',
         'body' => 'Teacher :teacher requested a grade correction for :student. Approval required.',
+    ],
+    'grade_correction_rejected' => [
+        'title' => 'Grade correction rejected',
+        'body' => 'The grade correction requested for :student was rejected. See the reason in the corrections archive.',
     ],
     'absence_motivation_submitted' => [
         'title' => 'New absence-excuse request',

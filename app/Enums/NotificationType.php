@@ -16,6 +16,7 @@ enum NotificationType: string implements HasLabel
     // Familie (elev / părinte).
     case NewGrade = 'new_grade';
     case GradeAnnulled = 'grade_annulled';
+    case GradeCorrected = 'grade_corrected';
     case NewAbsence = 'new_absence';
     case NewHomework = 'new_homework';
     case StatusChange = 'status_change';
@@ -26,6 +27,7 @@ enum NotificationType: string implements HasLabel
 
     // Nișă conducere / secretariat.
     case GradeCorrectionRequest = 'grade_correction_request';
+    case GradeCorrectionRejected = 'grade_correction_rejected';
     case AbsenceMotivationSubmitted = 'absence_motivation_submitted';
     case DocumentRequestSubmitted = 'document_request_submitted';
     case AdmissionRequestSubmitted = 'admission_request_submitted';
@@ -51,12 +53,14 @@ enum NotificationType: string implements HasLabel
         return match ($this) {
             self::NewGrade => 'heroicon-o-academic-cap',
             self::GradeAnnulled => 'heroicon-o-x-circle',
+            self::GradeCorrected => 'heroicon-o-pencil-square',
             self::NewAbsence => 'heroicon-o-calendar-days',
             self::NewHomework => 'heroicon-o-book-open',
             self::StatusChange => 'heroicon-o-flag',
             self::NewMessage => 'heroicon-o-chat-bubble-left-right',
             self::Announcement => 'heroicon-o-megaphone',
             self::GradeCorrectionRequest => 'heroicon-o-pencil-square',
+            self::GradeCorrectionRejected => 'heroicon-o-x-mark',
             self::AbsenceMotivationSubmitted => 'heroicon-o-document-check',
             self::DocumentRequestSubmitted => 'heroicon-o-inbox-arrow-down',
             self::AdmissionRequestSubmitted => 'heroicon-o-user-plus',
@@ -79,6 +83,7 @@ enum NotificationType: string implements HasLabel
             UserRole::Parinte, UserRole::Elev => [
                 self::NewGrade,
                 self::GradeAnnulled,
+                self::GradeCorrected,
                 self::NewAbsence,
                 self::NewHomework,
                 self::StatusChange,
@@ -86,15 +91,17 @@ enum NotificationType: string implements HasLabel
                 self::Announcement,
             ],
 
-            // Diriginte: validează motivările clasei lui.
+            // Diriginte: validează motivările clasei lui + primește verdictul corecțiilor cerute.
             UserRole::Diriginte => [
                 self::AbsenceMotivationSubmitted,
+                self::GradeCorrectionRejected,
                 self::NewMessage,
                 self::Announcement,
             ],
 
-            // Profesor: doar comunicare.
+            // Profesor: comunicare + verdictul corecțiilor cerute.
             UserRole::Profesor => [
+                self::GradeCorrectionRejected,
                 self::NewMessage,
                 self::Announcement,
             ],

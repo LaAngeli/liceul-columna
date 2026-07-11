@@ -13,12 +13,14 @@ return [
     'types' => [
         'new_grade' => 'Notă nouă',
         'grade_annulled' => 'Notă anulată',
+        'grade_corrected' => 'Notă corectată',
         'new_absence' => 'Absență nouă',
         'new_homework' => 'Rezumat zilnic de teme',
         'new_message' => 'Mesaj nou',
         'status_change' => 'Schimbare de statut',
         'announcement' => 'Anunț al conducerii',
         'grade_correction_request' => 'Corecție de notă de aprobat',
+        'grade_correction_rejected' => 'Corecție de notă respinsă',
         'absence_motivation_submitted' => 'Cerere de motivare nouă',
         'document_request_submitted' => 'Cerere tipică nouă',
         'admission_request_submitted' => 'Cerere de înscriere nouă',
@@ -41,6 +43,10 @@ return [
     'grade_annulled' => [
         'title' => 'Notă anulată',
         'body' => 'O notă a elevului :student la :subject a fost anulată. Motiv: :reason',
+    ],
+    'grade_corrected' => [
+        'title' => 'Notă corectată',
+        'body' => 'O notă a elevului :student la :subject a fost corectată.',
     ],
     'new_absence' => [
         'title' => 'Absență nouă',
@@ -67,6 +73,10 @@ return [
     'grade_correction_request' => [
         'title' => 'Corecție de notă de aprobat',
         'body' => 'Profesorul :teacher a solicitat o corecție de notă pentru :student. Necesită aprobare.',
+    ],
+    'grade_correction_rejected' => [
+        'title' => 'Corecție de notă respinsă',
+        'body' => 'Corecția de notă solicitată pentru :student a fost respinsă. Vezi motivul în arhiva corecțiilor.',
     ],
     'absence_motivation_submitted' => [
         'title' => 'Cerere de motivare nouă',
