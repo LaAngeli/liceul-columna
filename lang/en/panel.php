@@ -570,6 +570,8 @@ return [
             'topic' => 'Topic',
             'class_level' => 'Class (grade level)',
             'section' => 'Section letter',
+            'section_hint' => 'Class section letter (e.g. A, 1). Leave empty for the whole grade level.',
+            'section_not_found' => 'No class ":section" exists at the chosen grade level — the homework would reach no one. Check the letter or leave it empty.',
             'required_task' => 'Required task',
             'optional_task' => 'Optional task',
             'links' => 'Resource links',

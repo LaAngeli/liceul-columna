@@ -6,12 +6,14 @@ use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Support\ContentTranslator;
+use Closure;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 class HomeworkAssignmentForm
@@ -31,7 +33,30 @@ class HomeworkAssignmentForm
                     ->required(),
                 TextInput::make('section')
                     ->label(__('panel.forms.homework.section'))
-                    ->maxLength(4),
+                    ->helperText(__('panel.forms.homework.section_hint'))
+                    ->maxLength(4)
+                    // Litera goală = toată treapta (valid). Dacă e completată, TREBUIE să existe o clasă
+                    // (treaptă, literă) — altfel tema nu ajunge la nicio clasă și profesorul nu află (no-op
+                    // tăcut, audit-teme #6). O respingem cu mesaj clar în loc s-o salvăm inutil.
+                    ->rules([
+                        static fn (Get $get): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                            $section = is_string($value) ? trim($value) : '';
+                            $gradeLevel = $get('grade_level');
+
+                            if ($section === '' || $gradeLevel === null || $gradeLevel === '') {
+                                return;
+                            }
+
+                            $exists = SchoolClass::query()
+                                ->where('grade_level', (int) $gradeLevel)
+                                ->where('section', $section)
+                                ->exists();
+
+                            if (! $exists) {
+                                $fail(__('panel.forms.homework.section_not_found', ['section' => $section]));
+                            }
+                        },
+                    ]),
                 DatePicker::make('assigned_on')
                     ->label(__('panel.fields.date'))
                     ->required()

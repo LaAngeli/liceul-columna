@@ -14,6 +14,7 @@ use App\Enums\GradingType;
 use App\Enums\UserRole;
 use App\Filament\Resources\Absences\Pages\EditAbsence;
 use App\Filament\Resources\Grades\Pages\CreateGrade;
+use App\Filament\Resources\HomeworkAssignments\Pages\ListHomeworkAssignments;
 use App\Filament\Resources\SchoolClasses\Pages\ListSchoolClasses;
 use App\Filament\Resources\Students\Pages\ListStudents;
 use App\Filament\Resources\Subjects\Pages\ListSubjects;
@@ -191,6 +192,38 @@ it('autorul unei teme o poate retrage, dar nu o poate șterge definitiv', functi
     expect(Gate::forUser($this->profesor)->check('delete', $homework))->toBeTrue();
     expect(Gate::forUser($this->profesor)->check('forceDelete', $homework))->toBeFalse();
     expect(Gate::forUser($this->profesor)->check('restore', $homework))->toBeFalse();
+});
+
+// ─── TEME (audit-teme #2): butonul „Editare" nu apare pe tema unui coleg (ar duce la 403) ──
+// Profesorii văd temele claselor comune (by design), dar acțiunea de editare trebuie ascunsă pe
+// cele străine. Vizibilitatea acțiunii trece prin abilitatea `update` din policy — nu prin
+// `Resource::canEdit()` static, care gate-uiește doar PAGINA (aceeași lecție ca la CRITICE-le din audit).
+it('profesorul nu vede acțiunea de editare pe tema unui coleg, dar o vede pe a sa', function () {
+    $colleagueUser = User::factory()->create();
+    $colleagueUser->assignRole(UserRole::Profesor->value);
+    $colleague = Teacher::factory()->create(['user_id' => $colleagueUser->id]);
+    TeachingAssignment::factory()->create([
+        'teacher_id' => $colleague->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $this->subject->id,
+    ]);
+
+    // section = null → tema se vede la orice clasă de acea treaptă (scope), deci și colegul o vede.
+    $ownHomework = HomeworkAssignment::factory()->create([
+        'teacher_id' => $colleague->id, 'subject_id' => $this->subject->id,
+        'grade_level' => $this->class->grade_level, 'section' => null,
+    ]);
+    $othersHomework = HomeworkAssignment::factory()->create([
+        'teacher_id' => $this->teacher->id, 'subject_id' => $this->subject->id,
+        'grade_level' => $this->class->grade_level, 'section' => null,
+    ]);
+
+    actingAs($colleagueUser);
+
+    Livewire::test(ListHomeworkAssignments::class)
+        ->assertCanSeeTableRecords([$ownHomework, $othersHomework])
+        ->assertTableActionVisible('edit', $ownHomework)
+        ->assertTableActionHidden('edit', $othersHomework);
 });
 
 // ─── SISTEMIC: nomenclatoarele nu se scriu de profesor ──────────────────────────────────

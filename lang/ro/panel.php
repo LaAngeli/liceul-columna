@@ -583,6 +583,8 @@ return [
             'topic' => 'Subiectul',
             'class_level' => 'Clasa (treapta)',
             'section' => 'Litera',
+            'section_hint' => 'Litera clasei (ex.: A, 1). Lasă gol pentru toată treapta.',
+            'section_not_found' => 'Nu există nicio clasă „:section" la treapta aleasă — tema n-ar ajunge la nimeni. Verifică litera sau las-o goală.',
             'required_task' => 'Sarcina obligatorie',
             'optional_task' => 'Sarcina suplimentară',
             'links' => 'Linkuri-resursă',
