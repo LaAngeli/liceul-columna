@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Students\Tables;
 
 use App\Actions\DetermineStudentStatus;
 use App\Actions\GenerateCorigentaExams;
+use App\Actions\LogStudentAccess;
 use App\Actions\NotifyStudentFamily;
 use App\Enums\NotificationType;
 use App\Enums\StudentStatus;
@@ -30,6 +31,7 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 class StudentsTable
 {
@@ -172,7 +174,26 @@ class StudentsTable
                 BulkActionGroup::make([
                     ExportBulkAction::make()
                         ->exporter(StudentExporter::class)
-                        ->visible(fn (): bool => auth('web')->user()?->isAdministrator() ?? false),
+                        ->visible(fn (): bool => auth('web')->user()?->isAdministrator() ?? false)
+                        // L133 §7: exportul de PII (minori) intră în jurnalul de acces PER ELEV,
+                        // ca „exported" — aliniat cu descărcările echivalente din cabinet, care
+                        // se jurnalizau deja. Rulează înainte de dispatch-ul job-ului de export.
+                        // ⚠️ ExportBulkAction amână încărcarea înregistrărilor spre job → hook-ul
+                        // primește CHEILE (int), nu modelele; le rezolvăm aici (withTrashed — și
+                        // exportul din filtrul „Șterse" e tot un export de PII).
+                        ->before(function (Collection $records): void {
+                            $log = app(LogStudentAccess::class);
+
+                            $students = $records->first() instanceof Student
+                                ? $records
+                                : Student::withTrashed()->whereKey($records->all())->get();
+
+                            foreach ($students as $student) {
+                                if ($student instanceof Student) {
+                                    $log->record($student, 'exported', 'Export listă elevi (panou)');
+                                }
+                            }
+                        }),
                     DeleteBulkAction::make(),
                     ForceDeleteBulkAction::make(),
                     RestoreBulkAction::make(),

@@ -101,12 +101,18 @@ it('un elev își vede doar propriul profil', function () {
     $this->actingAs($user)->get("/cabinet/elev/{$other->id}")->assertForbidden();
 });
 
-it('personalul poate vedea orice elev', function () {
-    $staff = User::factory()->create();
-    $staff->assignRole(UserRole::Profesor->value);
+it('administrația vede orice elev; profesorul doar pe ai claselor lui (L133 — scoping)', function () {
     $student = Student::factory()->create();
 
-    $this->actingAs($staff)->get("/cabinet/elev/{$student->id}")->assertOk();
+    // Administrația academică → orice dosar.
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+    $this->actingAs($director)->get("/cabinet/elev/{$student->id}")->assertOk();
+
+    // Profesorul FĂRĂ legătură cu elevul → 403 (înainte, orice profesor vedea orice dosar).
+    $staff = User::factory()->create();
+    $staff->assignRole(UserRole::Profesor->value);
+    $this->actingAs($staff)->get("/cabinet/elev/{$student->id}")->assertForbidden();
 });
 
 it('redirecționează personalul de la cabinet (/dashboard) către panou (/admin)', function (UserRole $role) {
@@ -281,9 +287,10 @@ it('cabinetul oferă formularul de motivare familiei, dar nu personalului', func
         ->assertOk()
         ->assertJsonStructure(['props' => ['motivations']]);
 
-    // Personalul vede pagina, dar NU formularul (ar primi 403 la trimitere).
+    // Personalul (cu drept de consultare — administrația) vede pagina, dar NU formularul
+    // (ar primi 403 la trimitere). Profesorul fără legătură nu mai vede nici pagina (L133).
     $staff = User::factory()->create();
-    $staff->assignRole(UserRole::Profesor->value);
+    $staff->assignRole(UserRole::Director->value);
     $this->actingAs($staff)
         ->get("/cabinet/elev/{$student->id}")
         ->assertInertia(fn (Assert $page) => $page->where('canRequestMotivation', false));

@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\UserRole;
+use App\Filament\Resources\Students\StudentResource;
 use App\Models\Absence;
 use App\Models\AcademicRecord;
 use App\Models\Enrollment;
@@ -24,16 +25,27 @@ class StudentPolicy
     }
 
     /**
-     * Cine poate vedea profilul unui elev:
-     * - personalul academic (tot personalul cu acces la panou, mai puțin administratorul tehnic,
-     *   care nu consultă date academice în uz normal — §3.2); scoping-ul fin se adaugă ulterior;
+     * Cine poate vedea profilul unui elev (L133 — dosar cu PII de minor):
+     * - administrația academică (super/director/prim-vicedir/AO) — orice dosar; AT niciodată (§3.2);
+     * - profesorul/dirigintele — DOAR elevii claselor lui (aliniat cu scoping-ul panoului,
+     *   {@see StudentResource::getEloquentQuery}); înainte, orice
+     *   profesor putea deschide orice dosar prin /cabinet/elev/{id};
      * - elevul însuși (contul legat);
-     * - un părinte/tutore atribuit elevului.
+     * - un părinte/tutore atribuit elevului (inclusiv profesorul-părinte, prin fall-through).
      */
     public function view(User $user, Student $student): bool
     {
-        if ($user->hasAnyRole(UserRole::panelRoleValues()) && ! $user->isTechnicalAdmin()) {
+        if ($user->isAdministrator()) {
             return true;
+        }
+
+        if ($user->hasAnyRole(UserRole::panelRoleValues()) && ! $user->isTechnicalAdmin()) {
+            $classIds = $user->teacher?->visibleSchoolClassIds() ?? [];
+
+            if ($classIds !== [] && $student->enrollments()->whereIn('school_class_id', $classIds)->exists()) {
+                return true;
+            }
+            // NU return false: profesorul poate fi și PĂRINTELE elevului — cad pe verificările de familie.
         }
 
         if ($student->user_id === $user->id) {

@@ -4,8 +4,10 @@ namespace App\Filament\Pages;
 
 use App\Actions\Documents\BuildStaffReportData;
 use App\Actions\Documents\RenderPdf;
+use App\Actions\LogStudentAccess;
 use App\Enums\StaffReportType;
 use App\Models\SchoolClass;
+use App\Models\Student;
 use App\Models\Subject;
 use App\Models\User;
 use App\Support\ContentTranslator;
@@ -16,6 +18,7 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Database\Eloquent\Builder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -117,6 +120,14 @@ class Reports extends Page
 
             return null;
         }
+
+        // Jurnalizarea accesului (L133 §7): raportul conține PII-ul elevilor clasei → fiecare elev
+        // intră în jurnal ca „exported" — aliniat cu exportul din tabel și descărcările din cabinet.
+        $log = app(LogStudentAccess::class);
+        Student::query()
+            ->whereHas('enrollments', fn (Builder $q) => $q->where('school_class_id', $classId))
+            ->get()
+            ->each(fn (Student $s) => $log->record($s, 'exported', 'Raport staff: '.$type->getLabel()));
 
         // Document oficial → randare consecventă în RO (denumiri de discipline + antete).
         app()->setLocale('ro');
