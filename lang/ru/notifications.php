@@ -11,6 +11,8 @@ return [
         'grade_corrected' => 'Оценка исправлена',
         'new_absence' => 'Новый пропуск',
         'new_homework' => 'Ежедневная сводка заданий',
+        'new_calendar_event' => 'Новое событие в календаре',
+        'calendar_event_cancelled' => 'Событие отменено',
         'new_message' => 'Новое сообщение',
         'status_change' => 'Изменение статуса',
         'announcement' => 'Объявление руководства',
@@ -58,6 +60,14 @@ return [
     'status_change' => [
         'title' => 'Изменение статуса',
         'body' => 'Статус ученика :student обновлён: :status.',
+    ],
+    'new_calendar_event' => [
+        'title' => 'Новое событие в календаре',
+        'body' => 'Новое событие: :title — :date.',
+    ],
+    'calendar_event_cancelled' => [
+        'title' => 'Событие отменено',
+        'body' => 'Событие «:title» от :date отменено.',
     ],
     'announcement' => [
         'title' => 'Объявление',

@@ -14,8 +14,11 @@ use Illuminate\Support\Carbon;
 
 /**
  * Calendarul INSTITUȚIONAL pentru staff (modul Calendar). Consumă același {@see CalendarAggregator}
- * ca și cabinetul, cu scope de staff: doar evenimente globale (structură + sesiuni publicate +
- * evenimente/ședințe manuale), fără PII per-elev. Vederi: Lună / Săptămână / Zi / Agendă.
+ * ca și cabinetul, cu scope de staff. Vederi: Lună / Săptămână / Zi / Agendă.
+ *
+ * ⚠️ DECIZIE (2026-07-12): transparent INTERN („staff-wide") — tot personalul academic vede TOATE
+ * evenimentele manuale, inclusiv cele scoped pe clasă/treaptă. Scope-ul controlează ce văd FAMILIILE
+ * în cabinet, nu confidențialitatea între colegi → fără PII de elev în titluri/descrieri.
  */
 class Calendar extends Page
 {

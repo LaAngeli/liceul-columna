@@ -11,6 +11,8 @@ return [
         'grade_corrected' => 'Grade corrected',
         'new_absence' => 'New absence',
         'new_homework' => 'Daily homework summary',
+        'new_calendar_event' => 'New calendar event',
+        'calendar_event_cancelled' => 'Event cancelled',
         'new_message' => 'New message',
         'status_change' => 'Status change',
         'announcement' => 'Management announcement',
@@ -58,6 +60,14 @@ return [
     'status_change' => [
         'title' => 'Status change',
         'body' => 'The status of :student was updated: :status.',
+    ],
+    'new_calendar_event' => [
+        'title' => 'New calendar event',
+        'body' => 'New event: :title — :date.',
+    ],
+    'calendar_event_cancelled' => [
+        'title' => 'Event cancelled',
+        'body' => 'The event ":title" on :date was cancelled.',
     ],
     'announcement' => [
         'title' => 'Announcement',

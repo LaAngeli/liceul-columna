@@ -16,6 +16,8 @@ return [
         'grade_corrected' => 'Notă corectată',
         'new_absence' => 'Absență nouă',
         'new_homework' => 'Rezumat zilnic de teme',
+        'new_calendar_event' => 'Eveniment nou în calendar',
+        'calendar_event_cancelled' => 'Eveniment anulat',
         'new_message' => 'Mesaj nou',
         'status_change' => 'Schimbare de statut',
         'announcement' => 'Anunț al conducerii',
@@ -65,6 +67,14 @@ return [
     'status_change' => [
         'title' => 'Schimbare de statut',
         'body' => 'Statutul elevului :student a fost actualizat: :status.',
+    ],
+    'new_calendar_event' => [
+        'title' => 'Eveniment nou în calendar',
+        'body' => 'Eveniment nou: :title — :date.',
+    ],
+    'calendar_event_cancelled' => [
+        'title' => 'Eveniment anulat',
+        'body' => 'Evenimentul „:title" din :date a fost anulat.',
     ],
     'announcement' => [
         'title' => 'Anunț',

@@ -13,6 +13,7 @@
  */
 
 use App\Enums\AudienceDomain;
+use App\Enums\CalendarEventScope;
 use App\Enums\NotificationType;
 use App\Enums\RequestStatus;
 use App\Enums\UserRole;
@@ -216,6 +217,62 @@ it('dirigintele NU e restant în ziua-limită, ci abia din ziua următoare', fun
     // Joi dimineață — restant.
     Carbon::setTestNow('2026-03-05 08:00');
     expect($motivation->isOverdue())->toBeTrue();
+});
+
+// ─── Evenimentele noi/anulate notifică familiile din scope (decizie user, 2026-07-12) ────
+
+it('crearea unui eveniment de clasă notifică DOAR familiile clasei; anularea la fel', function () {
+    $inScope = User::factory()->create();
+    $inScope->assignRole(UserRole::Elev->value);
+    $studentIn = Student::factory()->create(['user_id' => $inScope->id]);
+    Enrollment::factory()->for($studentIn)->for($this->class)->for($this->year)->create();
+
+    $otherClass = SchoolClass::factory()->for($this->year)->create();
+    $outOfScope = User::factory()->create();
+    $outOfScope->assignRole(UserRole::Elev->value);
+    $studentOut = Student::factory()->create(['user_id' => $outOfScope->id]);
+    Enrollment::factory()->for($studentOut)->for($otherClass)->for($this->year)->create();
+
+    Notification::fake();
+
+    $event = CalendarEvent::factory()->create([
+        'title' => 'Ședință cu părinții',
+        'visibility_scope' => CalendarEventScope::SchoolClass,
+        'school_class_id' => $this->class->id,
+        'starts_on' => today()->addWeek(),
+    ]);
+
+    Notification::assertSentTo(
+        $inScope,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::NewCalendarEvent,
+    );
+    Notification::assertNothingSentTo($outOfScope);
+
+    // Anularea (soft-delete) anunță aceeași audiență.
+    $event->delete();
+
+    Notification::assertSentTo(
+        $inScope,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::CalendarEventCancelled,
+    );
+    Notification::assertNothingSentTo($outOfScope);
+});
+
+it('evenimentele TRECUTE nu notifică pe nimeni (bookkeeping, nu anunț)', function () {
+    $family = User::factory()->create();
+    $family->assignRole(UserRole::Elev->value);
+    $student = Student::factory()->create(['user_id' => $family->id]);
+    Enrollment::factory()->for($student)->for($this->class)->for($this->year)->create();
+
+    Notification::fake();
+
+    CalendarEvent::factory()->create([
+        'visibility_scope' => CalendarEventScope::Global,
+        'starts_on' => today()->subMonth(),
+        'ends_on' => today()->subMonth(),
+    ]);
+
+    Notification::assertNothingSentTo($family);
 });
 
 // ─── Zilele libere au policy ─────────────────────────────────────────────────────────────

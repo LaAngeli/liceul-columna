@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\CalendarEventScope;
 use App\Enums\CalendarEventType;
+use App\Observers\CalendarEventObserver;
 use Database\Factories\CalendarEventFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,7 +20,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 /**
  * Eveniment de calendar MANUAL (modul Calendar v2), creat de personal. Vizibilitatea către familii e
  * dată de scope (global / treaptă / clasă). Titlul/descrierea: RO pe model, RU/EN în
- * {@see CalendarEventTranslation} cu fallback RO. Modificările sunt auditate.
+ * {@see CalendarEventTranslation} cu fallback RO. Modificările sunt auditate; crearea/anularea
+ * notifică familiile din scope ({@see CalendarEventObserver}).
  *
  * @property CalendarEventType $type
  * @property CalendarEventScope $visibility_scope
@@ -31,6 +34,7 @@ use OwenIt\Auditing\Contracts\Auditable;
  * @property string|null $start_time
  * @property int|null $created_by
  */
+#[ObservedBy(CalendarEventObserver::class)]
 class CalendarEvent extends Model implements Auditable
 {
     use AuditableTrait;

@@ -75,9 +75,14 @@ class CalendarAccess
     }
 
     /**
-     * Scope-ul calendarului pentru STAFF. MVP: calendarul INSTITUȚIONAL (structură — semestre/vacanțe
-     * — + sesiuni de corigență publicate + viitoarele evenimente/ședințe manuale), fără agregare PII
-     * per-elev la scară. Elevii rămân goi ⇒ doar evenimentele globale. Extinderea pe clase = v2.
+     * Scope-ul calendarului pentru STAFF: calendarul INSTITUȚIONAL (structură — semestre/vacanțe —
+     * + sesiuni de corigență publicate + evenimentele manuale), fără agregare PII per-elev la scară.
+     *
+     * ⚠️ DECIZIE (2026-07-12): calendarul instituțional e TRANSPARENT INTERN („staff-wide") — tot
+     * personalul academic vede TOATE evenimentele manuale, inclusiv cele scoped pe clasă/treaptă
+     * (ManualEventProjector dă staff-ului tot). NU te baza pe scope pentru confidențialitate între
+     * colegi: titlul/descrierea unui eveniment nu trebuie să conțină PII de elev — pentru discuții
+     * punctuale despre un elev se folosește poșta internă, nu calendarul.
      */
     public function staffScope(User $viewer): CalendarScope
     {
