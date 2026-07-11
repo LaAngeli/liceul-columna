@@ -12,6 +12,7 @@ use App\Notifications\CatalogNotification;
 return [
     'types' => [
         'new_grade' => 'Notă nouă',
+        'grade_annulled' => 'Notă anulată',
         'new_absence' => 'Absență nouă',
         'new_homework' => 'Rezumat zilnic de teme',
         'new_message' => 'Mesaj nou',
@@ -36,6 +37,10 @@ return [
     'new_grade' => [
         'title' => 'Notă nouă',
         'body' => 'Elevul :student a primit o notă nouă la :subject.',
+    ],
+    'grade_annulled' => [
+        'title' => 'Notă anulată',
+        'body' => 'O notă a elevului :student la :subject a fost anulată. Motiv: :reason',
     ],
     'new_absence' => [
         'title' => 'Absență nouă',

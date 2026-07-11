@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use App\Actions\DetermineStudentStatus;
 use App\Actions\LogStudentAccess;
 use App\Enums\SecondLanguage;
 use App\Enums\Sex;
+use App\Filament\Widgets\NeedsAttention;
+use App\Support\Grades;
 use Database\Factories\StudentFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -148,5 +153,66 @@ class Student extends Model implements Auditable
     public function termAverages(): HasMany
     {
         return $this->hasMany(TermAverage::class);
+    }
+
+    /**
+     * Elev „corigent" în semestrul dat: are cel puțin o medie semestrială restantă (MS < pragul de
+     * promovare) care NU a fost lichidată printr-un examen de corigență promovat. SURSĂ UNICĂ pentru
+     * contorul de dashboard ({@see NeedsAttention}) și filtrul din tabelul de
+     * elevi — ca cele două suprafețe să nu se contrazică între ele sau cu statutul din cabinet
+     * ({@see DetermineStudentStatus}): o corigență promovată prin examen NU mai e
+     * „corigent". Fără semestru curent → predicat neutru (setul rămâne neschimbat).
+     *
+     * @param  Builder<Student>  $query
+     * @return Builder<Student>
+     */
+    public function scopeCorigentInTerm(Builder $query, ?int $termId): Builder
+    {
+        if ($termId === null) {
+            return $query;
+        }
+
+        return $query->whereHas('termAverages', fn (Builder $sub): Builder => self::unresolvedFailingAverage($sub, $termId));
+    }
+
+    /**
+     * Complementul: elev FĂRĂ nicio medie restantă nelichidată în semestrul dat.
+     *
+     * @param  Builder<Student>  $query
+     * @return Builder<Student>
+     */
+    public function scopeNotCorigentInTerm(Builder $query, ?int $termId): Builder
+    {
+        if ($termId === null) {
+            return $query;
+        }
+
+        return $query->whereDoesntHave('termAverages', fn (Builder $sub): Builder => self::unresolvedFailingAverage($sub, $termId));
+    }
+
+    /**
+     * Predicatul pe medii: o medie semestrială restantă (MS < prag) în semestrul dat, ÎNCĂ
+     * nelichidată — adică fără un examen de corigență promovat (notă ≥ prag) pe aceeași
+     * disciplină + semestru. Pragul vine din {@see Grades::PASS} (nu literalul „5"), ca schimbarea
+     * lui să se propage uniform. Tipat pe `Builder<Model>` — folosește doar operații generice de
+     * query (where/whereNotExists pe `term_averages`), fără metode specifice modelului.
+     *
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    private static function unresolvedFailingAverage(Builder $query, int $termId): Builder
+    {
+        return $query
+            ->where('term_id', $termId)
+            ->whereNotNull('value')
+            ->where('value', '<', Grades::PASS)
+            ->whereNotExists(function (QueryBuilder $exam) use ($termId): void {
+                $exam->from('corigenta_exams')
+                    ->whereColumn('corigenta_exams.student_id', 'term_averages.student_id')
+                    ->whereColumn('corigenta_exams.subject_id', 'term_averages.subject_id')
+                    ->where('corigenta_exams.term_id', $termId)
+                    ->whereNotNull('corigenta_exams.mark')
+                    ->where('corigenta_exams.mark', '>=', Grades::PASS);
+            });
     }
 }

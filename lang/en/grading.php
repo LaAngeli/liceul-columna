@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'annul' => [
+        'no_reason' => 'unspecified',
+    ],
     'summative' => [
         'not_designated' => 'For this class, the semester summative grade may only be entered for subjects set by order — the chosen subject is not one of them.',
     ],

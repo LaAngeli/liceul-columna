@@ -65,9 +65,11 @@ class GradeObserver
     }
 
     /**
-     * Anularea unei note lasă fără obiect cererile de corecție nesoluționate pe ea: aprobarea lor
-     * ar rescrie valoarea unei note moarte, iar coada administrației ar rămâne cu cereri imposibil
-     * de judecat. Le închidem ca „caduce", indiferent de calea prin care s-a anulat nota.
+     * Anularea unei note declanșează două efecte, indiferent de calea prin care s-a anulat:
+     *  1. cererile de corecție nesoluționate rămân fără obiect (aprobarea ar rescrie valoarea unei
+     *     note moarte) → le închidem ca „caduce";
+     *  2. familia e ÎNȘTIINȚATĂ (§5): nota dispare din cabinet ({@see Grade::scopeActive}), deci fără
+     *     notificare familia ar constata tăcut o notă lipsă. Simetric cu notificarea de notă NOUĂ.
      */
     public function updated(Grade $grade): void
     {
@@ -79,6 +81,22 @@ class GradeObserver
             ->where('status', CorrectionStatus::Pending)
             ->get()
             ->each(fn (GradeCorrection $correction) => $correction->expire());
+
+        $student = $grade->student;
+
+        if ($student === null) {
+            return;
+        }
+
+        $this->notifier->send($student, new CatalogNotification(
+            NotificationType::GradeAnnulled,
+            [
+                'student' => $student->full_name,
+                'subject' => $grade->subject->name,
+                'reason' => $grade->annulment_reason ?? __('grading.annul.no_reason'),
+            ],
+            route('cabinet.student', ['student' => $student->id], false),
+        ));
     }
 
     public function saved(Grade $grade): void

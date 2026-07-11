@@ -7,6 +7,7 @@
 return [
     'types' => [
         'new_grade' => 'New grade',
+        'grade_annulled' => 'Grade annulled',
         'new_absence' => 'New absence',
         'new_homework' => 'Daily homework summary',
         'new_message' => 'New message',
@@ -31,6 +32,10 @@ return [
     'new_grade' => [
         'title' => 'New grade',
         'body' => 'Student :student received a new grade in :subject.',
+    ],
+    'grade_annulled' => [
+        'title' => 'Grade annulled',
+        'body' => 'A grade of :student in :subject was annulled. Reason: :reason',
     ],
     'new_absence' => [
         'title' => 'New absence',

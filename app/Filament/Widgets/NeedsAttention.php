@@ -83,14 +83,14 @@ class NeedsAttention extends Widget
         $currentTermId = Term::query()->where('is_current', true)->value('id');
         $termId = $currentTermId === null ? null : (int) $currentTermId;
 
-        // Corigenți — conducerea vede toată școala; profesorul/dirigintele doar clasele lui.
+        // Corigenți — conducerea vede toată școala; profesorul/dirigintele doar clasele lui. Sursa
+        // predicatului „corigent" e UNICĂ ({@see Student::scopeCorigentInTerm}), împărtășită cu
+        // filtrul din tabelul de elevi: prag din constantă + exclude corigențele deja promovate.
         if ($user->isManagement()) {
             $items[] = self::item(
                 'panel.widgets.director_overview.corigenti',
                 'heroicon-o-exclamation-triangle',
-                $termId === null ? 0 : Student::query()
-                    ->whereHas('termAverages', fn (Builder $q) => $q->where('term_id', $termId)->where('value', '<', 5))
-                    ->count(),
+                Student::query()->corigentInTerm($termId)->count(),
                 StudentResource::getUrl('index').'?corigenti=1',
             );
         } elseif (! $user->isAdministrator() && $user->teacher !== null) {
@@ -98,9 +98,9 @@ class NeedsAttention extends Widget
             $items[] = self::item(
                 'panel.widgets.teacher_overview.corigenti',
                 'heroicon-o-exclamation-triangle',
-                $termId === null ? 0 : Student::query()
+                Student::query()
                     ->whereIn('id', Enrollment::query()->whereIn('school_class_id', $classIds)->select('student_id'))
-                    ->whereHas('termAverages', fn (Builder $q) => $q->where('term_id', $termId)->where('value', '<', 5))
+                    ->corigentInTerm($termId)
                     ->count(),
                 StudentResource::getUrl('index').'?corigenti=1',
             );

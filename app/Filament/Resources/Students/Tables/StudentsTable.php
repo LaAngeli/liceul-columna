@@ -151,45 +151,29 @@ class StudentsTable
     }
 
     /**
-     * Filtrul „Corigenți / true": elevi cu cel puțin o medie < 5 în semestrul CURENT. Fără semestru
-     * curent → setul rămâne neschimbat. Extras în metodă statică (nu closure inline) ca phpstan
-     * să vadă tipul `Builder<Student>` — first-class callable transmis către TernaryFilter::queries.
+     * Filtrul „Corigenți / true": elevi cu cel puțin o medie restantă nelichidată în semestrul
+     * CURENT — deleagă la {@see Student::scopeCorigentInTerm} (prag din constantă + exclude
+     * corigențele deja promovate prin examen). Fără semestru curent → setul rămâne neschimbat.
      *
      * @param  Builder<Student>  $query
      * @return Builder<Student>
      */
     private static function corigentiOnlyQuery(Builder $query): Builder
     {
-        $termId = self::currentTermId();
-
-        if ($termId === null) {
-            return $query;
-        }
-
-        return $query->whereHas(
-            'termAverages',
-            fn (Builder $sub): Builder => $sub->where('term_id', $termId)->where('value', '<', 5),
-        );
+        return $query->corigentInTerm(self::currentTermId());
     }
 
     /**
-     * Filtrul „Corigenți / false": elevi FĂRĂ nicio medie < 5 în semestrul curent (complementul).
+     * Filtrul „Corigenți / false": elevi FĂRĂ nicio medie restantă nelichidată în semestrul curent
+     * (complementul). Ambele ramuri deleagă la {@see Student::scopeCorigentInTerm} — sursă unică cu
+     * contorul de dashboard, ca filtrul din tabel să nu poată diverge de card.
      *
      * @param  Builder<Student>  $query
      * @return Builder<Student>
      */
     private static function corigentiNoneQuery(Builder $query): Builder
     {
-        $termId = self::currentTermId();
-
-        if ($termId === null) {
-            return $query;
-        }
-
-        return $query->whereDoesntHave(
-            'termAverages',
-            fn (Builder $sub): Builder => $sub->where('term_id', $termId)->where('value', '<', 5),
-        );
+        return $query->notCorigentInTerm(self::currentTermId());
     }
 
     private static function currentTermId(): ?int

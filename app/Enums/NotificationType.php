@@ -15,6 +15,7 @@ enum NotificationType: string implements HasLabel
 {
     // Familie (elev / părinte).
     case NewGrade = 'new_grade';
+    case GradeAnnulled = 'grade_annulled';
     case NewAbsence = 'new_absence';
     case NewHomework = 'new_homework';
     case StatusChange = 'status_change';
@@ -49,6 +50,7 @@ enum NotificationType: string implements HasLabel
     {
         return match ($this) {
             self::NewGrade => 'heroicon-o-academic-cap',
+            self::GradeAnnulled => 'heroicon-o-x-circle',
             self::NewAbsence => 'heroicon-o-calendar-days',
             self::NewHomework => 'heroicon-o-book-open',
             self::StatusChange => 'heroicon-o-flag',
@@ -76,6 +78,7 @@ enum NotificationType: string implements HasLabel
             // Familia: situația copilului.
             UserRole::Parinte, UserRole::Elev => [
                 self::NewGrade,
+                self::GradeAnnulled,
                 self::NewAbsence,
                 self::NewHomework,
                 self::StatusChange,

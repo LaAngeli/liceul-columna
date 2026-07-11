@@ -76,6 +76,35 @@ it('o notă nouă notifică familia elevului', function () {
     );
 });
 
+it('anularea unei note notifică familia (nota dispare din cabinet, familia e înștiințată)', function () {
+    $year = AcademicYear::factory()->create();
+    $class = SchoolClass::factory()->for($year)->create();
+    $student = Student::factory()->create();
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+
+    $grade = Grade::factory()->create([
+        'student_id' => $student->id,
+        'subject_id' => Subject::factory()->create()->id,
+        'school_class_id' => $class->id,
+        'term_id' => Term::factory()->for($year)->create()->id,
+    ]);
+
+    // Abia ACUM interceptăm notificările — ca să prindem doar anularea, nu crearea notei.
+    Notification::fake();
+
+    $grade->update([
+        'annulled_at' => now(),
+        'annulment_reason' => 'Notă introdusă din greșeală.',
+    ]);
+
+    Notification::assertSentTo(
+        $parent,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::GradeAnnulled,
+    );
+});
+
 it('un mesaj nou notifică destinatarul', function () {
     Notification::fake();
 

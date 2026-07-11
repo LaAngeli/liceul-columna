@@ -7,6 +7,7 @@
 return [
     'types' => [
         'new_grade' => 'Новая оценка',
+        'grade_annulled' => 'Оценка аннулирована',
         'new_absence' => 'Новый пропуск',
         'new_homework' => 'Ежедневная сводка заданий',
         'new_message' => 'Новое сообщение',
@@ -31,6 +32,10 @@ return [
     'new_grade' => [
         'title' => 'Новая оценка',
         'body' => 'Ученик :student получил новую оценку по предмету :subject.',
+    ],
+    'grade_annulled' => [
+        'title' => 'Оценка аннулирована',
+        'body' => 'Оценка ученика :student по предмету :subject аннулирована. Причина: :reason',
     ],
     'new_absence' => [
         'title' => 'Новый пропуск',

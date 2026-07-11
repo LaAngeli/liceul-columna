@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'annul' => [
+        // Fallback pentru corpul notificării de anulare, când nota a fost anulată pe o cale fără
+        // motiv (API/import) — la anularea din panou motivul e obligatoriu, deci rar folosit.
+        'no_reason' => 'nespecificat',
+    ],
     'summative' => [
         'not_designated' => 'La această clasă, nota sumativă semestrială se pune doar la disciplinele stabilite prin ordin — disciplina aleasă nu e printre ele.',
     ],
