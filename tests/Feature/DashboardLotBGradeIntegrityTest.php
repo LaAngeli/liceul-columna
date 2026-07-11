@@ -64,7 +64,8 @@ it('nota cu dată în VIITOR e respinsă pe server, iar eroarea apare pe câmp',
             'value' => 9,
         ])
         ->call('create')
-        ->assertHasFormErrors(['graded_on']);
+        // Mesaj custom, clar, fără ora cu secunde din `maxDate(now())` (vezi validation.not_future_date).
+        ->assertHasFormErrors(['graded_on' => __('validation.not_future_date')]);
 
     expect(Grade::query()->count())->toBe(0);
 });

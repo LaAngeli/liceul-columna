@@ -62,7 +62,8 @@ class GradeForm
                     ->label(__('panel.fields.date'))
                     ->required()
                     ->default(now())
-                    ->maxDate(now()),
+                    ->maxDate(now())
+                    ->validationMessages(['before_or_equal' => __('validation.not_future_date')]),
                 // Câmpul de NOTĂ NUMERICĂ: vizibil + obligatoriu DOAR pentru disciplinele numerice
                 // (sau cât timp disciplina nu e aleasă). Intervalul e FIX 1–10 (scala oficială, §3) —
                 // Subject::min_grade/max_grade NU sunt limitele notei: sunt „De la clasă / Până la

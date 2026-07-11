@@ -59,8 +59,10 @@ class AbsenceForm
                     ->label(__('panel.fields.date'))
                     ->required()
                     ->default(now())
-                    // O absență nu poate fi în viitor; data determină și semestrul.
-                    ->maxDate(now()),
+                    // O absență nu poate fi în viitor; data determină și semestrul. Mesaj clar
+                    // (fără ora cu secunde din `now()`) — vezi validation.not_future_date.
+                    ->maxDate(now())
+                    ->validationMessages(['before_or_equal' => __('validation.not_future_date')]),
                 // Motivare LA CREARE (opțional, doar pe „create"): la activarea toggle-ului apar câmpurile
                 // pentru motiv + dovadă. NU setează direct is_motivated pe absență — la salvare creează un
                 // AbsenceMotivation aprobat cu justificativ (CreateAbsence::afterCreate). Sursă unică pentru

@@ -112,11 +112,13 @@ class AbsencesTable
                         DatePicker::make('period_start')
                             ->label(__('panel.tables.absences.motivate.period_start'))
                             ->required()
-                            ->maxDate(now()),
+                            ->maxDate(now())
+                            ->validationMessages(['before_or_equal' => __('validation.not_future_date')]),
                         DatePicker::make('period_end')
                             ->label(__('panel.tables.absences.motivate.period_end'))
                             ->required()
                             ->maxDate(now())
+                            ->validationMessages(['before_or_equal' => __('validation.not_future_date')])
                             ->afterOrEqual('period_start'),
                         Textarea::make('reason')
                             ->label(__('panel.fields.reason'))

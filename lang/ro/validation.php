@@ -27,6 +27,9 @@ return [
     'ascii' => 'Câmpul :attribute poate conține doar caractere și simboluri alfanumerice pe un octet.',
     'before' => 'Câmpul :attribute trebuie să fie o dată înainte de :date.',
     'before_or_equal' => 'Câmpul :attribute trebuie să fie o dată înainte de sau egală cu :date.',
+    // Mesaj clar pentru gărzile de „dată în viitor" (note/absențe/motivări): evită afișarea orei cu
+    // secunde din `maxDate(now())`. Aplicat pe câmp prin `->validationMessages(['before_or_equal' => ...])`.
+    'not_future_date' => 'Data nu poate fi în viitor.',
     'between' => [
         'array' => 'Câmpul :attribute trebuie să aibă între :min și :max elemente.',
         'file' => 'Câmpul :attribute trebuie să aibă între :min și :max kiloocteți.',
