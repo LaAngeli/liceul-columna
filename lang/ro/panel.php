@@ -328,6 +328,14 @@ return [
         'delete' => ['label' => 'Șterge'],
         'view' => ['label' => 'Vezi'],
         'restore' => ['label' => 'Restaurează'],
+        'archive_year' => [
+            'label' => 'Arhivează în matricolă',
+            'heading' => 'Închide anul :year în foaia matricolă',
+            'description' => 'Mediile semestriale ale anului intră în foaia matricolă (Sem I, Sem II și media anuală = media aritmetică a semestrelor, fără rotunjire; nota de corigență, unde există, e rezultatul oficial anual). Operațiunea e idempotentă — re-rularea după corecții reîmprospătează arhiva.',
+            'submit' => 'Arhivează',
+            'success' => 'Arhivat: :records rânduri de matricolă pentru :students elevi.',
+            'skipped' => ':count perechi elev–disciplină sărite: elevii nu au înmatriculare în anul arhivat. Verifică înmatriculările, apoi rulează din nou.',
+        ],
         'force_delete' => ['label' => 'Șterge definitiv'],
         'approve' => [
             'label' => 'Aprobă',

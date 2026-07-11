@@ -316,6 +316,14 @@ return [
         'delete' => ['label' => 'Delete'],
         'view' => ['label' => 'View'],
         'restore' => ['label' => 'Restore'],
+        'archive_year' => [
+            'label' => 'Archive to transcript',
+            'heading' => 'Close year :year into the transcript',
+            'description' => 'The year\'s semester averages enter the transcript (Sem I, Sem II and the annual average = arithmetic mean of the semesters, no rounding; the corigenta exam mark, where present, is the official annual result). Idempotent — re-running after corrections refreshes the archive.',
+            'submit' => 'Archive',
+            'success' => 'Archived: :records transcript rows for :students students.',
+            'skipped' => ':count student–subject pairs skipped: no enrollment in the archived year. Check enrollments, then run again.',
+        ],
         'force_delete' => ['label' => 'Delete permanently'],
         'approve' => [
             'label' => 'Approve',
