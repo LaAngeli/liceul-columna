@@ -898,10 +898,16 @@ return [
         ],
         'term' => [
             'outside_year' => 'The term dates must fall within the selected academic year.',
-            'overlap' => 'The dates overlap another term of the same academic year.',
+            'overlap' => 'The dates overlap another existing term.',
         ],
         'enrollment' => [
             'duplicate' => 'This student is already enrolled for the selected academic year.',
+            'archived_duplicate' => 'An ARCHIVED enrollment exists for this student in the selected year — restore it (the "Trashed" filter) instead of creating a new one.',
+            'class_year_mismatch' => 'The selected class belongs to a different academic year.',
+        ],
+        'school_class' => [
+            'duplicate' => 'A class with this grade level and section already exists in the selected year.',
+            'archived_duplicate' => 'An identical ARCHIVED class exists (year, level, section) — restore it (the "Trashed" filter) instead of creating a new one.',
         ],
     ],
 

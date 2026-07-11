@@ -913,10 +913,16 @@ return [
         ],
         'term' => [
             'outside_year' => 'Intervalul semestrului trebuie să se încadreze în anul școlar selectat.',
-            'overlap' => 'Intervalul se suprapune cu alt semestru al aceluiași an școlar.',
+            'overlap' => 'Intervalul se suprapune cu alt semestru existent.',
         ],
         'enrollment' => [
             'duplicate' => 'Acest elev este deja înmatriculat în anul școlar selectat.',
+            'archived_duplicate' => 'Există o înmatriculare ARHIVATĂ pentru acest elev în anul selectat — restaureaz-o (filtrul „Șterse") în loc să creezi una nouă.',
+            'class_year_mismatch' => 'Clasa selectată aparține altui an școlar decât cel ales.',
+        ],
+        'school_class' => [
+            'duplicate' => 'Există deja o clasă cu această treaptă și literă în anul selectat.',
+            'archived_duplicate' => 'Există o clasă ARHIVATĂ identică (an, treaptă, literă) — restaureaz-o (filtrul „Șterse") în loc să creezi una nouă.',
         ],
     ],
 

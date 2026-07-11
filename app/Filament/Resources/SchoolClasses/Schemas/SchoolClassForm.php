@@ -2,10 +2,14 @@
 
 namespace App\Filament\Resources\SchoolClasses\Schemas;
 
+use App\Models\SchoolClass;
 use App\Models\Teacher;
+use Closure;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Model;
 
 class SchoolClassForm
 {
@@ -33,7 +37,35 @@ class SchoolClassForm
                 TextInput::make('section')
                     ->label(__('panel.forms.school_class.section'))
                     ->placeholder(__('panel.forms.school_class.section_placeholder'))
-                    ->maxLength(4),
+                    ->maxLength(4)
+                    // Unicitatea (an, treaptă, literă) trăia doar ca index DB — duplicatul se termina
+                    // în eroare SQL 500. Indexul vede ȘI rândurile arhivate (fără deleted_at în cheie),
+                    // deci recrearea unei clase arhivate pică la fel → mesaj clar + îndrumare spre
+                    // restaurare. Ca DB-ul, validăm doar literele completate (NULL nu colizionează).
+                    ->rules([
+                        static fn (Get $get, ?Model $record): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
+                            $section = is_string($value) ? trim($value) : '';
+                            $yearId = $get('academic_year_id');
+                            $gradeLevel = $get('grade_level');
+
+                            if ($section === '' || ! $yearId || ! $gradeLevel) {
+                                return;
+                            }
+
+                            $conflict = SchoolClass::withTrashed()
+                                ->where('academic_year_id', (int) $yearId)
+                                ->where('grade_level', (int) $gradeLevel)
+                                ->where('section', $section)
+                                ->when($record !== null, fn ($query) => $query->whereKeyNot($record->getKey()))
+                                ->first();
+
+                            if ($conflict !== null) {
+                                $fail($conflict->trashed()
+                                    ? __('panel.validation.school_class.archived_duplicate')
+                                    : __('panel.validation.school_class.duplicate'));
+                            }
+                        },
+                    ]),
                 // Diriginte OBLIGATORIU doar la CREARE — o clasă nouă nu se naște orfană. La EDITARE
                 // rămâne opțional: administrația responsabilă (canConfigureSchool) poate schimba SAU
                 // retrage dirigintele după necesitate (vacanță). DB-ul e nullable intenționat — import

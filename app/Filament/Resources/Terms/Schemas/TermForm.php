@@ -65,8 +65,11 @@ class TermForm
                                 return;
                             }
 
+                            // Suprapunerea se verifică peste TOATE semestrele, indiferent de an:
+                            // anii școlari sunt secvențiali, iar Term::forDate (derivarea semestrului
+                            // din data notei/absenței) devine ambiguu la ORICE suprapunere, nu doar
+                            // în interiorul aceluiași an.
                             $overlaps = Term::query()
-                                ->where('academic_year_id', $yearId)
                                 ->when($record !== null, fn ($query) => $query->whereKeyNot($record->getKey()))
                                 ->whereDate('starts_on', '<=', $value)
                                 ->whereDate('ends_on', '>=', $startsOn)
