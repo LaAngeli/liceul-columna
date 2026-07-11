@@ -53,22 +53,25 @@ class CorigentaExam extends Model implements Auditable
         return $this->mark === null ? null : (float) $this->mark >= Grades::PASS;
     }
 
+    // Relații cu `withTrashed()`: examenul de corigență e ISTORIC — arhivarea nomenclatoarelor
+    // nu lasă rândurile vechi cu părinți null (aceeași regulă ca la Grade/Absence/TermAverage).
+
     /** @return BelongsTo<Student, $this> */
     public function student(): BelongsTo
     {
-        return $this->belongsTo(Student::class);
+        return $this->belongsTo(Student::class)->withTrashed();
     }
 
     /** @return BelongsTo<Subject, $this> */
     public function subject(): BelongsTo
     {
-        return $this->belongsTo(Subject::class);
+        return $this->belongsTo(Subject::class)->withTrashed();
     }
 
     /** @return BelongsTo<Term, $this> */
     public function term(): BelongsTo
     {
-        return $this->belongsTo(Term::class);
+        return $this->belongsTo(Term::class)->withTrashed();
     }
 
     /** @return BelongsTo<CorigentaSession, $this> */

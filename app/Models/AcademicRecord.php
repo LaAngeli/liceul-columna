@@ -45,15 +45,18 @@ class AcademicRecord extends Model implements Auditable
         ];
     }
 
+    // Relații cu `withTrashed()`: foaia matricolă e ARHIVA oficială — arhivarea unei discipline
+    // sau a unui elev nu are voie să lase rândurile matricolei cu părinți null.
+
     /** @return BelongsTo<Student, $this> */
     public function student(): BelongsTo
     {
-        return $this->belongsTo(Student::class);
+        return $this->belongsTo(Student::class)->withTrashed();
     }
 
     /** @return BelongsTo<Subject, $this> */
     public function subject(): BelongsTo
     {
-        return $this->belongsTo(Subject::class);
+        return $this->belongsTo(Subject::class)->withTrashed();
     }
 }

@@ -3,9 +3,15 @@
 namespace App\Policies;
 
 use App\Enums\UserRole;
+use App\Models\Absence;
+use App\Models\AcademicRecord;
+use App\Models\Enrollment;
+use App\Models\Grade;
 use App\Models\Student;
+use App\Models\TermAverage;
 use App\Models\User;
 use App\Policies\Concerns\ConfiguredBySchoolAdmins;
+use Illuminate\Database\Eloquent\Model;
 
 class StudentPolicy
 {
@@ -35,5 +41,18 @@ class StudentPolicy
         }
 
         return $user->students()->whereKey($student->getKey())->exists();
+    }
+
+    /**
+     * ForceDelete pe un elev ar distruge prin cascada FK ÎNTREG istoricul lui academic (note,
+     * absențe, medii, matricolă, înmatriculări) — la un click. Blocat cât timp există istoric.
+     */
+    protected function hasDependentAcademicHistory(Model $record): bool
+    {
+        return Grade::withTrashed()->where('student_id', $record->getKey())->exists()
+            || Absence::withTrashed()->where('student_id', $record->getKey())->exists()
+            || TermAverage::withTrashed()->where('student_id', $record->getKey())->exists()
+            || AcademicRecord::withTrashed()->where('student_id', $record->getKey())->exists()
+            || Enrollment::withTrashed()->where('student_id', $record->getKey())->exists();
     }
 }

@@ -919,4 +919,9 @@ return [
             'duplicate' => 'Acest elev este deja înmatriculat în anul școlar selectat.',
         ],
     ],
+
+    'corigenta' => [
+        'not_archived_title' => 'Nota NU a intrat în foaia matricolă',
+        'not_archived_body' => 'Nota a fost salvată pe examen, dar elevul nu are înmatriculare în anul examenului, deci treapta nu a putut fi determinată. Verifică înmatricularea elevului, apoi resalvează nota.',
+    ],
 ];

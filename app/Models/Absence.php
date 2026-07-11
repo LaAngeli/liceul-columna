@@ -64,33 +64,36 @@ class Absence extends Model implements Auditable
             ->exists();
     }
 
+    // Relații cu `withTrashed()`: absența e ISTORIC — arhivarea nomenclatoarelor nu lasă
+    // înregistrările vechi cu părinți null (aceeași regulă ca la Grade).
+
     /** @return BelongsTo<Student, $this> */
     public function student(): BelongsTo
     {
-        return $this->belongsTo(Student::class);
+        return $this->belongsTo(Student::class)->withTrashed();
     }
 
     /** @return BelongsTo<Subject, $this> */
     public function subject(): BelongsTo
     {
-        return $this->belongsTo(Subject::class);
+        return $this->belongsTo(Subject::class)->withTrashed();
     }
 
     /** @return BelongsTo<SchoolClass, $this> */
     public function schoolClass(): BelongsTo
     {
-        return $this->belongsTo(SchoolClass::class);
+        return $this->belongsTo(SchoolClass::class)->withTrashed();
     }
 
     /** @return BelongsTo<Term, $this> */
     public function term(): BelongsTo
     {
-        return $this->belongsTo(Term::class);
+        return $this->belongsTo(Term::class)->withTrashed();
     }
 
     /** @return BelongsTo<Teacher, $this> */
     public function teacher(): BelongsTo
     {
-        return $this->belongsTo(Teacher::class);
+        return $this->belongsTo(Teacher::class)->withTrashed();
     }
 }

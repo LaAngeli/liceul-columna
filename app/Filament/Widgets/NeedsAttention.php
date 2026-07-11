@@ -86,11 +86,13 @@ class NeedsAttention extends Widget
         // Corigenți — conducerea vede toată școala; profesorul/dirigintele doar clasele lui. Sursa
         // predicatului „corigent" e UNICĂ ({@see Student::scopeCorigentInTerm}), împărtășită cu
         // filtrul din tabelul de elevi: prag din constantă + exclude corigențele deja promovate.
+        // ⚠️ Fără semestru curent (vacanță/an închis) scope-ul e NEUTRU (nu filtrează) — corect
+        // pentru filtru, dar contorul ar număra TOȚI elevii școlii → aici garda dă explicit 0.
         if ($user->isManagement()) {
             $items[] = self::item(
                 'panel.widgets.director_overview.corigenti',
                 'heroicon-o-exclamation-triangle',
-                Student::query()->corigentInTerm($termId)->count(),
+                $termId === null ? 0 : Student::query()->corigentInTerm($termId)->count(),
                 StudentResource::getUrl('index').'?corigenti=1',
             );
         } elseif (! $user->isAdministrator() && $user->teacher !== null) {
@@ -98,7 +100,7 @@ class NeedsAttention extends Widget
             $items[] = self::item(
                 'panel.widgets.teacher_overview.corigenti',
                 'heroicon-o-exclamation-triangle',
-                Student::query()
+                $termId === null ? 0 : Student::query()
                     ->whereIn('id', Enrollment::query()->whereIn('school_class_id', $classIds)->select('student_id'))
                     ->corigentInTerm($termId)
                     ->count(),

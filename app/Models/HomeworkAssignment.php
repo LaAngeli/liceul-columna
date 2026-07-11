@@ -51,15 +51,18 @@ class HomeworkAssignment extends Model
         ];
     }
 
+    // Relații cu `withTrashed()`: tema e ISTORIC — arhivarea disciplinei/profesorului nu lasă
+    // temele vechi cu părinți null (numele disciplinei/autorului rămân afișabile).
+
     /** @return BelongsTo<Subject, $this> */
     public function subject(): BelongsTo
     {
-        return $this->belongsTo(Subject::class);
+        return $this->belongsTo(Subject::class)->withTrashed();
     }
 
     /** @return BelongsTo<Teacher, $this> */
     public function teacher(): BelongsTo
     {
-        return $this->belongsTo(Teacher::class);
+        return $this->belongsTo(Teacher::class)->withTrashed();
     }
 }

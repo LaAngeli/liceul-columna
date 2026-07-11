@@ -904,4 +904,9 @@ return [
             'duplicate' => 'This student is already enrolled for the selected academic year.',
         ],
     ],
+
+    'corigenta' => [
+        'not_archived_title' => 'The mark did NOT reach the transcript',
+        'not_archived_body' => 'The mark was saved on the exam, but the student has no enrollment in the exam year, so the grade level could not be determined. Check the enrollment, then re-save the mark.',
+    ],
 ];

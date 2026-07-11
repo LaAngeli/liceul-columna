@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\EnrollmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Enrollment extends Model
 {
-    /** @use HasFactory<\Database\Factories\EnrollmentFactory> */
+    /** @use HasFactory<EnrollmentFactory> */
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
@@ -28,21 +29,25 @@ class Enrollment extends Model
         ];
     }
 
+    // Relații cu `withTrashed()`: înmatricularea e ISTORIC — arhivarea (soft-delete) unei clase
+    // sau a unui elev nu lasă înmatricularea cu părinți null (ex. CorigentaExamObserver citește
+    // treapta din schoolClass; cabinetul afișează clasa istorică).
+
     /** @return BelongsTo<Student, $this> */
     public function student(): BelongsTo
     {
-        return $this->belongsTo(Student::class);
+        return $this->belongsTo(Student::class)->withTrashed();
     }
 
     /** @return BelongsTo<SchoolClass, $this> */
     public function schoolClass(): BelongsTo
     {
-        return $this->belongsTo(SchoolClass::class);
+        return $this->belongsTo(SchoolClass::class)->withTrashed();
     }
 
     /** @return BelongsTo<AcademicYear, $this> */
     public function academicYear(): BelongsTo
     {
-        return $this->belongsTo(AcademicYear::class);
+        return $this->belongsTo(AcademicYear::class)->withTrashed();
     }
 }
