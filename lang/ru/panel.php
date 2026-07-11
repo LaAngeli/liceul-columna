@@ -582,6 +582,8 @@ return [
             'abbreviation' => 'Сокращение',
             'grading_type' => 'Способ оценивания',
             'grading_type_short' => 'Оценивание',
+            'rename_translation_title' => 'Переводы предмета нарушены',
+            'rename_translation_body' => 'Словари переводов привязаны к точному румынскому названию — после переименования отсутствуют переводы: :locales. Пока их не добавят в lang/{ru,en}/subjects.php, кабинет и сайт показывают румынское название.',
             'min_grade' => 'С класса',
             'max_grade' => 'До класса',
             'report_order' => 'Порядок',

@@ -584,6 +584,8 @@ return [
             'abbreviation' => 'Abbreviation',
             'grading_type' => 'Grading type',
             'grading_type_short' => 'Grading',
+            'rename_translation_title' => 'Subject translations broken',
+            'rename_translation_body' => 'Translation dictionaries are keyed on the exact Romanian name — after the rename, translations are missing for: :locales. Until added to lang/{ru,en}/subjects.php, the cabinet and site show the Romanian name.',
             'min_grade' => 'From grade',
             'max_grade' => 'To grade',
             'report_order' => 'Order',

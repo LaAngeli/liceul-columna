@@ -596,6 +596,8 @@ return [
             'name' => 'Denumire',
             'abbreviation' => 'Abreviere',
             'grading_type' => 'Mod de notare',
+            'rename_translation_title' => 'Traducerile disciplinei s-au rupt',
+            'rename_translation_body' => 'Dicționarele de traducere sunt cheiate pe numele RO exact — după redenumire, lipsesc traducerile: :locales. Până se adaugă în lang/{ru,en}/subjects.php, cabinetul și site-ul afișează numele RO.',
             'grading_type_short' => 'Mod notare',
             'min_grade' => 'De la clasa',
             'max_grade' => 'Până la clasa',
@@ -923,6 +925,9 @@ return [
         'school_class' => [
             'duplicate' => 'Există deja o clasă cu această treaptă și literă în anul selectat.',
             'archived_duplicate' => 'Există o clasă ARHIVATĂ identică (an, treaptă, literă) — restaureaz-o (filtrul „Șterse") în loc să creezi una nouă.',
+        ],
+        'subject' => [
+            'grading_type_locked' => 'Modul de notare nu poate fi schimbat: disciplina are deja note de tip incompatibil în catalog.',
         ],
     ],
 
