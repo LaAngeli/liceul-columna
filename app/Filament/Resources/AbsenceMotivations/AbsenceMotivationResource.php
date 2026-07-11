@@ -138,6 +138,9 @@ class AbsenceMotivationResource extends Resource
         /** @var Collection<int, AbsenceMotivation> $cache */
         $cache = self::getEloquentQuery()
             ->where('status', RequestStatus::Pending)
+            // Cererile elevilor ARHIVAȚI nu mai apar în coadă/badge (whereHas exclude soft-deleted);
+            // rândurile rămân în arhivă și reapar dacă elevul e restaurat.
+            ->whereHas('student')
             ->get(['id', 'status', 'created_at']);
 
         return self::$pendingCache = $cache;
@@ -161,12 +164,17 @@ class AbsenceMotivationResource extends Resource
         return $query->where(function (Builder $scope) use ($homeroomClassIds, $handlesEducatie): void {
             $matched = false;
 
-            // Dirigintele: cererile elevilor din clasa lui.
+            // Dirigintele: cererile elevilor din clasa lui CURENTĂ — doar înmatricularea cea mai
+            // recentă contează (aliniat cu canBeReviewedBy + Student::homeroomUser): fostul
+            // diriginte nu mai vede/validează motivările fostului elev. Corelată pe elev, ca la
+            // homeroomUser (latest academic_year_id).
             if ($homeroomClassIds !== []) {
                 $matched = true;
                 $scope->whereHas(
                     'student.enrollments',
-                    fn (Builder $sub) => $sub->whereIn('school_class_id', $homeroomClassIds),
+                    fn (Builder $sub) => $sub
+                        ->whereIn('school_class_id', $homeroomClassIds)
+                        ->whereRaw('enrollments.academic_year_id = (select max(e2.academic_year_id) from enrollments e2 where e2.student_id = enrollments.student_id and e2.deleted_at is null)'),
                 );
             }
 

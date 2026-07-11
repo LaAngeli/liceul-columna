@@ -99,7 +99,7 @@ class AbsenceMotivation extends Model implements Auditable
             return $user->isSuperAdmin() || $user->handlesAudienceDomain(AudienceDomain::Educatie);
         }
 
-        // Cererile normale: administrația academică sau dirigintele clasei elevului.
+        // Cererile normale: administrația academică sau dirigintele clasei CURENTE a elevului.
         if ($user->isAdministrator()) {
             return true;
         }
@@ -110,9 +110,15 @@ class AbsenceMotivation extends Model implements Auditable
             return false;
         }
 
-        return $this->student?->enrollments()
-            ->whereIn('school_class_id', $teacher->homeroomSchoolClassIds())
-            ->exists() ?? false;
+        // DOAR înmatricularea cea mai recentă: fostul diriginte (clasa de anul trecut) nu mai
+        // validează motivările fostului elev — dreptul urmează notificarea ({@see Student::homeroomUser},
+        // care merge tot la dirigintele clasei curente).
+        $currentEnrollment = $this->student?->enrollments()
+            ->latest('academic_year_id')
+            ->first();
+
+        return $currentEnrollment !== null
+            && in_array((int) $currentEnrollment->school_class_id, $teacher->homeroomSchoolClassIds(), true);
     }
 
     /**

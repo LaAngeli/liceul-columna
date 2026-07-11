@@ -87,14 +87,18 @@ class SchoolClass extends Model
     }
 
     /**
-     * Clase ACTIVE (cu cel puțin o înmatriculare) care nu au diriginte alocat.
+     * Clase ACTIVE (cu cel puțin o înmatriculare) care nu au diriginte FUNCȚIONAL.
      * Sursă UNICĂ pentru cardul „Clase fără diriginte" (DirectorOverview), widget-ul acționabil
      * (ClassesNeedingHomeroom) și filtrul aliniat din tabelul de clase.
+     *
+     * `whereDoesntHave` acoperă AMBELE goluri: FK null ȘI dirigintele cu fișa ARHIVATĂ (relația
+     * exclude soft-deleted) — altfel arhivarea fișei profesorului lăsa clasa fără diriginte real,
+     * dar invizibilă în radar (FK-ul rămâne setat spre fișa arhivată).
      *
      * @param  Builder<SchoolClass>  $query
      */
     public function scopeWithoutHomeroom(Builder $query): void
     {
-        $query->whereNull('homeroom_teacher_id')->has('enrollments');
+        $query->whereDoesntHave('homeroomTeacher')->has('enrollments');
     }
 }

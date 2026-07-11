@@ -4,12 +4,16 @@ namespace App\Filament\Resources\Students\Tables;
 
 use App\Actions\DetermineStudentStatus;
 use App\Actions\GenerateCorigentaExams;
+use App\Actions\NotifyStudentFamily;
+use App\Enums\NotificationType;
 use App\Enums\StudentStatus;
 use App\Filament\Exports\StudentExporter;
+use App\Models\CorigentaExam;
 use App\Models\SemesterValidation;
 use App\Models\Student;
 use App\Models\Term;
 use App\Models\User;
+use App\Notifications\CatalogNotification;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -109,10 +113,16 @@ class StudentsTable
                             return;
                         }
 
+                        // Select-ul livrează string în request-ul clasic, dar ENUM pe alte căi
+                        // (ex. teste Livewire) — normalizăm o singură dată, la intrare.
+                        $status = $data['status'] instanceof StudentStatus
+                            ? $data['status']
+                            : StudentStatus::from((string) $data['status']);
+
                         SemesterValidation::updateOrCreate(
                             ['student_id' => $record->id, 'term_id' => (int) $termId],
                             [
-                                'status' => $data['status'],
+                                'status' => $status,
                                 'order_reference' => $data['order_reference'] ?? null,
                                 'validated_by_user_id' => auth()->id(),
                                 'validated_at' => now(),
@@ -121,12 +131,32 @@ class StudentsTable
 
                         // „Corigent" → generează automat intrările de corigență (per disciplină restantă),
                         // vizibile părintelui/dirigintelui; data + comisia se completează din sesiune (§2.5).
-                        if ($data['status'] === StudentStatus::Corigent->value) {
+                        if ($status === StudentStatus::Corigent) {
                             $term = Term::query()->find((int) $termId);
                             if ($term !== null) {
                                 app(GenerateCorigentaExams::class)->forStudentTerm($record, $term);
                             }
+                        } else {
+                            // Re-validare pe alt statut (ex. Corigent → Promovat, după contestație):
+                            // examenele generate dar NEDATE (fără notă) rămân fără obiect — altfel
+                            // familia continuă să vadă „lichidare corigență" deși statutul oficial
+                            // s-a schimbat. Cele CU notă = istoric de examen, rămân.
+                            CorigentaExam::query()
+                                ->where('student_id', $record->id)
+                                ->where('term_id', (int) $termId)
+                                ->whereNull('mark')
+                                ->get()
+                                ->each(fn (CorigentaExam $exam) => $exam->delete());
                         }
+
+                        // Statutul OFICIAL (Consiliul profesoral + ordin) s-a validat → familia e
+                        // ÎNȘTIINȚATĂ (§5, StatusChange) — „luarea la cunoștință" din cabinet nu
+                        // poate depinde de o vizită spontană.
+                        app(NotifyStudentFamily::class)->send($record, new CatalogNotification(
+                            NotificationType::StatusChange,
+                            ['student' => $record->full_name, 'status' => $status->getLabel()],
+                            route('cabinet.student', ['student' => $record->id], false),
+                        ));
 
                         Notification::make()->success()->title(__('panel.forms.student.validate_status.success'))->send();
                     }),

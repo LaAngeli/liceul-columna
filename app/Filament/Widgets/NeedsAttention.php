@@ -150,7 +150,8 @@ class NeedsAttention extends Widget
             $items[] = self::item(
                 'panel.widgets.pending_approvals.document_requests.title',
                 'heroicon-o-document-text',
-                DocumentRequest::query()->where('status', RequestStatus::Pending)->count(),
+                // whereHas exclude cererile elevilor ARHIVAȚI (aliniat cu badge-ul resursei).
+                DocumentRequest::query()->where('status', RequestStatus::Pending)->whereHas('student')->count(),
                 DocumentRequestResource::getUrl('index', ['tableFilters' => ['status' => ['value' => RequestStatus::Pending->value]]]),
             );
         }

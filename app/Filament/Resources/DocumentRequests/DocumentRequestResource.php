@@ -71,7 +71,8 @@ class DocumentRequestResource extends Resource
             return null;
         }
 
-        $pending = DocumentRequest::query()->where('status', RequestStatus::Pending)->count();
+        // whereHas exclude cererile elevilor ARHIVAȚI — nu blochează coada cu rânduri fantomă.
+        $pending = DocumentRequest::query()->where('status', RequestStatus::Pending)->whereHas('student')->count();
 
         return $pending > 0 ? (string) $pending : null;
     }
