@@ -2,10 +2,13 @@
 
 namespace App\Filament\Resources\CalendarEvents\Tables;
 
+use App\Models\User;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\RestoreAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
 class CalendarEventsTable
@@ -40,8 +43,17 @@ class CalendarEventsTable
                     ->toggleable(),
             ])
             ->defaultSort('starts_on', 'desc')
+            // Fără filtru, evenimentele șterse intrau în limb: dirigintele poate șterge (policy
+            // delete = canModify), dar restore = doar conducerea (canPublishContent) — care nu
+            // avea NICIO suprafață care să listeze ștersele. Soft delete devenea hard delete.
+            ->filters([
+                TrashedFilter::make()
+                    ->visible(fn (): bool => ($user = auth('web')->user()) instanceof User && $user->canPublishContent()),
+            ])
             ->recordActions([
                 EditAction::make(),
+                // Se auto-ascunde prin CalendarEventPolicy::restore (doar canPublishContent).
+                RestoreAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

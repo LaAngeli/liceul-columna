@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Absences\Pages;
 use App\Filament\Concerns\EnforcesAbsenceScope;
 use App\Filament\Resources\Absences\AbsenceResource;
 use App\Models\Absence;
+use App\Support\WorkingDays;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -67,6 +68,12 @@ class EditAbsence extends EditRecord
         }
 
         $data['is_motivated'] = $record->hasApprovedMotivationOn($newDate);
+
+        // Termenul de motivare urmează noua stare (audit calendar): o absență devenită NEMOTIVATĂ
+        // prin mutarea datei intră în regimul §2.1 (termen = noua dată + 5 zile lucrătoare) —
+        // altfel rămânea cu termen NULL: invizibilă în calendarul familiei ca termen-limită și
+        // sărită PE VECI de consolidarea zilnică. Motivată → termenul dispare (nu mai are obiect).
+        $data['motivation_deadline'] = $data['is_motivated'] ? null : WorkingDays::add($newDate, 5);
 
         return $data;
     }

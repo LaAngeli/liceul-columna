@@ -75,12 +75,15 @@ class AbsenceMotivation extends Model implements Auditable
 
     /**
      * Cerere în așteptare al cărei termen de validare (2 zile lucrătoare) a fost depășit.
+     * Ziua-limită e INCLUSIVĂ (endOfDay) — aceeași convenție ca termenul familiei
+     * (`whereDate(motivation_deadline, '<', today)`): dirigintele nu e marcat „restant"
+     * din prima oră a zilei-limită, ci abia din ziua următoare.
      */
     public function isOverdue(): bool
     {
         $deadline = $this->validationDeadline();
 
-        return $this->isPending() && $deadline !== null && $deadline->isPast();
+        return $this->isPending() && $deadline !== null && $deadline->endOfDay()->isPast();
     }
 
     /**

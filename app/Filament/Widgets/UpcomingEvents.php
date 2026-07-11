@@ -31,7 +31,11 @@ class UpcomingEvents extends Widget
 
     public static function canView(): bool
     {
-        return auth('web')->check();
+        // Aliniat cu pagina-țintă (Calendar::canAccess = canSeeAcademicData): administratorul
+        // tehnic e exclus de la ORICE suprafață de calendar prin decizia „AT = doar agregate"
+        // (audit #33) — widgetul era singura ușă rămasă deschisă (titluri de evenimente = text
+        // liber, potențial PII la ședințe punctuale) și îi dădea un link garantat 403.
+        return auth('web')->user()?->canSeeAcademicData() ?? false;
     }
 
     /**
@@ -42,7 +46,13 @@ class UpcomingEvents extends Widget
         $locale = app()->getLocale();
 
         $events = CalendarEvent::query()
-            ->whereDate('starts_on', '>=', Carbon::today())
+            // Suprapunere de interval, ca pagina Calendar (ManualEventProjector): un eveniment
+            // multi-zi ÎN DESFĂȘURARE (început ieri, se termină mâine) e tot „apropiat" — cu
+            // `starts_on >= azi` dispărea de pe dashboard exact pe durata desfășurării.
+            ->where(function ($query): void {
+                $query->whereDate('starts_on', '>=', Carbon::today())
+                    ->orWhereDate('ends_on', '>=', Carbon::today());
+            })
             ->orderBy('starts_on')
             ->orderByRaw('start_time IS NULL, start_time')
             ->limit(self::LIMIT)

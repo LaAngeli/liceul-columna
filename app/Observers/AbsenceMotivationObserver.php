@@ -4,15 +4,19 @@ namespace App\Observers;
 
 use App\Actions\NotifyStaff;
 use App\Actions\NotifyStudentFamily;
+use App\Enums\AudienceDomain;
 use App\Enums\NotificationType;
 use App\Enums\RequestStatus;
 use App\Models\AbsenceMotivation;
+use App\Models\User;
 use App\Notifications\CatalogNotification;
 
 /**
- * La o cerere NOUĂ de motivare a absențelor, anunță dirigintele clasei elevului (cel care
- * validează) — „pe nișa lui" (spec §2.1 / §5). La VALIDARE/RESPINGERE, închide bucla de feedback:
- * anunță familia că statutul cererii s-a schimbat (spec §5, tipul StatusChange).
+ * La o cerere NOUĂ de motivare a absențelor, anunță VALIDATORUL ei real (spec §2.1 / §5):
+ * cererile normale → dirigintele clasei; EXCEPȚIILE (tardive) → vicedirectorul pe educație —
+ * dirigintele nu le poate aproba ({@see AbsenceMotivation::canBeReviewedBy}), deci ping-ul lui
+ * era zgomot fără acțiune, iar aprobatorul real nu afla. La VALIDARE/RESPINGERE, închide bucla
+ * de feedback: anunță familia că statutul cererii s-a schimbat (spec §5, tipul StatusChange).
  */
 class AbsenceMotivationObserver
 {
@@ -29,13 +33,28 @@ class AbsenceMotivationObserver
             return;
         }
 
-        $this->notifier->toUser(
-            $student->homeroomUser(),
-            new CatalogNotification(
-                NotificationType::AbsenceMotivationSubmitted,
-                ['student' => $student->full_name],
-            ),
+        $notification = new CatalogNotification(
+            NotificationType::AbsenceMotivationSubmitted,
+            ['student' => $student->full_name],
         );
+
+        if ($motivation->is_exception) {
+            $handlers = User::query()
+                ->whereJsonContains('audience_domains', AudienceDomain::Educatie->value)
+                ->get();
+
+            if ($handlers->isNotEmpty()) {
+                foreach ($handlers as $handler) {
+                    $this->notifier->toUser($handler, $notification);
+                }
+
+                return;
+            }
+            // Nimeni nu poartă domeniul „educație" → cădem pe diriginte, ca cererea să nu
+            // rămână complet tăcută (el o vede, chiar dacă nu o poate aproba).
+        }
+
+        $this->notifier->toUser($student->homeroomUser(), $notification);
     }
 
     public function updated(AbsenceMotivation $motivation): void
