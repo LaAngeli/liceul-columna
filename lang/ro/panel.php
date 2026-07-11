@@ -44,6 +44,7 @@ return [
         'absence_motivations' => ['label' => 'Motivări absențe', 'plural' => 'Motivări absențe', 'single' => 'cerere de motivare'],
         'academic_records' => ['label' => 'Foaie matricolă', 'plural' => 'Foaie matricolă', 'single' => 'înregistrare matricolă'],
         'homework' => ['label' => 'Teme', 'plural' => 'Teme', 'single' => 'temă'],
+        'teaching_assignments' => ['label' => 'Alocări', 'plural' => 'Alocări (clase și discipline)', 'single' => 'alocare'],
         'schedules' => ['label' => 'Orare', 'plural' => 'Orare', 'single' => 'orar'],
         'messages' => ['label' => 'Mesaje', 'plural' => 'Mesaje', 'single' => 'mesaj'],
         'document_requests' => ['label' => 'Cereri', 'plural' => 'Cereri', 'single' => 'cerere'],
@@ -587,6 +588,11 @@ return [
                 'no_current_term' => 'Nu există semestru curent',
             ],
         ],
+        'teaching_assignment' => [
+            'add' => 'Adaugă alocare',
+            'english_group' => 'Grupa (engleză)',
+            'english_group_hint' => 'Doar pentru disciplinele împărțite pe grupe. Lasă gol pentru toată clasa.',
+        ],
         'homework' => [
             'topic' => 'Subiectul',
             'class_level' => 'Clasa (treapta)',
@@ -936,6 +942,10 @@ return [
         ],
         'subject' => [
             'grading_type_locked' => 'Modul de notare nu poate fi schimbat: disciplina are deja note de tip incompatibil în catalog.',
+        ],
+        'teaching_assignment' => [
+            'duplicate' => 'Profesorul are deja această alocare (clasă + disciplină + grupă).',
+            'archived_duplicate' => 'Există o alocare ARHIVATĂ identică — restaureaz-o (filtrul „Șterse") în loc să creezi una nouă.',
         ],
     ],
 

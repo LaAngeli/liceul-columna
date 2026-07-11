@@ -34,6 +34,7 @@ return [
         'absence_motivations' => ['label' => 'Absence justifications', 'plural' => 'Absence justifications', 'single' => 'justification request'],
         'academic_records' => ['label' => 'Academic record', 'plural' => 'Academic record', 'single' => 'record entry'],
         'homework' => ['label' => 'Homework', 'plural' => 'Homework', 'single' => 'assignment'],
+        'teaching_assignments' => ['label' => 'Assignments', 'plural' => 'Assignments (classes & subjects)', 'single' => 'assignment'],
         'schedules' => ['label' => 'Schedules', 'plural' => 'Schedules', 'single' => 'schedule'],
         'messages' => ['label' => 'Messages', 'plural' => 'Messages', 'single' => 'message'],
         'document_requests' => ['label' => 'Document requests', 'plural' => 'Document requests', 'single' => 'request'],
@@ -574,6 +575,11 @@ return [
                 'no_current_term' => 'No current term',
             ],
         ],
+        'teaching_assignment' => [
+            'add' => 'Add assignment',
+            'english_group' => 'Group (English)',
+            'english_group_hint' => 'Only for subjects split into groups. Leave empty for the whole class.',
+        ],
         'homework' => [
             'topic' => 'Topic',
             'class_level' => 'Class (grade level)',
@@ -918,6 +924,13 @@ return [
         'school_class' => [
             'duplicate' => 'A class with this grade level and section already exists in the selected year.',
             'archived_duplicate' => 'An identical ARCHIVED class exists (year, level, section) — restore it (the "Trashed" filter) instead of creating a new one.',
+        ],
+        'subject' => [
+            'grading_type_locked' => 'The grading type cannot be changed: the subject already has grades of an incompatible type in the catalog.',
+        ],
+        'teaching_assignment' => [
+            'duplicate' => 'The teacher already has this assignment (class + subject + group).',
+            'archived_duplicate' => 'An identical ARCHIVED assignment exists — restore it (the "Trashed" filter) instead of creating a new one.',
         ],
     ],
 
