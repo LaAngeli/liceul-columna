@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\GenerateRequestPdf;
 use App\Enums\CorrectionStatus;
 use App\Enums\DocumentRequestType;
 use App\Enums\EvaluationType;
@@ -135,6 +136,32 @@ it('învoirea CERE perioada (fără ea, secretariatul nu știe CÂND) — adever
         'details' => 'Plecare în familie.',
     ])->assertSessionHasErrors(['period_start']);
 
+    expect(DocumentRequest::query()->count())->toBe(0);
+});
+
+it('eșecul generării PDF NU lasă o cerere PENDING orfană (tranzacție)', function () {
+    Storage::fake('local');
+
+    $student = Student::factory()->create();
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+
+    // Forțăm eșecul randării mpdf.
+    $this->mock(GenerateRequestPdf::class, function ($mock): void {
+        $mock->shouldReceive('generate')->andThrow(new RuntimeException('mpdf a eșuat'));
+    });
+
+    try {
+        $this->actingAs($parent)->post("/cabinet/elev/{$student->id}/cereri", [
+            'type' => DocumentRequestType::Adeverinta->value,
+            'details' => 'Pentru dosar.',
+        ]);
+    } catch (Throwable) {
+        // Excepția se propagă — ne interesează doar că rândul NU a rămas.
+    }
+
+    // Tranzacția s-a dat înapoi → nicio cerere orfană care ar bloca redepunerea.
     expect(DocumentRequest::query()->count())->toBe(0);
 });
 

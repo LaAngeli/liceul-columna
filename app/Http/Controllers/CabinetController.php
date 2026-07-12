@@ -37,6 +37,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -454,18 +455,60 @@ class CabinetController extends Controller
             'document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ]);
 
+        // Trebuie să existe cel puțin o absență NEMOTIVATĂ în perioadă — altfel aprobarea nu ar marca
+        // nimic (motivare „oarbă": familia greșește luna, dirigintele o aprobă degeaba). (#37)
+        // whereDate (nu whereBetween): occurred_on e datetime, iar o margine dată-doar ar exclude
+        // absența chiar pe ziua de FINAL (timpul 00:00:00 > '…' lexicografic în comparația de string).
+        $hasUnmotivated = Absence::query()
+            ->where('student_id', $student->id)
+            ->whereDate('occurred_on', '>=', $data['period_start'])
+            ->whereDate('occurred_on', '<=', $data['period_end'])
+            ->where('is_motivated', false)
+            ->exists();
+
+        if (! $hasUnmotivated) {
+            throw ValidationException::withMessages([
+                'period_start' => __('cabinet_flash.motivation_no_absences'),
+            ]);
+        }
+
+        // Anti-duplicat: nicio altă cerere PENDING care se suprapune cu perioada (altfel N cereri
+        // identice inundă coada dirigintelui + storage-ul privat). Suprapunere = start ≤ celălalt.end
+        // ȘI end ≥ celălalt.start. (#37 — simetric cu anti-duplicatul cererilor tipice.)
+        $overlapPending = AbsenceMotivation::query()
+            ->where('student_id', $student->id)
+            ->where('status', RequestStatus::Pending)
+            ->whereDate('period_start', '<=', $data['period_end'])
+            ->whereDate('period_end', '>=', $data['period_start'])
+            ->exists();
+
+        if ($overlapPending) {
+            throw ValidationException::withMessages([
+                'period_start' => __('cabinet_flash.motivation_duplicate_pending'),
+            ]);
+        }
+
         // Justificativul (adeverință etc.) e PII de minor → stocare PRIVATĂ, niciodată public.
+        // Un eșec de scriere (disc plin/permisiuni) NU se înghite tăcut (motivare fără document +
+        // toast de succes) — familia primește eroare și reîncearcă (#37).
         $documentPath = null;
         $file = $request->file('document');
         if ($file instanceof UploadedFile) {
-            $documentPath = $file->store('motivations', 'local') ?: null;
+            $stored = $file->store('motivations', 'local');
+            if ($stored === false) {
+                throw ValidationException::withMessages([
+                    'document' => __('cabinet_flash.motivation_upload_failed'),
+                ]);
+            }
+            $documentPath = $stored;
         }
 
         // Excepție = cererea acoperă absențe deja consolidate sau cu termenul de depunere (5 zile
         // lucrătoare) depășit. O astfel de cerere se aprobă de vicedirectorul pe educație, nu de diriginte.
         $isException = Absence::query()
             ->where('student_id', $student->id)
-            ->whereBetween('occurred_on', [$data['period_start'], $data['period_end']])
+            ->whereDate('occurred_on', '>=', $data['period_start'])
+            ->whereDate('occurred_on', '<=', $data['period_end'])
             ->where('is_motivated', false)
             ->where(function (Builder $query): void {
                 $query->whereNotNull('motivation_locked_at')
@@ -567,14 +610,20 @@ class CabinetController extends Controller
             $payload['period_end'] = $data['period_end'] ?? $data['period_start'];
         }
 
-        $documentRequest = DocumentRequest::create([
-            'type' => $data['type'],
-            'student_id' => $student->id,
-            'requested_by_user_id' => $user->id,
-            'payload' => $payload,
-        ]);
+        // Cererea + PDF-ul într-o TRANZACȚIE: dacă randarea mpdf pică (tempDir, memorie), rândul se
+        // dă înapoi → fără cerere PENDING orfană (fără PDF, dar care blochează redepunerea și a
+        // notificat deja secretariatul). Notificarea observer-ului rulează afterCommit → nu anunță
+        // o cerere anulată. (#37)
+        DB::transaction(function () use ($data, $student, $user, $payload): void {
+            $documentRequest = DocumentRequest::create([
+                'type' => $data['type'],
+                'student_id' => $student->id,
+                'requested_by_user_id' => $user->id,
+                'payload' => $payload,
+            ]);
 
-        app(GenerateRequestPdf::class)->generate($documentRequest);
+            app(GenerateRequestPdf::class)->generate($documentRequest);
+        });
 
         Inertia::flash('toast', [
             'type' => 'success',

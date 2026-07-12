@@ -169,9 +169,14 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     // administrației, cu gating propriu). Dashboard-ul se auto-redirecționează în controller.
     Route::get('dashboard', [CabinetController::class, 'index'])->name('dashboard');
     Route::get('cabinet/elev/{student}', [CabinetController::class, 'student'])->name('cabinet.student');
-    Route::post('cabinet/elev/{student}/motivare', [CabinetController::class, 'requestMotivation'])->name('cabinet.motivation');
+    // Throttle pe POST-urile de SCRIERE ale familiei (motivări/cereri/confirmare): fără el, un cont de
+    // familie putea crea nelimitat motivări cu upload de 5MB (umplere storage privat cu PII) + inunda
+    // coada dirigintelui. 20/min per user = larg pentru uz uman, îngust pentru abuz automat (#37).
+    Route::post('cabinet/elev/{student}/motivare', [CabinetController::class, 'requestMotivation'])
+        ->middleware('throttle:20,1')->name('cabinet.motivation');
     Route::get('cabinet/motivare/{absenceMotivation}/document', [CabinetController::class, 'downloadMotivationDocument'])->name('cabinet.motivation.document');
-    Route::post('cabinet/elev/{student}/confirm-statut', [CabinetController::class, 'acknowledgeStatus'])->name('cabinet.status.acknowledge');
+    Route::post('cabinet/elev/{student}/confirm-statut', [CabinetController::class, 'acknowledgeStatus'])
+        ->middleware('throttle:20,1')->name('cabinet.status.acknowledge');
     // Document GENERAT per-elev (foaie matricolă, situația școlară) — produs la cerere, gardat în
     // controller (familie / administrație / diriginte). Accesibil ȘI personalului → fără gardul „doar familie".
     Route::get('cabinet/elev/{student}/document/{type}', [CabinetController::class, 'downloadGeneratedDocument'])->name('cabinet.document.generate');
@@ -193,7 +198,8 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     Route::get('cabinet/mesaje/atasament/{attachment}', [MessagesController::class, 'downloadAttachment'])->name('cabinet.messages.attachment');
 
     // Cereri tipice (spec §4.3): depunere (→ PDF, secretariat) + descărcare PDF privat.
-    Route::post('cabinet/elev/{student}/cereri', [CabinetController::class, 'requestDocument'])->name('cabinet.requests.store');
+    Route::post('cabinet/elev/{student}/cereri', [CabinetController::class, 'requestDocument'])
+        ->middleware('throttle:20,1')->name('cabinet.requests.store');
     Route::get('cabinet/cereri/{documentRequest}/pdf', [CabinetController::class, 'downloadRequest'])->name('cabinet.requests.pdf');
 
     // Pagina „Documente" a familiei (spec §2/§3): statice vizibile + generate per-copil + cereri.

@@ -9,6 +9,7 @@ use App\Enums\RequestStatus;
 use App\Enums\UserRole;
 use App\Models\DocumentRequest;
 use App\Notifications\CatalogNotification;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -27,16 +28,23 @@ class DocumentRequestObserver
 
     public function created(DocumentRequest $request): void
     {
-        $this->notifier->byRole(
-            [
-                UserRole::Admin->value,
-                UserRole::AdministratorOperational->value,
-            ],
-            new CatalogNotification(
-                NotificationType::DocumentRequestSubmitted,
-                ['doc_type' => $request->type->getLabel()],
-            ),
-        );
+        // afterCommit: depunerea rulează într-o tranzacție (cerere + PDF, #37) — dacă generarea PDF
+        // pică, rândul se dă înapoi; notificarea nu trebuie să anunțe o cerere anulată. Fără tranzacție
+        // activă, closure-ul rulează imediat.
+        $docType = $request->type->getLabel();
+
+        DB::afterCommit(function () use ($docType): void {
+            $this->notifier->byRole(
+                [
+                    UserRole::Admin->value,
+                    UserRole::AdministratorOperational->value,
+                ],
+                new CatalogNotification(
+                    NotificationType::DocumentRequestSubmitted,
+                    ['doc_type' => $docType],
+                ),
+            );
+        });
     }
 
     public function updated(DocumentRequest $request): void

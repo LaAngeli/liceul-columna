@@ -20,4 +20,6 @@ return [
     'motivation_duplicate_pending' => 'Există deja o cerere de motivare în așteptare care acoperă această perioadă.',
     // Mesaj de VALIDARE: motivare depusă pe o perioadă fără nicio absență nemotivată.
     'motivation_no_absences' => 'Nu există absențe nemotivate în perioada aleasă — verifică datele.',
+    // Mesaj de VALIDARE: încărcarea justificativului a eșuat (nu se pierde tăcut).
+    'motivation_upload_failed' => 'Încărcarea documentului a eșuat. Reîncearcă.',
 ];

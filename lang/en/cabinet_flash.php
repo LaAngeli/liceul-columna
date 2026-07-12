@@ -16,4 +16,5 @@ return [
     'email_change_via_staff' => 'The e-mail address is already set. To change it, contact the front office — it is the account login.',
     'motivation_duplicate_pending' => 'There is already a pending absence-excuse request covering this period.',
     'motivation_no_absences' => 'There are no unexcused absences in the selected period — check the dates.',
+    'motivation_upload_failed' => 'The document upload failed. Please try again.',
 ];

@@ -22,6 +22,15 @@ class AbsenceObserver
      */
     public function creating(Absence $absence): void
     {
+        // O absență consemnată RETROACTIV care cade într-o perioadă cu motivare deja APROBATĂ e
+        // motivată din start (dovada acoperă o PERIOADĂ, nu o absență anume) — simetric cu
+        // EditAbsence::syncMotivationWithDate. Fără asta, absența introdusă târziu (după aprobare)
+        // rămânea nemotivată, primea termen nou și intra în contoarele „nemotivate"/riscul de amânare,
+        // deși familia vedea motivarea aprobată pe exact acea dată (#37).
+        if (! $absence->is_motivated && $absence->hasApprovedMotivationOn($absence->occurred_on)) {
+            $absence->is_motivated = true;
+        }
+
         if (! $absence->is_motivated && $absence->motivation_deadline === null) {
             $absence->motivation_deadline = WorkingDays::add($absence->occurred_on, 5);
         }

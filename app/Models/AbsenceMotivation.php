@@ -131,9 +131,12 @@ class AbsenceMotivation extends Model implements Auditable
     public function approve(int $reviewerId, ?string $note = null): void
     {
         // Marchează MOTIVATE + DEBLOCHEAZĂ absențele consolidate (cazul aprobării unei excepții).
+        // whereDate pe ambele margini: occurred_on e datetime, deci comparăm pe ZI (o margine
+        // dată-doar ar rata absența chiar pe ultima zi a perioadei).
         Absence::query()
             ->where('student_id', $this->student_id)
-            ->whereBetween('occurred_on', [$this->period_start, $this->period_end])
+            ->whereDate('occurred_on', '>=', $this->period_start)
+            ->whereDate('occurred_on', '<=', $this->period_end)
             ->where('is_motivated', false)
             ->update(['is_motivated' => true, 'motivation_locked_at' => null]);
 

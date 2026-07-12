@@ -27,12 +27,20 @@ it('familia depune o cerere de motivare din cabinet', function () {
     $parent = User::factory()->create();
     $parent->assignRole(UserRole::Parinte->value);
     $parent->students()->attach($student->id);
+    // O absență nemotivată recentă, cu termenul de depunere ÎNCĂ deschis → motivare NORMALĂ
+    // (nu excepție). Cererea trebuie să vizeze absențe reale (#37).
+    Absence::factory()->create([
+        'student_id' => $student->id,
+        'occurred_on' => Carbon::yesterday()->toDateString(),
+        'is_motivated' => false,
+        'motivation_deadline' => Carbon::tomorrow()->toDateString(),
+    ]);
 
     $this->actingAs($parent)
         ->post("/cabinet/elev/{$student->id}/motivare", [
             'reason' => 'Gripă, recomandare medicală',
-            'period_start' => '2026-03-01',
-            'period_end' => '2026-03-03',
+            'period_start' => Carbon::yesterday()->toDateString(),
+            'period_end' => Carbon::yesterday()->toDateString(),
         ])
         ->assertRedirect()
         ->assertInertiaFlash('toast.type', 'success')
@@ -42,6 +50,68 @@ it('familia depune o cerere de motivare din cabinet', function () {
         ->where('student_id', $student->id)
         ->where('status', RequestStatus::Pending)
         ->count())->toBe(1);
+});
+
+// ─── Robustețea depunerii motivărilor (#37) ──────────────────────────────────────────────
+
+it('motivarea pe o perioadă FĂRĂ absențe nemotivate e respinsă (aprobare oarbă)', function () {
+    $student = Student::factory()->create();
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+    // NICIO absență în perioadă → cererea nu are ce motiva.
+
+    $this->actingAs($parent)
+        ->post("/cabinet/elev/{$student->id}/motivare", [
+            'reason' => 'Am greșit luna.',
+            'period_start' => '2026-03-01',
+            'period_end' => '2026-03-03',
+        ])
+        ->assertSessionHasErrors(['period_start']);
+
+    expect(AbsenceMotivation::query()->count())->toBe(0);
+});
+
+it('a doua motivare cu perioadă suprapusă (pending) e respinsă (anti-duplicat)', function () {
+    $student = Student::factory()->create();
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+    Absence::factory()->create(['student_id' => $student->id, 'occurred_on' => '2026-03-02', 'is_motivated' => false]);
+
+    $submit = fn () => $this->actingAs($parent)->post("/cabinet/elev/{$student->id}/motivare", [
+        'reason' => 'Boală.',
+        'period_start' => '2026-03-01',
+        'period_end' => '2026-03-05',
+    ]);
+
+    $submit()->assertRedirect();
+    // A doua cerere pe interval suprapus, cât prima e pending → respinsă.
+    $submit()->assertSessionHasErrors(['period_start']);
+
+    expect(AbsenceMotivation::query()->where('student_id', $student->id)->count())->toBe(1);
+});
+
+it('absența consemnată DUPĂ aprobarea motivării care o acoperă e motivată din start (simetric cu editarea)', function () {
+    $student = Student::factory()->create();
+
+    // Motivare deja APROBATĂ pentru 01–05 martie.
+    $motivation = AbsenceMotivation::factory()->create([
+        'student_id' => $student->id,
+        'period_start' => '2026-03-01',
+        'period_end' => '2026-03-05',
+        'status' => RequestStatus::Approved,
+    ]);
+
+    // Absență introdusă retroactiv pe 03 martie (în perioadă) → motivată automat.
+    $absence = Absence::factory()->create([
+        'student_id' => $student->id,
+        'occurred_on' => '2026-03-03',
+        'is_motivated' => false,
+    ]);
+
+    expect($absence->fresh()->is_motivated)->toBeTrue()
+        ->and($absence->fresh()->motivation_deadline)->toBeNull();
 });
 
 it('un cont fără legătură nu poate depune cerere pentru un elev', function () {
