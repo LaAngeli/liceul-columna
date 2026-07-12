@@ -800,7 +800,7 @@ return [
         'info_procedure' => 'Procedura aplicabilă',
         'extract_grades' => 'Mediile se calculează automat, pe cicluri, până la sutimi fără rotunjire (Regulament intern, §2.4). Media semestrială se actualizează după fiecare notă nouă.',
         'extract_absences' => 'Absențele se motivează de diriginte, la cererea familiei, în termenul prevăzut de ROF. Atașează justificativul la cererea de motivare.',
-        'extract_requests' => 'Cererile se generează ca document PDF și se transmit secretariatului; termenul de răspuns e cel prevăzut de procedura aplicabilă.',
+        'extract_requests' => 'Cererile se generează ca document PDF și se transmit secretariatului; termenul de răspuns e cel prevăzut de procedura aplicabilă. Adeverințele aprobate se ridică de la secretariat, în original, cu semnătură și ștampilă.',
         'notif_title' => 'Notificări',
         'notif_settings' => 'Setări notificări',
         'notif_mark_all' => 'Marchează toate citite',

@@ -375,6 +375,16 @@ return [
             'withdraw_submit' => 'Retrage',
             'withdraw_success' => 'Cerere retrasă',
         ],
+        'open_correction' => [
+            'label' => 'Deschide corecție',
+            'heading' => 'Deschide corecția din contestație',
+            'description' => 'Alege nota contestată și propune valoarea corectă. Corecția intră la aprobarea conducerii, iar contestația e marcată procesată, cu trimitere la corecție.',
+            'grade' => 'Nota contestată',
+            'submit' => 'Deschide corecția',
+            'processed_note' => 'Transmisă spre reexaminare — corecția #:id',
+            'success_title' => 'Corecție deschisă',
+            'success_body' => 'Contestația a fost transmisă spre aprobarea conducerii.',
+        ],
         'process' => [
             'label' => 'Marchează procesată',
             'success' => 'Cerere procesată',

@@ -800,7 +800,7 @@ return [
         'info_procedure' => 'Applicable procedure',
         'extract_grades' => 'Averages are computed automatically by cycle, to hundredths without rounding (internal regulation, §2.4). The term average updates after each new grade.',
         'extract_absences' => 'Absences are excused by the homeroom teacher upon the family request, within the deadline set by the regulations. Attach the supporting document to the excuse request.',
-        'extract_requests' => 'Requests are generated as a PDF and sent to the secretariat; the response time follows the applicable procedure.',
+        'extract_requests' => 'Requests are generated as a PDF and sent to the secretariat; the response time follows the applicable procedure. Approved certificates are picked up from the secretariat as originals, signed and stamped.',
         'notif_title' => 'Notifications',
         'notif_settings' => 'Notification settings',
         'notif_mark_all' => 'Mark all as read',

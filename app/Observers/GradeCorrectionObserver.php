@@ -88,8 +88,8 @@ class GradeCorrectionObserver
         }
 
         if ($correction->status === CorrectionStatus::Rejected) {
-            // Solicitantul (profesorul) trebuie să afle verdictul + motivul (arhivă), altfel redepune
-            // orbește. Familia n-a fost implicată și nota n-a fost atinsă → nu o notificăm.
+            // Solicitantul (staff-ul) trebuie să afle verdictul + motivul (arhivă), altfel redepune
+            // orbește.
             $this->notifier->toUser(
                 $correction->requestedBy,
                 new CatalogNotification(
@@ -97,6 +97,17 @@ class GradeCorrectionObserver
                     ['student' => $student !== null ? $student->full_name : ''],
                 ),
             );
+
+            // EXCEPȚIE de la „familia nu e implicată": corecția născută dintr-o CONTESTAȚIE a
+            // familiei (fluxul contestație→corecție, #36) — familia A inițiat reexaminarea, deci
+            // primește rezultatul și la respingere (la aprobare primește deja „notă corectată").
+            if ($correction->document_request_id !== null && $student !== null) {
+                $this->family->send($student, new CatalogNotification(
+                    NotificationType::ContestationRejected,
+                    ['student' => $student->full_name],
+                    route('cabinet.student', ['student' => $student->id], false),
+                ));
+            }
         }
     }
 }

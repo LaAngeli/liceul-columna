@@ -28,6 +28,7 @@ class GradeCorrection extends Model
     protected $fillable = [
         'grade_id',
         'requested_by_user_id',
+        'document_request_id',
         'old_value',
         'new_value',
         'old_calificativ',
@@ -121,5 +122,16 @@ class GradeCorrection extends Model
     public function reviewedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by_user_id');
+    }
+
+    /**
+     * Contestația familiei din care a pornit corecția (fluxul contestație→corecție, #36) —
+     * null pentru corecțiile cerute direct de profesor.
+     *
+     * @return BelongsTo<DocumentRequest, $this>
+     */
+    public function documentRequest(): BelongsTo
+    {
+        return $this->belongsTo(DocumentRequest::class);
     }
 }

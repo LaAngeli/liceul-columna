@@ -18,6 +18,7 @@ return [
         'new_homework' => 'Rezumat zilnic de teme',
         'new_calendar_event' => 'Eveniment nou în calendar',
         'calendar_event_cancelled' => 'Eveniment anulat',
+        'contestation_rejected' => 'Rezultatul contestației',
         'new_message' => 'Mesaj nou',
         'status_change' => 'Schimbare de statut',
         'announcement' => 'Anunț al conducerii',
@@ -75,6 +76,10 @@ return [
     'calendar_event_cancelled' => [
         'title' => 'Eveniment anulat',
         'body' => 'Evenimentul „:title" din :date a fost anulat.',
+    ],
+    'contestation_rejected' => [
+        'title' => 'Contestație reexaminată',
+        'body' => 'Contestația depusă pentru :student a fost reexaminată: nota rămâne neschimbată.',
     ],
     'announcement' => [
         'title' => 'Anunț',

@@ -28,6 +28,15 @@ use App\Support\Grades;
  * Idempotent (updateOrCreate pe cheia logică) — re-rularea după corecții reîmprospătează arhiva.
  * Treapta vine din înmatricularea elevului în anul arhivat; elevii fără înmatriculare sunt săriți
  * și numărați (situație de semnalat operatorului).
+ *
+ * DECIZII DOCUMENTATE (#36, 2026-07-12):
+ *  - Disciplinele notate prin CALIFICATIV nu se arhivează (filtrul `whereNotNull('value')`):
+ *    Regulamentul (§2.4) definește agregarea anuală doar pentru scala numerică — nu inventăm o
+ *    formulă „admis + admis = admis". Amânat până când școala stabilește regula oficială.
+ *  - Cheia matricolei rămâne (elev, disciplină, TREAPTĂ, perioadă), fără dimensiune de an:
+ *    repetenția e eliminată prin regulament (reintegrarea corigenței nepromise → treapta se reia
+ *    doar prin re-înmatriculare), deci treapta identifică unic anul pentru un elev. O coloană de
+ *    an ar dubla cheia fără să adauge informație.
  */
 class ArchiveYearToTranscript
 {

@@ -42,6 +42,9 @@ class CabinetDocumentsController extends Controller
                     'class' => $this->className($student),
                     'generated' => $this->generatedDescriptors($student),
                     'requests' => $this->requestsFor($student),
+                    // Totalul REAL — lista de mai sus e plafonată la 15, deci badge-ul nu se
+                    // calculează din ea (ar minți la a 16-a cerere).
+                    'requestsTotal' => DocumentRequest::query()->where('student_id', $student->id)->count(),
                 ])
                 ->all(),
         ]);

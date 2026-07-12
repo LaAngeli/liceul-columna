@@ -363,6 +363,16 @@ return [
             'withdraw_submit' => 'Withdraw',
             'withdraw_success' => 'Request withdrawn',
         ],
+        'open_correction' => [
+            'label' => 'Open correction',
+            'heading' => 'Open the correction from the contestation',
+            'description' => 'Pick the contested grade and propose the correct value. The correction goes to management for approval, and the contestation is marked processed with a reference to the correction.',
+            'grade' => 'Contested grade',
+            'submit' => 'Open correction',
+            'processed_note' => 'Forwarded for re-examination — correction #:id',
+            'success_title' => 'Correction opened',
+            'success_body' => 'The contestation was forwarded to management for approval.',
+        ],
         'process' => [
             'label' => 'Mark as processed',
             'success' => 'Request processed',

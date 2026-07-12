@@ -7,6 +7,7 @@ use App\Http\Controllers\CabinetController;
 use App\Models\Absence;
 use App\Models\AcademicYear;
 use App\Models\Document;
+use App\Models\DocumentRequest;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\SchoolClass;
@@ -145,6 +146,25 @@ it('pagina Documente randează pentru familie: documentele copilului + cele ale 
             ->has('children', 1)
             ->has('children.0.generated', 2)          // foaie matricolă + situația școlară
             ->has('schoolDocuments')
+        );
+});
+
+it('badge-ul „Cereri" arată totalul REAL, nu lista plafonată la 15 (#36)', function () {
+    $student = Student::factory()->create();
+    $parent = familyParent($student);
+
+    DocumentRequest::factory()->count(17)->create([
+        'student_id' => $student->id,
+        'requested_by_user_id' => $parent->id,
+    ]);
+
+    actingAs($parent)
+        ->get(route('cabinet.documents'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('cabinet/documents')
+            ->has('children.0.requests', 15)              // lista rămâne plafonată (cele mai recente)
+            ->where('children.0.requestsTotal', 17)       // badge-ul numără tot
         );
 });
 

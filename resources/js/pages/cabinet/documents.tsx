@@ -43,6 +43,8 @@ interface Child {
     class: string | null;
     generated: GeneratedDoc[];
     requests: RequestDoc[];
+    // Totalul real de pe server — `requests` e plafonată la cele mai recente 15.
+    requestsTotal: number;
 }
 
 interface Category {
@@ -87,7 +89,7 @@ export default function DocumentsPage({ categories, schoolDocuments, children }:
             return children.reduce((total, child) => total + child.generated.length, 0);
         }
         if (key === 'requests') {
-            return children.reduce((total, child) => total + child.requests.length, 0);
+            return children.reduce((total, child) => total + child.requestsTotal, 0);
         }
         return 0;
     };

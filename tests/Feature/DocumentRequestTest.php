@@ -1,21 +1,31 @@
 <?php
 
+use App\Enums\CorrectionStatus;
 use App\Enums\DocumentRequestType;
+use App\Enums\EvaluationType;
+use App\Enums\GradingType;
 use App\Enums\NotificationType;
+use App\Enums\RequestStatus;
 use App\Enums\UserRole;
 use App\Filament\Resources\DocumentRequests\DocumentRequestResource;
+use App\Filament\Resources\DocumentRequests\Pages\ListDocumentRequests;
 use App\Models\AcademicYear;
 use App\Models\DocumentRequest;
 use App\Models\Enrollment;
+use App\Models\Grade;
+use App\Models\GradeCorrection;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
+use App\Models\Term;
 use App\Models\User;
 use App\Notifications\CatalogNotification;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
@@ -216,6 +226,160 @@ it('ștergerea PERMANENTĂ a cererii șterge și PDF-ul; soft delete-ul îl păs
     // Force delete: rând dispărut definitiv → fișierul cu PII nu rămâne orfan (L133).
     $request->forceDelete();
     Storage::disk('local')->assertMissing('cereri/igiena.pdf');
+});
+
+// ─── Flux contestație→corecție (#36, decizia userului: „un flux real + notificare relevantă") ────
+
+/**
+ * Fixture comun: elev cu o notă activă (7 la o disciplină numerică), părinte-tutore și o
+ * CONTESTAȚIE în așteptare depusă de familie.
+ *
+ * @return array{request: DocumentRequest, grade: Grade, parent: User, student: Student}
+ */
+function contestationFixture(): array
+{
+    $year = AcademicYear::factory()->create();
+    $term = Term::factory()->for($year)->create([
+        'number' => 2, 'starts_on' => '2026-01-01', 'ends_on' => '2026-06-30', 'is_current' => true,
+    ]);
+    $class = SchoolClass::factory()->for($year)->create();
+    $subject = Subject::factory()->create(['grading_type' => GradingType::Numeric]);
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($year)->create();
+
+    $grade = Grade::factory()->create([
+        'student_id' => $student->id,
+        'school_class_id' => $class->id,
+        'subject_id' => $subject->id,
+        'term_id' => $term->id,
+        'teacher_id' => Teacher::factory()->create()->id,
+        'evaluation_type' => EvaluationType::Curenta,
+        'value' => 7,
+        'calificativ' => null,
+    ]);
+
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+
+    $request = DocumentRequest::factory()->ofType(DocumentRequestType::Contestatie)->create([
+        'student_id' => $student->id,
+        'requested_by_user_id' => $parent->id,
+        'payload' => ['details' => 'Lucrarea a fost punctată greșit la subiectul II.'],
+    ]);
+
+    return ['request' => $request, 'grade' => $grade, 'parent' => $parent, 'student' => $student];
+}
+
+it('administrația deschide o corecție din contestație: corecția e legată, cererea procesată cu notă, aprobatorii anunțați', function () {
+    ['request' => $request, 'grade' => $grade] = contestationFixture();
+
+    $ao = User::factory()->create();
+    $ao->assignRole(UserRole::AdministratorOperational->value);
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+
+    Notification::fake();
+
+    Livewire::actingAs($ao)
+        ->test(ListDocumentRequests::class)
+        ->callTableAction('openCorrection', $request, [
+            'grade_id' => $grade->id,
+            'new_value' => 9,
+            'reason' => 'Punctajul recalculat al lucrării dă nota 9.',
+        ]);
+
+    $correction = GradeCorrection::query()->where('document_request_id', $request->id)->first();
+
+    expect($correction)->not->toBeNull()
+        ->and($correction->grade_id)->toBe($grade->id)
+        ->and($correction->requested_by_user_id)->toBe($ao->id)
+        ->and((float) $correction->old_value)->toBe(7.0)
+        ->and((float) $correction->new_value)->toBe(9.0)
+        ->and($correction->status)->toBe(CorrectionStatus::Pending);
+
+    // Contestația e închisă administrativ, cu trimitere la corecția deschisă (trasabilitate).
+    $request->refresh();
+    expect($request->status)->toBe(RequestStatus::Approved)
+        ->and($request->review_note)->toContain('#'.$correction->id);
+
+    // Aprobatorii corecțiilor află că au de judecat una nouă (observer-ul standard).
+    Notification::assertSentTo(
+        $director,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::GradeCorrectionRequest,
+    );
+});
+
+it('respingerea corecției din contestație anunță FAMILIA cu rezultatul; corecția obișnuită (profesor) nu', function () {
+    ['request' => $request, 'grade' => $grade, 'parent' => $parent] = contestationFixture();
+
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+    $ao = User::factory()->create();
+    $ao->assignRole(UserRole::AdministratorOperational->value);
+
+    $fromContestation = GradeCorrection::factory()->create([
+        'grade_id' => $grade->id,
+        'requested_by_user_id' => $ao->id,
+        'document_request_id' => $request->id,
+        'old_value' => 7,
+        'new_value' => 9,
+        'status' => CorrectionStatus::Pending,
+    ]);
+
+    Notification::fake();
+    $fromContestation->reject($director->id, 'Baremul a fost aplicat corect.');
+
+    // Familia a inițiat reexaminarea → primește verdictul; solicitantul (AO) primește verdictul standard.
+    Notification::assertSentTo(
+        $parent,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::ContestationRejected,
+    );
+    Notification::assertSentTo(
+        $ao,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::GradeCorrectionRejected,
+    );
+
+    // Contrast: corecția cerută de PROFESOR (fără contestație) rămâne teacher↔conducere — familia
+    // nu e notificată la respingere (nota nu s-a schimbat, familia n-a fost implicată).
+    $teacherCorrection = GradeCorrection::factory()->create([
+        'grade_id' => $grade->id,
+        'requested_by_user_id' => User::factory()->create()->id,
+        'old_value' => 7,
+        'new_value' => 8,
+        'status' => CorrectionStatus::Pending,
+    ]);
+
+    Notification::fake();
+    $teacherCorrection->reject($director->id);
+
+    Notification::assertNotSentTo(
+        $parent,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::ContestationRejected,
+    );
+});
+
+it('acțiunea „Deschide corecție" apare doar pe CONTESTAȚIILE în așteptare', function () {
+    ['request' => $contestation, 'student' => $student, 'parent' => $parent] = contestationFixture();
+
+    $adeverinta = DocumentRequest::factory()->create([
+        'student_id' => $student->id,
+        'requested_by_user_id' => $parent->id,
+    ]);
+    $processed = DocumentRequest::factory()->ofType(DocumentRequestType::Contestatie)->create([
+        'student_id' => $student->id,
+        'requested_by_user_id' => $parent->id,
+        'status' => RequestStatus::Approved,
+    ]);
+
+    $ao = User::factory()->create();
+    $ao->assignRole(UserRole::AdministratorOperational->value);
+
+    Livewire::actingAs($ao)
+        ->test(ListDocumentRequests::class)
+        ->assertActionVisible(TestAction::make('openCorrection')->table($contestation))
+        ->assertActionHidden(TestAction::make('openCorrection')->table($adeverinta))
+        ->assertActionHidden(TestAction::make('openCorrection')->table($processed));
 });
 
 it('resursa „Cereri" (secretariat) e vizibilă administrației, nu profesorului/familiei', function (UserRole $role, bool $access) {

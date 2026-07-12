@@ -13,6 +13,7 @@ return [
         'new_homework' => 'Daily homework summary',
         'new_calendar_event' => 'New calendar event',
         'calendar_event_cancelled' => 'Event cancelled',
+        'contestation_rejected' => 'Contestation outcome',
         'new_message' => 'New message',
         'status_change' => 'Status change',
         'announcement' => 'Management announcement',
@@ -68,6 +69,10 @@ return [
     'calendar_event_cancelled' => [
         'title' => 'Event cancelled',
         'body' => 'The event ":title" on :date was cancelled.',
+    ],
+    'contestation_rejected' => [
+        'title' => 'Contestation reviewed',
+        'body' => 'The contestation filed for :student was re-examined: the grade remains unchanged.',
     ],
     'announcement' => [
         'title' => 'Announcement',

@@ -13,6 +13,7 @@ return [
         'new_homework' => 'Ежедневная сводка заданий',
         'new_calendar_event' => 'Новое событие в календаре',
         'calendar_event_cancelled' => 'Событие отменено',
+        'contestation_rejected' => 'Результат апелляции',
         'new_message' => 'Новое сообщение',
         'status_change' => 'Изменение статуса',
         'announcement' => 'Объявление руководства',
@@ -68,6 +69,10 @@ return [
     'calendar_event_cancelled' => [
         'title' => 'Событие отменено',
         'body' => 'Событие «:title» от :date отменено.',
+    ],
+    'contestation_rejected' => [
+        'title' => 'Апелляция рассмотрена',
+        'body' => 'Апелляция, поданная по :student, рассмотрена повторно: оценка остаётся без изменений.',
     ],
     'announcement' => [
         'title' => 'Объявление',

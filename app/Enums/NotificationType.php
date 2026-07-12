@@ -22,6 +22,7 @@ enum NotificationType: string implements HasLabel
     case StatusChange = 'status_change';
     case NewCalendarEvent = 'new_calendar_event';
     case CalendarEventCancelled = 'calendar_event_cancelled';
+    case ContestationRejected = 'contestation_rejected';
 
     // Comune (toți).
     case NewMessage = 'new_message';
@@ -61,6 +62,7 @@ enum NotificationType: string implements HasLabel
             self::StatusChange => 'heroicon-o-flag',
             self::NewCalendarEvent => 'heroicon-o-calendar',
             self::CalendarEventCancelled => 'heroicon-o-calendar-date-range',
+            self::ContestationRejected => 'heroicon-o-scale',
             self::NewMessage => 'heroicon-o-chat-bubble-left-right',
             self::Announcement => 'heroicon-o-megaphone',
             self::GradeCorrectionRequest => 'heroicon-o-pencil-square',
@@ -93,6 +95,7 @@ enum NotificationType: string implements HasLabel
                 self::StatusChange,
                 self::NewCalendarEvent,
                 self::CalendarEventCancelled,
+                self::ContestationRejected,
                 self::NewMessage,
                 self::Announcement,
             ],

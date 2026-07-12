@@ -50,14 +50,16 @@ class DocumentRequest extends Model
     }
 
     /**
-     * Secretariatul marchează cererea ca procesată (aprobată).
+     * Secretariatul marchează cererea ca procesată (aprobată), opțional cu o notă
+     * (ex. „Transmisă spre reexaminare — corecția #X" la fluxul contestație→corecție).
      */
-    public function markProcessed(int $reviewerId): void
+    public function markProcessed(int $reviewerId, ?string $note = null): void
     {
         $this->update([
             'status' => RequestStatus::Approved,
             'reviewed_by_user_id' => $reviewerId,
             'reviewed_at' => now(),
+            'review_note' => $note,
         ]);
     }
 
