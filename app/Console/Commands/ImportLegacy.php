@@ -36,6 +36,13 @@ class ImportLegacy extends Command
     /** @var array<int, int> sem => term_id */
     private array $termMap = [];
 
+    /** @var array<int, array{0: string, 1: string}> term_id => [starts_on, ends_on] — fereastra de normalizare a datelor */
+    private array $termRange = [];
+
+    private string $yearStart = '2025-09-01';
+
+    private string $yearEnd = '2026-06-30';
+
     private int $yearId = 0;
 
     public function handle(): int
@@ -72,6 +79,8 @@ class ImportLegacy extends Command
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+            // Fereastra pe term_id, pentru normalizarea datelor corupte din sursă (vezi clampDate).
+            $this->termRange[$this->termMap[$num]] = $termDates[$num];
         }
 
         $this->info('2/9 Discipline…');
@@ -192,7 +201,7 @@ class ImportLegacy extends Command
                     'school_class_id' => $classId,
                     'term_id' => $termId,
                     'teacher_id' => null,
-                    'occurred_on' => $n->date,
+                    'occurred_on' => $this->clampDate($n->date, ...$this->termRange[$termId]),
                     'is_motivated' => $abs === 'p',
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -333,7 +342,7 @@ class ImportLegacy extends Command
                 'author_name' => trim((string) $t->autor) ?: null,
                 'grade_level' => (int) $t->class_rang,
                 'section' => trim((string) $t->prim_cl) ?: null,
-                'assigned_on' => $t->date_dat,
+                'assigned_on' => $this->clampDate($t->date_dat, $this->yearStart, $this->yearEnd),
                 'topic' => trim((string) $t->subiect) ?: null,
                 'required_task' => trim((string) $t->s_o) ?: null,
                 'optional_task' => trim((string) $t->s_s) ?: null,
@@ -362,7 +371,7 @@ class ImportLegacy extends Command
             'school_class_id' => $classId,
             'term_id' => $termId,
             'teacher_id' => null,
-            'graded_on' => $n->date,
+            'graded_on' => $this->clampDate($n->date, ...($this->termRange[$termId] ?? [$this->yearStart, $this->yearEnd])),
             'type' => (int) $n->st_n ?: null,
             'value' => $value !== null ? round($value, 2) : null,
             'calificativ' => $calif ? mb_substr($calif, 0, 10) : null,
@@ -379,5 +388,42 @@ class ImportLegacy extends Command
         foreach (array_chunk($rows, 1000) as $chunk) {
             DB::table($table)->insert($chunk);
         }
+    }
+
+    /**
+     * Normalizează o dată-sursă legacy într-o fereastră plauzibilă [start, end]. Sursa veche conține
+     * date corupte (an 2205 la note/absențe, an 0026 la teme — typo-uri de operator în vechiul sistem)
+     * pe care importul le copia verbatim, iar catalogul le afișa (ex. „16.09.2205" domina capul listei
+     * de note, sortată descrescător). Regula: dacă data cade în fereastră, o păstrăm; dacă nu, corectăm
+     * ANUL la cel al ferestrei (păstrând ziua/luna — 2205-09-16 → 2025-09-16); altfel clamp la marginea
+     * cea mai apropiată. Data goală/neparsabilă → începutul ferestrei.
+     */
+    private function clampDate(mixed $raw, string $start, string $end): string
+    {
+        $startC = Carbon::parse($start)->startOfDay();
+        $endC = Carbon::parse($end)->startOfDay();
+
+        try {
+            $date = ($raw === null || $raw === '') ? null : Carbon::parse((string) $raw)->startOfDay();
+        } catch (\Throwable) {
+            $date = null;
+        }
+
+        if ($date === null) {
+            return $startC->toDateString();
+        }
+
+        if ($date->gte($startC) && $date->lte($endC)) {
+            return $date->toDateString();
+        }
+
+        foreach (array_unique([$startC->year, $endC->year]) as $year) {
+            $candidate = $date->copy()->setDate($year, (int) $date->month, (int) $date->day);
+            if ($candidate->gte($startC) && $candidate->lte($endC)) {
+                return $candidate->toDateString();
+            }
+        }
+
+        return $date->lt($startC) ? $startC->toDateString() : $endC->toDateString();
     }
 }
