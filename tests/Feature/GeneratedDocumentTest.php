@@ -1,10 +1,20 @@
 <?php
 
 use App\Enums\DocumentAccessLevel;
+use App\Enums\GeneratedDocumentType;
 use App\Enums\UserRole;
+use App\Http\Controllers\CabinetController;
+use App\Models\Absence;
+use App\Models\AcademicYear;
 use App\Models\Document;
+use App\Models\Enrollment;
+use App\Models\Grade;
+use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
+use App\Models\Term;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 
@@ -64,6 +74,58 @@ it('un tip de document necunoscut returnează 404', function () {
         ->assertNotFound();
 });
 
+// ─── Conținutul situației școlare e TERM-SCOPED (audit Documente, #35) ───────────────────
+
+it('situația școlară conține DOAR semestrul curent — notele/absențele altor semestre nu intră', function () {
+    $year = AcademicYear::factory()->create();
+    $oldTerm = Term::factory()->for($year)->create(['number' => 1, 'is_current' => false]);
+    $currentTerm = Term::factory()->for($year)->create(['number' => 2, 'is_current' => true]);
+    $class = SchoolClass::factory()->for($year)->create();
+
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($year)->create();
+
+    $oldSubject = Subject::factory()->create(['name' => 'Disciplina Veche']);
+    $currentSubject = Subject::factory()->create(['name' => 'Disciplina Curentă']);
+
+    // Notă + absență în semestrul VECHI; notă + absență în semestrul CURENT.
+    Grade::factory()->create([
+        'student_id' => $student->id, 'subject_id' => $oldSubject->id,
+        'school_class_id' => $class->id, 'term_id' => $oldTerm->id, 'value' => 9,
+    ]);
+    Grade::factory()->create([
+        'student_id' => $student->id, 'subject_id' => $currentSubject->id,
+        'school_class_id' => $class->id, 'term_id' => $currentTerm->id, 'value' => 7,
+    ]);
+    Absence::factory()->create([
+        'student_id' => $student->id, 'subject_id' => $oldSubject->id,
+        'school_class_id' => $class->id, 'term_id' => $oldTerm->id, 'occurred_on' => '2026-03-09',
+    ]);
+    Absence::factory()->create([
+        'student_id' => $student->id, 'subject_id' => $currentSubject->id,
+        'school_class_id' => $class->id, 'term_id' => $currentTerm->id, 'occurred_on' => '2026-03-10',
+    ]);
+
+    // Metoda privată de date — direct pe constatarea confirmată: titlul promite semestrul
+    // curent, deci conținutul trebuie să fie SCOPAT pe el (înainte agrega tot istoricul).
+    $method = new ReflectionMethod(CabinetController::class, 'generatedDocumentData');
+    $data = $method->invoke(
+        app(CabinetController::class),
+        GeneratedDocumentType::TermSituation,
+        $student,
+    );
+
+    $subjectNames = collect($data['subjects'])->pluck('subject');
+    $absenceNames = collect($data['absences'])->pluck('subject');
+
+    expect($data['termLabel'])->toBe('Semestrul II')
+        ->and($subjectNames)->toContain('Disciplina Curentă')
+        ->and($subjectNames)->not->toContain('Disciplina Veche')
+        ->and($absenceNames)->toContain('Disciplina Curentă')
+        ->and($absenceNames)->not->toContain('Disciplina Veche')
+        ->and($data['absencesTotal'])->toBe(1);
+});
+
 // ─── Pagina „Documente" din cabinet ─────────────────────────────────────────────────────
 
 it('pagina Documente randează pentru familie: documentele copilului + cele ale școlii', function () {
@@ -84,6 +146,30 @@ it('pagina Documente randează pentru familie: documentele copilului + cele ale 
             ->has('children.0.generated', 2)          // foaie matricolă + situația școlară
             ->has('schoolDocuments')
         );
+});
+
+// ─── Igiena fișierelor bibliotecii (audit Documente, #35) ─────────────────────────────────
+
+it('înlocuirea fișierului șterge versiunea veche; forceDelete șterge fișierul; soft delete nu', function () {
+    Storage::fake('local');
+    $disk = Storage::disk('local');
+
+    $disk->put('documents/v1.pdf', 'v1');
+    $document = Document::factory()->create(['file_path' => 'documents/v1.pdf']);
+
+    // Înlocuire: fișierul vechi nu rămâne orfan pe disk.
+    $disk->put('documents/v2.pdf', 'v2');
+    $document->update(['file_path' => 'documents/v2.pdf']);
+    $disk->assertMissing('documents/v1.pdf');
+    $disk->assertExists('documents/v2.pdf');
+
+    // Soft delete: restaurabil → fișierul rămâne.
+    $document->delete();
+    $disk->assertExists('documents/v2.pdf');
+
+    // Force delete: rând dispărut definitiv → fișierul dispare.
+    $document->forceDelete();
+    $disk->assertMissing('documents/v2.pdf');
 });
 
 it('personalul e redirecționat de la pagina Documente a cabinetului (doar familie)', function () {

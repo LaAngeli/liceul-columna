@@ -685,16 +685,30 @@ class CabinetController extends Controller
             ];
         }
 
-        // Situația școlară — semestrul curent.
-        $student->loadMissing(['grades.subject', 'grades.term', 'grades.schoolClass', 'absences.subject']);
+        // Situația școlară — SEMESTRUL CURENT: titlul promite un semestru, deci notele și
+        // absențele se SCOPEAZĂ pe el (audit Documente: documentul oficial agrega toate
+        // semestrele/anii, deși media și statusul de mai jos erau deja pe semestrul curent).
+        // Relațiile se încarcă CONSTRÂNS — helper-ele (gradesBySubject/absencesBySubject)
+        // iterează exact ce e încărcat. Fără semestru curent (vacanță), secțiunile ies goale —
+        // onest și consecvent cu media/statusul.
+        $currentTerm = Term::query()->where('is_current', true)->first(['id', 'number']);
+        $currentTermId = $currentTerm === null ? 0 : (int) $currentTerm->id;
+
+        $student->load([
+            'grades' => fn ($query) => $query->where('term_id', $currentTermId),
+            'grades.subject',
+            'grades.term',
+            'grades.schoolClass',
+            'absences' => fn ($query) => $query->where('term_id', $currentTermId),
+            'absences.subject',
+        ]);
         $status = $this->currentStatus($student);
-        $termNumber = Term::query()->where('is_current', true)->value('number');
 
         return [
             'studentName' => $student->full_name,
             'className' => $className,
-            'termLabel' => $termNumber !== null
-                ? 'Semestrul '.((int) $termNumber === 1 ? 'I' : 'II')
+            'termLabel' => $currentTerm !== null
+                ? 'Semestrul '.((int) $currentTerm->number === 1 ? 'I' : 'II')
                 : 'Semestrul curent',
             'subjects' => $this->gradesBySubject($student),
             'absences' => $this->absencesBySubject($student),

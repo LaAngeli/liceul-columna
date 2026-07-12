@@ -9,6 +9,7 @@ use App\Enums\RequestStatus;
 use App\Enums\UserRole;
 use App\Models\DocumentRequest;
 use App\Notifications\CatalogNotification;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * La o cerere tipică NOUĂ (adeverință, transfer...), anunță SECRETARIATUL — administratorul
@@ -55,5 +56,18 @@ class DocumentRequestObserver
             ['student' => $student->full_name, 'status' => $request->status->getLabel()],
             route('cabinet.student', ['student' => $student->id], false),
         ));
+    }
+
+    /**
+     * Invariantul de igienă „rând șters ⇒ fișier șters": la dispariția DEFINITIVĂ a cererii
+     * (forceDelete — soft delete-ul păstrează fișierul, rândul e restaurabil), PDF-ul ei (PII de
+     * minor) nu rămâne orfan în storage-ul privat — un fișier fără rând-mamă nu mai poate fi
+     * găsit la o cerere de ștergere a persoanei vizate (L133).
+     */
+    public function forceDeleted(DocumentRequest $request): void
+    {
+        if (is_string($request->pdf_path) && $request->pdf_path !== '') {
+            Storage::disk('local')->delete($request->pdf_path);
+        }
     }
 }

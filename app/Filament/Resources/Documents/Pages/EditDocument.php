@@ -31,6 +31,15 @@ class EditDocument extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        // La ÎNLOCUIREA fișierului, evidența „cine a urcat" trece pe cel care l-a înlocuit —
+        // altfel coloana afișată rămânea pe primul uploader (răspunderea aparentă greșită);
+        // fișierul VECHI se șterge de pe disk în Document::booted (updated).
+        $record = $this->getRecord();
+
+        if (($data['file_path'] ?? null) !== $record->getAttribute('file_path')) {
+            $data['uploaded_by_user_id'] = auth('web')->id();
+        }
+
         return $this->withDocumentFileMetadata($data);
     }
 }

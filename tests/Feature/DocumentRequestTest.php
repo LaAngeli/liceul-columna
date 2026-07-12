@@ -202,6 +202,22 @@ it('depunerea anunță secretariatul (AO), nu directorul (matricea lui nu are ti
     Notification::assertNothingSentTo($director);
 });
 
+it('ștergerea PERMANENTĂ a cererii șterge și PDF-ul; soft delete-ul îl păstrează (restaurabil)', function () {
+    Storage::fake('local');
+
+    $request = DocumentRequest::factory()->create(['student_id' => Student::factory()->create()->id]);
+    Storage::disk('local')->put('cereri/igiena.pdf', '%PDF-1.4 demo');
+    $request->update(['pdf_path' => 'cereri/igiena.pdf']);
+
+    // Soft delete: rândul e restaurabil → fișierul RĂMÂNE.
+    $request->delete();
+    Storage::disk('local')->assertExists('cereri/igiena.pdf');
+
+    // Force delete: rând dispărut definitiv → fișierul cu PII nu rămâne orfan (L133).
+    $request->forceDelete();
+    Storage::disk('local')->assertMissing('cereri/igiena.pdf');
+});
+
 it('resursa „Cereri" (secretariat) e vizibilă administrației, nu profesorului/familiei', function (UserRole $role, bool $access) {
     $user = User::factory()->create();
     $user->assignRole($role->value);

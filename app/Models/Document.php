@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -68,6 +69,33 @@ class Document extends Model implements Auditable
             'file_size' => 'integer',
             'is_published' => 'boolean',
         ];
+    }
+
+    /**
+     * Invariantul de igienă „rând șters ⇒ fișier șters" (L133 — un fișier fără rând-mamă nu mai
+     * poate fi găsit la o cerere de ștergere a persoanei vizate): la ÎNLOCUIREA fișierului se
+     * șterge versiunea veche de pe disk, iar la ștergerea PERMANENTĂ a rândului dispare și
+     * fișierul. Soft delete-ul păstrează fișierul (rândul e restaurabil).
+     */
+    protected static function booted(): void
+    {
+        static::updated(static function (Document $document): void {
+            if (! $document->wasChanged('file_path')) {
+                return;
+            }
+
+            $old = $document->getOriginal('file_path');
+
+            if (is_string($old) && $old !== '' && $old !== $document->file_path) {
+                Storage::disk('local')->delete($old);
+            }
+        });
+
+        static::forceDeleted(static function (Document $document): void {
+            if (is_string($document->file_path) && $document->file_path !== '') {
+                Storage::disk('local')->delete($document->file_path);
+            }
+        });
     }
 
     /**
