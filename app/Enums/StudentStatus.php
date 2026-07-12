@@ -35,4 +35,15 @@ enum StudentStatus: string implements HasLabel
             self::Amanat => 'gray',
         };
     }
+
+    /**
+     * Statut care CERE atenția familiei (aprinde alerta de aterizare + bordura roșie a cardului).
+     * Sursă UNICĂ, ca definiția server (cockpit) să nu poată diverge de badge-ul frontend: corigent
+     * și amânat cer confirmare, iar REPETENT — cel mai grav rezultat — trebuie să aprindă și el
+     * alerta (altfel banda spunea „nimic de atenționat" peste un card cu badge roșu „Repetent").
+     */
+    public function isAtRisk(): bool
+    {
+        return in_array($this, [self::Corigent, self::Amanat, self::Repetent], true);
+    }
 }

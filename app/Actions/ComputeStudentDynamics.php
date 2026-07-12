@@ -158,7 +158,9 @@ class ComputeStudentDynamics
      */
     private function previousYearSameTermAverage(Student $student): ?float
     {
-        $currentLevel = $student->enrollments()->with('schoolClass')->latest('id')->first()?->schoolClass?->grade_level;
+        // Treapta canonică (academic_year_id, ca Student::currentSchoolClass) — pe id, o înmatriculare
+        // istorică completată retroactiv ar strica comparația „același semestru anul trecut" (#37).
+        $currentLevel = $student->currentSchoolClass()?->grade_level;
         $currentTermNumber = Term::query()->where('is_current', true)->value('number');
 
         if ($currentLevel === null || $currentTermNumber === null) {

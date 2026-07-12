@@ -71,6 +71,13 @@ class CabinetController extends Controller
         /** @var \Illuminate\Database\Eloquent\Collection<int, Student> $children */
         $children = $user->students()->get();
 
+        // Un elev legat ȘI prin user_id (self) ȘI prin pivotul guardian_student ar apărea de două ori
+        // (două carduri identice) și ar fi numărat dublu la „cu risc". Excludem self din lista de
+        // copii (analog Student::notifiableUsers, care face unique('id') pentru același motiv). (#37)
+        if ($self !== null) {
+            $children = $children->reject(fn (Student $child): bool => $child->id === $self->id)->values();
+        }
+
         // EloquentCollection (NU Support\Collection) ca să avem loadMissing() pentru eager-load bulk.
         /** @var \Illuminate\Database\Eloquent\Collection<int, Student> $allStudents */
         $allStudents = new \Illuminate\Database\Eloquent\Collection;
@@ -142,10 +149,14 @@ class CabinetController extends Controller
                 ->whereIn('student_id', $studentIds)
                 ->whereNull('annulled_at')
                 ->whereIn('id', function ($sub) use ($studentIds): void {
+                    // Subquery-ul brut NU primește global scope-ul SoftDeletes → filtrăm explicit
+                    // deleted_at (altfel MAX(id) putea alege o notă ștearsă, iar query-ul exterior —
+                    // cu scope — n-o găsea → cardul arăta „—" deși existau note active). (#37)
                     $sub->selectRaw('MAX(id)')
                         ->from('grades')
                         ->whereIn('student_id', $studentIds)
                         ->whereNull('annulled_at')
+                        ->whereNull('deleted_at')
                         ->groupBy('student_id');
                 })
                 ->with('subject')
@@ -198,7 +209,10 @@ class CabinetController extends Controller
     private function cockpitCard(Student $student, ?float $overallAverage, int $recentAbsences, int $pendingMotivations, ?array $status, ?string $trend, ?Grade $lastGrade): array
     {
         // Enrollment-urile sunt eager-loaded în index(): citire în memorie, fără query suplimentar.
-        $class = $student->enrollments->sortByDesc('id')->first()?->schoolClass;
+        // Sortăm pe academic_year_id (definiția canonică din Student::currentSchoolClass), NU pe id:
+        // o înmatriculare completată RETROACTIV pentru un an trecut are id mai mare dar an mai vechi —
+        // pe id, cardul ar arăta clasa istorică, divergent de header/orar (#37).
+        $class = $student->enrollments->sortByDesc('academic_year_id')->first()?->schoolClass;
 
         $statusValue = $status['status'] ?? null;
 
@@ -209,11 +223,7 @@ class CabinetController extends Controller
             'average' => $overallAverage,
             'trend' => $trend,
             'statusValue' => $statusValue,
-            'isAtRisk' => in_array(
-                $statusValue,
-                [StudentStatus::Corigent->value, StudentStatus::Amanat->value],
-                true,
-            ),
+            'isAtRisk' => is_string($statusValue) && (StudentStatus::tryFrom($statusValue)?->isAtRisk() ?? false),
             'lastGrade' => $lastGrade !== null ? [
                 'value' => $lastGrade->value !== null
                     ? (string) (int) $lastGrade->value
@@ -252,11 +262,7 @@ class CabinetController extends Controller
         $atRiskStudentId = null;
         foreach ($allStudents as $student) {
             $statusValue = $statusByStudent->get($student->id)['status'] ?? null;
-            $isAtRisk = in_array(
-                $statusValue,
-                [StudentStatus::Corigent->value, StudentStatus::Amanat->value],
-                true,
-            );
+            $isAtRisk = is_string($statusValue) && (StudentStatus::tryFrom($statusValue)?->isAtRisk() ?? false);
             if ($isAtRisk) {
                 $atRisk++;
                 $atRiskStudentId ??= $student->id;
@@ -1023,7 +1029,9 @@ class CabinetController extends Controller
      */
     private function homeworkForStudent(Student $student): array
     {
-        $class = $student->enrollments()->with('schoolClass')->latest('id')->first()?->schoolClass;
+        // Clasa curentă canonică (academic_year_id) — altfel temele veneau din clasa istorică lângă
+        // orarul clasei curente în același tab „Orar & teme" (#37).
+        $class = $student->currentSchoolClass();
 
         if (! $class) {
             return [];
@@ -1056,7 +1064,8 @@ class CabinetController extends Controller
      */
     private function summary(Student $student): array
     {
-        $class = $student->enrollments()->with('schoolClass')->latest('id')->first()?->schoolClass;
+        // Definiția canonică a clasei curente (academic_year_id, nu id) — vezi nota din cockpitCard.
+        $class = $student->currentSchoolClass();
 
         // Media generală = media mediilor semestriale calculate (nu a notelor brute).
         $averages = $this->semesterAverages($student);
