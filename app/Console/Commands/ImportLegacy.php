@@ -152,6 +152,9 @@ class ImportLegacy extends Command
                     'student_id' => $studentId,
                     'school_class_id' => $classId,
                     'academic_year_id' => $this->yearId,
+                    // Sursa legacy nu are data înmatriculării → coloana „Înmatriculat la" apărea goală
+                    // pe toate rândurile. Implicit = începutul anului școlar (înmatriculare la start).
+                    'enrolled_on' => $this->yearStart,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
