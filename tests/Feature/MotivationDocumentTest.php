@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\Absence;
 use App\Models\AbsenceMotivation;
 use App\Models\Student;
 use App\Models\User;
@@ -21,6 +22,8 @@ it('justificativul atașat se stochează privat și e descărcabil de familie, n
     $parent = User::factory()->create();
     $parent->assignRole(UserRole::Parinte->value);
     $parent->students()->attach($student->id);
+    // Motivarea trebuie să vizeze o absență nemotivată reală (validare #37).
+    Absence::factory()->create(['student_id' => $student->id, 'occurred_on' => '2026-03-03', 'is_motivated' => false]);
 
     $this->actingAs($parent)->post("/cabinet/elev/{$student->id}/motivare", [
         'reason' => 'Consultație medicală',

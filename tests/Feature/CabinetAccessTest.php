@@ -301,6 +301,8 @@ it('o cerere depusă apare în lista de motivări din cabinet', function () {
     $parent = User::factory()->create();
     $parent->assignRole(UserRole::Parinte->value);
     $parent->students()->attach($student->id);
+    // Motivarea trebuie să vizeze o absență nemotivată reală (validare #37).
+    Absence::factory()->create(['student_id' => $student->id, 'occurred_on' => '2026-03-03', 'is_motivated' => false]);
 
     $this->actingAs($parent)->post("/cabinet/elev/{$student->id}/motivare", [
         'reason' => 'Consultație medicală',
