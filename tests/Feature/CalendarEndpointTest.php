@@ -3,6 +3,7 @@
 use App\Enums\UserRole;
 use App\Models\Absence;
 use App\Models\Student;
+use App\Models\Term;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
@@ -83,11 +84,34 @@ it('părintele nu vede evenimentele altui copil prin parametrul student', functi
     expect(collect($events)->pluck('source'))->not->toContain('absence');
 });
 
-it('un membru staff fără copii nu accesează calendarul de cabinet', function () {
-    $staff = User::factory()->create();
+it('personalul e redirecționat de la calendarul de cabinet (EnsureFamilyCabinet, #37)', function () {
+    $staff = User::factory()->create(['email_verified_at' => now()]);
     $staff->assignRole(UserRole::Profesor->value);
 
+    // Gating UNIFORM cu restul cabinetului: personalul → /admin (nu 403).
     $this->actingAs($staff)
         ->get(route('cabinet.calendar'))
-        ->assertForbidden();
+        ->assertRedirect();
+});
+
+it('titlurile auto ale calendarului respectă limba familiei (SetUserLocale, #37)', function () {
+    $this->withoutVite();
+
+    $parent = User::factory()->create(['locale' => 'ru']);
+    $parent->assignRole(UserRole::Parinte->value);
+    $child = Student::factory()->create();
+    $parent->students()->attach($child->id);
+
+    // Un semestru care începe în luna curentă → titlul „Început de semestru" apare în feed.
+    Term::factory()->create([
+        'starts_on' => now()->startOfMonth()->addDays(2)->toDateString(),
+        'ends_on' => now()->endOfMonth()->toDateString(),
+    ]);
+
+    $response = $this->actingAs($parent)->getJson(route('cabinet.calendar.events'));
+    $titles = collect($response->json('events'))->pluck('title');
+
+    // Fără SetUserLocale, titlul ar fi în RO ('Început de semestru').
+    expect($titles)->toContain(trans('cabinet_calendar.auto_term_start', [], 'ru'))
+        ->and($titles)->not->toContain(trans('cabinet_calendar.auto_term_start', [], 'ro'));
 });

@@ -636,6 +636,7 @@ return [
         'documents_requests' => 'Submitted requests',
         'documents_download' => 'Download',
         'documents_soon' => 'coming soon',
+        'student_departed' => 'Student left the school on {date}. Historical data remains available.',
         'documents_requests_truncated' => 'Showing the {shown} most recent of {total} requests.',
         'documents_empty_school' => 'No published documents yet.',
         'documents_empty_tab' => 'No documents in this category yet.',

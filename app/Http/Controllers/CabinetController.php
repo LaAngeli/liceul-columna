@@ -1134,6 +1134,9 @@ class CabinetController extends Controller
             'grades_count' => $student->grades()->count(),
             'absences_count' => $student->absences()->count(),
             'average' => $overall,
+            // Data plecării (dacă a plecat) — cabinetul semnalează „elev plecat", coerent cu
+            // calendarul/rapoartele care îl taie la left_on (#37).
+            'departedOn' => $student->departedOn()?->format('d.m.Y'),
         ];
     }
 

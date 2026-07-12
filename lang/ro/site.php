@@ -636,6 +636,7 @@ return [
         'documents_requests' => 'Cereri depuse',
         'documents_download' => 'Descarcă',
         'documents_soon' => 'în curând',
+        'student_departed' => 'Elev plecat din liceu la {date}. Datele istorice rămân disponibile.',
         'documents_requests_truncated' => 'Se afișează cele mai recente {shown} din {total} cereri.',
         'documents_empty_school' => 'Momentan nu există documente publicate.',
         'documents_empty_tab' => 'Momentan nu există documente în această categorie.',

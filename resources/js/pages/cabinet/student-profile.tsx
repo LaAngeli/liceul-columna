@@ -20,6 +20,8 @@ interface StudentSummary {
     grades_count: number;
     absences_count: number;
     average: number | null;
+    // Data plecării din liceu (dacă a plecat) — banner de semnal (#37).
+    departedOn: string | null;
 }
 
 interface StudentStatus {
@@ -34,6 +36,7 @@ interface StatusAck {
     needed: boolean;
     acknowledged: boolean;
     acknowledgedAt: string | null;
+    acknowledgedBy: string | null;
     canAcknowledge: boolean;
 }
 
@@ -170,6 +173,11 @@ export default function StudentProfile(props: Props) {
         <>
             <Head title={props.student.name} />
             <div className="flex flex-col gap-6 p-4">
+                {props.student.departedOn && (
+                    <div className="rounded-lg border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200" role="status">
+                        {t('cabinet.student_departed').replace('{date}', props.student.departedOn)}
+                    </div>
+                )}
                 <ProfileHeader
                     student={props.student}
                     status={props.status}

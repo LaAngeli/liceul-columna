@@ -19,6 +19,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\User;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 
 use function Pest\Laravel\actingAs;
@@ -83,6 +84,21 @@ it('dirigintele elevului primește motivările (le validează, are nevoie de con
         ->get("/cabinet/elev/{$this->student->id}", inertiaPartialHeaders('cabinet/student-profile', 'motivations'))
         ->assertOk()
         ->assertJsonCount(1, 'props.motivations');
+});
+
+it('profilul unui elev PLECAT (left_on setat) semnalează data plecării în cabinet', function () {
+    $parent = User::factory()->create(['email_verified_at' => now()]);
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($this->student->id);
+
+    // Elevul pleacă din liceu (left_on pe înmatriculare), fișa NU e arhivată.
+    $this->student->enrollments()->update(['left_on' => '2026-03-01']);
+
+    actingAs($parent)
+        ->get("/cabinet/elev/{$this->student->id}")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('student.departedOn', '01.03.2026'));
 });
 
 it('familia primește motivările propriului copil', function () {

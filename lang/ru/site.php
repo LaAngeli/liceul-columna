@@ -636,6 +636,7 @@ return [
         'documents_requests' => 'Поданные заявления',
         'documents_download' => 'Скачать',
         'documents_soon' => 'скоро',
+        'student_departed' => 'Ученик выбыл из лицея {date}. Исторические данные остаются доступными.',
         'documents_requests_truncated' => 'Показаны последние {shown} из {total} заявлений.',
         'documents_empty_school' => 'Пока нет опубликованных документов.',
         'documents_empty_tab' => 'В этой категории пока нет документов.',

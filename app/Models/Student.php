@@ -8,6 +8,7 @@ use App\Enums\SecondLanguage;
 use App\Enums\Sex;
 use App\Filament\Widgets\NeedsAttention;
 use App\Support\Grades;
+use Carbon\CarbonInterface;
 use Database\Factories\StudentFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -112,6 +113,16 @@ class Student extends Model implements Auditable
             ->latest('academic_year_id')
             ->first()
             ?->schoolClass;
+    }
+
+    /**
+     * Data la care elevul a PLECAT din liceu (left_on pe cea mai recentă înmatriculare), sau null
+     * dacă e încă activ. Cabinetul o folosește ca să semnaleze „elev plecat" — calendarul și
+     * rapoartele îl taie deja la left_on, deci profilul trebuie să fie coerent (#37).
+     */
+    public function departedOn(): ?CarbonInterface
+    {
+        return $this->enrollments()->latest('academic_year_id')->first()?->left_on;
     }
 
     /**
