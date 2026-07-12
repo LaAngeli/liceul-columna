@@ -635,6 +635,8 @@ return [
         'documents_school_hint' => 'Regulations, guides and materials visible to your role.',
         'documents_requests' => 'Submitted requests',
         'documents_download' => 'Download',
+        'documents_soon' => 'coming soon',
+        'documents_requests_truncated' => 'Showing the {shown} most recent of {total} requests.',
         'documents_empty_school' => 'No published documents yet.',
         'documents_empty_tab' => 'No documents in this category yet.',
         'documents_tabs_aria' => 'Document categories',

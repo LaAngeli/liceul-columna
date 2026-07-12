@@ -921,26 +921,30 @@ class CabinetController extends Controller
      * dacă e necesară, dacă a fost deja confirmată (cu data) și dacă familia o poate confirma acum.
      *
      * @param  array<string, mixed>  $status
-     * @return array{needed: bool, acknowledged: bool, acknowledgedAt: string|null, canAcknowledge: bool}
+     * @return array{needed: bool, acknowledged: bool, acknowledgedAt: string|null, acknowledgedBy: string|null, canAcknowledge: bool}
      */
     private function statusAcknowledgement(Student $student, ?User $viewer, array $status): array
     {
         $needed = in_array($status['status'], [StudentStatus::Corigent->value, StudentStatus::Amanat->value], true);
 
         if (! $needed) {
-            return ['needed' => false, 'acknowledged' => false, 'acknowledgedAt' => null, 'canAcknowledge' => false];
+            return ['needed' => false, 'acknowledged' => false, 'acknowledgedAt' => null, 'acknowledgedBy' => null, 'canAcknowledge' => false];
         }
 
         $termId = Term::query()->where('is_current', true)->value('id');
         $ack = $termId !== null
-            ? StatusAcknowledgement::query()->where('student_id', $student->id)->where('term_id', $termId)->first()
+            ? StatusAcknowledgement::query()->with('acknowledgedBy')->where('student_id', $student->id)->where('term_id', $termId)->first()
             : null;
 
         $acknowledged = $ack !== null && $ack->status->value === $status['status'];
 
         $acknowledgedAt = null;
+        $acknowledgedBy = null;
         if ($ack !== null && $acknowledged) {
             $acknowledgedAt = $ack->acknowledged_at->format('d.m.Y H:i');
+            // CINE a confirmat — părintele nu poate distinge altfel confirmarea proprie de cea făcută
+            // de elevul (minor) însuși (isFamilyOf include contul elevului). Transparență (#37).
+            $acknowledgedBy = $ack->acknowledgedBy?->name;
         }
 
         $isFamily = $viewer instanceof User && $this->isFamilyOf($viewer, $student);
@@ -949,6 +953,7 @@ class CabinetController extends Controller
             'needed' => true,
             'acknowledged' => $acknowledged,
             'acknowledgedAt' => $acknowledgedAt,
+            'acknowledgedBy' => $acknowledgedBy,
             'canAcknowledge' => $isFamily && ! $acknowledged,
         ];
     }

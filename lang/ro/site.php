@@ -635,6 +635,8 @@ return [
         'documents_school_hint' => 'Regulamente, ghiduri și materiale, vizibile rolului tău.',
         'documents_requests' => 'Cereri depuse',
         'documents_download' => 'Descarcă',
+        'documents_soon' => 'în curând',
+        'documents_requests_truncated' => 'Se afișează cele mai recente {shown} din {total} cereri.',
         'documents_empty_school' => 'Momentan nu există documente publicate.',
         'documents_empty_tab' => 'Momentan nu există documente în această categorie.',
         'documents_tabs_aria' => 'Categorii de documente',

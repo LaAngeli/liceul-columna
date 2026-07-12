@@ -138,8 +138,12 @@ export function RequestsTab({
                                                         id="req_start"
                                                         name="period_start"
                                                         type="date"
+                                                        required
                                                         className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                                                     />
+                                                    {errors.period_start && (
+                                                        <p className="text-xs text-destructive">{errors.period_start}</p>
+                                                    )}
                                                 </div>
                                                 <div className="grid gap-1.5">
                                                     <label htmlFor="req_end" className="text-xs text-muted-foreground">
@@ -149,8 +153,12 @@ export function RequestsTab({
                                                         id="req_end"
                                                         name="period_end"
                                                         type="date"
+                                                        required
                                                         className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                                                     />
+                                                    {errors.period_end && (
+                                                        <p className="text-xs text-destructive">{errors.period_end}</p>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}

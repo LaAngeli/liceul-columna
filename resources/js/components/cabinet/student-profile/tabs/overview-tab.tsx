@@ -21,6 +21,8 @@ interface StatusAck {
     needed: boolean;
     acknowledged: boolean;
     acknowledgedAt: string | null;
+    // Cine a confirmat — părintele distinge confirmarea proprie de cea făcută de elev (#37).
+    acknowledgedBy: string | null;
     canAcknowledge: boolean;
 }
 
@@ -132,6 +134,7 @@ export function OverviewTab({
                                     {statusAck.acknowledged ? (
                                         <p className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                                             ✓ {t('cabinet.status_ack_done')} {statusAck.acknowledgedAt}
+                                            {statusAck.acknowledgedBy && ` — ${statusAck.acknowledgedBy}`}
                                         </p>
                                     ) : statusAck.canAcknowledge ? (
                                         <Form action={`/cabinet/elev/${studentId}/confirm-statut`} method="post" className="mt-3 flex flex-col gap-2.5">

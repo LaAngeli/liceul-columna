@@ -635,6 +635,8 @@ return [
         'documents_school_hint' => 'Регламенты, руководства и материалы, видимые вашей роли.',
         'documents_requests' => 'Поданные заявления',
         'documents_download' => 'Скачать',
+        'documents_soon' => 'скоро',
+        'documents_requests_truncated' => 'Показаны последние {shown} из {total} заявлений.',
         'documents_empty_school' => 'Пока нет опубликованных документов.',
         'documents_empty_tab' => 'В этой категории пока нет документов.',
         'documents_tabs_aria' => 'Категории документов',

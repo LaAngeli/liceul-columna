@@ -169,20 +169,24 @@ export default function DocumentsPage({ categories, schoolDocuments, children }:
                     </li>
                 ))}
             </ul>
+            {/* Lista e plafonată la cele mai recente 15 — anunțăm dacă sunt mai multe (#37). */}
+            {child.requestsTotal > child.requests.length && (
+                <p className="border-t border-sidebar-border/70 px-4 py-2 text-xs text-muted-foreground dark:border-sidebar-border">
+                    {t('cabinet.documents_requests_truncated')
+                        .replace('{shown}', String(child.requests.length))
+                        .replace('{total}', String(child.requestsTotal))}
+                </p>
+            )}
         </div>
     );
 
     const schoolGrid = (items: SchoolDoc[]) => (
         <ul className="grid gap-2 sm:grid-cols-2">
-            {items.map((doc) => (
-                <li key={doc.id}>
-                    <a
-                        href={doc.url ?? '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-start gap-3 rounded-xl border border-sidebar-border/70 bg-card px-4 py-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-sidebar-border"
-                        aria-label={`${t('cabinet.documents_download')}: ${doc.title}`}
-                    >
+            {items.map((doc) => {
+                // Document publicat FĂRĂ fișier (url null) → card NON-interactiv, nu un <a href="#">
+                // care ar deschide un tab duplicat al paginii (download stricat). (#37)
+                const content = (
+                    <>
                         <FileText className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
                             <p className="font-medium">{doc.title}</p>
@@ -190,12 +194,33 @@ export default function DocumentsPage({ categories, schoolDocuments, children }:
                             <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                                 {doc.version && <span>{doc.version}</span>}
                                 {doc.size && <span>{doc.size}</span>}
+                                {!doc.url && <span className="italic">{t('cabinet.documents_soon')}</span>}
                             </p>
                         </div>
-                        <Download className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    </a>
-                </li>
-            ))}
+                        {doc.url && <Download className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+                    </>
+                );
+
+                return (
+                    <li key={doc.id}>
+                        {doc.url ? (
+                            <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-start gap-3 rounded-xl border border-sidebar-border/70 bg-card px-4 py-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-sidebar-border"
+                                aria-label={`${t('cabinet.documents_download')}: ${doc.title}`}
+                            >
+                                {content}
+                            </a>
+                        ) : (
+                            <div className="flex items-start gap-3 rounded-xl border border-sidebar-border/70 bg-card px-4 py-3 opacity-70 dark:border-sidebar-border">
+                                {content}
+                            </div>
+                        )}
+                    </li>
+                );
+            })}
         </ul>
     );
 

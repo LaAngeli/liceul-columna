@@ -64,10 +64,11 @@ it('familia confirmă luarea la cunoștință a statutului corigent (urmă în B
         ->where('status', 'corigent')
         ->exists())->toBeTrue();
 
-    // Acum apare ca deja confirmat.
+    // Acum apare ca deja confirmat, cu autorul confirmării (#37 — părintele distinge cine a semnat).
     $this->actingAs($parent)
         ->get("/cabinet/elev/{$student->id}")
         ->assertInertia(fn (Assert $page) => $page
             ->where('statusAck.acknowledged', true)
-            ->where('statusAck.canAcknowledge', false));
+            ->where('statusAck.canAcknowledge', false)
+            ->where('statusAck.acknowledgedBy', $parent->name));
 });
