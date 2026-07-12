@@ -165,19 +165,19 @@ it('userul fără email poate salva o adresă → persistă pe users.email', fun
     expect($user->refresh()->email)->toBe('parinte@example.test');
 });
 
-it('userul cu email pe cont POATE corecta adresa prin setări (editare descentralizată)', function () {
-    $user = User::factory()->create(['email' => 'gresit@example.test']);
+it('userul cu email deja setat NU îl poate SCHIMBA din setări (securitate #37 — vector preluare cont)', function () {
+    $user = User::factory()->create(['email' => 'setat@example.test']);
     $user->assignRole(UserRole::Parinte->value);
 
+    // Emailul e identificatorul de login + destinația OTP 2FA + adresa de reset parolă → o sesiune
+    // deschisă nu-l poate repointa. Schimbarea trece prin secretariat.
     $this->actingAs($user)->put(route('cabinet.notifications.settings.update'), [
-        'email' => 'corectat@example.test',
+        'email' => 'atacator@example.test',
         'contacts' => [],
         'preferences' => [],
-    ])->assertRedirect();
+    ])->assertSessionHasErrors(['email']);
 
-    // Adresa se schimbă la solicitarea utilizatorului — Fortify acceptă login pe email SAU username,
-    // deci schimbarea nu blochează accesul.
-    expect($user->refresh()->email)->toBe('corectat@example.test');
+    expect($user->refresh()->email)->toBe('setat@example.test');
 });
 
 it('trimiterea unui email gol la salvare NU șterge adresa existentă (no-op)', function () {
@@ -244,6 +244,31 @@ it('inboxul se randează și marcarea „citit" funcționează', function () {
     $this->actingAs($user)->post(route('cabinet.notifications.read', $id))->assertRedirect();
 
     expect($user->unreadNotifications()->count())->toBe(0);
+});
+
+it('link-ul unei notificări despre un copil ARHIVAT e neutralizat (nu duce la 404)', function () {
+    $student = Student::factory()->create();
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+
+    // Notificare cu link spre profilul copilului.
+    $parent->notify(new CatalogNotification(
+        NotificationType::NewGrade,
+        ['student' => $student->full_name, 'subject' => 'Matematică'],
+        route('cabinet.student', ['student' => $student->id], false),
+    ));
+
+    // Copilul e arhivat → linkul ar da 404.
+    $student->delete();
+
+    $this->actingAs($parent)->get(route('cabinet.notifications'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('cabinet/notifications')
+            ->where('notifications.0.url', null)   // link neutralizat
+            ->has('unreadTotal')
+        );
 });
 
 it('randează șablonul în limba de notificare a destinatarului (fără traducere live)', function () {

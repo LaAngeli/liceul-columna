@@ -353,13 +353,27 @@ class CabinetController extends Controller
 
         // Jurnalizarea accesului (L133 §7): personalul care vizualizează dosarul unui elev care NU
         // e copilul lui. Familia care-și vede propriul copil nu intră în jurnal (e dreptul ei).
-        if ($viewer instanceof User && ! $this->isFamilyOf($viewer, $student)) {
+        // NU logăm pe reload-ul PARȚIAL (props deferate → un al 2-lea request automat cu header
+        // X-Inertia-Partial-Data): altfel o singură deschidere reală = 2 intrări „viewed" în jurnalul
+        // reținut 12 ani, diluând valoarea probatorie (#37).
+        if ($viewer instanceof User
+            && ! $this->isFamilyOf($viewer, $student)
+            && ! request()->hasHeader('X-Inertia-Partial-Data')) {
             $accessLog->record($student, 'viewed', 'Vizualizare profil elev în cabinet');
         }
 
         $class = $student->currentSchoolClass();
         $status = $this->currentStatus($student);
-        $canRequestMotivation = $viewer instanceof User && $this->isFamilyOf($viewer, $student);
+        $isFamily = $viewer instanceof User && $this->isFamilyOf($viewer, $student);
+        $canRequestMotivation = $isFamily;
+
+        // Datele SENSIBILE ale situației (motivele motivărilor — potențial PII medical de minor — +
+        // lichidarea corigenței) merg doar la familie, administrație sau DIRIGINTELE elevului. Un
+        // profesor de disciplină (care vede profilul prin StudentPolicy::view) NU are nevoie de ele
+        // (minim necesar L133) — acolo ar afla diagnoze din motivele cererilor + primea link 403.
+        $canSeeSensitive = $isFamily
+            || ($viewer instanceof User && $viewer->isAdministrator())
+            || ($viewer instanceof User && $student->homeroomUser()?->is($viewer) === true);
 
         // Audit § profil #6 — comutator copil din interiorul profilului (părinte cu mai mulți copii).
         // Lista frați se trimite DOAR familiei (nu personalului). Profesorul vede `siblings = []`.
@@ -389,7 +403,7 @@ class CabinetController extends Controller
             'subjects' => Inertia::defer(fn (): array => $this->gradesBySubject($student)),
             'absencesBySubject' => Inertia::defer(fn (): array => $this->absencesBySubject($student)),
             'deferralRisk' => Inertia::defer(fn (): array => app(ComputeDeferralRisk::class)->for($student)),
-            'motivations' => Inertia::defer(fn (): array => $this->motivations($student)),
+            'motivations' => Inertia::defer(fn (): array => $canSeeSensitive ? $this->motivations($student) : []),
 
             // Tab „Orar & teme"
             'timetable' => Inertia::defer(fn (): ?array => $class !== null
@@ -410,7 +424,9 @@ class CabinetController extends Controller
                 && ($this->isFamilyOf($viewer, $student) || $viewer->isAdministrator()))
                 ? $this->documentRequests($student)
                 : []),
-            'corigentaExams' => Inertia::defer(fn (): array => $this->corigentaExams($student)),
+            // Lichidarea corigenței = planificare familie↔administrație (tabul „Cereri"); profesorul
+            // de disciplină o vede în panou, nu în cabinet (minim necesar, coerent cu motivations).
+            'corigentaExams' => Inertia::defer(fn (): array => $canSeeSensitive ? $this->corigentaExams($student) : []),
         ]);
     }
 

@@ -34,14 +34,20 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
 
 interface Props {
     notifications: NotificationItem[];
+    // Totalul REAL de necitite (lista de mai sus e plafonată la 50). Butonul „Marchează tot" se
+    // afișează după acest total — altfel necititele mai vechi de cele 50 lăsau un badge de neșters.
+    unreadTotal: number;
 }
 
-export default function NotificationsPage({ notifications }: Props) {
+export default function NotificationsPage({ notifications, unreadTotal }: Props) {
     const t = useTranslations();
     // Optimistic mark-read: id-urile sunt mutate INSTANT în acest Set la click; cardul apare ca citit
     // imediat, fără să așteptăm round-trip-ul server. Pe eroare HTTP, le scoatem (revenire la „necitit").
     const [optimisticRead, setOptimisticRead] = useState<Set<string>>(new Set());
-    const hasUnread = notifications.some((n) => !n.read && !optimisticRead.has(n.id));
+    // Afișăm butonul dacă există necitite în lista curentă SAU în restul (necitite mai vechi de 50):
+    // markAllRead operează pe întreaga relație, deci golește tot, inclusiv cele neafișate.
+    const visibleUnread = notifications.some((n) => !n.read && !optimisticRead.has(n.id));
+    const hasUnread = visibleUnread || unreadTotal > notifications.filter((n) => !n.read).length;
 
     function markRead(id: string) {
         if (optimisticRead.has(id)) {

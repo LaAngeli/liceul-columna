@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Enums\NotificationChannel;
 use App\Enums\NotificationType;
+use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -20,20 +22,72 @@ class NotificationsController extends Controller
 {
     public function index(Request $request): Response
     {
-        $notifications = $request->user('web')->notifications()->latest()->limit(50)->get()
-            ->map(fn (DatabaseNotification $notification): array => [
-                'id' => $notification->id,
-                'type' => $notification->data['type'] ?? null,
-                'title' => $notification->data['title'] ?? '',
-                'body' => $notification->data['body'] ?? '',
-                'url' => $notification->data['url'] ?? null,
-                'read' => $notification->read_at !== null,
-                'at' => $notification->created_at?->format('d.m.Y H:i'),
-            ])->all();
+        $user = $request->user('web');
+
+        $records = $user->notifications()->latest()->limit(50)->get();
+
+        // Elevii care NU mai există (fișă arhivată) → link-urile „cabinet/elev/{id}" din notificările
+        // vechi ar da 404 (binding-ul implicit exclude soft-deleted). Neutralizăm URL-ul pentru ei ca
+        // să nu trimitem familia spre pagini moarte (#37).
+        $missingStudentIds = self::referencedMissingStudentIds($records);
+
+        $notifications = $records
+            ->map(function (DatabaseNotification $notification) use ($missingStudentIds): array {
+                $url = $notification->data['url'] ?? null;
+                $studentId = self::studentIdFromUrl(is_string($url) ? $url : null);
+
+                return [
+                    'id' => $notification->id,
+                    'type' => $notification->data['type'] ?? null,
+                    'title' => $notification->data['title'] ?? '',
+                    'body' => $notification->data['body'] ?? '',
+                    'url' => ($studentId !== null && in_array($studentId, $missingStudentIds, true)) ? null : $url,
+                    'read' => $notification->read_at !== null,
+                    'at' => $notification->created_at?->format('d.m.Y H:i'),
+                ];
+            })->all();
 
         return Inertia::render('cabinet/notifications', [
             'notifications' => $notifications,
+            // Totalul REAL de necitite (badge-ul din header) — lista de mai sus e plafonată la 50, deci
+            // butonul „Marchează tot" se afișează după acest total, nu după cele 50 afișate (#37).
+            'unreadTotal' => $user->unreadNotifications()->count(),
         ]);
+    }
+
+    /**
+     * Extrage id-ul elevului dintr-un URL de notificare „…/cabinet/elev/{id}" (sau null).
+     */
+    private static function studentIdFromUrl(?string $url): ?int
+    {
+        if ($url === null) {
+            return null;
+        }
+
+        return preg_match('#/cabinet/elev/(\d+)#', $url, $m) === 1 ? (int) $m[1] : null;
+    }
+
+    /**
+     * Id-urile de elev referite de notificări care NU mai există (fișă arhivată/ștearsă).
+     *
+     * @param  Collection<int, DatabaseNotification>  $records
+     * @return list<int>
+     */
+    private static function referencedMissingStudentIds(Collection $records): array
+    {
+        $ids = $records
+            ->map(fn (DatabaseNotification $n): ?int => self::studentIdFromUrl(is_string($n->data['url'] ?? null) ? $n->data['url'] : null))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $existing = Student::query()->whereIn('id', $ids->all())->pluck('id')->all();
+
+        return array_values($ids->reject(fn (int $id): bool => in_array($id, $existing, true))->all());
     }
 
     public function markRead(Request $request, string $notification): RedirectResponse
