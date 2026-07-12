@@ -140,6 +140,15 @@ it('respinge o limbă necunoscută', function () {
     $this->get('/set-locale/de')->assertNotFound();
 });
 
+// SECURITATE (#37): open redirect — o țintă protocol-relativă „//evil.com" începe cu „/" dar duce în
+// afara domeniului (phishing pe domeniu de încredere). Trebuie ignorată → cade pe „/".
+it('respinge redirectul protocol-relativ (open redirect)', function () {
+    $this->get('/set-locale/ro?redirect=//evil.com')->assertRedirect('/');
+    $this->get('/set-locale/ro?redirect=/%5Cevil.com')->assertRedirect('/'); // /\evil.com
+    // Ținta internă legitimă trece în continuare.
+    $this->get('/set-locale/ro?redirect=/dashboard')->assertRedirect('/dashboard');
+});
+
 it('cabinetul nu are variantă cu prefix de limbă — switcher-ul trebuie să redirecteze FĂRĂ prefix', function () {
     // Regresie: switcher-ul din cabinet construia redirect `/ru/dashboard` (prin `localizePath`),
     // dar zona autentificată NU are rute cu prefix (limba vine din cookie/user) → 404. Fix: în

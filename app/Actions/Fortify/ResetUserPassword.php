@@ -22,8 +22,12 @@ class ResetUserPassword implements ResetsUserPasswords
             'password' => $this->passwordRules(),
         ])->validate();
 
+        // Resetarea pe email dovedește controlul contului și înlocuiește parola legacy — exact scopul
+        // flag-ului must_change_password. Fără asta, userul migrat care își resetează parola prin „am
+        // uitat parola" era blocat imediat pe /schimbare-parola și obligat să o schimbe încă o dată.
         $user->forceFill([
             'password' => $input['password'],
+            'must_change_password' => false,
         ])->save();
     }
 }

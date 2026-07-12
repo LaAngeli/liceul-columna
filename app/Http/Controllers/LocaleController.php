@@ -21,8 +21,11 @@ class LocaleController extends Controller
             $user->update(['locale' => $locale]);
         }
 
+        // Țintă internă = path absolut care începe cu UN SINGUR „/". „//evil.com" și „/\evil.com" încep
+        // tot cu „/" dar sunt URL-uri protocol-relative → open redirect spre alt domeniu (phishing pe
+        // un domeniu de încredere). Le respingem explicit; orice altceva → „/".
         $redirect = $request->query('redirect');
-        $target = is_string($redirect) && str_starts_with($redirect, '/') ? $redirect : '/';
+        $target = is_string($redirect) && preg_match('#^/(?![/\\\\])#', $redirect) === 1 ? $redirect : '/';
 
         return redirect($target)->withCookie(Cookie::make('locale', $locale, 60 * 24 * 365));
     }

@@ -11,9 +11,11 @@ interface Props {
     channels: Record<string, string>;
     // E activat de liceu fiecare canal? (cabinet/email mereu da; sociale după token din .env)
     channelStatus: Record<string, boolean>;
-    // Adresa curentă a contului (null dacă utilizatorul se loghează cu username). Editabilă
-    // descentralizat de utilizator — dacă e deja setată de admin, câmpul e pre-populat.
+    // Adresa curentă a contului (null dacă utilizatorul se loghează cu username).
     email: string | null;
+    // Emailul de login se poate SETA din cabinet doar prima dată (email gol); odată setat, schimbarea
+    // trece prin secretariat — e identificatorul de conectare + destinația OTP 2FA (#37).
+    emailEditable: boolean;
     locale: string;
     locales: Record<string, string>;
 }
@@ -21,7 +23,7 @@ interface Props {
 // Telegram/Viber au driver — dacă liceul activează token-ul în .env, devin funcționale automat.
 const CONTACT_CHANNELS = ['telegram', 'viber'] as const;
 
-export default function NotificationSettingsPage({ contacts, preferences, types, channels, channelStatus, email, locale, locales }: Props) {
+export default function NotificationSettingsPage({ contacts, preferences, types, channels, channelStatus, email, emailEditable, locale, locales }: Props) {
     const t = useTranslations();
 
     const form = useForm<{
@@ -98,12 +100,14 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
                                     value={form.data.email}
                                     onChange={(e) => form.setData('email', e.target.value)}
                                     placeholder={t('cabinet.notif_email_add_placeholder')}
-                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm read-only:cursor-not-allowed read-only:opacity-60"
                                     maxLength={255}
                                     autoComplete="email"
+                                    readOnly={!emailEditable}
+                                    aria-readonly={!emailEditable}
                                 />
                                 <span className="min-h-4 text-[11px] text-muted-foreground/80">
-                                    {t('cabinet.notif_email_add_hint')}
+                                    {emailEditable ? t('cabinet.notif_email_add_hint') : t('cabinet.notif_email_locked_hint')}
                                 </span>
                                 {form.errors.email && (
                                     <span className="text-[11px] font-medium text-destructive" role="alert">

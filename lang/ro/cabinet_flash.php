@@ -14,4 +14,10 @@ return [
     'request_generated' => 'Cererea a fost generată și transmisă secretariatului.',
     // Mesaj de VALIDARE (nu toast): anti-duplicat la depunerea cererilor tipice.
     'request_duplicate_pending' => 'Există deja o cerere de acest tip în așteptare pentru acest elev — secretariatul o va procesa; nu e nevoie să o redepui.',
+    // Mesaj de VALIDARE: schimbarea emailului de login deja setat trece prin secretariat (#37).
+    'email_change_via_staff' => 'Adresa de e-mail e deja setată. Pentru a o schimba, contactează secretariatul — e identificatorul de conectare al contului.',
+    // Mesaj de VALIDARE: anti-duplicat la motivarea absențelor (perioadă suprapusă).
+    'motivation_duplicate_pending' => 'Există deja o cerere de motivare în așteptare care acoperă această perioadă.',
+    // Mesaj de VALIDARE: motivare depusă pe o perioadă fără nicio absență nemotivată.
+    'motivation_no_absences' => 'Nu există absențe nemotivate în perioada aleasă — verifică datele.',
 ];

@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -68,6 +69,9 @@ class NotificationsController extends Controller
             // UI marchează vizual canalele sociale neconfigurate; matricea nu lasă să se bifeze.
             'channelStatus' => NotificationChannel::configurationStatus(),
             'email' => $user->email,
+            // Emailul de login se poate SETA din cabinet doar prima dată (userii migrați au email gol);
+            // odată setat, schimbarea trece prin personal (vezi updateSettings, #37).
+            'emailEditable' => trim((string) ($user->email ?? '')) === '',
             'locale' => $user->notification_locale ?? $user->locale ?? 'ro',
             'locales' => self::notificationLocales(),
         ]);
@@ -85,8 +89,17 @@ class NotificationsController extends Controller
 
         // Empty string trimis de formularul HTML → tratat ca „nu se schimbă adresa" (nu declanșează
         // eroarea `email`). Astfel utilizatorul care doar salvează preferințele nu e obligat să
-        // reintroducă adresa. Golirea intenționată a adresei se face separat (contact admin).
+        // reintroducă adresa.
         $submittedEmail = trim((string) $request->input('email', ''));
+
+        // SECURITATE (#37): emailul e identificatorul de login + destinația codului OTP 2FA + adresa
+        // pe care pleacă linkul de resetare a parolei. O sesiune deschisă care ar putea REPOINTA
+        // adresa = preluare de cont (schimbă emailul → „am uitat parola" → link la atacator) + lockout
+        // 2FA. De aceea permitem DOAR PRIMA setare (userii migrați au email gol), nu și schimbarea
+        // ulterioară — corectarea unei adrese deja setate se face de personal (UserResource), coerent
+        // cu doctrina „cabinet view-only, conturi gestionate de personal".
+        $currentEmail = trim((string) ($user->email ?? ''));
+        $emailIsFirstTimeSet = $submittedEmail !== '' && $currentEmail === '';
 
         $rules = [
             'notification_locale' => ['nullable', 'string', Rule::in(array_keys(self::notificationLocales()))],
@@ -98,11 +111,15 @@ class NotificationsController extends Controller
             'preferences.*.*' => [Rule::in($channelValues)],
         ];
 
-        if ($submittedEmail !== '') {
-            // Editare descentralizată: utilizatorul își gestionează adresa în această secțiune,
-            // indiferent dacă e prima setare sau corectarea unei greșeli anterioare. Fortify acceptă
-            // login pe email SAU username, deci schimbarea nu blochează accesul (username-ul rămâne).
+        if ($emailIsFirstTimeSet) {
             $rules['email'] = ['string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)];
+        }
+
+        // Încercare de a SCHIMBA o adresă deja setată → respinsă cu îndrumare spre secretariat.
+        if ($submittedEmail !== '' && $currentEmail !== '' && $submittedEmail !== $currentEmail) {
+            throw ValidationException::withMessages([
+                'email' => __('cabinet_flash.email_change_via_staff'),
+            ]);
         }
 
         $data = $request->validate($rules);
@@ -134,11 +151,17 @@ class NotificationsController extends Controller
             'notification_preferences' => $preferences,
         ];
 
-        if ($submittedEmail !== '' && $submittedEmail !== $user->email) {
+        if ($emailIsFirstTimeSet) {
             $attributes['email'] = $submittedEmail;
         }
 
         $user->update($attributes);
+
+        if ($emailIsFirstTimeSet) {
+            // Adresă nouă, neverificată → resetăm marcajul de verificare (coerent cu pagina de staff).
+            // email_verified_at nu e mass-assignable → forceFill.
+            $user->forceFill(['email_verified_at' => null])->save();
+        }
 
         return back()->with('success', 'Preferințele de notificare au fost salvate.');
     }
