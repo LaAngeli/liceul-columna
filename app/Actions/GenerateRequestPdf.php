@@ -19,22 +19,33 @@ class GenerateRequestPdf
     {
         $request->loadMissing(['student', 'requestedBy']);
         $student = $request->student;
-        $class = $student->enrollments()->with('schoolClass')->latest('id')->first()?->schoolClass;
+        // Clasa din sursa CANONICĂ (cea mai recentă înmatriculare pe an), ca peste tot în cabinet —
+        // `latest('id')` putea tipări pe documentul oficial o clasă greșită după corecții de date.
+        $class = $student->currentSchoolClass();
 
         /** @var array<string, mixed> $payload */
         $payload = $request->payload;
         $start = isset($payload['period_start']) ? (string) $payload['period_start'] : null;
         $end = isset($payload['period_end']) ? (string) $payload['period_end'] : null;
 
-        $html = view('pdf.document-request', [
-            'typeLabel' => $request->type->label(),
-            'studentName' => $student->full_name,
-            'className' => $class !== null ? trim($class->name.' '.($class->section ?? '')) : null,
-            'parentName' => $request->requestedBy?->name,
-            'details' => isset($payload['details']) ? (string) $payload['details'] : '',
-            'period' => $this->formatPeriod($start, $end),
-            'date' => now()->format('d.m.Y'),
-        ])->render();
+        // Document OFICIAL arhivat pe disk → randare consecventă în RO (aceeași regulă ca rapoartele
+        // staff), indiferent de limba interfeței părintelui care depune. Limba se restaurează după.
+        $originalLocale = app()->getLocale();
+        app()->setLocale('ro');
+
+        try {
+            $html = view('pdf.document-request', [
+                'typeLabel' => $request->type->label(),
+                'studentName' => $student->full_name,
+                'className' => $class !== null ? trim($class->name.' '.($class->section ?? '')) : null,
+                'parentName' => $request->requestedBy?->name,
+                'details' => isset($payload['details']) ? (string) $payload['details'] : '',
+                'period' => $this->formatPeriod($start, $end),
+                'date' => now()->format('d.m.Y'),
+            ])->render();
+        } finally {
+            app()->setLocale($originalLocale);
+        }
 
         $tempDir = storage_path('app/mpdf-tmp');
         File::ensureDirectoryExists($tempDir);

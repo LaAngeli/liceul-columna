@@ -138,9 +138,10 @@ class AbsenceMotivationResource extends Resource
         /** @var Collection<int, AbsenceMotivation> $cache */
         $cache = self::getEloquentQuery()
             ->where('status', RequestStatus::Pending)
-            // Cererile elevilor ARHIVAȚI nu mai apar în coadă/badge (whereHas exclude soft-deleted);
-            // rândurile rămân în arhivă și reapar dacă elevul e restaurat.
-            ->whereHas('student')
+            // Cererile elevilor ARHIVAȚI nu apar în coadă/badge; rândurile rămân în arhivă și
+            // reapar dacă elevul e restaurat. withoutTrashed EXPLICIT: relația student() e
+            // withTrashed (afișarea istoricului nu crapă), deci whereHas simplu i-ar include.
+            ->whereHas('student', fn (Builder $q) => $q->whereNull('deleted_at'))
             ->get(['id', 'status', 'created_at']);
 
         return self::$pendingCache = $cache;

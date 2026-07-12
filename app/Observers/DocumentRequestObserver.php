@@ -11,9 +11,11 @@ use App\Models\DocumentRequest;
 use App\Notifications\CatalogNotification;
 
 /**
- * La o cerere tipică NOUĂ (adeverință, transfer...), anunță secretariatul — administratorul
- * operațional, directorul și super-adminul (spec §4.3 / §5). La PROCESARE/RESPINGERE, anunță familia
- * că statutul cererii s-a schimbat (bucla de feedback, tipul StatusChange).
+ * La o cerere tipică NOUĂ (adeverință, transfer...), anunță SECRETARIATUL — administratorul
+ * operațional (nișa lui per §3.2) + super-adminul break-glass. Directorul a fost scos din
+ * destinatari: matricea lui din Setări (NotificationType::forRole) nu conține
+ * DocumentRequestSubmitted, deci primea un zgomot pe care nu-l putea dezactiva/configura.
+ * La PROCESARE/RESPINGERE, anunță familia că statutul s-a schimbat (StatusChange).
  */
 class DocumentRequestObserver
 {
@@ -27,7 +29,6 @@ class DocumentRequestObserver
         $this->notifier->byRole(
             [
                 UserRole::Admin->value,
-                UserRole::Director->value,
                 UserRole::AdministratorOperational->value,
             ],
             new CatalogNotification(

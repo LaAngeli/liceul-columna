@@ -42,6 +42,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Fortify\Features;
@@ -403,8 +404,13 @@ class CabinetController extends Controller
             'dynamics' => Inertia::defer(fn (): array => app(ComputeStudentDynamics::class)->for($student)),
             'transcript' => Inertia::defer(fn (): array => $this->transcript($student)),
 
-            // Tab „Cereri" — cereri tipice + lichidare corigență
-            'documentRequests' => Inertia::defer(fn (): array => $this->documentRequests($student)),
+            // Tab „Cereri" — cereri tipice + lichidare corigență. Cererile sunt o chestiune
+            // familie↔secretariat (L133, minim necesar): profesorul/dirigintele NU le vede —
+            // altfel afla că familia depune transfer/contestație și primea link PDF garantat 403.
+            'documentRequests' => Inertia::defer(fn (): array => ($viewer instanceof User
+                && ($this->isFamilyOf($viewer, $student) || $viewer->isAdministrator()))
+                ? $this->documentRequests($student)
+                : []),
             'corigentaExams' => Inertia::defer(fn (): array => $this->corigentaExams($student)),
         ]);
     }
@@ -509,12 +515,30 @@ class CabinetController extends Controller
         $user = $request->user('web');
         abort_unless($user instanceof User && $this->isFamilyOf($user, $student), 403);
 
+        // Cererile cu interval (învoirea) CER perioada (DocumentRequestType::needsPeriod) — fără
+        // ea, secretariatul primea o „cerere de învoire" care nu spune CÂND (neprocesabilă).
+        $needsPeriod = DocumentRequestType::tryFrom((string) $request->input('type'))?->needsPeriod() ?? false;
+
         $data = $request->validate([
             'type' => ['required', new Enum(DocumentRequestType::class)],
             'details' => ['nullable', 'string', 'max:1500'],
-            'period_start' => ['nullable', 'date'],
+            'period_start' => [$needsPeriod ? 'required' : 'nullable', 'date'],
             'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
         ]);
+
+        // Anti-duplicat: o cerere PENDING de același tip pentru același elev nu se redepune —
+        // fiecare submit costă un render mpdf sincron + notificări către secretariat.
+        $pendingSameType = DocumentRequest::query()
+            ->where('student_id', $student->id)
+            ->where('type', $data['type'])
+            ->where('status', RequestStatus::Pending)
+            ->exists();
+
+        if ($pendingSameType) {
+            throw ValidationException::withMessages([
+                'type' => __('cabinet_flash.request_duplicate_pending'),
+            ]);
+        }
 
         $payload = ['details' => $data['details'] ?? ''];
         if (! empty($data['period_start'])) {
@@ -546,9 +570,13 @@ class CabinetController extends Controller
     public function downloadRequest(Request $request, DocumentRequest $documentRequest, LogStudentAccess $accessLog): StreamedResponse
     {
         $user = $request->user('web');
+        // Administrația ÎNTÂI (scurt-circuit) + gardă de null pe elev: fără ele, cererea unui elev
+        // arhivat crăpa cu TypeError (isFamilyOf cere Student ne-nullable) pentru ORICINE — exact pe
+        // cazul în care administrația trebuie să poată închide cererea unui elev plecat.
+        $student = $documentRequest->student;
         abort_unless(
             $user instanceof User
-                && ($this->isFamilyOf($user, $documentRequest->student) || $user->isAdministrator()),
+                && ($user->isAdministrator() || ($student !== null && $this->isFamilyOf($user, $student))),
             403,
         );
         abort_unless(
@@ -557,7 +585,9 @@ class CabinetController extends Controller
         );
 
         // Export de PII de minor (PDF) → jurnalizat indiferent de cine (L133 §7).
-        $accessLog->record($documentRequest->student, 'exported', 'Descărcare PDF cerere tipică');
+        if ($student !== null) {
+            $accessLog->record($student, 'exported', 'Descărcare PDF cerere tipică');
+        }
 
         return Storage::disk('local')->download(
             $documentRequest->pdf_path,
@@ -574,11 +604,12 @@ class CabinetController extends Controller
         $user = $request->user('web');
         abort_unless($user instanceof User, 403);
 
+        // Administrația întâi + gardă de null (elev hard-deleted) — aceeași apărare ca la cereri.
         $student = $absenceMotivation->student;
         abort_unless(
-            $this->isFamilyOf($user, $student)
-                || $user->isAdministrator()
-                || ($student->homeroomUser()?->is($user) ?? false),
+            $user->isAdministrator()
+                || ($student !== null && ($this->isFamilyOf($user, $student)
+                    || ($student->homeroomUser()?->is($user) ?? false))),
             403,
         );
         abort_unless(

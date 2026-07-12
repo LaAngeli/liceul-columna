@@ -74,10 +74,15 @@ class DocumentRequest extends Model
         ]);
     }
 
-    /** @return BelongsTo<Student, $this> */
+    /**
+     * withTrashed: cererea elevului ARHIVAT rămâne afișabilă (nume în tabel) și închizibilă de
+     * administrație — fără el, relația era null și descărcarea PDF crăpa cu TypeError (500).
+     *
+     * @return BelongsTo<Student, $this>
+     */
     public function student(): BelongsTo
     {
-        return $this->belongsTo(Student::class);
+        return $this->belongsTo(Student::class)->withTrashed();
     }
 
     /** @return BelongsTo<User, $this> */

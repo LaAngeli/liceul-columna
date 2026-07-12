@@ -123,9 +123,14 @@ class Reports extends Page
 
         // Jurnalizarea accesului (L133 §7): raportul conține PII-ul elevilor clasei → fiecare elev
         // intră în jurnal ca „exported" — aliniat cu exportul din tabel și descărcările din cabinet.
+        // DOAR elevii care chiar APAR în raport (activi — whereNull left_on, ca
+        // BuildStaffReportData::classStudents): un „exported" fals-pozitiv pe un elev plecat ar face
+        // jurnalul nefiabil exact la întrebarea L133 „cine mi-a exportat datele?".
         $log = app(LogStudentAccess::class);
         Student::query()
-            ->whereHas('enrollments', fn (Builder $q) => $q->where('school_class_id', $classId))
+            ->whereHas('enrollments', fn (Builder $q) => $q
+                ->where('school_class_id', $classId)
+                ->whereNull('left_on'))
             ->get()
             ->each(fn (Student $s) => $log->record($s, 'exported', 'Raport staff: '.$type->getLabel()));
 

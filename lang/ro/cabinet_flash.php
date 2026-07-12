@@ -12,4 +12,6 @@ return [
     'motivation_sent_exception' => 'Cererea (excepție, după termen) a fost transmisă vicedirectorului pe educație.',
     'status_acknowledged' => 'Confirmarea a fost înregistrată.',
     'request_generated' => 'Cererea a fost generată și transmisă secretariatului.',
+    // Mesaj de VALIDARE (nu toast): anti-duplicat la depunerea cererilor tipice.
+    'request_duplicate_pending' => 'Există deja o cerere de acest tip în așteptare pentru acest elev — secretariatul o va procesa; nu e nevoie să o redepui.',
 ];

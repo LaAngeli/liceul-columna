@@ -150,8 +150,12 @@ class NeedsAttention extends Widget
             $items[] = self::item(
                 'panel.widgets.pending_approvals.document_requests.title',
                 'heroicon-o-document-text',
-                // whereHas exclude cererile elevilor ARHIVAȚI (aliniat cu badge-ul resursei).
-                DocumentRequest::query()->where('status', RequestStatus::Pending)->whereHas('student')->count(),
+                // Elevii ARHIVAȚI nu se numără (aliniat cu badge-ul resursei); withoutTrashed
+                // explicit — relația student() e withTrashed pentru afișarea istoricului.
+                DocumentRequest::query()
+                    ->where('status', RequestStatus::Pending)
+                    ->whereHas('student', fn (Builder $q) => $q->whereNull('deleted_at'))
+                    ->count(),
                 DocumentRequestResource::getUrl('index', ['tableFilters' => ['status' => ['value' => RequestStatus::Pending->value]]]),
             );
         }

@@ -155,10 +155,16 @@ class AbsenceMotivation extends Model implements Auditable
         ]);
     }
 
-    /** @return BelongsTo<Student, $this> */
+    /**
+     * withTrashed: cererea elevului ARHIVAT rămâne afișabilă și justificativul descărcabil de
+     * administrație (cozile PENDING filtrează separat prin whereHas('student') — elevii arhivați
+     * nu blochează badge-urile, dar istoricul nu crapă).
+     *
+     * @return BelongsTo<Student, $this>
+     */
     public function student(): BelongsTo
     {
-        return $this->belongsTo(Student::class);
+        return $this->belongsTo(Student::class)->withTrashed();
     }
 
     /** @return BelongsTo<User, $this> */

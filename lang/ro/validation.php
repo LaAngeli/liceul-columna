@@ -209,6 +209,9 @@ return [
         'occurred_on' => 'data',
         'graded_on' => 'data',
         'assigned_on' => 'data',
+        'period_start' => 'data de început',
+        'period_end' => 'data de sfârșit',
+        'type' => 'tipul cererii',
     ],
 
 ];
