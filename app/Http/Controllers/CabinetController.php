@@ -17,7 +17,6 @@ use App\Enums\StudentStatus;
 use App\Enums\UserRole;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
-use App\Models\AcademicRecord;
 use App\Models\CorigentaExam;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
@@ -897,11 +896,13 @@ class CabinetController extends Controller
         $activeGrades = $student->grades->whereNull('annulled_at');
 
         $subjects = [];
-        foreach ($activeGrades->groupBy(fn (Grade $grade): string => $grade->subject->name) as $name => $items) {
-            $subjectId = (int) $items->first()->subject_id;
-            $ms = $averages->get($subjectId);
+        // Grupare pe subject_id, NU pe nume: legacy-ul are discipline duplicate legitime (același
+        // nume, id-uri diferite) — pe nume, notele lor s-ar contopi și MS-ul afișat ar fi al
+        // uneia alese arbitrar.
+        foreach ($activeGrades->groupBy('subject_id') as $subjectId => $items) {
+            $ms = $averages->get((int) $subjectId);
             $subjects[] = [
-                'subject' => ContentTranslator::subject((string) $name),
+                'subject' => ContentTranslator::subject((string) $items->first()->subject->name),
                 'average' => $ms !== null && $ms->value !== null ? (float) $ms->value : null,
                 // Componentele MS, pentru transparență (§1.3): media curentelor + sumativa semestrială.
                 'mc' => $ms !== null && $ms->mc_value !== null ? (float) $ms->mc_value : null,
@@ -953,8 +954,12 @@ class CabinetController extends Controller
     private function absencesBySubject(Student $student): array
     {
         $absences = [];
-        foreach ($student->absences->groupBy(fn (Absence $absence): string => $absence->subject->name) as $name => $items) {
-            $absences[] = ['subject' => ContentTranslator::subject((string) $name), 'count' => $items->count()];
+        // Pe subject_id (nu pe nume) — vezi nota din gradesBySubject despre duplicatele legacy.
+        foreach ($student->absences->groupBy('subject_id') as $items) {
+            $absences[] = [
+                'subject' => ContentTranslator::subject((string) $items->first()->subject->name),
+                'count' => $items->count(),
+            ];
         }
         usort($absences, fn (array $a, array $b): int => $b['count'] <=> $a['count']);
 
@@ -972,7 +977,9 @@ class CabinetController extends Controller
         $levels = [];
         foreach ($student->academicRecords->groupBy('grade_level') as $gradeLevel => $records) {
             $subjects = [];
-            foreach ($records->groupBy(fn (AcademicRecord $record): string => $record->subject->name) as $name => $items) {
+            // Pe subject_id (nu pe nume) — două discipline omonime pe aceeași treaptă și-ar
+            // suprascrie reciproc perioadele (Sem I/II/anuală) în rândul contopit.
+            foreach ($records->groupBy('subject_id') as $items) {
                 $byPeriod = [];
                 foreach ($items as $record) {
                     $byPeriod[$record->period->value] = $record->value !== null
@@ -980,7 +987,7 @@ class CabinetController extends Controller
                         : ($record->calificativ ?: null);
                 }
                 $subjects[] = [
-                    'subject' => ContentTranslator::subject((string) $name),
+                    'subject' => ContentTranslator::subject((string) $items->first()->subject->name),
                     'sem1' => $byPeriod[AcademicRecordPeriod::SemesterI->value] ?? null,
                     'sem2' => $byPeriod[AcademicRecordPeriod::SemesterII->value] ?? null,
                     'annual' => $byPeriod[AcademicRecordPeriod::Annual->value] ?? null,

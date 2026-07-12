@@ -7,12 +7,16 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Term;
 use App\Support\ContentTranslator;
+use App\Support\Holidays;
+use Illuminate\Support\Carbon;
 
 /**
  * Riscul de AMÂNARE pe discipline (spec §2.1): un elev riscă amânarea la o disciplină dacă are prea
  * puține note (≤ 1) ȘI a lipsit la peste 50% din lecțiile programate. Numărul de lecții programate =
- * lecții/săptămână (din orarul structurat) × săptămânile semestrului curent. Fără orar sau fără
- * semestru curent cu date, nu se calculează (listă goală).
+ * lecții/săptămână (din orarul structurat) × săptămânile LUCRĂTOARE ale semestrului curent —
+ * zilele din `holidays` nu se numără (#31): cu vacanțele incluse, numitorul era umflat și pragul
+ * de 50% practic imposibil de atins. Fără orar sau fără semestru curent cu date, nu se calculează
+ * (listă goală).
  */
 class ComputeDeferralRisk
 {
@@ -32,7 +36,7 @@ class ComputeDeferralRisk
             return [];
         }
 
-        $weeks = max(1, (int) ceil($term->starts_on->diffInDays($term->ends_on) / 7));
+        $weeks = self::workingWeeks($term);
 
         $lessonsPerWeek = Lesson::query()
             ->where('school_class_id', $class->id)
@@ -76,5 +80,27 @@ class ComputeDeferralRisk
         }
 
         return $risks;
+    }
+
+    /**
+     * Săptămânile de ȘCOALĂ ale semestrului: zilele lucrătoare (fără weekenduri și fără zilele din
+     * `holidays`) împărțite la 5. Minim 1 — un semestru abia început nu trebuie să dea împărțire
+     * la zero.
+     */
+    private static function workingWeeks(Term $term): int
+    {
+        $workingDays = 0;
+        $cursor = Carbon::parse($term->starts_on)->startOfDay();
+        $end = Carbon::parse($term->ends_on)->startOfDay();
+
+        while ($cursor->lte($end)) {
+            if (! Holidays::isNonWorkingDay($cursor)) {
+                $workingDays++;
+            }
+
+            $cursor = $cursor->addDay();
+        }
+
+        return max(1, (int) ceil($workingDays / 5));
     }
 }

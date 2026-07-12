@@ -37,6 +37,14 @@ return [
         'academic_years' => ['label' => 'Ani școlari', 'plural' => 'Ani școlari', 'single' => 'an școlar'],
         'terms' => ['label' => 'Semestre', 'plural' => 'Semestre', 'single' => 'semestru'],
         'enrollments' => ['label' => 'Înmatriculări', 'plural' => 'Înmatriculări', 'single' => 'înmatriculare'],
+        'guardians' => [
+            'plural' => 'Tutori',
+            'empty_heading' => 'Niciun tutore conectat',
+            'empty_description' => 'Conectează contul de părinte ca familia să vadă situația elevului în cabinet.',
+            'attach' => 'Conectează tutore',
+            'attach_heading' => 'Conectează un cont de părinte',
+            'detach' => 'Deconectează',
+        ],
         'users' => ['label' => 'Utilizatori', 'plural' => 'Utilizatori', 'single' => 'utilizator'],
         'grades' => ['label' => 'Note', 'plural' => 'Note', 'single' => 'notă'],
         'absences' => ['label' => 'Absențe', 'plural' => 'Absențe', 'single' => 'absență'],
@@ -267,6 +275,7 @@ return [
     // Câmpuri/coloane COMUNE — reutilizate în 5+ resurse. Cele specifice rămân în panel.{tables,forms}.*.
     'fields' => [
         'student' => 'Elev',
+        'username' => 'Utilizator',
         'students' => 'Elevi',
         'teacher' => 'Profesor',
         'teachers' => 'Profesori',

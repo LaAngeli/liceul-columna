@@ -12,6 +12,7 @@ use App\Filament\Resources\Students\RelationManagers\AbsencesRelationManager;
 use App\Filament\Resources\Students\RelationManagers\AcademicRecordsRelationManager;
 use App\Filament\Resources\Students\RelationManagers\EnrollmentsRelationManager;
 use App\Filament\Resources\Students\RelationManagers\GradesRelationManager;
+use App\Filament\Resources\Students\RelationManagers\GuardiansRelationManager;
 use App\Filament\Resources\Students\Schemas\StudentForm;
 use App\Filament\Resources\Students\Schemas\StudentInfolist;
 use App\Filament\Resources\Students\Tables\StudentsTable;
@@ -81,6 +82,7 @@ class StudentResource extends Resource
             AbsencesRelationManager::class,
             AcademicRecordsRelationManager::class,
             EnrollmentsRelationManager::class,
+            GuardiansRelationManager::class,
             AuditsRelationManager::class,
         ];
     }

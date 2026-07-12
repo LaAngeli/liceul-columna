@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Enums\ScheduleType;
+use App\Observers\SchoolClassObserver;
 use Database\Factories\SchoolClassFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @method static Builder<SchoolClass> withoutHomeroom()
  */
+#[ObservedBy(SchoolClassObserver::class)]
 class SchoolClass extends Model
 {
     /** @use HasFactory<SchoolClassFactory> */

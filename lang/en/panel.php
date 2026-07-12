@@ -27,6 +27,14 @@ return [
         'academic_years' => ['label' => 'Academic years', 'plural' => 'Academic years', 'single' => 'academic year'],
         'terms' => ['label' => 'Terms', 'plural' => 'Terms', 'single' => 'term'],
         'enrollments' => ['label' => 'Enrollments', 'plural' => 'Enrollments', 'single' => 'enrollment'],
+        'guardians' => [
+            'plural' => 'Guardians',
+            'empty_heading' => 'No guardian connected',
+            'empty_description' => 'Connect a parent account so the family can see the student in the cabinet.',
+            'attach' => 'Connect guardian',
+            'attach_heading' => 'Connect a parent account',
+            'detach' => 'Disconnect',
+        ],
         'users' => ['label' => 'Users', 'plural' => 'Users', 'single' => 'user'],
         'grades' => ['label' => 'Grades', 'plural' => 'Grades', 'single' => 'grade'],
         'absences' => ['label' => 'Absences', 'plural' => 'Absences', 'single' => 'absence'],
@@ -256,6 +264,7 @@ return [
 
     'fields' => [
         'student' => 'Student',
+        'username' => 'Username',
         'students' => 'Students',
         'teacher' => 'Teacher',
         'teachers' => 'Teachers',
