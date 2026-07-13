@@ -7,8 +7,10 @@ use App\Filament\Content\Resources\Gallery\RelationManagers\ImagesRelationManage
 use App\Filament\Content\Support\GalleryImageUpload;
 use App\Models\Admin;
 use App\Models\GalleryAlbum;
+use App\Models\GalleryImage;
 use App\Support\GalleryAlbums;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 it('afișează paginile galeriei pentru contul de Studio', function (string $url) {
@@ -21,6 +23,23 @@ it('afișează pagina de editare a albumului cu grila de imagini', function () {
     $this->actingAs(Admin::factory()->create(), 'admin')
         ->get('/studio/galerie/edit-me/edit')
         ->assertOk();
+});
+
+it('G7: ștergerea unei imagini încărcate șterge fișierul de pe disk; căile importate rămân intacte', function () {
+    Storage::fake('public');
+    $album = GalleryAlbum::factory()->create();
+
+    Storage::disk('public')->put('gallery/foto.webp', 'binar');
+    $uploaded = GalleryImage::factory()->create(['gallery_album_id' => $album->id, 'path' => 'gallery/foto.webp']);
+    $imported = GalleryImage::factory()->create(['gallery_album_id' => $album->id, 'path' => '/images/galerie/general/legacy.jpg']);
+
+    $uploaded->delete();
+    Storage::disk('public')->assertMissing('gallery/foto.webp');
+
+    // Calea importată (root-relative, statică) NU e pe disk-ul public → ștergerea nu aruncă
+    // și nu atinge fișiere din afara stocării CMS.
+    $imported->delete();
+    expect(GalleryImage::query()->count())->toBe(0);
 });
 
 it('randează grila de imagini (relation manager) și îi vede înregistrările', function () {

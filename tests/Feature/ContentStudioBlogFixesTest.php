@@ -74,6 +74,15 @@ it('B4: rezumatul RO e obligatoriu (auto OFF + gol → eroare)', function () {
         ->assertHasFormErrors(['excerpt']);
 });
 
+it('B6: imaginea principală e obligatorie — crearea fără imagine e blocată', function () {
+    Livewire::test(CreateBlogPost::class)
+        ->fillForm(validArticleForm(['image' => null]))
+        ->call('create')
+        ->assertHasFormErrors(['image']);
+
+    expect(Post::query()->count())->toBe(0);
+});
+
 it('B1: un slug RU duplicat dă eroare de validare, nu 500', function () {
     $existing = Post::factory()->create(['category' => 'blog', 'slug' => 'primul']);
     $existing->translations()->create([
