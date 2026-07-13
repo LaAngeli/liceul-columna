@@ -143,7 +143,7 @@ export const siteContact = {
     name: 'IPL „Liceul Columna”',
     address: 'str. Alba Iulia 5/2, Chișinău, Republica Moldova',
     phone: '(+373) 22 74 28 52',
-    email: 'info@columna.org.md',
+    email: 'info@columna.md',
     tagline: 'Succesul copilului începe aici.',
     founded: 1998,
 };

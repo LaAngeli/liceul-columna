@@ -435,7 +435,7 @@ return [
             'repere-2022-2023' => 'Repere metodologice 2022–2023',
             'curriculum-2010' => 'Curriculum național (2010)',
         ],
-        'disclaimer' => 'Dacă o editură sau un autor își consideră lezate interesele prin expunerea cărții în format electronic gratuit pe acest site, vă rugăm să scrieți la info@columna.org.md pentru excluderea necondiționată din baza noastră de date.',
+        'disclaimer' => 'Dacă o editură sau un autor își consideră lezate interesele prin expunerea cărții în format electronic gratuit pe acest site, vă rugăm să scrieți la info@columna.md pentru excluderea necondiționată din baza noastră de date.',
     ],
     'contact' => [
         'address' => 'Adresă',
@@ -1637,7 +1637,7 @@ return [
         'faq_5_q' => 'Cum pot programa o audiență la Dl Director?',
         'faq_5_intro' => 'Programarea audienței la Dl Director al Liceului se poate face:',
         'faq_5_list_1' => 'telefonic: la nr. 022-742852, în orice zi de lucru, între orele 09.00 – 17.00;',
-        'faq_5_list_2' => 'prin scrisoarea de solicitare scrisă pe adresa main@columna.org.md.',
+        'faq_5_list_2' => 'prin scrisoarea de solicitare scrisă pe adresa main@columna.md.',
         'faq_5_outro' => 'În cazul apelului telefonic, programarea se face imediat; în cazul adresării pe email, Veți primi răspuns în 48 ore.',
 
         'faq_6_q' => 'Ce limbi străine se studiază la liceul Columna?',

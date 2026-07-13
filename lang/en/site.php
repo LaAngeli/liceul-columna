@@ -435,7 +435,7 @@ return [
             'repere-2022-2023' => 'Methodological guidelines 2022–2023',
             'curriculum-2010' => 'National curriculum (2010)',
         ],
-        'disclaimer' => 'If a publisher or author considers their interests harmed by the free electronic display of a book on this site, please write to info@columna.org.md for unconditional removal from our database.',
+        'disclaimer' => 'If a publisher or author considers their interests harmed by the free electronic display of a book on this site, please write to info@columna.md for unconditional removal from our database.',
     ],
     'contact' => [
         'address' => 'Address',
@@ -1631,7 +1631,7 @@ return [
         'faq_5_q' => 'How can I book an audience with the Director?',
         'faq_5_intro' => 'You can book an audience with the Director of the Liceu:',
         'faq_5_list_1' => 'by phone: at 022-742852, on any working day, between 09:00 and 17:00;',
-        'faq_5_list_2' => 'by a written request sent to main@columna.org.md.',
+        'faq_5_list_2' => 'by a written request sent to main@columna.md.',
         'faq_5_outro' => 'If you call, the appointment is set immediately; if you write by email, you will receive a reply within 48 hours.',
 
         'faq_6_q' => 'What foreign languages are taught at Liceul Columna?',

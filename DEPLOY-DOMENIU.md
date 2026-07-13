@@ -54,8 +54,8 @@ media locală e pe VPS și `columna.md` răspunde.
 
 | Tabel | Coloană | Regulă |
 |---|---|---|
-| `posts` | `body`, `excerpt` | `columna.org.md` → `columna.md` |
-| `post_translations` | `body`, `excerpt` | `columna.org.md` → `columna.md` |
+| `posts` | `content`, `excerpt` | `columna.org.md` → `columna.md` |
+| `post_translations` | `content`, `excerpt` | `columna.org.md` → `columna.md` |
 
 Materialele bibliotecii (`library_items`) sunt **deja rezolvate** — au fost mutate local prin
 `app:download-library-pdfs` și `link` a fost golit; nimic de rescris.
@@ -69,22 +69,22 @@ Creează comanda o dată local dacă vrei un dry-run înainte; dar la deploy e s
 
 -- 1. Posturi RO (limba default)
 UPDATE posts
-SET body    = REPLACE(body,    'https://columna.org.md', 'https://columna.md'),
+SET content    = REPLACE(content,    'https://columna.org.md', 'https://columna.md'),
     excerpt = REPLACE(excerpt, 'https://columna.org.md', 'https://columna.md')
-WHERE body    LIKE '%columna.org.md%'
+WHERE content    LIKE '%columna.org.md%'
    OR excerpt LIKE '%columna.org.md%';
 
 -- 2. Traduceri (RU + EN)
 UPDATE post_translations
-SET body    = REPLACE(body,    'https://columna.org.md', 'https://columna.md'),
+SET content    = REPLACE(content,    'https://columna.org.md', 'https://columna.md'),
     excerpt = REPLACE(excerpt, 'https://columna.org.md', 'https://columna.md')
-WHERE body    LIKE '%columna.org.md%'
+WHERE content    LIKE '%columna.org.md%'
    OR excerpt LIKE '%columna.org.md%';
 
 -- 3. Verificare — TREBUIE să întoarcă 0
 SELECT
-    (SELECT COUNT(*) FROM posts             WHERE body LIKE '%columna.org.md%' OR excerpt LIKE '%columna.org.md%') AS posts_ramase,
-    (SELECT COUNT(*) FROM post_translations WHERE body LIKE '%columna.org.md%' OR excerpt LIKE '%columna.org.md%') AS translations_ramase;
+    (SELECT COUNT(*) FROM posts             WHERE content LIKE '%columna.org.md%' OR excerpt LIKE '%columna.org.md%') AS posts_ramase,
+    (SELECT COUNT(*) FROM post_translations WHERE content LIKE '%columna.org.md%' OR excerpt LIKE '%columna.org.md%') AS translations_ramase;
 ```
 
 > **Notă tehnică:** `wp-content/uploads` din body-urile WordPress se rescrie odată cu domeniul

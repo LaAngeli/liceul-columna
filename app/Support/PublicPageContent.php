@@ -140,7 +140,7 @@ final class PublicPageContent
                 ['type' => 'heading', 'level' => 3, 'text' => 'Operatorul de date'],
                 ['type' => 'prose', 'paragraphs' => [
                     'Operatorul datelor cu caracter personal este Instituția Privată Liceul „Columna" (IDNO 1004600000818, înregistrată la 28.06.2005), cu sediul în MD-2051, str. Alba-Iulia 5/2, mun. Chișinău, Republica Moldova.',
-                    'Pentru orice întrebare privind prelucrarea datelor sau pentru exercitarea drepturilor dumneavoastră, ne puteți contacta la telefon (+373) 22 74 28 52 sau prin e-mail la info@columna.org.md. [Responsabilul cu protecția datelor: date de contact — de completat.]',
+                    'Pentru orice întrebare privind prelucrarea datelor sau pentru exercitarea drepturilor dumneavoastră, ne puteți contacta la telefon (+373) 22 74 28 52 sau prin e-mail la info@columna.md. [Responsabilul cu protecția datelor: date de contact — de completat.]',
                 ]],
 
                 ['type' => 'heading', 'level' => 3, 'text' => 'Ce categorii de date prelucrăm'],
@@ -239,7 +239,7 @@ final class PublicPageContent
 
                 ['type' => 'heading', 'level' => 3, 'text' => 'Cine administrează site-ul'],
                 ['type' => 'prose', 'paragraphs' => [
-                    'Site-ul este administrat de Instituția Privată Liceul „Columna" (IDNO 1004600000818, înregistrată la 28.06.2005), cu sediul în MD-2051, str. Alba-Iulia 5/2, mun. Chișinău, Republica Moldova. Ne puteți contacta la telefon (+373) 22 74 28 52 sau prin e-mail la info@columna.org.md.',
+                    'Site-ul este administrat de Instituția Privată Liceul „Columna" (IDNO 1004600000818, înregistrată la 28.06.2005), cu sediul în MD-2051, str. Alba-Iulia 5/2, mun. Chișinău, Republica Moldova. Ne puteți contacta la telefon (+373) 22 74 28 52 sau prin e-mail la info@columna.md.',
                 ]],
 
                 ['type' => 'heading', 'level' => 3, 'text' => 'Utilizarea site-ului'],

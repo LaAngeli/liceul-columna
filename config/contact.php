@@ -10,7 +10,7 @@ return [
     | datele instituției folosite în semnătura e-mailurilor (notificare + confirmare).
     */
 
-    'mailbox' => env('CONTACT_MAIL_TO', 'info@columna.org.md'),
+    'mailbox' => env('CONTACT_MAIL_TO', 'info@columna.md'),
 
     'name' => 'IPL „Liceul Columna"',
     'address' => 'str. Alba Iulia 5/2, Chișinău, Republica Moldova',
