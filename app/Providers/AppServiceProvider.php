@@ -21,6 +21,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Inertia\ExceptionResponse;
 use Inertia\Inertia;
+use Laravel\Telescope\TelescopeServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,6 +30,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Telescope e instalat DOAR în dev (require-dev). În producție (`--no-dev`) clasele lui lipsesc,
+        // deci provider-ul se înregistrează condiționat — altfel bootstrap/providers.php ar rupe orice
+        // request cu „Class Laravel\Telescope\… not found". `class_exists` = plasă suplimentară dacă
+        // APP_ENV=local ar ajunge din greșeală pe un mediu fără pachetul dev.
+        if ($this->app->environment('local') && class_exists(TelescopeServiceProvider::class)) {
+            $this->app->register(TelescopeServiceProvider::class);
+            $this->app->register(\App\Providers\TelescopeServiceProvider::class);
+        }
+
         // Modul Calendar: agregatorul cu proiectoarele de surse auto (MVP read-only). Sursele de tip
         // eveniment; orarul recurent rămâne în vederea lui dedicată (#39).
         $this->app->singleton(CalendarAggregator::class, fn ($app): CalendarAggregator => new CalendarAggregator([
