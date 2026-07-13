@@ -29,6 +29,10 @@ class ContentOverview extends StatsOverviewWidget
     // oricum re-randează pagina. `null` oprește `wire:poll` implicit (5s) al widget-ului.
     protected ?string $pollingInterval = null;
 
+    // Randare pe server la încărcarea paginii (fără lazy-load): altfel cardurile clipesc goale ~1-2s
+    // până se rezolvă cererea Livewire separată — arată „stricat". Cele câteva COUNT-uri sunt ieftine.
+    protected static bool $isLazy = false;
+
     protected function getStats(): array
     {
         $blog = Post::query()->where('category', PostType::Blog->value);
