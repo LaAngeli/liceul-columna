@@ -4,6 +4,12 @@ Instrucțiune pentru rularea unică, la momentul deploy-ului pe VPS + activarea 
 Presupune că VPS-ul are aplicația deja instalată (git pull + `composer install` + `npm run build`
 + `.env` configurat), iar DNS-ul pentru `columna.md` este activat.
 
+> **Actualizat 2026-07-13 (commit `c9bddf0`):** §3 a fost rescrisă. Vechea abordare (REPLACE SQL
+> brut pe URL-uri) NU rezolva imaginile articolelor — rămâneau rupte fără o copiere separată de
+> ~500 MB-1 GB din `wp-content/uploads`. Acum există comanda `app:localize-post-images`, care
+> descarcă local asset-urile (imagini + PDF) în loc să doar rescrie domeniul. Deja rulată pe baza
+> de date LOCALĂ — vezi §3 pentru ce mai trebuie făcut la deploy.
+
 ---
 
 ## 1. Precondiții (verifică înainte)
@@ -25,7 +31,7 @@ Toate au fost pregătite local; se copiază 1:1 pe VPS (`rsync` sau `scp`). Sunt
 |---|---|---|
 | `storage/app/public/downloads/biblioteca/` | 260 PDF-uri bibliotecă (literatură + curriculum + ghiduri) | **256 MB** |
 | `storage/app/public/gallery/` | Imagini galerii (albume publicate din Studio) | variabil |
-| `storage/app/public/posts/` | Imagini reprezentative articole Blog + Actualități | variabil |
+| `storage/app/public/posts/` | Imagini reprezentative articole Blog + Actualități, inclusiv `posts/imported/` — asset-urile migrate de pe `columna.org.md` (§3) | ~101 MB+ |
 | `public/images/` | Foto profesori, coordonatori, galerii statice, brand | ~50 MB |
 
 Rulează pe LOCAL (Windows/Herd), în root-ul proiectului:
@@ -44,61 +50,64 @@ php artisan storage:link
 
 ---
 
-## 3. Rescriere URL-uri `columna.org.md` → domeniu nou
+## 3. Localizare media articole — `columna.org.md` → local + `columna.md`
 
-Anumite câmpuri de conținut (articole Blog/Actualități migrate din WordPress) conțin absolute URLs
-către media veche. La cutover, le rescriem masiv cu **un singur script SQL**, executat DUPĂ ce
-media locală e pe VPS și `columna.md` răspunde.
+Articolele (Blog/Actualități) migrate din WordPress conțineau URL-uri absolute către media veche
+(`columna.org.md/wp-content/uploads/...`) + linkuri către pagini vechi ale site-ului. Rezolvat prin
+**comanda `app:localize-post-images`**, NU printr-un REPLACE SQL brut — un REPLACE simplu pe domeniu
+nu rezolvă imaginile (rămân sparte, `wp-content/uploads` nu există pe noul server Laravel).
 
-### 3.a. Ce se rescrie
+Materialele bibliotecii (`library_items`) sunt separat, **deja rezolvate** — au fost mutate local
+prin `app:download-library-pdfs` și `link` a fost golit; nimic de făcut acolo.
 
-| Tabel | Coloană | Regulă |
-|---|---|---|
-| `posts` | `content`, `excerpt` | `columna.org.md` → `columna.md` |
-| `post_translations` | `content`, `excerpt` | `columna.org.md` → `columna.md` |
+### 3.a. Ce face comanda
 
-Materialele bibliotecii (`library_items`) sunt **deja rezolvate** — au fost mutate local prin
-`app:download-library-pdfs` și `link` a fost golit; nimic de rescris.
-
-### 3.b. Comandă (rulată pe VPS după deploy)
-
-Creează comanda o dată local dacă vrei un dry-run înainte; dar la deploy e suficient acest SQL:
-
-```sql
--- BACKUP OBLIGATORIU ÎN PREALABIL (mysqldump)
-
--- 1. Posturi RO (limba default)
-UPDATE posts
-SET content    = REPLACE(content,    'https://columna.org.md', 'https://columna.md'),
-    excerpt = REPLACE(excerpt, 'https://columna.org.md', 'https://columna.md')
-WHERE content    LIKE '%columna.org.md%'
-   OR excerpt LIKE '%columna.org.md%';
-
--- 2. Traduceri (RU + EN)
-UPDATE post_translations
-SET content    = REPLACE(content,    'https://columna.org.md', 'https://columna.md'),
-    excerpt = REPLACE(excerpt, 'https://columna.org.md', 'https://columna.md')
-WHERE content    LIKE '%columna.org.md%'
-   OR excerpt LIKE '%columna.org.md%';
-
--- 3. Verificare — TREBUIE să întoarcă 0
-SELECT
-    (SELECT COUNT(*) FROM posts             WHERE content LIKE '%columna.org.md%' OR excerpt LIKE '%columna.org.md%') AS posts_ramase,
-    (SELECT COUNT(*) FROM post_translations WHERE content LIKE '%columna.org.md%' OR excerpt LIKE '%columna.org.md%') AS translations_ramase;
+```bash
+php artisan app:localize-post-images            # rulare reală
+php artisan app:localize-post-images --dry-run  # doar raportează, fără descărcare/scriere
 ```
 
-> **Notă tehnică:** `wp-content/uploads` din body-urile WordPress se rescrie odată cu domeniul
-> — imaginile din articolele vechi vor merge la `https://columna.md/wp-content/uploads/...`, care
-> **NU va exista pe VPS**. Pentru a nu rămâne cu imagini rupte, ai două opțiuni:
->
-> 1. **Recomandat:** copiezi și `wp-content/uploads/` de pe WP-ul vechi în `public/wp-content/uploads/`
->    pe VPS-ul nou (rsync, ~cca. 500 MB - 1 GB de media originale — verifică dimensiunea reală).
->    URL-urile după REPLACE vor funcționa fără altă intervenție.
->
-> 2. **Alternativ:** rulezi un al doilea REPLACE care mută prefixul `wp-content/uploads` → o cale locală
->    a lui site-ul nou. Necesită și redenumire de fișiere — mai complicat. NU e recomandat.
+- **Descarcă local** (disk `public`, sub `storage/app/public/posts/imported/...`) fiecare imagine
+  și PDF referențiat din `posts.image` + conținutul articolelor (RO + traducerile RU/EN).
+- **Rescrie** `posts.image` → cale relativă pe disk; conținutul → URL local `/storage/posts/imported/...`
+  (independent de domeniu — funcționează identic pe orice server care servește `storage/`).
+- **Linkurile către PAGINI** (nu asset-uri, ex. `/orarul-examenelor/`) → domeniul `columna.md` direct
+  (redirect-urile 301 configurate la DNS acoperă restul).
+- **Idempotentă** — a doua rulare nu mai găsește nimic de făcut; sigur de rulat de mai multe ori.
 
-### 3.c. Verificare live
+⚠️ **Necesită ca `columna.org.md` să fie ÎNCĂ ACCESIBIL** — comanda descarcă fișierele de acolo.
+Trebuie rulată ÎNAINTE ca domeniul vechi să fie oprit sau redirecționat definitiv.
+
+### 3.b. Stare — deja rulată LOCAL (2026-07-13, commit `c9bddf0`)
+
+248/254 asset-uri unice localizate (**101 MB**, `storage/app/public/posts/imported/`), 188 imagini
+hero + conținutul (RO+RU+EN) re-pointate. **0 referințe `columna.org.md` rămase** în `posts`/
+`post_translations` pe baza de date LOCALĂ. 6 bannere `template-actualități-și-evenimente-site-*.png`
+erau deja moarte LA SURSĂ (404 chiar pe `columna.org.md`, nu doar o problemă de migrare) → tag-urile
+`<img>` sparte au fost scoase manual din traducerile RU/EN (fără fișier de recuperat).
+
+### 3.c. La deploy — ce rulezi, în funcție de sursa datelor de producție
+
+- **Varianta A — RECOMANDATĂ (baza de producție vine dintr-un `mysqldump` al bazei LOCALE, deja
+  migrată):** nu mai rulezi nimic pe VPS — migrarea e deja inclusă în dump. Asigură-te doar că
+  `storage/app/public/posts/imported/` e sincronizat (parte din rsync-ul de la §2, ~101 MB).
+- **Varianta B — producția reimportă conținutul de la zero** (`columna:import-posts` rulat direct
+  pe VPS din exportul WordPress, nu dintr-un dump local): rulează pe VPS, **ÎNAINTE** ca
+  `columna.org.md` să fie oprit:
+  ```bash
+  php artisan app:localize-post-images
+  ```
+  și repetă manual eliminarea celor 6 bannere moarte (§3.b) — nu au fișier sursă de recuperat,
+  indiferent unde rulează comanda.
+
+### 3.d. Verificare
+
+```sql
+-- ambele TREBUIE să întoarcă 0
+SELECT
+    (SELECT COUNT(*) FROM posts             WHERE image LIKE '%columna.org.md%' OR content LIKE '%columna.org.md%') AS posts_ramase,
+    (SELECT COUNT(*) FROM post_translations WHERE content LIKE '%columna.org.md%') AS translations_ramase;
+```
 
 ```bash
 # Homepage + un articol vechi trebuie să răspundă 200 și să afișeze media corect
@@ -106,11 +115,12 @@ curl -I https://columna.md/
 curl -I https://columna.md/actualitati-si-evenimente
 curl -I "https://columna.md/articol/<slug-vreun-articol-cu-imagine>"
 curl -I https://columna.md/biblioteca-online
+curl -I "https://columna.md/storage/posts/imported/<an>/<luna>/<fisier>.jpg"
 curl -I "https://columna.md/storage/downloads/biblioteca/literatura-romana/Agarbiceanu-Ion-Fefeleaga.pdf"
 ```
 
 Toate trebuie să întoarcă `HTTP/2 200`. Verifică vizual că nu apar imagini rupte în articolele
-migrate din WP.
+migrate din WP (Blog + Actualități) — pe LOCAL, deja confirmat curat.
 
 ---
 
@@ -211,14 +221,16 @@ comunicare de rutină.
 
 - Restaurează DB din `backup-pre-cutover.sql`
 - Repointează DNS `columna.md` la vechea instanță (dacă e cazul), sau întoarce-l la `columna.org.md`
-- Investighează, corectează scriptul SQL, rerulează cutover-ul.
+- Investighează, corectează problema, rerulează cutover-ul (§3 e idempotentă — sigur de repetat).
 
 ---
 
 ## Timp estimat
 
-- Sincronizare media (rsync): 15-30 min (funcție de banda VPS)
-- REPLACE SQL + verificare: 5 min
+- Sincronizare media (rsync, include `posts/imported/` ~101 MB): 15-30 min (funcție de banda VPS)
+- Localizare imagini articole (§3): Varianta A (dump local) = doar verificare, 2 min; Varianta B
+  (reimport pe VPS) = rulare `app:localize-post-images`, ~5-15 min (descarcă 101 MB de pe
+  `columna.org.md`)
 - Pași finali: 10 min
 - Activare Telegram (opțional, în ziua următoare): 5 min
 - Activare Viber (opțional): 1-2 zile (așteptare aprobare Rakuten)
