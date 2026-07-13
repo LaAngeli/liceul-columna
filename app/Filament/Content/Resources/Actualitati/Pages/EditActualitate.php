@@ -27,7 +27,8 @@ class EditActualitate extends BaseEditArticle
                 ->icon(Heroicon::OutlinedGlobeAlt)
                 ->color('gray')
                 ->url(url('/articol/'.$record->slug), shouldOpenInNewTab: true)
-                ->visible($record->published_at !== null),
+                // Doar dacă e cu adevărat public (nu ciornă, nu programat în viitor).
+                ->visible($record->published_at !== null && ! $record->published_at->isFuture()),
             DeleteAction::make(),
         ];
     }

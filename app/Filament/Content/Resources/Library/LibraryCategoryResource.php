@@ -66,8 +66,8 @@ class LibraryCategoryResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            Text::make('Categoria trebuie completată în TOATE cele trei limbi (Română, Русский, English). Slug-ul (URL) se generează automat din titlu — comută selectorul din secțiunea slug pe OFF dacă vrei un slug personalizat.')
-                ->color('warning')
+            Text::make('Slug-ul (identificatorul) e doar în română. Titlurile în Русский și English sunt opționale la editare — unde lipsesc, pe site se afișează versiunea română.')
+                ->color('gray')
                 ->columnSpanFull(),
             Section::make('Mod de afișare')
                 ->description('Cum apare această colecție pe pagina publică /biblioteca-online.')
@@ -103,13 +103,13 @@ class LibraryCategoryResource extends Resource
                 ]),
             Step::make('Română')
                 ->icon(Heroicon::OutlinedLanguage)
-                ->schema(self::localizedFields('ro')),
+                ->schema(self::localizedFields('ro', requireTranslations: true)),
             Step::make('Русский')
                 ->icon(Heroicon::OutlinedLanguage)
-                ->schema(self::localizedFields('ru')),
+                ->schema(self::localizedFields('ru', requireTranslations: true)),
             Step::make('English')
                 ->icon(Heroicon::OutlinedLanguage)
-                ->schema(self::localizedFields('en')),
+                ->schema(self::localizedFields('en', requireTranslations: true)),
         ];
     }
 
@@ -125,70 +125,69 @@ class LibraryCategoryResource extends Resource
     }
 
     /**
-     * Câmpurile per-limbă: titlu + slug. RO leagă la coloanele proprii; RU/EN la JSON-ul
-     * `translations.{locale}.{field}`.
+     * Câmpurile unei limbi. Titlul RO e mereu obligatoriu; RU/EN sunt obligatorii DOAR la creare
+     * (`$requireTranslations`), ca editarea categoriilor importate (translations = null) să nu fie
+     * blocată. Slug-ul (identificatorul) se emite DOAR pentru RO — Biblioteca nu are rută per-limbă,
+     * deci un slug tradus ar fi date moarte.
      *
      * @return array<int, Component>
      */
-    private static function localizedFields(string $locale): array
+    private static function localizedFields(string $locale, bool $requireTranslations = false): array
     {
         $titleKey = $locale === 'ro' ? 'title' : "translations.{$locale}.title";
-        $slugKey = $locale === 'ro' ? 'slug' : "translations.{$locale}.slug";
-        $autoKey = "slug_auto_{$locale}";
 
-        return [
+        $fields = [
             Section::make('Titlu categorie')
                 ->description('Denumirea afișată pe site pentru această limbă.')
                 ->schema([
                     TextInput::make($titleKey)
                         ->label('Titlu categorie')
-                        ->required()
+                        ->required($locale === 'ro' || $requireTranslations)
                         ->minLength(3)
                         ->maxLength(60)
                         ->tap(fn (TextInput $field) => CharacterLimit::apply($field, 60))
-                        ->live(onBlur: true)
-                        ->afterStateUpdated(function (?string $state, Set $set, Get $get) use ($slugKey, $autoKey): void {
-                            // Slug-ul se regenerează la fiecare schimbare de titlu DOAR când comutatorul e ON.
-                            if ((bool) $get($autoKey)) {
-                                $set($slugKey, Str::slug((string) $state));
-                            }
-                        }),
+                        ->when($locale === 'ro', fn (TextInput $field) => $field
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (?string $state, Set $set, Get $get): void {
+                                if ((bool) $get('slug_auto_ro')) {
+                                    $set('slug', Str::slug((string) $state));
+                                }
+                            })),
                 ]),
-            Section::make('Slug (adresă URL)')
-                ->description('Segmentul URL localizat. Implicit se generează automat din titlu.')
+        ];
+
+        if ($locale === 'ro') {
+            $fields[] = Section::make('Slug (identificator)')
+                ->description('Identificatorul intern al categoriei. Implicit se generează automat din titlu.')
                 ->schema([
-                    Toggle::make($autoKey)
+                    Toggle::make('slug_auto_ro')
                         ->label('Generat automat din titlu')
-                        ->helperText('Când e ON, slug-ul se completează live din titlu (câmpul de mai jos e blocat). Comută pe OFF ca să introduci un slug personalizat.')
+                        ->helperText('Când e ON, se completează live din titlu (câmpul de mai jos e blocat). Comută pe OFF ca să introduci un identificator personalizat.')
                         ->default(true)
-                        // La editare, `default()` singur NU se aplică (recordul din DB nu are cheia
-                        // `slug_auto_*` — e virtuală, dehidratată) → forțăm hydration explicit la ON.
+                        // La editare, `default()` singur NU se aplică (câmp virtual, dehidratat) → hydration explicit.
                         ->afterStateHydrated(fn (Toggle $component) => $component->state((bool) ($component->getState() ?? true)))
                         ->live()
                         ->dehydrated(false)
-                        ->afterStateUpdated(function (bool $state, Set $set, Get $get) use ($titleKey, $slugKey): void {
-                            // La revenire pe „automat", regenerez slug-ul din titlu ca să nu rămână
-                            // valoarea manuală anterioară.
+                        ->afterStateUpdated(function (bool $state, Set $set, Get $get): void {
                             if ($state) {
-                                $set($slugKey, Str::slug((string) $get($titleKey)));
+                                $set('slug', Str::slug((string) $get('title')));
                             }
                         }),
-                    TextInput::make($slugKey)
-                        ->label('Slug (adresă URL)')
+                    TextInput::make('slug')
+                        ->label('Slug (identificator)')
                         ->maxLength(160)
                         ->tap(fn (TextInput $field) => CharacterLimit::apply($field, 160))
                         ->rule('alpha_dash')
-                        ->when(
-                            $locale === 'ro',
-                            fn (TextInput $field) => $field->unique('library_categories', 'slug', ignoreRecord: true),
-                        )
-                        ->readOnly(fn (Get $get): bool => (bool) $get($autoKey))
-                        ->required(fn (Get $get): bool => ! (bool) $get($autoKey))
-                        ->helperText(fn (Get $get): string => (bool) $get($autoKey)
+                        ->unique('library_categories', 'slug', ignoreRecord: true)
+                        ->readOnly(fn (Get $get): bool => (bool) $get('slug_auto_ro'))
+                        ->required(fn (Get $get): bool => ! (bool) $get('slug_auto_ro'))
+                        ->helperText(fn (Get $get): string => (bool) $get('slug_auto_ro')
                             ? 'Valoare generată automat — comută selectorul de mai sus pe OFF ca să o editezi.'
                             : 'Editează liber. Doar litere, cifre, cratime.'),
-                ]),
-        ];
+                ]);
+        }
+
+        return $fields;
     }
 
     public static function table(Table $table): Table

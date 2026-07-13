@@ -27,7 +27,9 @@ class EditGalleryAlbum extends EditRecord
                 ->icon(Heroicon::OutlinedGlobeAlt)
                 ->color('gray')
                 ->url(url('/galerie'), shouldOpenInNewTab: true)
-                ->visible($record->published_at !== null),
+                // Doar dacă albumul apare efectiv pe /galerie: publicat ȘI cu cel puțin o imagine
+                // (albumele goale sunt sărite de pagina publică).
+                ->visible($record->published_at !== null && $record->images()->exists()),
             DeleteAction::make(),
         ];
     }

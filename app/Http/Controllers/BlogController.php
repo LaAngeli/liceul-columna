@@ -46,7 +46,9 @@ class BlogController extends Controller
 
     public function show(Post $post): Response
     {
-        abort_if($post->published_at === null, 404);
+        // Nepublicat (ciornă) SAU programat în viitor → 404. Fără gardă de viitor, un articol cu
+        // embargo (dată viitoare) era vizibil public pe URL-ul direct, deși listele îl ascund corect.
+        abort_if($post->published_at === null || $post->published_at->isFuture(), 404);
 
         $content = $post->localizedContent();
         $words = str_word_count(strip_tags($content));

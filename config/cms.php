@@ -44,7 +44,9 @@ return [
     */
 
     'articles' => [
-        'title' => ['min' => 10, 'max' => 120],
+        // min 3 (nu 10): titluri reale scurte („1 Iunie", „9 Mai", „Crăciun", „Hramul") sunt legitime;
+        // aliniat cu galeria (gallery.title.min = 3).
+        'title' => ['min' => 3, 'max' => 120],
         'excerpt' => ['max' => 200],
         'image' => ['width' => 1600, 'height' => 900, 'aspect' => '16:9'],
     ],

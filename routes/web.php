@@ -8,6 +8,7 @@ use App\Http\Controllers\CabinetDocumentsController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\Dev\DemoLoginController;
+use App\Http\Controllers\Dev\StudioDemoLoginController;
 use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\ForcedPasswordController;
 use App\Http\Controllers\ForcedTwoFactorController;
@@ -273,4 +274,8 @@ if (app()->environment(['local', 'testing'])) {
     Route::get('_demo/login/{role}', DemoLoginController::class)
         ->middleware(SetUserLocale::class)
         ->name('demo.login');
+
+    // Login de dev pentru panoul de conținut /studio (guard `admin`) — passwordless, local/testing.
+    Route::get('_demo/studio-login', StudioDemoLoginController::class)
+        ->name('demo.studio-login');
 }

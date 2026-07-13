@@ -20,10 +20,15 @@ use Illuminate\Support\HtmlString;
  * Prezentare de ansamblu a conținutului. Fiecare card afișează TOTALUL (număr mare) și câte sunt
  * PUBLICATE (sub-linie verde), ducând la resursa lui. Galeria și Biblioteca au DOI indicatori pe
  * orizontală (albume+imagini / categorii+materiale); Blogul și Actualitățile au unul singur.
- * Aceeași limbă vizuală pe toate cardurile, fără text de subsol. Agregate simple, fără polling.
+ * Agregate simple, FĂRĂ polling (vezi $pollingInterval — altfel `StatsOverviewWidget` reîncarcă
+ * COUNT-urile la fiecare 5s per tab deschis).
  */
 class ContentOverview extends StatsOverviewWidget
 {
+    // Fără reîmprospătare automată: cifrele se schimbă doar la acțiuni ale utilizatorului, care
+    // oricum re-randează pagina. `null` oprește `wire:poll` implicit (5s) al widget-ului.
+    protected ?string $pollingInterval = null;
+
     protected function getStats(): array
     {
         $blog = Post::query()->where('category', PostType::Blog->value);
@@ -31,21 +36,23 @@ class ContentOverview extends StatsOverviewWidget
 
         return [
             Stat::make('Articole blog', $this->dualValue([
-                [(clone $blog)->count(), '', (clone $blog)->published()->count()],
+                [(clone $blog)->count(), null, (clone $blog)->published()->count(), ['publicat', 'publicate']],
             ]))->url(BlogResource::getUrl('index')),
 
             Stat::make('Actualități și evenimente', $this->dualValue([
-                [(clone $news)->count(), '', (clone $news)->published()->count()],
+                [(clone $news)->count(), null, (clone $news)->published()->count(), ['publicată', 'publicate']],
             ]))->url(ActualitatiResource::getUrl('index')),
 
             Stat::make('Galerie', $this->dualValue([
-                [GalleryAlbum::query()->count(), 'albume', GalleryAlbum::query()->published()->count()],
-                [GalleryImage::query()->count(), 'imagini', $this->publishedImagesCount()],
+                // „albume publicate" = publicate ȘI cu imagini (albumele goale nu apar pe /galerie).
+                [GalleryAlbum::query()->count(), ['album', 'albume'], GalleryAlbum::query()->published()->has('images')->count(), ['publicat', 'publicate']],
+                // Totalul de imagini exclude orfanele albumelor șterse (soft-delete) via whereHas.
+                [GalleryImage::query()->whereHas('album')->count(), ['imagine', 'imagini'], $this->publishedImagesCount(), ['publicată', 'publicate']],
             ]))->url(GalleryAlbumResource::getUrl('index')),
 
             Stat::make('Bibliotecă', $this->dualValue([
-                [LibraryCategory::query()->count(), 'categorii', LibraryCategory::query()->published()->count()],
-                [LibraryItem::query()->count(), 'materiale', $this->publishedItemsCount()],
+                [LibraryCategory::query()->count(), ['categorie', 'categorii'], LibraryCategory::query()->published()->count(), ['publicată', 'publicate']],
+                [LibraryItem::query()->whereHas('category')->count(), ['material', 'materiale'], $this->publishedItemsCount(), ['publicat', 'publicate']],
             ]))->url(LibraryCategoryResource::getUrl('index')),
         ];
     }
@@ -73,15 +80,14 @@ class ContentOverview extends StatsOverviewWidget
 
     /**
      * Construiește valoarea unui card ca N indicatori pe orizontală, separați prin linii verticale.
-     * `Stat::value()` acceptă `Htmlable` → Blade randează `HtmlString` fără escapare (vezi
-     * `stat.blade.php`). Markupul folosește clase `cms-stat-dual-*` stilizate în theme.css.
      *
-     * @param  array<int, array{int, string, int}>  $indicators  [total, unitate, publicate] per indicator
+     * @param  array<int, array{0: int, 1: array{0: string, 1: string}|null, 2: int, 3: array{0: string, 1: string}}>  $indicators
+     *                                                                                                                              [total, [unitate_sing, unitate_plural]|null, publicate, [pub_sing, pub_plural]]
      */
     private function dualValue(array $indicators): HtmlString
     {
         $items = array_map(
-            fn (array $indicator): string => $this->dualIndicator($indicator[0], $indicator[1], $indicator[2]),
+            fn (array $indicator): string => $this->dualIndicator($indicator[0], $indicator[1], $indicator[2], $indicator[3]),
             $indicators,
         );
 
@@ -92,18 +98,38 @@ class ContentOverview extends StatsOverviewWidget
 
     /**
      * Un indicator: totalul (număr mare) + unitatea OPȚIONALĂ (goală la cardurile cu un singur
-     * indicator, unde titlul deja denumește conținutul), iar sub ele câte sunt publicate.
+     * indicator), iar sub ele câte sunt publicate. Formele RO respectă numărul (singular/plural).
+     *
+     * @param  array{0: string, 1: string}|null  $unit  [singular, plural] sau null (fără unitate)
+     * @param  array{0: string, 1: string}  $pub  [singular, plural] pentru cuvântul „publicat(ă)/publicate"
      */
-    private function dualIndicator(int $total, string $unit, int $published): string
+    private function dualIndicator(int $total, ?array $unit, int $published, array $pub): string
     {
-        $label = $unit === '' ? '' : '<span class="cms-stat-dual-label">'.$unit.'</span>';
+        $unitLabel = $unit === null
+            ? ''
+            : '<span class="cms-stat-dual-label">'.$this->roCount($total, $unit[0], $unit[1]).'</span>';
+
+        $pubWord = $published === 1 ? $pub[0] : $pub[1];
 
         return '<div class="cms-stat-dual-item">'
             .'<div class="cms-stat-dual-headline">'
                 .'<span class="cms-stat-dual-value">'.$total.'</span>'
-                .$label
+                .$unitLabel
             .'</div>'
-            .'<span class="cms-stat-dual-sub">'.$published.' publicate</span>'
+            .'<span class="cms-stat-dual-sub">'.$published.' '.$pubWord.'</span>'
         .'</div>';
+    }
+
+    /**
+     * Forma corectă RO după numeral: 1 → singular; 2–19 → plural; ≥20 → „de" + plural
+     * (ex. „1 album", „5 albume", „34 de imagini").
+     */
+    private function roCount(int $n, string $singular, string $plural): string
+    {
+        return match (true) {
+            $n === 1 => $singular,
+            $n >= 20 => 'de '.$plural,
+            default => $plural,
+        };
     }
 }

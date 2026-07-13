@@ -6,6 +6,7 @@ use Database\Factories\GalleryImageFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * O imagine dintr-un album de galerie. `path` = cale stocată pe disk-ul public (upload nou) sau
@@ -26,6 +27,22 @@ class GalleryImage extends Model
         'path',
         'sort_order',
     ];
+
+    /**
+     * La ștergerea unei imagini, șterge și fișierul WebP de pe disk — altfel ciclurile de adăugare/
+     * ștergere lasă orfane în `gallery/`. DOAR căile pe disk (upload nou, ex. „gallery/xxx.webp");
+     * URL-urile externe sau căile statice root-relative („/images/...") importate NU se ating.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (GalleryImage $image): void {
+            $path = (string) $image->path;
+
+            if ($path !== '' && ! str_starts_with($path, 'http') && ! str_starts_with($path, '/')) {
+                Storage::disk((string) config('cms.media.disk', 'public'))->delete($path);
+            }
+        });
+    }
 
     /**
      * @return BelongsTo<GalleryAlbum, $this>

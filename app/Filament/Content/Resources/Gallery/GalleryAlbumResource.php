@@ -64,8 +64,8 @@ class GalleryAlbumResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            Text::make('Albumul trebuie completat în TOATE cele trei limbi (Română, Русский, English) — atât titlul cât și slug-ul (URL). Nu poți publica un album fără traducerea completă.')
-                ->color('warning')
+            Text::make('Slug-ul (adresa URL) e doar în română — e comun tuturor limbilor. Titlurile în Русский și English sunt opționale la editare: unde lipsesc, pe site se afișează versiunea română.')
+                ->color('gray')
                 ->columnSpanFull(),
             Tabs::make('album')
                 ->columnSpanFull()
@@ -79,7 +79,8 @@ class GalleryAlbumResource extends Resource
     }
 
     /**
-     * Pașii de wizard pentru CREARE — câte unul pe limbă. Ultimul pas expune butonul „Creare".
+     * Pașii de wizard pentru CREARE — câte unul pe limbă. La creare titlul e obligatoriu în toate cele
+     * trei limbi (conținut nou complet). Ultimul pas expune butonul „Creare".
      *
      * @return array<int, Step>
      */
@@ -88,57 +89,65 @@ class GalleryAlbumResource extends Resource
         return [
             Step::make('Română')
                 ->icon(Heroicon::OutlinedLanguage)
-                ->schema(self::localizedFields('ro')),
+                ->schema(self::localizedFields('ro', requireTranslations: true)),
             Step::make('Русский')
                 ->icon(Heroicon::OutlinedLanguage)
-                ->schema(self::localizedFields('ru')),
+                ->schema(self::localizedFields('ru', requireTranslations: true)),
             Step::make('English')
                 ->icon(Heroicon::OutlinedLanguage)
-                ->schema(self::localizedFields('en')),
+                ->schema(self::localizedFields('en', requireTranslations: true)),
         ];
     }
 
     /**
+     * Câmpurile unei limbi. Titlul RO e mereu obligatoriu; RU/EN sunt obligatorii DOAR la creare
+     * (`$requireTranslations`), ca editarea albumelor importate (translations = null) să nu fie blocată.
+     * Slug-ul se emite DOAR pentru RO — e cheia de rută a albumului; RU/EN n-au rută proprie, deci un
+     * slug tradus ar fi date moarte.
+     *
      * @return array<int, Component>
      */
-    private static function localizedFields(string $locale): array
+    private static function localizedFields(string $locale, bool $requireTranslations = false): array
     {
         $titleMin = (int) config('cms.gallery.title.min', 3);
         $titleMax = (int) config('cms.gallery.title.max', 120);
         $titleKey = $locale === 'ro' ? 'title' : "translations.{$locale}.title";
-        $slugKey = $locale === 'ro' ? 'slug' : "translations.{$locale}.slug";
 
-        return [
+        $fields = [
             Section::make('Titlu album')
                 ->description('Denumirea afișată pe site (ex. „Evenimente și activități") pentru această limbă.')
                 ->schema([
                     TextInput::make($titleKey)
                         ->label('Titlu album')
-                        ->required()
+                        ->required($locale === 'ro' || $requireTranslations)
                         ->minLength($titleMin)
                         ->maxLength($titleMax)
                         ->tap(fn (TextInput $field) => CharacterLimit::apply($field, $titleMax))
-                        ->afterStateUpdated(function (string $operation, ?string $state, Set $set) use ($slugKey): void {
-                            if ($operation === 'create') {
-                                $set($slugKey, Str::slug((string) $state));
-                            }
-                        }),
+                        ->when($locale === 'ro', fn (TextInput $field) => $field
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (string $operation, ?string $state, Set $set): void {
+                                if ($operation === 'create') {
+                                    $set('slug', Str::slug((string) $state));
+                                }
+                            })),
                 ]),
-            Section::make('Slug (adresă URL)')
-                ->description('Segmentul URL localizat. Se completează automat din titlu, dar îl poți edita.')
+        ];
+
+        if ($locale === 'ro') {
+            $fields[] = Section::make('Slug (adresă URL)')
+                ->description('Segmentul URL al albumului. Se completează automat din titlu, dar îl poți edita.')
                 ->schema([
-                    TextInput::make($slugKey)
+                    TextInput::make('slug')
                         ->label('Slug (adresă URL)')
                         ->required()
                         ->maxLength(160)
                         ->tap(fn (TextInput $field) => CharacterLimit::apply($field, 160))
                         ->rule('alpha_dash')
-                        ->when(
-                            $locale === 'ro',
-                            fn (TextInput $field) => $field->unique('gallery_albums', 'slug', ignoreRecord: true),
-                        ),
-                ]),
-        ];
+                        ->unique('gallery_albums', 'slug', ignoreRecord: true),
+                ]);
+        }
+
+        return $fields;
     }
 
     public static function table(Table $table): Table

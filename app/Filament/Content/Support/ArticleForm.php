@@ -19,7 +19,10 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 /**
@@ -220,11 +223,18 @@ class ArticleForm
                 ->tap(fn (TextInput $field) => CharacterLimit::apply($field, 160))
                 ->rule('alpha_dash')
                 ->readOnly(fn (Get $get): bool => (bool) $get($autoKey))
-                // `ignoreRecord: true` — la editare, valoarea curentă NU e tratată ca duplicat cu ea
-                // însăși. RU/EN nu au constraint DB unique — verificate prin translations separat.
+                // Unicitate pe fiecare limbă, ca duplicatele să apară ca EROARE de câmp, nu ca un
+                // `QueryException` (500) la salvare. RO → `posts.slug` (ignoră recordul curent);
+                // RU/EN → `post_translations` (unique `locale,slug`), exclus articolul curent la editare.
                 ->when(
                     $locale === 'ro',
                     fn (TextInput $field) => $field->unique('posts', 'slug', ignoreRecord: true),
+                    fn (TextInput $field) => $field->rule(static function (?Model $record) use ($locale): Unique {
+                        $rule = Rule::unique('post_translations', 'slug')->where('locale', $locale);
+
+                        // La editare, exclude traducerile articolului curent (altfel s-ar auto-cioca).
+                        return $record !== null ? $rule->ignore($record->getKey(), 'post_id') : $rule;
+                    }),
                 )
                 ->helperText(fn (Get $get): string => (bool) $get($autoKey)
                     ? 'Generat automat din titlu — comută selectorul pe OFF ca să-l editezi.'
@@ -258,7 +268,10 @@ class ArticleForm
                 }),
             Textarea::make($excerptKey)
                 ->label('Rezumat')
-                ->required($locale !== 'ro')
+                // Obligatoriu în TOATE limbile (inclusiv RO) — altfel cardul RO putea rămâne fără
+                // teaser, contrazicând promisiunea „complet în toate cele trei limbi". Modul „automat"
+                // îl completează oricum din conținut.
+                ->required()
                 ->maxLength($excerptMax)
                 ->tap(fn (Textarea $field) => CharacterLimit::apply($field, $excerptMax))
                 ->rows(3)

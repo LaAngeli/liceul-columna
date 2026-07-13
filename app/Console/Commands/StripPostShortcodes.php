@@ -26,18 +26,18 @@ class StripPostShortcodes extends Command
         // Filtru grosier la nivel DB (orice `[`), rafinat în PHP cu regexul de shortcode.
         $posts = Post::query()
             ->where(function (Builder $query): void {
-                $query->where('content', 'like', '%[%')->orWhere('excerpt', 'like', '%[%');
+                $query->where('content', 'like', '%[%')->orWhere('excerpt', 'like', '%[%')->orWhere('title', 'like', '%<%');
             })
             ->get()
-            ->filter(fn (Post $post): bool => $this->hasShortcode((string) $post->content) || $this->hasShortcode((string) $post->excerpt))
+            ->filter(fn (Post $post): bool => $this->hasShortcode((string) $post->content) || $this->hasShortcode((string) $post->excerpt) || $this->hasHtml((string) $post->title))
             ->values();
 
         $translations = PostTranslation::query()
             ->where(function (Builder $query): void {
-                $query->where('content', 'like', '%[%')->orWhere('excerpt', 'like', '%[%');
+                $query->where('content', 'like', '%[%')->orWhere('excerpt', 'like', '%[%')->orWhere('title', 'like', '%<%');
             })
             ->get()
-            ->filter(fn (PostTranslation $tr): bool => $this->hasShortcode((string) $tr->content) || $this->hasShortcode((string) $tr->excerpt))
+            ->filter(fn (PostTranslation $tr): bool => $this->hasShortcode((string) $tr->content) || $this->hasShortcode((string) $tr->excerpt) || $this->hasHtml((string) $tr->title))
             ->values();
 
         if ($posts->isEmpty() && $translations->isEmpty()) {
@@ -68,7 +68,9 @@ class StripPostShortcodes extends Command
                 continue;
             }
 
-            $post->update(['content' => $content, 'excerpt' => $excerpt]);
+            // Titlurile trebuie să fie text simplu — importul WP a lăsat uneori taguri (`<br>`) care
+            // se afișau literal în listă și pe site.
+            $post->update(['title' => $this->cleanTitle((string) $post->title), 'content' => $content, 'excerpt' => $excerpt]);
         }
 
         // Traduceri (RU/EN): curăță content-ul (shortcode-uri + paragrafe) + excerpt-ul (gol dacă rămâne garbage).
@@ -78,7 +80,7 @@ class StripPostShortcodes extends Command
             $excerpt = ($stripped === '' || str_contains($stripped, '[')) ? null : $stripped;
 
             if (! $dry) {
-                $translation->update(['content' => $content, 'excerpt' => $excerpt]);
+                $translation->update(['title' => $this->cleanTitle((string) $translation->title), 'content' => $content, 'excerpt' => $excerpt]);
             }
         }
 
@@ -96,6 +98,24 @@ class StripPostShortcodes extends Command
     private function hasShortcode(string $html): bool
     {
         return preg_match('/\[\/?[a-z][a-z0-9_-]+/i', $html) === 1;
+    }
+
+    /**
+     * Conține taguri HTML (ex. `<br>` rămas din import în titlu)?
+     */
+    private function hasHtml(string $text): bool
+    {
+        return $text !== strip_tags($text);
+    }
+
+    /**
+     * Titlu = text simplu: scoate tagurile, decodează entitățile, colapsează spațiile.
+     */
+    private function cleanTitle(string $title): string
+    {
+        $clean = html_entity_decode(strip_tags($title), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim((string) preg_replace('/\s+/u', ' ', $clean));
     }
 
     /**
