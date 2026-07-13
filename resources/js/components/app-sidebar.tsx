@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { Bell, CalendarDays, FileText, LayoutGrid, MessageSquare, UserCircle } from 'lucide-react';
+import { Bell, CalendarDays, FileText, LayoutGrid, MessageSquare } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -35,8 +35,9 @@ export function AppSidebar() {
         {
             label: t('cabinet.grp_main', 'Principal'),
             items: [
+                // „Profil" NU apare aici: e deja în meniul de utilizator din subsol (`user-menu-content`),
+                // unde e locul firesc al datelor de cont — dublarea în sidebar era redundantă.
                 { title: t('cabinet.nav_home', 'Acasă'), href: dashboard(), icon: LayoutGrid },
-                { title: t('profile.head', 'Profil'), href: '/cabinet/profil', icon: UserCircle },
             ],
         },
         {
