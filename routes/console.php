@@ -37,7 +37,9 @@ Schedule::command(SyncCurrentTerm::class)->dailyAt('00:05');
  *
  * Toate rulează doar cu scheduler activ (cron `schedule:run`) — relevant în producție.
  */
-Schedule::command('backup:clean')->dailyAt('01:00');
-Schedule::command('backup:run --only-db')->dailyAt('01:30');
-Schedule::command('backup:run --only-files')->weeklyOn(0, '02:30');
-Schedule::command('backup:monitor')->dailyAt('03:00');
+// `->timezone(...)` — scheduler-ul Laravel evaluează implicit orele în `app.timezone` (UTC aici),
+// deci „01:30" rula de fapt la 04:30 ora Chișinău. Fixat explicit pe ora locală, start 02:00.
+Schedule::command('backup:clean')->dailyAt('02:00')->timezone('Europe/Chisinau');
+Schedule::command('backup:run --only-db')->dailyAt('02:30')->timezone('Europe/Chisinau');
+Schedule::command('backup:run --only-files')->weeklyOn(0, '03:30')->timezone('Europe/Chisinau');
+Schedule::command('backup:monitor')->dailyAt('04:00')->timezone('Europe/Chisinau');
