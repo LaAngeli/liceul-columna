@@ -252,8 +252,13 @@ return [
             /*
              * ⚠️ Fără o adresă REALĂ aici (și fără SMTP real în `.env`), un backup eșuat trece în
              * TĂCERE — poate pica luni la rând fără ca nimeni să afle. Setează BACKUP_NOTIFICATION_EMAIL.
+             *
+             * `?:` în loc de al doilea argument al lui `env()` — DELIBERAT. `env('CHEIE', 'default')`
+             * NU cade pe default când cheia EXISTĂ dar e GOALĂ (`CHEIE=`): întoarce string gol.
+             * Iar spatie validează adresa și aruncă `InvalidConfig` → `config:cache` crapă, iar
+             * aplicația rămâne fără config cache. Pățit pe producție (2026-07-15).
              */
-            'to' => env('BACKUP_NOTIFICATION_EMAIL', 'your@example.com'),
+            'to' => env('BACKUP_NOTIFICATION_EMAIL') ?: 'backup@columna.md',
 
             'from' => [
                 'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
