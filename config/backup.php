@@ -39,6 +39,17 @@ return [
                     base_path('vendor'),
                     base_path('node_modules'),
                     storage_path('framework'),
+
+                    /*
+                     * Secretele NU au ce căuta într-o arhivă de backup. `.env` conține APP_KEY
+                     * (fără el, coloanele criptate — ex. secretele 2FA — devin ilizibile), parola
+                     * bazei de date ȘI parola arhivei însăși — ultima fiind și circulară: cine
+                     * deschide arhiva ar găsi înăuntru parola arhivei.
+                     *
+                     * ⚠️ Corolar: secretele trebuie păstrate SEPARAT, în afara VPS-ului (manager
+                     * de parole). Fără APP_KEY + parola arhivei, un backup restaurat e inutil.
+                     */
+                    base_path('.env'),
                 ],
 
                 /*
@@ -196,9 +207,11 @@ return [
 
         /*
          * After creating the zip, verify it can be opened and contains files.
-         * Recommended for critical backups but adds a small overhead.
+         *
+         * Activat: costă câteva secunde, dar transformă „am un fișier .zip pe disc" în „am un
+         * backup". Un backup neverificat e o ipoteză. Obligatoriu când arhiva conține date de minori.
          */
-        'verify_backup' => false,
+        'verify_backup' => true,
 
         /*
          * The number of attempts, in case the backup command encounters an exception
@@ -236,7 +249,11 @@ return [
         'notifiable' => Notifiable::class,
 
         'mail' => [
-            'to' => 'your@example.com',
+            /*
+             * ⚠️ Fără o adresă REALĂ aici (și fără SMTP real în `.env`), un backup eșuat trece în
+             * TĂCERE — poate pica luni la rând fără ca nimeni să afle. Setează BACKUP_NOTIFICATION_EMAIL.
+             */
+            'to' => env('BACKUP_NOTIFICATION_EMAIL', 'your@example.com'),
 
             'from' => [
                 'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
@@ -300,7 +317,7 @@ return [
             'disks' => ['local'],
             'health_checks' => [
                 MaximumAgeInDays::class => 1,
-                MaximumStorageInMegabytes::class => 5000,
+                MaximumStorageInMegabytes::class => 30000,
             ],
         ],
 
@@ -364,8 +381,12 @@ return [
              * After cleaning up the backups remove the oldest backup until
              * this amount of megabytes has been reached.
              * Set null for unlimited size.
+             *
+             * 30 GB pe un disc de 193 GB (~15%). Plafonul vechi, de 5 GB, tăia istoricul la ~11
+             * arhive de 428 MB — adică politica de retenție de mai sus („2 ani") era FICȚIUNE:
+             * plafonul de mărime lovea cu mult înaintea ei.
              */
-            'delete_oldest_backups_when_using_more_megabytes_than' => 5000,
+            'delete_oldest_backups_when_using_more_megabytes_than' => 30000,
         ],
 
         /*
