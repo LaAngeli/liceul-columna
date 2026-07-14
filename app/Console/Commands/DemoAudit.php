@@ -24,11 +24,14 @@ class DemoAudit extends Command
 
     protected $description = 'Raport: ce au atins conturile demo prin interfață (din audit), semnalând ce a nimerit pe elevi REALI';
 
-    /** Modele operaționale legate direct de un elev (tabelul are `student_id`). */
+    /**
+     * Modele operaționale legate direct de un elev (tabelul are `student_id`). `soft` = tabelul are
+     * `deleted_at` → excludem rândurile soft-șterse (deja tratate), ca să nu raportăm zgomot.
+     */
     private const STUDENT_MODELS = [
-        'App\\Models\\Grade' => ['table' => 'grades', 'label' => 'Notă'],
-        'App\\Models\\Absence' => ['table' => 'absences', 'label' => 'Absență'],
-        'App\\Models\\AbsenceMotivation' => ['table' => 'absence_motivations', 'label' => 'Motivare'],
+        'App\\Models\\Grade' => ['table' => 'grades', 'label' => 'Notă', 'soft' => true],
+        'App\\Models\\Absence' => ['table' => 'absences', 'label' => 'Absență', 'soft' => true],
+        'App\\Models\\AbsenceMotivation' => ['table' => 'absence_motivations', 'label' => 'Motivare', 'soft' => false],
     ];
 
     public function handle(): int
@@ -109,6 +112,7 @@ class DemoAudit extends Command
             $rows = DB::table($table)
                 ->join('students', 'students.id', '=', $table.'.student_id')
                 ->whereIn($table.'.id', $auditIds)
+                ->when($meta['soft'], fn (Builder $q): Builder => $q->whereNull($table.'.deleted_at'))
                 ->when($demoStudentIds !== [], fn (Builder $q): Builder => $q->whereNotIn($table.'.student_id', $demoStudentIds))
                 ->get([$table.'.id', 'students.id AS student_id', 'students.last_name', 'students.first_name']);
 
