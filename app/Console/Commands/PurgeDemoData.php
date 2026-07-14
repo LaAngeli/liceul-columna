@@ -1,0 +1,258 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Models\AbsenceMotivation;
+use App\Models\Announcement;
+use App\Models\CalendarEvent;
+use App\Models\Document;
+use App\Models\Grade;
+use App\Models\GradeCorrection;
+use App\Models\Message;
+use App\Models\User;
+use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * Curăță DATELE demo/test care SUPRAVIEȚUIESC lui `app:demo-accounts --remove`.
+ *
+ * De ce e nevoie: ștergerea conturilor demo duce cu ea, prin FK `ON DELETE CASCADE`, doar mesajele,
+ * stările lor, consimțămintele și cererile depuse. Restul referințelor către `users` sunt
+ * `ON DELETE SET NULL` → rândurile RĂMÂN în producție, doar orfanizate (autorul devine NULL):
+ * corecții de note, motivări de absențe, documente, evenimente de calendar. Fără această comandă,
+ * zeci de rânduri de date fictive ar rămâne vizibile utilizatorilor REALI după go-live.
+ *
+ * ⚠️ ORDINEA CONTEAZĂ — se rulează ÎNAINTE de `app:demo-accounts --remove`, fiindcă are nevoie de
+ * ID-urile conturilor demo ca să-și identifice datele. După ștergerea conturilor, autorul e deja
+ * NULL și rândurile nu mai pot fi legate de un cont demo.
+ *
+ * Identificarea se face pe DOUĂ căi, fiindcă una singură nu ajunge: seeder-ul marchează textual
+ * (`[DEMO]`), dar testarea manuală din UI a produs și date NEMARCATE — prinse doar după autor.
+ *
+ * Idempotentă. `--dry-run` raportează fără să șteargă nimic.
+ */
+class PurgeDemoData extends Command
+{
+    /** Marcajul textual pus de seedere/conturile demo. */
+    private const DEMO = '[DEMO]';
+
+    /** Marcajul notelor injectate manual la testarea din interfață. */
+    private const TEST_UI = '[TEST UI]';
+
+    protected $signature = 'app:purge-demo-data {--dry-run : Doar raportează ce ar șterge, fără a șterge}';
+
+    protected $description = 'Șterge datele demo/test care supraviețuiesc lui app:demo-accounts --remove (corecții, motivări, documente, evenimente, note de test, mesaje).';
+
+    public function handle(): int
+    {
+        $dryRun = (bool) $this->option('dry-run');
+
+        /** @var Collection<int, int> $demoIds */
+        $demoIds = User::query()
+            ->where('name', 'like', self::DEMO.'%')
+            ->pluck('id');
+
+        if ($demoIds->isEmpty()) {
+            $this->warn('Niciun cont demo ('.self::DEMO.') găsit.');
+            $this->line('Dacă ai rulat deja `app:demo-accounts --remove`, autorii sunt NULL și datele orfane');
+            $this->line('nu mai pot fi identificate după cont — rămâne doar curățarea după marcaj textual.');
+            $this->line('Rulează ÎNTOTDEAUNA această comandă ÎNAINTE de ștergerea conturilor.');
+        } else {
+            $this->info($demoIds->count().' cont(uri) demo identificate.');
+        }
+
+        $this->newLine();
+
+        $rows = [
+            ['Corecții de note', $this->purgeGradeCorrections($demoIds, $dryRun)],
+            ['Motivări de absențe (+ justificative)', $this->purgeAbsenceMotivations($demoIds, $dryRun)],
+            ['Documente (+ fișiere de pe disc)', $this->purgeDocuments($demoIds, $dryRun)],
+            ['Evenimente de calendar', $this->purgeCalendarEvents($demoIds, $dryRun)],
+            ['Anunțuri', $this->purgeAnnouncements($demoIds, $dryRun)],
+            ['Note injectate la testare', $this->purgeTestGrades($dryRun)],
+            ['Mesaje', $this->purgeMessages($demoIds, $dryRun)],
+        ];
+
+        $this->table(['Date demo/test', $dryRun ? 'AR FI șterse' : 'Șterse'], $rows);
+
+        $total = array_sum(array_column($rows, 1));
+
+        if ($dryRun) {
+            $this->warn("DRY-RUN — nimic nu a fost șters. Total identificat: {$total} rânduri.");
+            $this->line('Rulează fără `--dry-run` pentru a curăța.');
+
+            return self::SUCCESS;
+        }
+
+        $this->newLine();
+        $this->info("Curățare finalizată — {$total} rânduri șterse.");
+        $this->line('Pașii următori la go-live:');
+        $this->line('  1. php artisan app:demo-alerts --remove');
+        $this->line('  2. php artisan app:demo-accounts --remove');
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Corecțiile de note (FK `SET NULL` → ar supraviețui ștergerii conturilor).
+     *
+     * @param  Collection<int, int>  $demoIds
+     */
+    private function purgeGradeCorrections(Collection $demoIds, bool $dryRun): int
+    {
+        $query = GradeCorrection::query()->where(function (Builder $inner) use ($demoIds): void {
+            $inner->whereIn('requested_by_user_id', $demoIds)
+                ->orWhereIn('reviewed_by_user_id', $demoIds)
+                ->orWhere('reason', 'like', '%'.self::DEMO.'%');
+        });
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->delete();
+        }
+
+        return $count;
+    }
+
+    /**
+     * Motivările de absențe + justificativele atașate (PII de minor — fișierul trebuie să dispară
+     * odată cu rândul, invariantul „rând șters ⇒ fișier șters", L133).
+     *
+     * @param  Collection<int, int>  $demoIds
+     */
+    private function purgeAbsenceMotivations(Collection $demoIds, bool $dryRun): int
+    {
+        $query = AbsenceMotivation::query()->where(function (Builder $inner) use ($demoIds): void {
+            $inner->whereIn('requested_by_user_id', $demoIds)
+                ->orWhereIn('reviewed_by_user_id', $demoIds)
+                ->orWhere('reason', 'like', '%'.self::DEMO.'%');
+        });
+
+        $motivations = (clone $query)->get();
+
+        if (! $dryRun && $motivations->isNotEmpty()) {
+            foreach ($motivations as $motivation) {
+                $path = $motivation->document_path;
+
+                if (is_string($path) && $path !== '') {
+                    Storage::disk('local')->delete($path);
+                }
+            }
+
+            $query->delete();
+        }
+
+        return $motivations->count();
+    }
+
+    /**
+     * Documentele demo. `forceDelete()` pe MODEL declanșează hook-ul `forceDeleted` din
+     * {@see Document}, care șterge și fișierul de pe disc — de aceea NU se șterge prin query builder.
+     *
+     * @param  Collection<int, int>  $demoIds
+     */
+    private function purgeDocuments(Collection $demoIds, bool $dryRun): int
+    {
+        $documents = Document::withTrashed()
+            ->where(function (Builder $inner) use ($demoIds): void {
+                $inner->whereIn('uploaded_by_user_id', $demoIds)
+                    ->orWhere('title', 'like', self::DEMO.'%');
+            })
+            ->get();
+
+        if (! $dryRun) {
+            foreach ($documents as $document) {
+                $document->forceDelete();
+            }
+        }
+
+        return $documents->count();
+    }
+
+    /**
+     * @param  Collection<int, int>  $demoIds
+     */
+    private function purgeCalendarEvents(Collection $demoIds, bool $dryRun): int
+    {
+        $query = CalendarEvent::withTrashed()->where(function (Builder $inner) use ($demoIds): void {
+            $inner->whereIn('created_by', $demoIds)
+                ->orWhere('title', 'like', '%'.self::DEMO.'%');
+        });
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->forceDelete();
+        }
+
+        return $count;
+    }
+
+    /**
+     * @param  Collection<int, int>  $demoIds
+     */
+    private function purgeAnnouncements(Collection $demoIds, bool $dryRun): int
+    {
+        // `withTrashed()` + `forceDelete()`: Announcement e SoftDeletes, iar un `delete()` simplu ar
+        // lăsa rândul în tabel (doar marcat) — adică exact ce încearcă comanda asta să prevină.
+        $query = Announcement::withTrashed()->where(function (Builder $inner) use ($demoIds): void {
+            $inner->whereIn('author_user_id', $demoIds)
+                ->orWhere('title', 'like', '%'.self::DEMO.'%');
+        });
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->forceDelete();
+        }
+
+        return $count;
+    }
+
+    /**
+     * Notele injectate în fișele unor elevi REALI în timpul testării din interfață (marcaj
+     * `[TEST UI]` în motivul de anulare). Nu sunt note legacy — se șterg definitiv, ca fișa
+     * elevului real să rămână curată.
+     */
+    private function purgeTestGrades(bool $dryRun): int
+    {
+        $query = Grade::withTrashed()->where('annulment_reason', 'like', self::TEST_UI.'%');
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->forceDelete();
+        }
+
+        return $count;
+    }
+
+    /**
+     * Mesajele demo. FK-ul e `CASCADE`, deci ar dispărea oricum la ștergerea conturilor — dar le
+     * curățăm explicit, ca să prindem și mesajele NEMARCATE trimise manual la testare, și ca
+     * raportul comenzii să reflecte tot ce dispare.
+     *
+     * @param  Collection<int, int>  $demoIds
+     */
+    private function purgeMessages(Collection $demoIds, bool $dryRun): int
+    {
+        // `withTrashed()`: Message e SoftDeletes — un mesaj demo deja soft-șters trebuie prins și el,
+        // altfel rămâne în tabel după curățare.
+        $query = Message::withTrashed()->where(function (Builder $inner) use ($demoIds): void {
+            $inner->whereIn('sender_user_id', $demoIds)
+                ->orWhereIn('recipient_user_id', $demoIds)
+                ->orWhere('body', 'like', '%'.self::DEMO.'%');
+        });
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->forceDelete();
+        }
+
+        return $count;
+    }
+}
