@@ -4,6 +4,10 @@
 > sesiune Claude (2026-07-04) ca să fie durabili în repo — memoria trăia în `.claude/`, separat de proiect.
 > Completează `CLAUDE.md` §2 (mediu) și §8 (comenzi) cu detalii și capcane care nu-s acolo.
 > Procedura completă de mutare a domeniului: `DEPLOY-DOMENIU.md`.
+>
+> **Reconciliat 2026-07-13:** §1.4 (metoda de cutover) + §1.1/§1.5 (email `columna.md`) au fost aliniate la
+> `DEPLOY-DOMENIU.md` — sursa autoritativă pentru cutover. Vechea metodă (rsync `wp-content` + REPLACE SQL) e
+> abandonată; e-mailul instituției e consolidat la `info@columna.md`.
 
 ---
 
@@ -13,11 +17,11 @@
 `/contacte` (`ContactController@store` → mailables `ContactNotification` + `ContactConfirmation`, ambele
 `ShouldQueue`) pare că merge (redirect la `/contacte/multumim`), dar **e-mailurile NU pleacă** fără:
 1. **SMTP real:** `MAIL_MAILER` ≠ `log` (dev-ul e pe `log` → mailul ajunge doar în `storage/logs/laravel.log`).
-   Setează transport real + `MAIL_FROM_ADDRESS`/`MAIL_FROM_NAME` cu adresa liceului (acum placeholder
-   `hello@example.com`).
+   Setează transport real + `MAIL_FROM_ADDRESS`/`MAIL_FROM_NAME` cu adresa liceului (acum `no-reply@columna.md`
+   în `.env.example` — corect ca domeniu, dar cere credențialele SMTP reale ale `columna.md` în spate).
 2. **Worker de queue activ:** `QUEUE_CONNECTION=database` + mailables pe queue → rulează permanent
    `php artisan queue:work` (supervisor/systemd) sau Horizon. Fără worker, joburile stau în tabela `jobs`.
-3. **Cutia poștală:** `CONTACT_MAIL_TO` (default `info@columna.org.md`; vezi `config/contact.php`).
+3. **Cutia poștală:** `CONTACT_MAIL_TO` (default `info@columna.md`; vezi `config/contact.php`).
 
 ⚠️ `MAIL_MAILER=log` + queue fără worker = deploy tăcut, se pierd mesaje reale de la părinți fără eroare
 vizibilă. Testează o trimitere reală după deploy.
@@ -41,14 +45,21 @@ Toate datele de test sunt marcate `[DEMO]` → NU trebuie să ajungă în produc
 - MFA (TOTP) obligatoriu (`CMS_REQUIRE_MFA=true` implicit) — forțat la prima logare.
 
 ### 1.4 Cutover domeniu `columna.org.md` → `columna.md`
-Procedura completă în `DEPLOY-DOMENIU.md`. Rezumat:
-1. `rsync` `storage/app/public/` (bibliotecă 256MB + galerie + posts) + `public/images/`.
-2. `rsync` `wp-content/uploads/` de pe WP-ul vechi → `public/wp-content/uploads/` (~500MB–1GB; fără el,
-   imaginile din articolele vechi se rup după REPLACE).
-3. **SQL REPLACE** `columna.org.md → columna.md` pe `posts.body`/`excerpt` + `post_translations.body`/`excerpt`
-   (**backup DB ÎNAINTE**). `library_items` nu necesită (link golit prin `app:download-library-pdfs`).
-4. Verificare live: `curl -I` pe homepage + un articol vechi + un PDF bibliotecă + galerie → toate `200`.
-5. Plan de rollback documentat în `DEPLOY-DOMENIU.md`.
+Procedura completă și **autoritativă** în `DEPLOY-DOMENIU.md` (rescrisă 2026-07-13). Rezumat aliniat:
+1. `rsync` `storage/app/public/` (bibliotecă 256MB + galerie + `posts/`, inclusiv `posts/imported/` ~101MB)
+   + `public/images/`. Pe VPS: `php artisan storage:link` dacă lipsește symlink-ul.
+2. **Localizarea imaginilor din articole = comanda `app:localize-post-images`, NU un REPLACE SQL.** Ea
+   descarcă asset-urile local (`storage/app/public/posts/imported/`) și rescrie conținutul la URL-uri
+   `/storage/...` independente de domeniu. ⚠️ Un REPLACE brut pe domeniu lăsa imaginile **rupte**
+   (`wp-content/uploads` NU există pe serverul Laravel) — de aceea metoda veche (rsync `wp-content` +
+   REPLACE) e **abandonată**. `library_items` deja rezolvate (`app:download-library-pdfs`, link golit).
+   - Producția pornește dintr-un dump al bazei LOCALE (deja migrată) → **nimic de rulat**, doar verifici
+     (Varianta A, `DEPLOY-DOMENIU.md` §3.c).
+   - Producția reimportă conținutul de la zero pe VPS → rulează `app:localize-post-images` **ÎNAINTE** de
+     oprirea `columna.org.md` (Varianta B) — comanda descarcă fișierele de pe domeniul vechi.
+3. Verificare live: `curl -I` pe homepage + un articol vechi + un PDF bibliotecă + un asset `posts/imported/`
+   → toate `200` (query SQL de verificare + lista de URL-uri în `DEPLOY-DOMENIU.md` §3.d).
+4. Plan de rollback documentat în `DEPLOY-DOMENIU.md` §6.
 
 ### 1.5 Pagini juridice — date reale + verificare jurist ÎNAINTE de publicare
 3 pagini (Termeni `/termeni-si-conditii`, Confidențialitate `/confidentialitate`, Cookie `/politica-cookies`),
@@ -56,7 +67,6 @@ motor `PublicPageContent`, trilingv. Userul confirmă/furnizează înainte de go
 - **DPO** — contact (acum placeholder în `PublicPageContent.php`).
 - Denumire juridică completă + IDNO `1004600000818`.
 - Data intrării în vigoare / ultima actualizare (acum „iulie 2026", în toate limbile).
-- Inconsecvență de rezolvat: domeniul e `columna.md` dar e-mailul afișat rămâne `info@columna.org.md`.
 
 Sunt date de MINORI → conformitate Legea 133/2011; textele = șabloane profesionale, dar **verificate de un
 jurist** înainte de publicare (eu nu sunt jurist).
