@@ -39,6 +39,17 @@ class SeedDemoZone extends Command
     /** Discipline folosite la alocări (id-uri din tabelul `subjects`). */
     private const SUBJECT_IDS = [1, 5, 8, 2, 11, 9, 13];
 
+    /**
+     * Nume pentru elevi/profesori demo. Interne DELIBERAT — `fake()` (fakerphp/faker) e în require-dev
+     * și LIPSEȘTE în producția `--no-dev`, deci o comandă care rulează pe prod nu se poate baza pe el.
+     */
+    private const LAST_NAMES = ['Popescu', 'Rusu', 'Ciobanu', 'Moraru', 'Ungureanu', 'Rotaru', 'Munteanu', 'Cojocaru', 'Bejan', 'Lungu', 'Cebotari', 'Postolache', 'Sandu', 'Vieru', 'Cazacu', 'Bivol', 'Botnaru', 'Cucu', 'Frunză', 'Zaharia', 'Dragomir', 'Ionescu', 'Balan', 'Croitoru', 'Guțu', 'Melnic', 'Grosu', 'Damian', 'Racu', 'Ursu'];
+
+    private const FIRST_NAMES = ['Andrei', 'Maria', 'Ion', 'Ana', 'Mihai', 'Elena', 'Nicolae', 'Cristina', 'Vasile', 'Daniela', 'Alexandru', 'Natalia', 'Dumitru', 'Irina', 'Sergiu', 'Victoria', 'Petru', 'Tatiana', 'Gheorghe', 'Ludmila', 'Radu', 'Diana', 'Constantin', 'Aliona', 'Valentin', 'Corina', 'Denis', 'Gabriela', 'Marius', 'Nadia'];
+
+    /** Motive scurte pentru corecții/motivări demo. */
+    private const REASONS = ['corectare eroare de calcul', 'notă introdusă greșit', 'certificat medical', 'învoire pentru concurs școlar', 'reexaminare după contestație', 'eroare de transcriere din catalog'];
+
     private string $manifestPath;
 
     public function handle(): int
@@ -183,8 +194,8 @@ class SeedDemoZone extends Command
     private function makeStudent(Carbon $now, array &$manifest): int
     {
         $id = (int) DB::table('students')->insertGetId([
-            'last_name' => self::MARK.' '.fake()->lastName(),
-            'first_name' => fake()->firstName(),
+            'last_name' => self::MARK.' '.self::LAST_NAMES[array_rand(self::LAST_NAMES)],
+            'first_name' => self::FIRST_NAMES[array_rand(self::FIRST_NAMES)],
             'sex' => ['m', 'f'][random_int(0, 1)],
             'register_number' => 'D'.random_int(10000, 99999),
             'second_language' => ['nu', 'gm', 'fr'][random_int(0, 2)],
@@ -327,7 +338,7 @@ class SeedDemoZone extends Command
                         'requested_by_user_id' => $profUserId,
                         'old_value' => number_format($old, 2, '.', ''),
                         'new_value' => number_format(min(10, $old + 1), 2, '.', ''),
-                        'reason' => self::MARK.' '.fake()->sentence(),
+                        'reason' => self::MARK.' '.self::REASONS[array_rand(self::REASONS)],
                         'status' => 'pending',
                         'created_at' => Carbon::now()->subDays(random_int(1, 30)),
                         'updated_at' => Carbon::now(),
@@ -337,7 +348,7 @@ class SeedDemoZone extends Command
                     DB::table('absence_motivations')->insert([
                         'student_id' => $row->student_id,
                         'requested_by_user_id' => $parentUserId,
-                        'reason' => self::MARK.' '.fake()->sentence(),
+                        'reason' => self::MARK.' '.self::REASONS[array_rand(self::REASONS)],
                         'period_start' => Carbon::now()->subDays(10)->toDateString(),
                         'period_end' => Carbon::now()->subDays(7)->toDateString(),
                         'status' => 'pending',
