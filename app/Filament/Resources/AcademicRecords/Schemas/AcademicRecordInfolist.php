@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\AcademicRecords\Schemas;
 
+use App\Enums\SchoolCycle;
 use App\Support\ContentTranslator;
+use App\Support\GradeLevels;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
 
@@ -18,7 +20,9 @@ class AcademicRecordInfolist
                     ->label(__('panel.fields.subject'))
                     ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state)),
                 TextEntry::make('grade_level')
-                    ->label(__('panel.fields.class')),
+                    ->label(__('panel.fields.class'))
+                    // Treapta în notația documentelor școlare (roman) + ciclul — nu cifra brută.
+                    ->formatStateUsing(fn (int $state): string => GradeLevels::roman($state).' · '.SchoolCycle::fromGradeLevel($state)->label()),
                 TextEntry::make('period')
                     ->label(__('panel.fields.period'))
                     ->badge(),
