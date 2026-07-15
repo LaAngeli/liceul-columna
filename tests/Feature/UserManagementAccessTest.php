@@ -1,7 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
-use App\Filament\Resources\Users\Pages\EditUser;
+use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -91,18 +91,21 @@ it('UserResource::canEdit respectă ierarhia (directorul nu editează un super-a
 });
 
 it('administrația poate reseta parola unui elev fără e-mail, fără să fie forțată să adauge unul', function () {
+    // Fluxul nou (2026-07-16): resetarea de parolă e acțiunea „Parolă nouă" din listă
+    // (parolă temporară generată + schimbare obligatorie la prima autentificare),
+    // nu un câmp pe formularul de editare.
     $admin = userCu(UserRole::Admin);
     $elev = User::factory()->create(['email' => null, 'username' => 'elev.fara.email']);
     $elev->assignRole(UserRole::Elev->value);
 
     $this->actingAs($admin);
 
-    Livewire::test(EditUser::class, ['record' => $elev->getRouteKey()])
-        ->fillForm(['password' => 'parola-noua-123'])
-        ->call('save')
-        ->assertHasNoFormErrors();
+    Livewire::test(ListUsers::class)
+        ->callTableAction('newPassword', $elev, ['password' => 'parola-noua-123'])
+        ->assertHasNoTableActionErrors();
 
     $elev->refresh();
     expect($elev->email)->toBeNull()
-        ->and(Hash::check('parola-noua-123', $elev->password))->toBeTrue();
+        ->and(Hash::check('parola-noua-123', $elev->password))->toBeTrue()
+        ->and($elev->must_change_password)->toBeTrue();
 });

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Laravel\Fortify\Actions\AttemptToAuthenticate;
 use Laravel\Fortify\Actions\CanonicalizeUsername;
@@ -68,6 +69,14 @@ class FortifyServiceProvider extends ServiceProvider
                 ->first();
 
             if ($user && Hash::check((string) $request->input('password'), $user->password)) {
+                // Contul suspendat nu se autentifică — mesaj explicit, nu „date greșite"
+                // (utilizatorul nu are ce parolă să-și „corecteze").
+                if ($user->isSuspended()) {
+                    throw ValidationException::withMessages([
+                        Fortify::username() => __('auth.suspended'),
+                    ]);
+                }
+
                 return $user;
             }
 

@@ -32,6 +32,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property bool $must_change_password
+ * @property Carbon|null $suspended_at
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -50,7 +51,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'username', 'email', 'password', 'must_change_password', 'locale', 'notification_locale', 'notification_contacts', 'notification_preferences', 'audience_domains', 'privacy_acknowledged_version', 'privacy_acknowledged_at'])]
+#[Fillable(['name', 'username', 'email', 'password', 'must_change_password', 'suspended_at', 'locale', 'notification_locale', 'notification_contacts', 'notification_preferences', 'audience_domains', 'privacy_acknowledged_version', 'privacy_acknowledged_at'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements Auditable, FilamentUser
 {
@@ -79,7 +80,14 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->hasAnyRole(UserRole::panelRoleValues());
+        // Contul suspendat nu intră în panou, indiferent de rol (starea contului, 2026-07-16).
+        return ! $this->isSuspended() && $this->hasAnyRole(UserRole::panelRoleValues());
+    }
+
+    /** Cont suspendat = autentificare blocată + sesiunile existente închise (EnsureAccountActive). */
+    public function isSuspended(): bool
+    {
+        return $this->suspended_at !== null;
     }
 
     /**
@@ -555,6 +563,16 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * Fișa de ELEV legată de acest cont (contul de elev ↔ fișa lui din registru).
+     *
+     * @return HasOne<Student, $this>
+     */
+    public function student(): HasOne
+    {
+        return $this->hasOne(Student::class);
+    }
+
+    /**
      * Rolurile pe care acest utilizator (actor) le poate ATRIBUI altora la crearea/editarea
      * conturilor (ierarhie impusă pe server, §3.3 „Conturi de familie"):
      * - Super Administrator → toate;
@@ -684,6 +702,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'must_change_password' => 'boolean',
+            'suspended_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
             'two_factor_email_enabled_at' => 'datetime',
             'two_factor_reset_at' => 'datetime',

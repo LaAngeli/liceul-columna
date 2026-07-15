@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureAccountActive;
 use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\EnsurePrivacyAcknowledged;
 use App\Http\Middleware\EnsureTwoFactorEnrolled;
@@ -29,6 +30,8 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            // Contul suspendat e deconectat ÎNAINTE de lanțul de onboarding.
+            EnsureAccountActive::class,
             EnsurePasswordChanged::class,
             EnsurePrivacyAcknowledged::class,
             // Gate-ul 2FA rulează DUPĂ parola forțată + consimțământ (lanțul de onboarding).

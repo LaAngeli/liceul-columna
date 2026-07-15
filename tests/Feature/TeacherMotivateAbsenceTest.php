@@ -134,7 +134,9 @@ it('profesorul de disciplină vede absența de la ora lui, dar nu o poate motiva
 
     expect($profesor->canMotivateAbsencesFor($this->class->id))->toBeFalse();
 
-    Livewire::test(ListAbsences::class)
+    // Tabelul se randează în contextul clasei (navigatorul de catalog, 83a45c4).
+    Livewire::withQueryParams(['clasa' => (string) $this->class->id])
+        ->test(ListAbsences::class)
         ->assertCanSeeTableRecords([$absence])
         ->assertTableActionHidden('motivate', $absence);
 });

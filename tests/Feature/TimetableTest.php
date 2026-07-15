@@ -62,10 +62,13 @@ it('cabinetul afișează orarul structurat al clasei elevului', function () {
 it('riscul de amânare apare la disciplina cu ≤1 notă și >50% absențe din lecțiile programate', function () {
     $year = AcademicYear::factory()->create();
     $class = SchoolClass::factory()->for($year)->create();
+    // Interval FIX luni→duminică, exact 10 săptămâni (50 de zile lucrătoare) — cu `now()`,
+    // numărul de săptămâni (ceil pe zile lucrătoare/5) varia cu ziua rulării și testul
+    // devenea fragil la dată (pragul 11 > 50%·22 pica).
     $term = Term::factory()->for($year)->create([
         'is_current' => true,
-        'starts_on' => now(),
-        'ends_on' => now()->addWeeks(10), // 10 săptămâni
+        'starts_on' => '2026-09-07',
+        'ends_on' => '2026-11-15',
     ]);
     $subject = Subject::factory()->create();
     $student = Student::factory()->create();
