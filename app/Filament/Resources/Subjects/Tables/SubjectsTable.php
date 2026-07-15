@@ -3,9 +3,7 @@
 namespace App\Filament\Resources\Subjects\Tables;
 
 use App\Enums\SchoolCycle;
-use App\Filament\Resources\Subjects\Pages\ListSubjects;
 use App\Models\Subject;
-use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Support\ContentTranslator;
 use Filament\Actions\BulkActionGroup;
@@ -66,29 +64,14 @@ class SubjectsTable
                 TextColumn::make('grading_type')
                     ->label(__('panel.forms.subject.grading_type_short'))
                     ->badge(),
-                // PROFESOR/DIRIGINTE: „Clasele mele" — unde predau EU disciplina asta. Hărțile
-                // trăiesc pe pagina Livewire (per request, per utilizator) — vezi ListSubjects.
-                TextColumn::make('my_classes')
-                    ->label(__('panel.tables.subjects.my_classes'))
-                    ->state(fn (Subject $record, $livewire): string => ($livewire instanceof ListSubjects
-                        ? ($livewire->myClassesMap()->get($record->id) ?? '')
-                        : '') ?: (string) __('panel.common.dash'))
-                    ->visible(fn (): bool => self::currentTeacher() !== null),
-                // DIRIGINTE: cine predă disciplina în clasa MEA (imaginea curriculară a clasei).
-                TextColumn::make('homeroom_teachers')
-                    ->label(__('panel.tables.subjects.in_my_class'))
-                    ->state(fn (Subject $record, $livewire): string => ($livewire instanceof ListSubjects
-                        ? ($livewire->homeroomTeachersMap()->get($record->id) ?? '')
-                        : '') ?: (string) __('panel.common.dash'))
-                    ->visible(fn (): bool => (self::currentTeacher()?->homeroomSchoolClassIds() ?? []) !== []),
-                // ADMINISTRAȚIE: acoperirea instituțională.
+                // Acoperirea instituțională — tabelul e al administrației (cadrele didactice
+                // primesc navigatorul cu carduri; vezi ListSubjects + subjects-navigator.blade).
                 TextColumn::make('classes_count')
                     ->label(__('panel.tables.subjects.coverage'))
                     ->state(fn (Subject $record): string => __('panel.tables.subjects.coverage_value', [
                         'classes' => (int) $record->getAttribute('classes_count'),
                         'teachers' => (int) $record->getAttribute('teachers_count'),
-                    ]))
-                    ->visible(fn (): bool => auth('web')->user()?->isAdministrator() ?? false),
+                    ])),
                 TextColumn::make('report_order')
                     ->label(__('panel.forms.subject.report_order'))
                     ->numeric()
@@ -108,13 +91,6 @@ class SubjectsTable
                     RestoreBulkAction::make(),
                 ]),
             ]);
-    }
-
-    private static function currentTeacher(): ?Teacher
-    {
-        $user = auth('web')->user();
-
-        return ($user && ! $user->isAdministrator()) ? $user->teacher : null;
     }
 
     /** Treptele „V–XII" (o singură valoare când min = max). */

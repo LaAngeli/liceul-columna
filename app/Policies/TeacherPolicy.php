@@ -11,13 +11,9 @@ class TeacherPolicy
 {
     use ConfiguredBySchoolAdmins;
 
-    /**
-     * Registrul e vizibil și cadrelor didactice — SCOPED la echipa claselor lor
-     * (TeacherResource::getEloquentQuery); fișa individuală (view/edit) rămâne a administrației.
-     */
     public function viewAny(User $user): bool
     {
-        return $user->canSeeAcademicData();
+        return $user->isAdministrator();
     }
 
     public function view(User $user, Teacher $teacher): bool

@@ -1,9 +1,10 @@
 <?php
 
 /**
- * Secțiunea „Discipline" pe rol (2026-07-15, feedback beneficiar): profesorul își vede DOAR
- * disciplinele lui; dirigintele vede și disciplinele predate în clasa lui (cu profesorii lor);
- * administrația vede tot nomenclatorul. Treptele se afișează cu cifre romane (clase, nu note).
+ * Secțiunea „Discipline" — navigator cu carduri pentru cadre didactice (2026-07-15, feedback
+ * beneficiar): cardurile disciplinelor PREDATE de mine → click → clasele în care EU o predau.
+ * Filtrarea e pe disciplină ȘI utilizator: doi profesori de chimie își văd fiecare doar clasele
+ * proprii. Administrația păstrează tabelul de nomenclator complet.
  */
 
 use App\Enums\UserRole;
@@ -31,77 +32,76 @@ beforeEach(function () {
         'number' => 1, 'starts_on' => '2025-09-01', 'ends_on' => '2026-01-31', 'is_current' => true,
     ]);
 
-    $this->class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 7, 'section' => 'A']);
+    $this->classA = SchoolClass::factory()->for($this->year)->create(['name' => 'VII', 'grade_level' => 7, 'section' => 'A']);
+    $this->classB = SchoolClass::factory()->for($this->year)->create(['name' => 'IX', 'grade_level' => 9, 'section' => 'B']);
 
-    $this->mySubject = Subject::factory()->create(['name' => 'SUBJ-Mea', 'min_grade' => 5, 'max_grade' => 12]);
-    $this->classSubject = Subject::factory()->create(['name' => 'SUBJ-Clasa', 'min_grade' => 5, 'max_grade' => 9]);
-    $this->unrelatedSubject = Subject::factory()->create(['name' => 'SUBJ-Straina', 'min_grade' => 1, 'max_grade' => 4]);
+    $this->chemistry = Subject::factory()->create(['name' => 'SUBJ-Chimie', 'min_grade' => 7, 'max_grade' => 12]);
+    $this->unrelated = Subject::factory()->create(['name' => 'SUBJ-Alta', 'min_grade' => 1, 'max_grade' => 4]);
 
-    // Profesorul-diriginte: predă SUBJ-Mea în 7 A (clasa lui de diriginție).
+    // Profesorul MEU: predă Chimie DOAR în VII A.
     $this->user = User::factory()->create();
     $this->user->assignRole(UserRole::Profesor->value);
     $this->teacher = Teacher::factory()->create(['user_id' => $this->user->id]);
     TeachingAssignment::factory()->create([
-        'teacher_id' => $this->teacher->id, 'school_class_id' => $this->class->id, 'subject_id' => $this->mySubject->id,
+        'teacher_id' => $this->teacher->id, 'school_class_id' => $this->classA->id, 'subject_id' => $this->chemistry->id,
     ]);
 
-    // Colegul predă SUBJ-Clasa în aceeași clasă.
-    $colleagueUser = User::factory()->create();
-    $colleagueUser->assignRole(UserRole::Profesor->value);
-    $this->colleague = Teacher::factory()->create(['user_id' => $colleagueUser->id]);
+    // AL DOILEA profesor de Chimie: predă aceeași disciplină în IX B (nu trebuie să apară la mine).
+    $this->otherChemist = Teacher::factory()->create();
     TeachingAssignment::factory()->create([
-        'teacher_id' => $this->colleague->id, 'school_class_id' => $this->class->id, 'subject_id' => $this->classSubject->id,
+        'teacher_id' => $this->otherChemist->id, 'school_class_id' => $this->classB->id, 'subject_id' => $this->chemistry->id,
     ]);
-});
-
-it('profesorul (ne-diriginte) vede DOAR disciplinele pe care le predă', function () {
-    actingAs($this->user);
-
-    Livewire::test(ListSubjects::class)
-        ->assertCanSeeTableRecords([$this->mySubject])
-        ->assertCanNotSeeTableRecords([$this->classSubject, $this->unrelatedSubject]);
-});
-
-it('dirigintele vede și disciplinele predate în clasa lui, nu și restul nomenclatorului', function () {
-    $this->class->update(['homeroom_teacher_id' => $this->teacher->id]);
 
     actingAs($this->user);
-
-    Livewire::test(ListSubjects::class)
-        ->assertCanSeeTableRecords([$this->mySubject, $this->classSubject])
-        ->assertCanNotSeeTableRecords([$this->unrelatedSubject]);
 });
 
-it('administrația vede tot nomenclatorul', function () {
+it('profesorul primește carduri DOAR cu disciplinele lui', function () {
+    $cards = Livewire::test(ListSubjects::class)->instance()->subjectCards();
+
+    expect(collect($cards)->pluck('id')->all())->toBe([$this->chemistry->id]);
+});
+
+it('click pe disciplină → DOAR clasele MELE pentru ea (nu și ale celuilalt profesor de chimie)', function () {
+    $component = Livewire::test(ListSubjects::class)
+        ->call('openSubject', $this->chemistry->id);
+
+    $classCards = $component->instance()->classCards();
+
+    // Filtru disciplină + UTILIZATOR: VII A (a mea) da; IX B (a colegului chimist) NU.
+    expect(collect($classCards)->pluck('id')->all())->toBe([$this->classA->id])
+        ->and($component->instance()->activeSubject()?->id)->toBe($this->chemistry->id);
+});
+
+it('cardul clasei sare direct în Note/Absențe/Teme pe contextul (clasă, disciplină)', function () {
+    $component = Livewire::test(ListSubjects::class)->call('openSubject', $this->chemistry->id);
+
+    $links = collect($component->instance()->classCards())->firstWhere('id', $this->classA->id)['links'];
+
+    foreach ($links as $url) {
+        expect($url)->toContain('clasa='.$this->classA->id)
+            ->toContain('disciplina='.$this->chemistry->id);
+    }
+});
+
+it('o disciplină pe care N-O predau, venită prin URL, nu deschide context', function () {
+    $component = Livewire::withQueryParams(['disciplina' => (string) $this->unrelated->id])
+        ->test(ListSubjects::class);
+
+    expect($component->instance()->activeSubject())->toBeNull();
+});
+
+it('administrația păstrează TABELUL cu tot nomenclatorul', function () {
     $admin = User::factory()->create();
     $admin->assignRole(UserRole::Director->value);
     actingAs($admin);
 
-    Livewire::test(ListSubjects::class)
-        ->assertCanSeeTableRecords([$this->mySubject, $this->classSubject, $this->unrelatedSubject]);
+    $component = Livewire::test(ListSubjects::class);
+
+    expect($component->instance()->isTeacherView())->toBeFalse();
+
+    $component->assertCanSeeTableRecords([$this->chemistry, $this->unrelated]);
 });
 
-it('treptele se afișează cu cifre ROMANE (clase, nu scară de notare)', function () {
-    $admin = User::factory()->create();
-    $admin->assignRole(UserRole::Director->value);
-    actingAs($admin);
-
-    Livewire::test(ListSubjects::class)
-        ->assertSee('V–XII')
-        ->assertSee('I–IV');
-});
-
-it('dirigintele vede cine predă disciplina colegului în clasa lui', function () {
-    $this->class->update(['homeroom_teacher_id' => $this->teacher->id]);
-
-    actingAs($this->user);
-
-    Livewire::test(ListSubjects::class)
-        ->assertSee($this->colleague->full_name);
-});
-
-it('scoping-ul se aplică și pe interogarea resursei (nu doar pe tabel)', function () {
-    actingAs($this->user);
-
-    expect(SubjectResource::getEloquentQuery()->pluck('id')->all())->toBe([$this->mySubject->id]);
+it('scoping-ul resursei = strict disciplinele predate (interogarea, nu doar afișarea)', function () {
+    expect(SubjectResource::getEloquentQuery()->pluck('id')->all())->toBe([$this->chemistry->id]);
 });

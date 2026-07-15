@@ -516,14 +516,10 @@ return [
             'homeroom_only_yes' => 'Has homeroom teacher',
         ],
         'subjects' => [
-            'my_classes' => 'My classes',
-            'in_my_class' => 'In my class (taught by)',
             'coverage' => 'Coverage',
             'coverage_value' => ':classes classes · :teachers teachers',
         ],
         'teachers' => [
-            'in_my_classes' => 'Teaches in my classes',
-            'in_my_homeroom' => 'In my class',
             'homeroom_of' => 'Homeroom teacher of',
             'coverage' => 'Coverage',
             'coverage_value' => ':subjects subjects · :classes classes',
@@ -1015,6 +1011,8 @@ return [
         'homework_records' => '{1}:count assignment|[2,*]:count assignments',
         'students_hint' => 'Pick a class to see its students. Global search (Ctrl+K) finds any student within your scope.',
         'students_archive' => 'Archive (all students)',
+        'subjects_hint' => 'The subjects you teach. Pick one to see your classes for it.',
+        'subject_classes_hint' => 'The classes where you teach this subject — with direct jumps into the catalog.',
         'no_records' => 'no records yet',
         'last_record' => 'latest: :date',
         'homeroom' => 'My class',

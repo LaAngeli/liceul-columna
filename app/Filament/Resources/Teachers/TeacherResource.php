@@ -2,15 +2,14 @@
 
 namespace App\Filament\Resources\Teachers;
 
+use App\Filament\Concerns\AdministratorOnly;
 use App\Filament\Resources\Teachers\Pages\CreateTeacher;
 use App\Filament\Resources\Teachers\Pages\EditTeacher;
 use App\Filament\Resources\Teachers\Pages\ListTeachers;
 use App\Filament\Resources\Teachers\RelationManagers\TeachingAssignmentsRelationManager;
 use App\Filament\Resources\Teachers\Schemas\TeacherForm;
 use App\Filament\Resources\Teachers\Tables\TeachersTable;
-use App\Models\SchoolClass;
 use App\Models\Teacher;
-use App\Models\TeachingAssignment;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -22,6 +21,8 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class TeacherResource extends Resource
 {
+    use AdministratorOnly;
+
     protected static ?string $model = Teacher::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
@@ -52,17 +53,9 @@ class TeacherResource extends Resource
         return __('panel.resources.teachers.plural');
     }
 
-    /**
-     * Secțiune REGÂNDITĂ pe rol (2026-07-15, la cererea beneficiarului — același principiu ca la
-     * Discipline): profesorul vede „echipa claselor lui" (colegii care predau în clasele lui +
-     * diriginții lor — doar informație profesională, fără email/cont); dirigintele vede în plus
-     * ce predă fiecare în clasa coordonată; administrația vede registrul complet.
-     */
-    public static function canViewAny(): bool
-    {
-        return auth('web')->user()?->canSeeAcademicData() ?? false;
-    }
-
+    // DECIZIE beneficiar (2026-07-15): secțiunea NU se deschide cadrelor didactice („nu prezintă
+    // nicio importanță" pentru ele) — rămâne registrul administrației (AdministratorOnly), unde
+    // trăiesc fișele profesorilor + alocările (fundamentul scoping-ului).
     // Fișele de profesor sunt parte din CONFIGURAREA școlii (alocări §3.3) → creare/editare/ștergere
     // doar de configuratori (super-admin/director/AO), NU de prim-vicedirector. Consecvent cu
     // Elevi/Discipline/Clase (ManagedByConfigurators); audit M-6/#15.
@@ -131,42 +124,6 @@ class TeacherResource extends Resource
             'create' => CreateTeacher::route('/create'),
             'edit' => EditTeacher::route('/{record}/edit'),
         ];
-    }
-
-    /**
-     * Scoping pe rol: administrația vede tot registrul; profesorul/dirigintele vede „echipa
-     * claselor lui" — colegii cu alocări în clasele lui vizibile + diriginții acelor clase
-     * (se include implicit și pe el). Fără fișă de profesor → nimic.
-     */
-    public static function getEloquentQuery(): Builder
-    {
-        $query = parent::getEloquentQuery();
-        $user = auth('web')->user();
-
-        if (! $user || $user->isAdministrator()) {
-            return $query;
-        }
-
-        $teacher = $user->teacher;
-
-        if (! $teacher) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        $classIds = $teacher->visibleSchoolClassIds();
-
-        $colleagueIds = TeachingAssignment::query()
-            ->whereIn('school_class_id', $classIds)
-            ->pluck('teacher_id')
-            ->merge(
-                SchoolClass::query()
-                    ->whereKey($classIds)
-                    ->whereNotNull('homeroom_teacher_id')
-                    ->pluck('homeroom_teacher_id'),
-            )
-            ->unique();
-
-        return $query->whereKey($colleagueIds->all());
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

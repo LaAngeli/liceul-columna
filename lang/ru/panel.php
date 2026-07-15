@@ -514,14 +514,10 @@ return [
             'homeroom_only_yes' => 'С классным руководителем',
         ],
         'subjects' => [
-            'my_classes' => 'Мои классы',
-            'in_my_class' => 'В моём классе (преподаёт)',
             'coverage' => 'Охват',
             'coverage_value' => 'классов: :classes · учителей: :teachers',
         ],
         'teachers' => [
-            'in_my_classes' => 'Преподаёт в моих классах',
-            'in_my_homeroom' => 'В моём классе',
             'homeroom_of' => 'Классный руководитель',
             'coverage' => 'Охват',
             'coverage_value' => 'предметов: :subjects · классов: :classes',
@@ -1013,6 +1009,8 @@ return [
         'homework_records' => '{1}:count задание|[2,4]:count задания|[5,*]:count заданий',
         'students_hint' => 'Выберите класс, чтобы увидеть его учеников. Глобальный поиск (Ctrl+K) найдёт любого ученика в вашей зоне.',
         'students_archive' => 'Архив (все ученики)',
+        'subjects_hint' => 'Предметы, которые вы преподаёте. Выберите один, чтобы увидеть свои классы по нему.',
+        'subject_classes_hint' => 'Классы, в которых вы преподаёте этот предмет — с быстрыми переходами в журнал.',
         'no_records' => 'записей пока нет',
         'last_record' => 'последняя: :date',
         'homeroom' => 'Мой класс',

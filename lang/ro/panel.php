@@ -529,14 +529,10 @@ return [
             'homeroom_only_yes' => 'Cu diriginte',
         ],
         'subjects' => [
-            'my_classes' => 'Clasele mele',
-            'in_my_class' => 'În clasa mea (predă)',
             'coverage' => 'Acoperire',
             'coverage_value' => ':classes clase · :teachers prof.',
         ],
         'teachers' => [
-            'in_my_classes' => 'Predă în clasele mele',
-            'in_my_homeroom' => 'În clasa mea',
             'homeroom_of' => 'Diriginte al',
             'coverage' => 'Acoperire',
             'coverage_value' => ':subjects discipline · :classes clase',
@@ -1030,6 +1026,8 @@ return [
         'homework_records' => '{1}:count temă|[2,19]:count teme|[20,*]:count de teme',
         'students_hint' => 'Alege o clasă ca să-i vezi elevii. Căutarea globală (Ctrl+K) găsește orice elev din perimetrul tău.',
         'students_archive' => 'Arhivă (toți elevii)',
+        'subjects_hint' => 'Disciplinele pe care le predai. Alege una ca să vezi clasele tale pentru ea.',
+        'subject_classes_hint' => 'Clasele în care predai această disciplină — cu sărituri directe în catalog.',
         'no_records' => 'fără înregistrări încă',
         'last_record' => 'ultima: :date',
         'homeroom' => 'Clasa mea',
