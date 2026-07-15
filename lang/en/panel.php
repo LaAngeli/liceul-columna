@@ -521,6 +521,13 @@ return [
             'coverage' => 'Coverage',
             'coverage_value' => ':classes classes · :teachers teachers',
         ],
+        'teachers' => [
+            'in_my_classes' => 'Teaches in my classes',
+            'in_my_homeroom' => 'In my class',
+            'homeroom_of' => 'Homeroom teacher of',
+            'coverage' => 'Coverage',
+            'coverage_value' => ':subjects subjects · :classes classes',
+        ],
         'students' => [
             'corigenti_filter' => 'Make-up exam',
             'corigenti_only' => 'Only students in make-up',

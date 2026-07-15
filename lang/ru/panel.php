@@ -519,6 +519,13 @@ return [
             'coverage' => 'Охват',
             'coverage_value' => 'классов: :classes · учителей: :teachers',
         ],
+        'teachers' => [
+            'in_my_classes' => 'Преподаёт в моих классах',
+            'in_my_homeroom' => 'В моём классе',
+            'homeroom_of' => 'Классный руководитель',
+            'coverage' => 'Охват',
+            'coverage_value' => 'предметов: :subjects · классов: :classes',
+        ],
         'students' => [
             'corigenti_filter' => 'На переэкзаменовке',
             'corigenti_only' => 'Только на переэкзаменовке',

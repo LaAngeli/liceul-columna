@@ -534,6 +534,13 @@ return [
             'coverage' => 'Acoperire',
             'coverage_value' => ':classes clase · :teachers prof.',
         ],
+        'teachers' => [
+            'in_my_classes' => 'Predă în clasele mele',
+            'in_my_homeroom' => 'În clasa mea',
+            'homeroom_of' => 'Diriginte al',
+            'coverage' => 'Acoperire',
+            'coverage_value' => ':subjects discipline · :classes clase',
+        ],
         'students' => [
             'corigenti_filter' => 'Corigenți',
             'corigenti_only' => 'Doar corigenți',
