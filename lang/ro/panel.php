@@ -972,4 +972,31 @@ return [
         'not_archived_title' => 'Nota NU a intrat în foaia matricolă',
         'not_archived_body' => 'Nota a fost salvată pe examen, dar elevul nu are înmatriculare în anul examenului, deci treapta nu a putut fi determinată. Verifică înmatricularea elevului, apoi resalvează nota.',
     ],
+
+    // Navigatorul catalogului (Note / Absențe): meniul drill-down pe dimensiuni → entități → tabel.
+    'catalog_nav' => [
+        'aria' => 'Navigarea catalogului',
+        'hint' => 'Alege cum navighezi: pe clase, pe discipline, pe profesori sau pe perioade — apoi deschide o entitate.',
+        'dimensions' => [
+            'clase' => 'Clase',
+            'discipline' => 'Discipline',
+            'profesori' => 'Profesori',
+            'perioade' => 'Perioade',
+        ],
+        'students' => '{1}:count elev|[2,19]:count elevi|[20,*]:count de elevi',
+        'classes' => '{1}:count clasă|[2,19]:count clase|[20,*]:count de clase',
+        'subjects' => '{1}:count disciplină|[2,19]:count discipline|[20,*]:count de discipline',
+        'records' => '{1}:count înregistrare|[2,19]:count înregistrări|[20,*]:count de înregistrări',
+        'no_records' => 'fără înregistrări încă',
+        'last_record' => 'ultima: :date',
+        'homeroom' => 'Clasa mea',
+        'current_term' => 'Semestrul curent',
+        'back' => 'Înapoi la navigare',
+        'switch' => 'Sari la altă entitate',
+        'all' => 'Toate',
+        'chips_subjects' => 'Discipline',
+        'chips_classes' => 'Clase',
+        'empty_title' => 'Nimic de afișat aici',
+        'empty_description' => 'Nu există încă date pentru această vedere — sau nu ai clase alocate.',
+    ],
 ];

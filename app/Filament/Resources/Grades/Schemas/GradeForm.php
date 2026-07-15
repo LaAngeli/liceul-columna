@@ -27,6 +27,10 @@ class GradeForm
                 Select::make('school_class_id')
                     ->label(__('panel.fields.class'))
                     ->options(fn (): array => self::classOptions())
+                    // Venind din navigatorul de catalog, contextul (clasa/disciplina) sosește în
+                    // query string și pre-completează formularul — DOAR dacă e printre opțiunile
+                    // permise rolului (un id străin e ignorat, nu preluat orbește).
+                    ->default(fn (): ?int => self::requestedContextId('clasa', self::classOptions()))
                     ->searchable()
                     ->required()
                     ->live()
@@ -34,6 +38,7 @@ class GradeForm
                 Select::make('subject_id')
                     ->label(__('panel.fields.subject'))
                     ->options(fn (): array => self::subjectOptions())
+                    ->default(fn (): ?int => self::requestedContextId('disciplina', self::subjectOptions()))
                     ->searchable()
                     ->required()
                     // La schimbarea disciplinei, câmpul de notare se adaptează (numeric vs calificativ)
@@ -96,6 +101,25 @@ class GradeForm
         $user = auth('web')->user();
 
         return ($user && ! $user->isAdministrator()) ? $user->teacher : null;
+    }
+
+    /**
+     * Id-ul de context primit în query string (din navigatorul de catalog), acceptat DOAR dacă
+     * face parte din opțiunile permise rolului — altfel null (fără pre-completare).
+     *
+     * @param  array<int, string>  $options
+     */
+    private static function requestedContextId(string $parameter, array $options): ?int
+    {
+        $raw = request()->query($parameter);
+
+        if (! is_string($raw) || ! ctype_digit($raw)) {
+            return null;
+        }
+
+        $id = (int) $raw;
+
+        return array_key_exists($id, $options) ? $id : null;
     }
 
     /** Disciplina aleasă în formular (sau null cât timp nu e selectată). */

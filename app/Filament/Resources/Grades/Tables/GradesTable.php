@@ -6,6 +6,7 @@ use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
 use App\Enums\SchoolCycle;
+use App\Filament\Contracts\CatalogNavigator;
 use App\Filament\Exports\GradeExporter;
 use App\Filament\Resources\Students\StudentResource;
 use App\Models\Grade;
@@ -35,9 +36,19 @@ class GradesTable
             // Restructurat: 6 coloane vizibile default (față de 10 înainte). Info secundară în
             // `description()` (rând 2 al celulei). Vezi memoria filament-table-width-compaction.
             // `withCount` alimentează `hasPendingCorrection()` fără o interogare per rând (N+1).
-            ->modifyQueryUsing(fn ($query) => $query
-                ->with(['student', 'schoolClass', 'subject'])
-                ->withCount(['corrections as pending_corrections_count' => fn ($q) => $q->where('status', CorrectionStatus::Pending)]))
+            // Navigatorul de catalog (pagina de listare) restrânge suplimentar interogarea la
+            // contextul ales (clasă / disciplină / profesor / perioadă) — vezi HasCatalogNavigator.
+            ->modifyQueryUsing(function ($query, $livewire) {
+                $query
+                    ->with(['student', 'schoolClass', 'subject'])
+                    ->withCount(['corrections as pending_corrections_count' => fn ($q) => $q->where('status', CorrectionStatus::Pending)]);
+
+                if ($livewire instanceof CatalogNavigator) {
+                    $livewire->applyCatalogContext($query);
+                }
+
+                return $query;
+            })
             ->columns([
                 // ELEV + clasa (fost coloană „Clasă" separată).
                 TextColumn::make('student.full_name')
@@ -91,20 +102,25 @@ class GradesTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // Filtrele acoperite de navigator dispar când contextul respectiv e activ —
+                // navigarea e sursa de adevăr, filtrul ar dubla (și contrazice) selecția.
                 SelectFilter::make('school_class_id')
                     ->label(__('panel.fields.class'))
                     ->relationship('schoolClass', 'name')
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogClassIdInContext() !== null)),
                 SelectFilter::make('subject_id')
                     ->label(__('panel.fields.subject'))
                     ->relationship('subject', 'name')
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogSubjectIdInContext() !== null)),
                 SelectFilter::make('term_id')
                     ->label(__('panel.fields.term'))
                     ->relationship('term', 'name')
-                    ->preload(),
+                    ->preload()
+                    ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogTermIdInContext() !== null)),
                 SelectFilter::make('evaluation_type')
                     ->label(__('panel.fields.evaluation_type'))
                     ->options(EvaluationType::options()),

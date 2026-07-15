@@ -957,4 +957,31 @@ return [
         'not_archived_title' => 'The mark did NOT reach the transcript',
         'not_archived_body' => 'The mark was saved on the exam, but the student has no enrollment in the exam year, so the grade level could not be determined. Check the enrollment, then re-save the mark.',
     ],
+
+    // Catalog navigator (grades / absences): drill-down menu across dimensions → entities → table.
+    'catalog_nav' => [
+        'aria' => 'Catalog navigation',
+        'hint' => 'Choose how to navigate: by class, by subject, by teacher or by period — then open an entity.',
+        'dimensions' => [
+            'clase' => 'Classes',
+            'discipline' => 'Subjects',
+            'profesori' => 'Teachers',
+            'perioade' => 'Periods',
+        ],
+        'students' => '{1}:count student|[2,*]:count students',
+        'classes' => '{1}:count class|[2,*]:count classes',
+        'subjects' => '{1}:count subject|[2,*]:count subjects',
+        'records' => '{1}:count record|[2,*]:count records',
+        'no_records' => 'no records yet',
+        'last_record' => 'latest: :date',
+        'homeroom' => 'My class',
+        'current_term' => 'Current term',
+        'back' => 'Back to navigation',
+        'switch' => 'Jump to another entity',
+        'all' => 'All',
+        'chips_subjects' => 'Subjects',
+        'chips_classes' => 'Classes',
+        'empty_title' => 'Nothing to show here',
+        'empty_description' => 'There is no data for this view yet — or you have no assigned classes.',
+    ],
 ];
