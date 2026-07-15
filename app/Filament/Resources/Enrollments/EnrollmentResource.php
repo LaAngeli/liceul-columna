@@ -9,6 +9,7 @@ use App\Filament\Resources\Enrollments\Pages\ListEnrollments;
 use App\Filament\Resources\Enrollments\Schemas\EnrollmentForm;
 use App\Filament\Resources\Enrollments\Tables\EnrollmentsTable;
 use App\Models\Enrollment;
+use App\Models\SchoolClass;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -79,5 +80,26 @@ class EnrollmentResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+    }
+
+    /**
+     * Anul stocat = ÎNTOTDEAUNA anul clasei alese (redundanța school_class_id/academic_year_id
+     * din schemă nu are voie să se desincronizeze). Regula de formular `class_year_mismatch`
+     * rămâne stratul cu feedback; aici e centura finală, pe server, la Create ȘI la Edit.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function withCoherentYear(array $data): array
+    {
+        $classId = $data['school_class_id'] ?? null;
+
+        if ($classId !== null && $classId !== '') {
+            $data['academic_year_id'] = SchoolClass::query()->whereKey((int) $classId)->value('academic_year_id')
+                ?? $data['academic_year_id']
+                ?? null;
+        }
+
+        return $data;
     }
 }

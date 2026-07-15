@@ -521,7 +521,14 @@ return [
             'desired_class' => 'Clasa',
             'visit_date' => 'Data vizitei',
         ],
-        'enrollments' => [],
+        'enrollments' => [
+            'status' => 'Statut',
+            'active' => 'Activ',
+            'departed' => 'Plecat',
+            'departure_label' => 'Marchează plecarea',
+            'departure_heading' => 'Plecarea elevului din clasă',
+            'departure_success' => 'Plecarea a fost înregistrată.',
+        ],
         'school_classes' => [
             'homeroom' => 'Diriginte',
             'homeroom_filter' => 'Diriginte',
@@ -577,6 +584,9 @@ return [
     ],
 
     'forms' => [
+        'enrollment' => [
+            'student_hint' => 'Sunt oferiți doar elevii fără înmatriculare în anul școlar ales.',
+        ],
         'document' => [
             'section_details' => 'Detalii',
             'section_access' => 'Acces',
@@ -1041,6 +1051,11 @@ return [
         'transcript_level' => 'Clasa a :grade-a',
         'transcript_avg' => 'Media anuală a disciplinelor afișate: :value',
         'transcript_span' => 'Trepte: :span',
+        'enrollments_hint' => 'Registrul înmatriculărilor: alege anul școlar, apoi clasa, ca să-i deschizi registrul.',
+        'enrollments_class_hint' => 'Înmatriculările clasei. Adăugarea vine pre-completată pe clasă; plecarea se marchează direct din rând.',
+        'active_students' => '{0}fără elevi activi|{1}:count elev activ|[2,19]:count elevi activi|[20,*]:count de elevi activi',
+        'departed_students' => '{1}:count elev plecat|[2,19]:count elevi plecați|[20,*]:count de elevi plecați',
+        'no_enrollments' => 'fără înmatriculări încă',
         'no_records' => 'fără înregistrări încă',
         'last_record' => 'ultima: :date',
         'homeroom' => 'Clasa mea',

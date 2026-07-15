@@ -20,4 +20,13 @@ class EditEnrollment extends EditRecord
             RestoreAction::make(),
         ];
     }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return EnrollmentResource::withCoherentYear($data);
+    }
 }

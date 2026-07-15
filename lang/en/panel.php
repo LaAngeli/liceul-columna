@@ -508,7 +508,14 @@ return [
             'desired_class' => 'Class',
             'visit_date' => 'Visit date',
         ],
-        'enrollments' => [],
+        'enrollments' => [
+            'status' => 'Status',
+            'active' => 'Active',
+            'departed' => 'Departed',
+            'departure_label' => 'Mark departure',
+            'departure_heading' => 'Student departure from the class',
+            'departure_success' => 'The departure has been recorded.',
+        ],
         'school_classes' => [
             'homeroom' => 'Homeroom teacher',
             'homeroom_filter' => 'Homeroom teacher',
@@ -564,6 +571,9 @@ return [
     ],
 
     'forms' => [
+        'enrollment' => [
+            'student_hint' => 'Only students without an enrollment in the selected school year are offered.',
+        ],
         'document' => [
             'section_details' => 'Details',
             'section_access' => 'Access',
@@ -1026,6 +1036,11 @@ return [
         'transcript_level' => 'Grade :grade',
         'transcript_avg' => 'Annual average of the subjects shown: :value',
         'transcript_span' => 'Grade levels: :span',
+        'enrollments_hint' => 'The enrollment register: pick a school year, then a class, to open its register.',
+        'enrollments_class_hint' => 'The class\'s enrollments. Adding comes pre-filled with the class; departures are marked right from the row.',
+        'active_students' => '{0}no active students|{1}:count active student|[2,*]:count active students',
+        'departed_students' => '{1}:count departed student|[2,*]:count departed students',
+        'no_enrollments' => 'no enrollments yet',
         'no_records' => 'no records yet',
         'last_record' => 'latest: :date',
         'homeroom' => 'My class',

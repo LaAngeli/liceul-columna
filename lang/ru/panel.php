@@ -506,7 +506,14 @@ return [
             'desired_class' => 'Класс',
             'visit_date' => 'Дата визита',
         ],
-        'enrollments' => [],
+        'enrollments' => [
+            'status' => 'Статус',
+            'active' => 'Активен',
+            'departed' => 'Выбыл',
+            'departure_label' => 'Отметить выбытие',
+            'departure_heading' => 'Выбытие ученика из класса',
+            'departure_success' => 'Выбытие зарегистрировано.',
+        ],
         'school_classes' => [
             'homeroom' => 'Классный руководитель',
             'homeroom_filter' => 'Классный руководитель',
@@ -562,6 +569,9 @@ return [
     ],
 
     'forms' => [
+        'enrollment' => [
+            'student_hint' => 'Предлагаются только ученики без зачисления в выбранном учебном году.',
+        ],
         'document' => [
             'section_details' => 'Сведения',
             'section_access' => 'Доступ',
@@ -1024,6 +1034,11 @@ return [
         'transcript_level' => ':grade класс',
         'transcript_avg' => 'Годовая средняя по отображённым предметам: :value',
         'transcript_span' => 'Классы: :span',
+        'enrollments_hint' => 'Реестр зачислений: выберите учебный год, затем класс, чтобы открыть его реестр.',
+        'enrollments_class_hint' => 'Зачисления класса. Добавление приходит с предзаполненным классом; выбытие отмечается прямо в строке.',
+        'active_students' => '{0}без активных учеников|{1}:count активный ученик|[2,4]:count активных ученика|[5,*]:count активных учеников',
+        'departed_students' => '{1}:count выбывший ученик|[2,4]:count выбывших ученика|[5,*]:count выбывших учеников',
+        'no_enrollments' => 'зачислений пока нет',
         'no_records' => 'записей пока нет',
         'last_record' => 'последняя: :date',
         'homeroom' => 'Мой класс',

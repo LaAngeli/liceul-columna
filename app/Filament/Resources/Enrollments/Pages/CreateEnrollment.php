@@ -11,4 +11,13 @@ class CreateEnrollment extends CreateRecord
     use DisablesCreateAnother;
 
     protected static string $resource = EnrollmentResource::class;
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        return EnrollmentResource::withCoherentYear($data);
+    }
 }
