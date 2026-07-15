@@ -3,14 +3,14 @@
 namespace App\Filament\Resources\HomeworkAssignments\Pages;
 
 use App\Filament\Concerns\DisablesCreateAnother;
-use App\Filament\Concerns\PreparesHomeworkData;
+use App\Filament\Concerns\EnforcesHomeworkScope;
 use App\Filament\Resources\HomeworkAssignments\HomeworkAssignmentResource;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateHomeworkAssignment extends CreateRecord
 {
     use DisablesCreateAnother;
-    use PreparesHomeworkData;
+    use EnforcesHomeworkScope;
 
     protected static string $resource = HomeworkAssignmentResource::class;
 
@@ -26,6 +26,6 @@ class CreateHomeworkAssignment extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        return $this->prepareHomeworkData($data);
+        return $this->enforceHomeworkScope($data, creating: true);
     }
 }

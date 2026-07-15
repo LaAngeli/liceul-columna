@@ -621,10 +621,7 @@ return [
         ],
         'homework' => [
             'topic' => 'Topic',
-            'class_level' => 'Class (grade level)',
-            'section' => 'Section letter',
-            'section_hint' => 'Class section letter (e.g. A, 1). Leave empty for the whole grade level.',
-            'section_not_found' => 'No class ":section" exists at the chosen grade level — the homework would reach no one. Check the letter or leave it empty.',
+            'whole_grade' => 'Whole grade :level',
             'required_task' => 'Required task',
             'optional_task' => 'Optional task',
             'links' => 'Resource links',
@@ -939,6 +936,11 @@ return [
     ],
 
     'validation' => [
+        'homework' => [
+            'class_target_invalid' => 'Choose a valid class from the list.',
+            'whole_grade_admin_only' => 'Only the administration can assign homework to a whole grade level.',
+            'content_required' => 'The assignment needs a topic or a required task.',
+        ],
         'scope' => [
             'no_teacher_profile' => 'Your account is not linked to a teacher profile.',
             'not_your_class_subject' => 'You do not teach this subject in this class.',

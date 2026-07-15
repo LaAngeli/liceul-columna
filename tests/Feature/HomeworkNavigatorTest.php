@@ -138,25 +138,23 @@ it('un ?perioada= rătăcit în URL nu deschide niciun context la teme', functio
 
 // ─── Pre-completarea formularului din context (clasa → treaptă + literă) ─────────────────
 
-it('formularul de temă se pre-completează cu treapta, litera și disciplina din context', function () {
+it('formularul de temă se pre-completează cu ținta (clasa) și disciplina din context', function () {
     actingAs(hwNavTeacher($this->classA, $this->subject));
 
     Livewire::withQueryParams(['clasa' => (string) $this->classA->id, 'disciplina' => (string) $this->subject->id])
         ->test(CreateHomeworkAssignment::class)
         ->assertFormSet([
-            'grade_level' => 7,
-            'section' => 'A',
+            'class_target' => 'class:'.$this->classA->id,
             'subject_id' => $this->subject->id,
         ]);
 });
 
-it('o clasă din afara scope-ului profesorului nu se pre-completează în formularul de temă', function () {
+it('o clasă din afara alocărilor profesorului nu se pre-completează în formularul de temă', function () {
     actingAs(hwNavTeacher($this->classA, $this->subject));
 
     Livewire::withQueryParams(['clasa' => (string) $this->classB->id])
         ->test(CreateHomeworkAssignment::class)
         ->assertFormSet([
-            'grade_level' => null,
-            'section' => null,
+            'class_target' => null,
         ]);
 });

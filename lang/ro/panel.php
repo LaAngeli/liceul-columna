@@ -634,10 +634,7 @@ return [
         ],
         'homework' => [
             'topic' => 'Subiectul',
-            'class_level' => 'Clasa (treapta)',
-            'section' => 'Litera',
-            'section_hint' => 'Litera clasei (ex.: A, 1). Lasă gol pentru toată treapta.',
-            'section_not_found' => 'Nu există nicio clasă „:section" la treapta aleasă — tema n-ar ajunge la nimeni. Verifică litera sau las-o goală.',
+            'whole_grade' => 'Toată treapta :level',
             'required_task' => 'Sarcina obligatorie',
             'optional_task' => 'Sarcina suplimentară',
             'links' => 'Linkuri-resursă',
@@ -954,6 +951,11 @@ return [
     ],
 
     'validation' => [
+        'homework' => [
+            'class_target_invalid' => 'Alege o clasă validă din listă.',
+            'whole_grade_admin_only' => 'Doar administrația poate da temă pentru toată treapta.',
+            'content_required' => 'Tema are nevoie de un subiect sau de o sarcină obligatorie.',
+        ],
         'scope' => [
             'no_teacher_profile' => 'Contul tău nu e legat de o fișă de profesor.',
             'not_your_class_subject' => 'Nu predai această disciplină la această clasă.',
