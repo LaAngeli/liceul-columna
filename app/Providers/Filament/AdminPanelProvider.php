@@ -67,6 +67,7 @@ class AdminPanelProvider extends PanelProvider
             // Filament grupează pe label exact, deci resursele returnează aceeași cheie tradusă.
             ->navigationGroups([
                 __('panel.nav.groups.catalog'),
+                __('panel.nav.groups.approvals'),
                 __('panel.nav.groups.configuration'),
                 __('panel.nav.groups.communication'),
                 __('panel.nav.groups.admission'),

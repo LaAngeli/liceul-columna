@@ -30,7 +30,7 @@ class AbsenceMotivationResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('panel.nav.groups.catalog');
+        return __('panel.nav.groups.approvals');
     }
 
     public static function getNavigationLabel(): string

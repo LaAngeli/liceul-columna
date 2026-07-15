@@ -4,6 +4,7 @@ return [
     'nav' => [
         'groups' => [
             'catalog' => 'Catalog',
+            'approvals' => 'Approvals',
             'configuration' => 'Configuration',
             'communication' => 'Communication',
             'admission' => 'Admissions',

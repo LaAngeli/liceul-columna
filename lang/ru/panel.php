@@ -4,6 +4,7 @@ return [
     'nav' => [
         'groups' => [
             'catalog' => 'Каталог',
+            'approvals' => 'Утверждения',
             'configuration' => 'Конфигурация',
             'communication' => 'Коммуникация',
             'admission' => 'Приём',

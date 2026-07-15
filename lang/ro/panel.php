@@ -14,6 +14,7 @@ return [
     'nav' => [
         'groups' => [
             'catalog' => 'Catalog',
+            'approvals' => 'Aprobări',
             'configuration' => 'Configurare',
             'communication' => 'Comunicare',
             'admission' => 'Admitere',
