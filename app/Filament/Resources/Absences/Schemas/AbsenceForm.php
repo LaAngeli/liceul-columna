@@ -28,6 +28,10 @@ class AbsenceForm
                 Select::make('school_class_id')
                     ->label(__('panel.fields.class'))
                     ->options(fn (): array => self::classOptions())
+                    // Venind din navigatorul de catalog, contextul (clasa/disciplina) sosește în
+                    // query string și pre-completează formularul — DOAR dacă e printre opțiunile
+                    // permise rolului (un id străin e ignorat, nu preluat orbește).
+                    ->default(fn (): ?int => self::requestedContextId('clasa', self::classOptions()))
                     ->searchable()
                     ->required()
                     ->live()
@@ -42,6 +46,12 @@ class AbsenceForm
                     // Doar disciplinele predate în clasa ALEASĂ (profesorul-pur: doar ale lui din acea clasă).
                     ->options(fn (Get $get): array => self::subjectOptions(
                         ($classId = $get('school_class_id')) !== null ? (int) $classId : null,
+                    ))
+                    // Disciplina din context se acceptă doar dacă e predată în clasa din context
+                    // (aceeași cascadă ca opțiunile).
+                    ->default(fn (): ?int => self::requestedContextId(
+                        'disciplina',
+                        self::subjectOptions(self::requestedContextId('clasa', self::classOptions())),
                     ))
                     ->searchable()
                     ->live()
@@ -98,6 +108,25 @@ class AbsenceForm
         $user = auth('web')->user();
 
         return ($user && ! $user->isAdministrator()) ? $user->teacher : null;
+    }
+
+    /**
+     * Id-ul de context primit în query string (din navigatorul de catalog), acceptat DOAR dacă
+     * face parte din opțiunile permise rolului — altfel null (fără pre-completare).
+     *
+     * @param  array<int, string>  $options
+     */
+    private static function requestedContextId(string $parameter, array $options): ?int
+    {
+        $raw = request()->query($parameter);
+
+        if (! is_string($raw) || ! ctype_digit($raw)) {
+            return null;
+        }
+
+        $id = (int) $raw;
+
+        return array_key_exists($id, $options) ? $id : null;
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Absences\Tables;
 
 use App\Enums\RequestStatus;
+use App\Filament\Contracts\CatalogNavigator;
 use App\Filament\Exports\AbsenceExporter;
 use App\Filament\Resources\Students\StudentResource;
 use App\Models\Absence;
@@ -37,8 +38,17 @@ class AbsencesTable
             ->emptyStateIcon('heroicon-o-calendar-date-range')
             ->defaultSort('occurred_on', 'desc')
             // Restructurat: 5 coloane vizibile default (față de 7 înainte). Vezi memoria
-            // filament-table-width-compaction.
-            ->modifyQueryUsing(fn ($query) => $query->with(['student', 'schoolClass']))
+            // filament-table-width-compaction. Navigatorul de catalog (pagina de listare)
+            // restrânge suplimentar interogarea la contextul ales — vezi HasCatalogNavigator.
+            ->modifyQueryUsing(function ($query, $livewire) {
+                $query->with(['student', 'schoolClass']);
+
+                if ($livewire instanceof CatalogNavigator) {
+                    $livewire->applyCatalogContext($query);
+                }
+
+                return $query;
+            })
             ->columns([
                 // ELEV + clasa (fost coloană „Clasă" separată).
                 TextColumn::make('student.full_name')
@@ -72,20 +82,25 @@ class AbsencesTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // Filtrele acoperite de navigator dispar când contextul respectiv e activ —
+                // navigarea e sursa de adevăr, filtrul ar dubla (și contrazice) selecția.
                 SelectFilter::make('school_class_id')
                     ->label(__('panel.fields.class'))
                     ->relationship('schoolClass', 'name')
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogClassIdInContext() !== null)),
                 SelectFilter::make('subject_id')
                     ->label(__('panel.fields.subject'))
                     ->relationship('subject', 'name')
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogSubjectIdInContext() !== null)),
                 SelectFilter::make('term_id')
                     ->label(__('panel.fields.term'))
                     ->relationship('term', 'name')
-                    ->preload(),
+                    ->preload()
+                    ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogTermIdInContext() !== null)),
                 TernaryFilter::make('is_motivated')
                     ->label(__('panel.tables.absences.motivation_filter'))
                     ->placeholder(__('panel.common.all'))
