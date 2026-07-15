@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\HomeworkCorrections\Tables;
 
 use App\Enums\CorrectionStatus;
+use App\Filament\Resources\HomeworkCorrections\Pages\ListHomeworkCorrections;
 use App\Models\HomeworkCorrection;
 use App\Support\ContentTranslator;
 use Filament\Actions\Action;
@@ -13,6 +14,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 
@@ -26,7 +28,14 @@ class HomeworkCorrectionsTable
             ->emptyStateIcon('heroicon-o-clipboard-document-check')
             ->defaultSort('created_at', 'desc')
             ->poll('30s') // coadă de aprobare — aliniat cu badge-ul de sidebar.
-            ->modifyQueryUsing(fn ($query) => $query->with(['homeworkAssignment', 'requestedBy']))
+            ->modifyQueryUsing(function (Builder $query, $livewire): Builder {
+                $query->with(['homeworkAssignment', 'requestedBy']);
+
+                // Contextul navigatorului de aprobare (vedere + solicitant) — vezi ListHomeworkCorrections.
+                return $livewire instanceof ListHomeworkCorrections
+                    ? $livewire->applyApprovalContext($query)
+                    : $query;
+            })
             ->columns([
                 // TEMA: disciplina + clasa și data lecției ca sub-text.
                 TextColumn::make('homeworkAssignment.subject_name')
@@ -67,9 +76,14 @@ class HomeworkCorrectionsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // În coada „De procesat" starea e constantă — filtrul rămâne pentru arhivă
+                // și pentru tabelul plat al solicitantului.
                 SelectFilter::make('status')
                     ->label(__('panel.fields.status'))
-                    ->options(CorrectionStatus::class),
+                    ->options(CorrectionStatus::class)
+                    ->visible(fn ($livewire): bool => ! $livewire instanceof ListHomeworkCorrections
+                        || ! $livewire->isQueueManagerView()
+                        || $livewire->isArchiveView()),
             ])
             ->recordActions([
                 // Solicitantul își poate RETRAGE cererea cât timp e în așteptare.

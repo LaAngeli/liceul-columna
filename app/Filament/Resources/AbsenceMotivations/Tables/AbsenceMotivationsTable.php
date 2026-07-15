@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AbsenceMotivations\Tables;
 
 use App\Enums\RequestStatus;
+use App\Filament\Resources\AbsenceMotivations\Pages\ListAbsenceMotivations;
 use App\Models\AbsenceMotivation;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -13,6 +14,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class AbsenceMotivationsTable
@@ -25,6 +27,12 @@ class AbsenceMotivationsTable
             ->emptyStateIcon('heroicon-o-check-badge')
             ->defaultSort('created_at', 'desc')
             ->poll('30s') // coadă de aprobare — aliniat cu badge-ul de sidebar.
+            ->modifyQueryUsing(function (Builder $query, $livewire): Builder {
+                // Contextul navigatorului de aprobare (vedere + clasă) — vezi ListAbsenceMotivations.
+                return $livewire instanceof ListAbsenceMotivations
+                    ? $livewire->applyApprovalContext($query)
+                    : $query;
+            })
             // Restructurat pentru eliminarea scroll-ului orizontal: 5 coloane vizibile default (față
             // de 9 înainte). Info secundară trece în `description()` (sub-text pe rândul 2 al celulei),
             // ceea ce condensează coloanele fără a pierde date. „Validată de" e ascunsă default, dar
@@ -73,9 +81,12 @@ class AbsenceMotivationsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // În coada „De procesat" starea e constantă — filtrul rămâne pentru arhivă.
                 SelectFilter::make('status')
                     ->label(__('panel.fields.status'))
-                    ->options(RequestStatus::class),
+                    ->options(RequestStatus::class)
+                    ->visible(fn ($livewire): bool => ! $livewire instanceof ListAbsenceMotivations
+                        || $livewire->isArchiveView()),
             ])
             ->recordActions([
                 Action::make('document')

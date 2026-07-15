@@ -107,7 +107,9 @@ it('salvarea unei note pune pe coadă recalculul mediei (nu blochează request-u
     );
 });
 
-it('catalogul de note se filtrează pe clasă și se caută după numele elevului', function () {
+it('catalogul de note se restrânge pe clasă (contextul navigatorului) și se caută după elev', function () {
+    // Adaptat la navigatorul de catalog (309af01): tabelul se randează ÎN contextul unei clase
+    // (care ține loc de filtrul de clasă); căutarea funcționează în interiorul contextului.
     $year = AcademicYear::factory()->create();
     $classA = SchoolClass::factory()->for($year)->create(['grade_level' => 7]);
     $classB = SchoolClass::factory()->for($year)->create(['grade_level' => 7]);
@@ -127,19 +129,29 @@ it('catalogul de note se filtrează pe clasă și se caută după numele elevulu
     $gradeB = Grade::factory()->create([
         'student_id' => $studentB->id,
         'subject_id' => $subject->id,
-        'school_class_id' => $classB->id,
+        'school_class_id' => $classA->id,
         'term_id' => $term->id,
         'value' => 7,
+    ]);
+    $gradeOtherClass = Grade::factory()->create([
+        'student_id' => $studentB->id,
+        'subject_id' => $subject->id,
+        'school_class_id' => $classB->id,
+        'term_id' => $term->id,
+        'value' => 6,
     ]);
 
     $this->actingAs(staffWithRole(UserRole::Admin));
 
-    Livewire::test(ListGrades::class)
-        ->filterTable('school_class_id', $classA->id)
-        ->assertCanSeeTableRecords([$gradeA])
-        ->assertCanNotSeeTableRecords([$gradeB]);
+    // Contextul clasei restrânge tabelul (nota altei clase nu apare).
+    Livewire::withQueryParams(['clasa' => (string) $classA->id])
+        ->test(ListGrades::class)
+        ->assertCanSeeTableRecords([$gradeA, $gradeB])
+        ->assertCanNotSeeTableRecords([$gradeOtherClass]);
 
-    Livewire::test(ListGrades::class)
+    // Căutarea după numele elevului, în interiorul contextului.
+    Livewire::withQueryParams(['clasa' => (string) $classA->id])
+        ->test(ListGrades::class)
         ->searchTable('Aaaaa')
         ->assertCanSeeTableRecords([$gradeA])
         ->assertCanNotSeeTableRecords([$gradeB]);

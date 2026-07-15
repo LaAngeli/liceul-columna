@@ -1004,6 +1004,22 @@ return [
         'not_archived_body' => 'The mark was saved on the exam, but the student has no enrollment in the exam year, so the grade level could not be determined. Check the enrollment, then re-save the mark.',
     ],
 
+    'approval_nav' => [
+        'aria' => 'Approval queue views',
+        'queue' => 'To process',
+        'archive' => 'Archive',
+        'requests' => '{1}:count request|[2,*]:count requests',
+        'oldest' => 'oldest: :date',
+        'overdue_count' => ':count overdue',
+        'requester' => 'Requester',
+        'no_class' => 'No current class',
+        'grade_hint' => 'Grade-correction requests, grouped by requester. "To process" is the current queue; the archive keeps the decision history.',
+        'homework_hint' => 'Homework-correction requests, grouped by requester. "To process" is the current queue; the archive keeps the decision history.',
+        'motivations_hint' => 'Absence-motivation requests, grouped by class. "To process" is the current queue; the archive keeps the history.',
+        'queue_empty_title' => 'Nothing to process',
+        'queue_empty_description' => 'All requests have been decided — the queue fills up by itself when new ones arrive.',
+    ],
+
     // Catalog navigator (grades / absences): drill-down menu across dimensions → entities → table.
     'catalog_nav' => [
         'aria' => 'Catalog navigation',

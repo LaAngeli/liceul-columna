@@ -1020,6 +1020,22 @@ return [
     ],
 
     // Navigatorul catalogului (Note / Absențe / Teme): meniul drill-down pe dimensiuni → entități → tabel.
+    'approval_nav' => [
+        'aria' => 'Vederile cozii de aprobare',
+        'queue' => 'De procesat',
+        'archive' => 'Arhivă',
+        'requests' => '{1}:count cerere|[2,19]:count cereri|[20,*]:count de cereri',
+        'oldest' => 'cea mai veche: :date',
+        'overdue_count' => ':count peste termen',
+        'requester' => 'Solicitant',
+        'no_class' => 'Fără clasă curentă',
+        'grade_hint' => 'Cererile de corecție a notelor, grupate pe solicitant. „De procesat" e coada curentă; arhiva păstrează istoricul judecăților.',
+        'homework_hint' => 'Cererile de corecție a temelor, grupate pe solicitant. „De procesat" e coada curentă; arhiva păstrează istoricul judecăților.',
+        'motivations_hint' => 'Cererile de motivare a absențelor, grupate pe clasă. „De procesat" e coada curentă; arhiva păstrează istoricul.',
+        'queue_empty_title' => 'Nimic de procesat',
+        'queue_empty_description' => 'Toate cererile au fost judecate — coada se populează singură când apar cereri noi.',
+    ],
+
     'catalog_nav' => [
         'aria' => 'Navigarea catalogului',
         'hint' => 'Alege cum navighezi: pe clase, pe discipline, pe profesori sau pe perioade — apoi deschide o entitate.',

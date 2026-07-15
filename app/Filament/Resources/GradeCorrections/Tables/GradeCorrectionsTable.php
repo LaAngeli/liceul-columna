@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\GradeCorrections\Tables;
 
 use App\Enums\CorrectionStatus;
+use App\Filament\Resources\GradeCorrections\Pages\ListGradeCorrections;
 use App\Filament\Resources\Students\StudentResource;
 use App\Models\GradeCorrection;
 use App\Support\ContentTranslator;
@@ -14,6 +15,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class GradeCorrectionsTable
@@ -28,7 +30,14 @@ class GradeCorrectionsTable
             ->poll('30s') // coadă de aprobare — aliniat cu badge-ul de sidebar.
             // Restructurat: 5 coloane vizibile default (față de 8 înainte). Vezi memoria
             // filament-table-width-compaction.
-            ->modifyQueryUsing(fn ($query) => $query->with(['grade.student', 'grade.subject', 'requestedBy']))
+            ->modifyQueryUsing(function (Builder $query, $livewire): Builder {
+                $query->with(['grade.student', 'grade.subject', 'requestedBy']);
+
+                // Contextul navigatorului de aprobare (vedere + solicitant) — vezi ListGradeCorrections.
+                return $livewire instanceof ListGradeCorrections
+                    ? $livewire->applyApprovalContext($query)
+                    : $query;
+            })
             ->columns([
                 // ELEV + disciplina (fost coloană „Disciplina" separată).
                 TextColumn::make('grade.student.full_name')
@@ -73,9 +82,14 @@ class GradeCorrectionsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // În coada „De procesat" starea e constantă (în așteptare) — filtrul rămâne
+                // pentru arhivă și pentru tabelul plat al solicitantului.
                 SelectFilter::make('status')
                     ->label(__('panel.fields.status'))
-                    ->options(CorrectionStatus::class),
+                    ->options(CorrectionStatus::class)
+                    ->visible(fn ($livewire): bool => ! $livewire instanceof ListGradeCorrections
+                        || ! $livewire->isQueueManagerView()
+                        || $livewire->isArchiveView()),
             ])
             ->recordActions([
                 // Solicitantul își poate RETRAGE cererea cât timp e în așteptare (a greșit valoarea
