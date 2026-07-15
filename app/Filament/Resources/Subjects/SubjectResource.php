@@ -9,6 +9,7 @@ use App\Filament\Resources\Subjects\Pages\ListSubjects;
 use App\Filament\Resources\Subjects\Schemas\SubjectForm;
 use App\Filament\Resources\Subjects\Tables\SubjectsTable;
 use App\Models\Subject;
+use App\Models\TeachingAssignment;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -66,6 +67,42 @@ class SubjectResource extends Resource
         return [
             //
         ];
+    }
+
+    /**
+     * Scoping pe rol (2026-07-15, la cererea beneficiarului — nomenclatorul complet nu are sens
+     * pentru cadrele didactice):
+     *  - profesorul vede DOAR disciplinele pe care le predă;
+     *  - dirigintele vede, în plus, disciplinele predate în clasa/clasele lui de diriginție
+     *    (are nevoie de imaginea curriculară a clasei pe care o coordonează);
+     *  - administrația vede tot nomenclatorul (perspectiva instituțională + CRUD).
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth('web')->user();
+
+        if (! $user || $user->isAdministrator()) {
+            return $query;
+        }
+
+        $teacher = $user->teacher;
+
+        if (! $teacher) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $subjectIds = collect($teacher->taughtSubjectIds());
+
+        if (($homeroomIds = $teacher->homeroomSchoolClassIds()) !== []) {
+            $subjectIds = $subjectIds->merge(
+                TeachingAssignment::query()
+                    ->whereIn('school_class_id', $homeroomIds)
+                    ->pluck('subject_id'),
+            );
+        }
+
+        return $query->whereKey($subjectIds->unique()->all());
     }
 
     public static function getPages(): array

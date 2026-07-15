@@ -59,6 +59,9 @@ class SubjectForm
                     ]),
                 TextInput::make('min_grade')
                     ->label(__('panel.forms.subject.min_grade'))
+                    // Treptele sunt CLASELE (I–XII) la care se predă disciplina — nu scara de
+                    // note, care este 1–10 (docs/STRUCTURA-CATALOG.md).
+                    ->helperText(__('panel.forms.subject.grade_span_hint'))
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(12)

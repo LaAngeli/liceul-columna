@@ -528,6 +528,12 @@ return [
             'homeroom_only_no' => 'Fără diriginte',
             'homeroom_only_yes' => 'Cu diriginte',
         ],
+        'subjects' => [
+            'my_classes' => 'Clasele mele',
+            'in_my_class' => 'În clasa mea (predă)',
+            'coverage' => 'Acoperire',
+            'coverage_value' => ':classes clase · :teachers prof.',
+        ],
         'students' => [
             'corigenti_filter' => 'Corigenți',
             'corigenti_only' => 'Doar corigenți',
@@ -651,7 +657,8 @@ return [
             'grading_type_short' => 'Mod notare',
             'min_grade' => 'De la clasa',
             'max_grade' => 'Până la clasa',
-            'grade_span' => 'Treptele (de la–până la)',
+            'grade_span' => 'Se predă la clasele',
+            'grade_span_hint' => 'Clasele (I–XII) la care se predă disciplina — nu scara de note (notele sunt 1–10).',
             'report_order' => 'Ordine',
             'report_order_long' => 'Ordine în foaia matricolă',
         ],

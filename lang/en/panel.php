@@ -515,6 +515,12 @@ return [
             'homeroom_only_no' => 'No homeroom teacher',
             'homeroom_only_yes' => 'Has homeroom teacher',
         ],
+        'subjects' => [
+            'my_classes' => 'My classes',
+            'in_my_class' => 'In my class (taught by)',
+            'coverage' => 'Coverage',
+            'coverage_value' => ':classes classes · :teachers teachers',
+        ],
         'students' => [
             'corigenti_filter' => 'Make-up exam',
             'corigenti_only' => 'Only students in make-up',
@@ -638,7 +644,8 @@ return [
             'rename_translation_body' => 'Translation dictionaries are keyed on the exact Romanian name — after the rename, translations are missing for: :locales. Until added to lang/{ru,en}/subjects.php, the cabinet and site show the Romanian name.',
             'min_grade' => 'From grade',
             'max_grade' => 'To grade',
-            'grade_span' => 'Grade span (from–to)',
+            'grade_span' => 'Taught in grades',
+            'grade_span_hint' => 'The grades (I–XII) in which the subject is taught — not the marking scale (marks are 1–10).',
             'report_order' => 'Order',
             'report_order_long' => 'Academic record order',
         ],
