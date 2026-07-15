@@ -15,6 +15,7 @@ use App\Enums\AcademicRecordPeriod;
 use App\Enums\CorigentaSeason;
 use App\Enums\UserRole;
 use App\Filament\Resources\AcademicYears\Pages\ListAcademicYears;
+use App\Jobs\ArchiveYearJob;
 use App\Models\AcademicRecord;
 use App\Models\AcademicYear;
 use App\Models\CorigentaExam;
@@ -25,6 +26,8 @@ use App\Models\Subject;
 use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -146,6 +149,7 @@ it('comanda app:archive-year funcționează cu numele anului', function () {
 });
 
 it('acțiunea „Arhivează în matricolă" din panou rulează pentru configuratori', function () {
+    // În teste queue-ul e sync → job-ul rulează inline; în producție pleacă pe coadă.
     averageIn($this->sem1, 8.00, $this);
     averageIn($this->sem2, 9.00, $this);
 
@@ -158,4 +162,56 @@ it('acțiunea „Arhivează în matricolă" din panou rulează pentru configurat
         ->assertHasNoTableActionErrors();
 
     expect(AcademicRecord::query()->count())->toBe(3);
+});
+
+it('acțiunea din panou pune arhivarea pe COADĂ (sincron depășea limita de execuție)', function () {
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+    actingAs($director);
+
+    Bus::fake();
+
+    Livewire::test(ListAcademicYears::class)
+        ->callTableAction('archiveYear', $this->year)
+        ->assertHasNoTableActionErrors();
+
+    Bus::assertDispatched(ArchiveYearJob::class, fn (ArchiveYearJob $job): bool => $job->year->is($this->year)
+        && $job->initiatorId === $director->id);
+
+    // Nimic scris în request — scrie job-ul, pe coadă.
+    expect(AcademicRecord::query()->count())->toBe(0);
+});
+
+it('job-ul arhivează și anunță inițiatorul în clopoțel (succes + sărite)', function () {
+    averageIn($this->sem1, 8.00, $this);
+    averageIn($this->sem2, 9.00, $this);
+
+    // Un elev fără înmatriculare → avertismentul „sărite" trebuie să ajungă și el în clopoțel.
+    $orphan = Student::factory()->create();
+    TermAverage::factory()->create([
+        'student_id' => $orphan->id, 'subject_id' => $this->subject->id,
+        'school_class_id' => $this->class->id, 'term_id' => $this->sem1->id, 'value' => 8.00,
+    ]);
+
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+
+    (new ArchiveYearJob($this->year, $director->id))->handle(app(ArchiveYearToTranscript::class));
+
+    expect(AcademicRecord::query()->count())->toBe(3)
+        ->and($director->notifications()->count())->toBe(2);
+});
+
+it('re-rularea fără schimbări nu mai scrie nimic — fără UPDATE-uri și fără audit de zgomot', function () {
+    averageIn($this->sem1, 8.00, $this);
+    averageIn($this->sem2, 9.00, $this);
+
+    $first = app(ArchiveYearToTranscript::class)->run($this->year);
+    $auditsAfterFirst = DB::table('audits')->where('auditable_type', AcademicRecord::class)->count();
+
+    $second = app(ArchiveYearToTranscript::class)->run($this->year);
+
+    expect($first['records'])->toBe(3)
+        ->and($second['records'])->toBe(0)
+        ->and(DB::table('audits')->where('auditable_type', AcademicRecord::class)->count())->toBe($auditsAfterFirst);
 });

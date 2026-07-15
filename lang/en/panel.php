@@ -335,6 +335,9 @@ return [
             'submit' => 'Archive',
             'success' => 'Archived: :records transcript rows for :students students.',
             'skipped' => ':count student–subject pairs skipped: no enrollment in the archived year. Check enrollments, then run again.',
+            'queued' => 'Archiving year :year has started in the background.',
+            'queued_body' => 'The school-wide operation takes a few minutes; the result arrives in the notification bell.',
+            'failed' => 'Archiving year :year failed — the transcript was left untouched. Try again or check the log.',
         ],
         'force_delete' => ['label' => 'Delete permanently'],
         'approve' => [

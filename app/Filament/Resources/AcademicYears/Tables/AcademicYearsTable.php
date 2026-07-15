@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\AcademicYears\Tables;
 
-use App\Actions\ArchiveYearToTranscript;
+use App\Jobs\ArchiveYearJob;
 use App\Models\AcademicYear;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -51,6 +51,8 @@ class AcademicYearsTable
             ->recordActions([
                 // ÎNCHIDEREA ANULUI (spec §2.4/§2.5): arhivează mediile semestriale + anuale în
                 // foaia matricolă. Idempotentă — re-rularea după corecții reîmprospătează arhiva.
+                // Rulează pe QUEUE (mii de scrieri — sincron depășea limita PHP de 30s și lăsa
+                // matricola pe jumătate rescrisă); rezultatul vine în clopoțel, de la ArchiveYearJob.
                 // Echivalent CLI: `php artisan app:archive-year`.
                 Action::make('archiveYear')
                     ->label(__('panel.actions.archive_year.label'))
@@ -62,23 +64,13 @@ class AcademicYearsTable
                     ->modalSubmitActionLabel(__('panel.actions.archive_year.submit'))
                     ->visible(fn (): bool => ($user = auth('web')->user()) instanceof User && $user->canConfigureSchool())
                     ->action(function (AcademicYear $record): void {
-                        $result = app(ArchiveYearToTranscript::class)->run($record);
+                        ArchiveYearJob::dispatch($record, (int) auth('web')->id());
 
                         Notification::make()
-                            ->success()
-                            ->title(__('panel.actions.archive_year.success', [
-                                'records' => $result['records'],
-                                'students' => $result['students'],
-                            ]))
+                            ->info()
+                            ->title(__('panel.actions.archive_year.queued', ['year' => $record->name]))
+                            ->body(__('panel.actions.archive_year.queued_body'))
                             ->send();
-
-                        if ($result['skipped'] > 0) {
-                            Notification::make()
-                                ->warning()
-                                ->title(__('panel.actions.archive_year.skipped', ['count' => $result['skipped']]))
-                                ->persistent()
-                                ->send();
-                        }
                     }),
                 EditAction::make(),
             ])

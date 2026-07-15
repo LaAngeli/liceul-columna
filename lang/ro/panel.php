@@ -347,6 +347,9 @@ return [
             'submit' => 'Arhivează',
             'success' => 'Arhivat: :records rânduri de matricolă pentru :students elevi.',
             'skipped' => ':count perechi elev–disciplină sărite: elevii nu au înmatriculare în anul arhivat. Verifică înmatriculările, apoi rulează din nou.',
+            'queued' => 'Arhivarea anului :year a pornit în fundal.',
+            'queued_body' => 'Operațiunea durează câteva minute pe toată școala; primești rezultatul în clopoțelul de notificări.',
+            'failed' => 'Arhivarea anului :year a eșuat — matricola a rămas neatinsă. Încearcă din nou sau verifică jurnalul.',
         ],
         'force_delete' => ['label' => 'Șterge definitiv'],
         'approve' => [
