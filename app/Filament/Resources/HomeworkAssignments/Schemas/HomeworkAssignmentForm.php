@@ -25,15 +25,21 @@ class HomeworkAssignmentForm
                 Select::make('subject_id')
                     ->label(__('panel.fields.subject'))
                     ->options(fn (): array => self::subjectOptions())
+                    // Venind din navigatorul de catalog, contextul pre-completează formularul —
+                    // DOAR dacă e printre opțiunile permise rolului (un id străin e ignorat).
+                    ->default(fn (): ?int => self::requestedContextSubjectId())
                     ->searchable()
                     ->required(),
                 Select::make('grade_level')
                     ->label(__('panel.forms.homework.class_level'))
                     ->options(fn (): array => self::gradeLevelOptions())
+                    // Clasa din context se traduce în treaptă + literă (modelul temelor).
+                    ->default(fn (): ?int => self::requestedContextClass()?->grade_level)
                     ->required(),
                 TextInput::make('section')
                     ->label(__('panel.forms.homework.section'))
                     ->helperText(__('panel.forms.homework.section_hint'))
+                    ->default(fn (): ?string => self::requestedContextClass()?->section)
                     ->maxLength(4)
                     // Litera goală = toată treapta (valid). Dacă e completată, TREBUIE să existe o clasă
                     // (treaptă, literă) — altfel tema nu ajunge la nicio clasă și profesorul nu află (no-op
@@ -92,6 +98,42 @@ class HomeworkAssignmentForm
         $user = auth('web')->user();
 
         return ($user && ! $user->isAdministrator()) ? $user->teacher : null;
+    }
+
+    /**
+     * Clasa de context primită în query string (din navigatorul de catalog) — DOAR dacă rolul o
+     * poate vedea (profesorul: clasele lui; administrația: oricare). Altfel null.
+     */
+    private static function requestedContextClass(): ?SchoolClass
+    {
+        $raw = request()->query('clasa');
+
+        if (! is_string($raw) || ! ctype_digit($raw)) {
+            return null;
+        }
+
+        $id = (int) $raw;
+
+        if (($teacher = self::currentTeacher()) !== null
+            && ! in_array($id, $teacher->visibleSchoolClassIds(), true)) {
+            return null;
+        }
+
+        return SchoolClass::query()->find($id);
+    }
+
+    /** Disciplina de context, acceptată doar dintre opțiunile permise rolului. */
+    private static function requestedContextSubjectId(): ?int
+    {
+        $raw = request()->query('disciplina');
+
+        if (! is_string($raw) || ! ctype_digit($raw)) {
+            return null;
+        }
+
+        $id = (int) $raw;
+
+        return array_key_exists($id, self::subjectOptions()) ? $id : null;
     }
 
     /**

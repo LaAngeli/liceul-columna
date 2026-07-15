@@ -367,6 +367,22 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * Aprobă corecțiile de TEME solicitate de profesorul-autor. Spre deosebire de corecțiile de
+     * notă (unde administratorul operațional doar vede arhiva), aici AO PARTICIPĂ la aprobare —
+     * decizie explicită a beneficiarului (2026-07-15): Director / Prim-vicedirector /
+     * Administrator Operațional, plus super-adminul break-glass.
+     */
+    public function canApproveHomeworkCorrections(): bool
+    {
+        return $this->hasAnyRole([
+            UserRole::Admin->value,
+            UserRole::Director->value,
+            UserRole::PrimVicedirector->value,
+            UserRole::AdministratorOperational->value,
+        ]);
+    }
+
+    /**
      * Operarea DIRECTĂ a catalogului (editare/anulare note, editare absențe) ca autoritate
      * academică. NU include administratorul operațional (§3.2: „nu introduce/editează note")
      * și nici administratorul tehnic (infra).

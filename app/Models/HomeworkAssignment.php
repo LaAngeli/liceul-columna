@@ -3,10 +3,14 @@
 namespace App\Models;
 
 use App\Console\Commands\SendHomeworkDigest;
+use App\Enums\CorrectionStatus;
+use App\Observers\HomeworkAssignmentObserver;
 use Database\Factories\HomeworkAssignmentFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
@@ -23,6 +27,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $assigned_on
  * @property array<int, string>|null $links
  */
+#[ObservedBy(HomeworkAssignmentObserver::class)]
 class HomeworkAssignment extends Model
 {
     /** @use HasFactory<HomeworkAssignmentFactory> */
@@ -64,5 +69,27 @@ class HomeworkAssignment extends Model
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(Teacher::class)->withTrashed();
+    }
+
+    /** @return HasMany<HomeworkCorrection, $this> */
+    public function corrections(): HasMany
+    {
+        return $this->hasMany(HomeworkCorrection::class);
+    }
+
+    /**
+     * Există deja o cerere de corecție nesoluționată pe această temă? Blochează depunerea unei a
+     * doua (aceeași regulă ca la note). Folosește `pending_corrections_count` când tabelul l-a
+     * pre-încărcat (fără N+1), altfel interoghează.
+     */
+    public function hasPendingCorrection(): bool
+    {
+        $counted = $this->getAttribute('pending_corrections_count');
+
+        if ($counted !== null) {
+            return (int) $counted > 0;
+        }
+
+        return $this->corrections()->where('status', CorrectionStatus::Pending)->exists();
     }
 }

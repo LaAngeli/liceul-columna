@@ -27,9 +27,15 @@ class HomeworkAssignmentPolicy
         return $user->teacher !== null || $user->isAdministrator();
     }
 
+    /**
+     * Editarea DIRECTĂ a temei = doar administrația care aprobă corecții (Director /
+     * Prim-vicedirector / Administrator Operațional + super-admin). Profesorul-autor NU își mai
+     * rescrie tema: cere corecția, administrația aprobă (decizia beneficiarului, 2026-07-15) —
+     * simetric cu regula notelor (§3.1), dar cu AO inclus între aprobatori.
+     */
     public function update(User $user, HomeworkAssignment $homework): bool
     {
-        return $this->isAuthorOrAdministration($user, $homework);
+        return $user->canApproveHomeworkCorrections();
     }
 
     public function delete(User $user, HomeworkAssignment $homework): bool

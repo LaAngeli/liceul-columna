@@ -39,6 +39,7 @@ return [
         'grades' => ['label' => 'Grades', 'plural' => 'Grades', 'single' => 'grade'],
         'absences' => ['label' => 'Absences', 'plural' => 'Absences', 'single' => 'absence'],
         'grade_corrections' => ['label' => 'Grade corrections', 'plural' => 'Grade corrections', 'single' => 'correction'],
+        'homework_corrections' => ['label' => 'Homework corrections', 'plural' => 'Homework corrections', 'single' => 'homework correction'],
         'absence_motivations' => ['label' => 'Absence justifications', 'plural' => 'Absence justifications', 'single' => 'justification request'],
         'academic_records' => ['label' => 'Academic record', 'plural' => 'Academic record', 'single' => 'record entry'],
         'homework' => ['label' => 'Homework', 'plural' => 'Homework', 'single' => 'assignment'],
@@ -372,6 +373,21 @@ return [
             'withdraw_submit' => 'Withdraw',
             'withdraw_success' => 'Request withdrawn',
         ],
+        // HOMEWORK corrections: the author requests, Dir / deputy / operational admin approves (2026-07-15).
+        'homework_correction' => [
+            'label' => 'Request correction',
+            'heading' => 'Request homework correction',
+            'description' => 'You start from the current content — fix what is wrong. The assignment does not change until the administration approves.',
+            'reason' => 'Correction reason',
+            'submit' => 'Submit correction',
+            'success_title' => 'Correction requested',
+            'success_body' => 'It will be reviewed by the administration (principal / first deputy / operational administrator).',
+            'already_pending' => 'This assignment already has a pending correction.',
+            'expired_note' => 'The request became moot: the assignment was withdrawn.',
+            'no_change' => 'You changed nothing — no request was submitted.',
+            'pending_tooltip' => 'The assignment has a correction awaiting approval.',
+            'approve_description' => 'The proposed content replaces the assignment shown to students. The change stays in the archive.',
+        ],
         'open_correction' => [
             'label' => 'Open correction',
             'heading' => 'Open the correction from the contestation',
@@ -505,6 +521,9 @@ return [
         ],
         'grade_corrections' => [
             'change' => 'Change',
+        ],
+        'homework_corrections' => [
+            'change' => 'Proposed fields',
         ],
         'absence_motivations' => [
             'type_exception' => 'Exception (late)',
@@ -884,6 +903,7 @@ return [
         'academic_records' => ['heading' => 'Academic record is empty', 'description' => 'Historical averages by grade level appear here.'],
         'homework' => ['heading' => 'No homework', 'description' => 'Homework assigned to classes appears here.'],
         'grade_corrections' => ['heading' => 'No corrections', 'description' => 'Grade correction requests appear here.'],
+        'homework_corrections' => ['heading' => 'No homework corrections', 'description' => 'Homework correction requests appear here.'],
         'absence_motivations' => ['heading' => 'No justifications', 'description' => 'Absence justification requests appear here.'],
         'document_requests' => ['heading' => 'No requests', 'description' => 'Document requests submitted by families appear here.'],
         'messages' => ['heading' => 'Inbox empty', 'description' => 'Received messages appear here.'],
@@ -972,6 +992,7 @@ return [
         'classes' => '{1}:count class|[2,*]:count classes',
         'subjects' => '{1}:count subject|[2,*]:count subjects',
         'records' => '{1}:count record|[2,*]:count records',
+        'homework_records' => '{1}:count assignment|[2,*]:count assignments',
         'no_records' => 'no records yet',
         'last_record' => 'latest: :date',
         'homeroom' => 'My class',

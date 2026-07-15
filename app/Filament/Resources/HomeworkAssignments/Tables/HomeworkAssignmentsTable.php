@@ -2,12 +2,19 @@
 
 namespace App\Filament\Resources\HomeworkAssignments\Tables;
 
+use App\Enums\CorrectionStatus;
+use App\Filament\Contracts\CatalogNavigator;
+use App\Models\HomeworkAssignment;
+use App\Models\HomeworkCorrection;
 use App\Support\ContentTranslator;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
@@ -22,11 +29,29 @@ class HomeworkAssignmentsTable
             ->emptyStateDescription(__('panel.empty.homework.description'))
             ->emptyStateIcon('heroicon-o-clipboard-document-list')
             ->defaultSort('assigned_on', 'desc')
+            // Navigatorul de catalog (pagina de listare) restrânge interogarea la contextul ales;
+            // `withCount` alimentează `hasPendingCorrection()` fără o interogare per rând (N+1).
+            ->modifyQueryUsing(function ($query, $livewire) {
+                $query->withCount(['corrections as pending_corrections_count' => fn ($q) => $q->where('status', CorrectionStatus::Pending)]);
+
+                if ($livewire instanceof CatalogNavigator) {
+                    $livewire->applyCatalogContext($query);
+                }
+
+                return $query;
+            })
             ->columns([
                 TextColumn::make('assigned_on')
                     ->label(__('panel.fields.date'))
                     ->date()
-                    ->sortable(),
+                    ->sortable()
+                    // Iconița de ceas marchează tema cu o corecție nesoluționată (altfel nu s-ar
+                    // vedea de ce a dispărut acțiunea „Solicită corecție" de pe rând).
+                    ->icon(fn (HomeworkAssignment $record): ?string => $record->hasPendingCorrection() ? 'heroicon-o-clock' : null)
+                    ->iconColor('warning')
+                    ->tooltip(fn (HomeworkAssignment $record): ?string => $record->hasPendingCorrection()
+                        ? (string) __('panel.actions.homework_correction.pending_tooltip')
+                        : null),
                 TextColumn::make('subject_name')
                     ->label(__('panel.fields.subject'))
                     ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state))
@@ -45,18 +70,89 @@ class HomeworkAssignmentsTable
                     ->searchable(),
             ])
             ->filters([
+                // Filtrele acoperite de navigator dispar când contextul respectiv e activ.
                 SelectFilter::make('grade_level')
                     ->label(__('panel.fields.class'))
-                    ->options(array_combine(range(1, 12), array_map(fn (int $n): string => (string) $n, range(1, 12)))),
+                    ->options(array_combine(range(1, 12), array_map(fn (int $n): string => (string) $n, range(1, 12))))
+                    ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogClassIdInContext() !== null)),
                 SelectFilter::make('subject_id')
                     ->label(__('panel.fields.subject'))
                     ->relationship('subject', 'name')
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogSubjectIdInContext() !== null)),
                 TrashedFilter::make(),
             ])
             ->recordActions([
-                EditAction::make(),
+                // Editarea DIRECTĂ = doar aprobatorii (Dir / PVD / AO + super-admin); autorul
+                // corectează prin solicitare cu aprobare (decizia beneficiarului, 2026-07-15).
+                EditAction::make()
+                    ->visible(fn (): bool => auth('web')->user()?->canApproveHomeworkCorrections() ?? false),
+                Action::make('requestCorrection')
+                    ->label(__('panel.actions.homework_correction.label'))
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('warning')
+                    ->modalHeading(fn (): string => __('panel.actions.homework_correction.heading'))
+                    ->modalDescription(fn (): string => __('panel.actions.homework_correction.description'))
+                    ->modalSubmitActionLabel(__('panel.actions.homework_correction.submit'))
+                    // Doar AUTORUL temei (profesor fără drept de editare directă) cere corecția;
+                    // o temă nu poate avea două cereri în așteptare simultan.
+                    ->visible(fn (HomeworkAssignment $record): bool => self::authorCanRequestCorrection($record))
+                    // Pornim de la conținutul actual: profesorul corectează în modal exact ce vrea
+                    // schimbat; câmpurile rămase identice NU intră în cerere.
+                    ->fillForm(fn (HomeworkAssignment $record): array => [
+                        'new_topic' => $record->topic,
+                        'new_required_task' => $record->required_task,
+                        'new_optional_task' => $record->optional_task,
+                    ])
+                    ->schema([
+                        Textarea::make('new_topic')
+                            ->label(__('panel.forms.homework.topic'))
+                            ->rows(2),
+                        Textarea::make('new_required_task')
+                            ->label(__('panel.forms.homework.required_task'))
+                            ->rows(3),
+                        Textarea::make('new_optional_task')
+                            ->label(__('panel.forms.homework.optional_task'))
+                            ->rows(2),
+                        Textarea::make('reason')
+                            ->label(__('panel.actions.homework_correction.reason'))
+                            ->required()
+                            ->maxLength(255),
+                    ])
+                    ->action(function (HomeworkAssignment $record, array $data): void {
+                        // Reținem DOAR câmpurile efectiv modificate; nicio schimbare → nu depunem.
+                        $proposed = array_filter([
+                            'new_topic' => self::changedOrNull($record->topic, $data['new_topic'] ?? null),
+                            'new_required_task' => self::changedOrNull($record->required_task, $data['new_required_task'] ?? null),
+                            'new_optional_task' => self::changedOrNull($record->optional_task, $data['new_optional_task'] ?? null),
+                        ], fn (?string $value): bool => $value !== null);
+
+                        if ($proposed === []) {
+                            Notification::make()
+                                ->warning()
+                                ->title(__('panel.actions.homework_correction.no_change'))
+                                ->send();
+
+                            return;
+                        }
+
+                        HomeworkCorrection::create([
+                            'homework_assignment_id' => $record->id,
+                            'requested_by_user_id' => auth()->id(),
+                            'old_topic' => $record->topic,
+                            'old_required_task' => $record->required_task,
+                            'old_optional_task' => $record->optional_task,
+                            'reason' => $data['reason'],
+                            ...$proposed,
+                        ]);
+
+                        Notification::make()
+                            ->success()
+                            ->title(__('panel.actions.homework_correction.success_title'))
+                            ->body(__('panel.actions.homework_correction.success_body'))
+                            ->send();
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
@@ -69,5 +165,38 @@ class HomeworkAssignmentsTable
                         ->visible(fn (): bool => auth('web')->user()?->canAdministerCatalog() ?? false),
                 ]),
             ]);
+    }
+
+    /**
+     * Autorul temei — un profesor FĂRĂ drept de editare directă — poate cere corecția, dacă tema
+     * nu e retrasă și nu are deja o cerere în așteptare.
+     */
+    private static function authorCanRequestCorrection(HomeworkAssignment $record): bool
+    {
+        $user = auth('web')->user();
+
+        if ($user === null || $user->canApproveHomeworkCorrections()) {
+            return false;
+        }
+
+        $teacher = $user->teacher;
+
+        return $teacher !== null
+            && $record->teacher_id === $teacher->id
+            && $record->deleted_at === null
+            && ! $record->hasPendingCorrection();
+    }
+
+    /** Propunerea, dacă diferă de valoarea actuală — altfel null (câmp nemodificat). */
+    private static function changedOrNull(?string $current, ?string $proposed): ?string
+    {
+        $proposed = $proposed !== null ? trim($proposed) : null;
+        $proposed = $proposed === '' ? null : $proposed;
+
+        if ($proposed === null) {
+            return null;
+        }
+
+        return $proposed === trim((string) $current) ? null : $proposed;
     }
 }

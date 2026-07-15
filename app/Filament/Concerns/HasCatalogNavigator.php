@@ -81,19 +81,29 @@ trait HasCatalogNavigator
     /** @return array<string, string> cheie dimensiune => etichetă tradusă */
     public function catalogDimensions(): array
     {
-        $dimensions = [
-            'clase' => (string) __('panel.catalog_nav.dimensions.clase'),
-            'discipline' => (string) __('panel.catalog_nav.dimensions.discipline'),
-        ];
+        $dimensions = [];
 
-        // Dimensiunea „Profesori" are sens doar pentru administrație (profesorul e propriul autor).
-        if ($this->catalogUser()?->isAdministrator() ?? false) {
-            $dimensions['profesori'] = (string) __('panel.catalog_nav.dimensions.profesori');
+        foreach ($this->catalogDimensionKeys() as $key) {
+            // Dimensiunea „Profesori" are sens doar pentru administrație (profesorul e propriul autor).
+            if ($key === 'profesori' && ! ($this->catalogUser()?->isAdministrator() ?? false)) {
+                continue;
+            }
+
+            $dimensions[$key] = (string) __('panel.catalog_nav.dimensions.'.$key);
         }
 
-        $dimensions['perioade'] = (string) __('panel.catalog_nav.dimensions.perioade');
-
         return $dimensions;
+    }
+
+    /**
+     * Dimensiunile oferite de pagină — suprascriptibil per catalog (ex. temele nu au semestru,
+     * deci renunță la „perioade").
+     *
+     * @return array<int, string>
+     */
+    protected function catalogDimensionKeys(): array
+    {
+        return ['clase', 'discipline', 'profesori', 'perioade'];
     }
 
     /** Dimensiunea activă, garantat validă pentru rolul curent. */
@@ -196,22 +206,55 @@ trait HasCatalogNavigator
         $dimension = $this->catalogActiveDimension();
 
         match ($dimension) {
-            'discipline' => $query->where('subject_id', $this->resolvedSubject()?->getKey()),
-            'profesori' => $query->where('teacher_id', $this->resolvedTeacher()?->getKey()),
-            'perioade' => $query->where('term_id', $this->resolvedTerm()?->getKey()),
-            default => $query->where('school_class_id', $this->resolvedClass()?->getKey()),
+            'discipline' => $this->constrainToSubject($query, $this->resolvedSubject()),
+            'profesori' => $this->constrainToTeacher($query, $this->resolvedTeacher()),
+            'perioade' => $this->constrainToTerm($query, $this->resolvedTerm()),
+            default => $this->constrainToClass($query, $this->resolvedClass()),
         };
 
         // Chip-ul secundar restrânge suplimentar: disciplina în interiorul clasei / clasa în rest.
         if ($dimension === 'clase') {
-            if (($subject = $this->resolvedSubject()) !== null) {
-                $query->where('subject_id', $subject->getKey());
-            }
-        } elseif (($class = $this->resolvedClass()) !== null) {
-            $query->where('school_class_id', $class->getKey());
+            $this->constrainToSubject($query, $this->resolvedSubject());
+        } else {
+            $this->constrainToClass($query, $this->resolvedClass());
         }
 
         return $query;
+    }
+
+    // Constrângerile de context — suprascriptibile per catalog (ex. temele nu au school_class_id,
+    // ci treaptă + literă). Primesc null când entitatea nu e în context (no-op).
+
+    /** @param  Builder<Model>  $query */
+    protected function constrainToClass(Builder $query, ?SchoolClass $class): void
+    {
+        if ($class !== null) {
+            $query->where('school_class_id', $class->getKey());
+        }
+    }
+
+    /** @param  Builder<Model>  $query */
+    protected function constrainToSubject(Builder $query, ?Subject $subject): void
+    {
+        if ($subject !== null) {
+            $query->where('subject_id', $subject->getKey());
+        }
+    }
+
+    /** @param  Builder<Model>  $query */
+    protected function constrainToTeacher(Builder $query, ?Teacher $teacher): void
+    {
+        if ($teacher !== null) {
+            $query->where('teacher_id', $teacher->getKey());
+        }
+    }
+
+    /** @param  Builder<Model>  $query */
+    protected function constrainToTerm(Builder $query, ?Term $term): void
+    {
+        if ($term !== null) {
+            $query->where('term_id', $term->getKey());
+        }
     }
 
     public function catalogClassIdInContext(): ?int
@@ -268,7 +311,7 @@ trait HasCatalogNavigator
     /** @return array<int, array{id: int, title: string, subtitle: string|null, badge: string|null, stats: array<int, string>}> */
     protected function classCards(): array
     {
-        $aggregates = $this->aggregatesBy('school_class_id');
+        $aggregates = $this->classAggregates();
         $enrollments = $this->enrollmentCounts();
 
         $cards = [];
@@ -295,6 +338,17 @@ trait HasCatalogNavigator
         }
 
         return $cards;
+    }
+
+    /**
+     * Agregatele pe clasă din spatele cardurilor, keyed pe id-ul clasei — suprascriptibil per
+     * catalog (temele nu au school_class_id, ci treaptă + literă, mapate înapoi pe clase).
+     *
+     * @return Collection<int|string, \stdClass>
+     */
+    protected function classAggregates(): Collection
+    {
+        return $this->aggregatesBy('school_class_id');
     }
 
     /** @return array<int, array{id: int, title: string, subtitle: string|null, badge: string|null, stats: array<int, string>}> */
@@ -505,7 +559,8 @@ trait HasCatalogNavigator
         $select = [$column, 'COUNT(*) AS aggregate', "MAX({$dateColumn}) AS last_on"];
 
         if ($withClasses) {
-            $select[] = 'COUNT(DISTINCT school_class_id) AS classes';
+            $classExpression = $this->catalogDistinctClassExpression();
+            $select[] = "COUNT(DISTINCT {$classExpression}) AS classes";
         }
 
         if ($withSubjects) {
@@ -581,9 +636,12 @@ trait HasCatalogNavigator
             ->pluck('subject_id');
 
         // ∪ disciplinele care au deja înregistrări în clasă (acoperă datele istorice fără alocare).
-        $graded = $this->catalogCountableQuery()
+        // Constrângerea de clasă trece prin hook (temele o traduc în treaptă + literă).
+        $gradedQuery = $this->catalogCountableQuery();
+        $this->constrainToClass($gradedQuery, $class);
+
+        $graded = $gradedQuery
             ->toBase()
-            ->where('school_class_id', $class->getKey())
             ->whereNotNull('subject_id')
             ->distinct()
             ->pluck('subject_id');
@@ -774,12 +832,29 @@ trait HasCatalogNavigator
 
     // ── Formatare statistici carduri ────────────────────────────────────────────────────────
 
+    /**
+     * Expresia „grupului-clasă" pentru COUNT(DISTINCT …) — suprascriptibil per catalog
+     * (temele numără perechi treaptă+literă, nu id-uri de clasă).
+     *
+     * @return literal-string
+     */
+    protected function catalogDistinctClassExpression(): string
+    {
+        return 'school_class_id';
+    }
+
+    /** Cheia de traducere (cu plural) a numărătorii de pe card — suprascriptibil („note" vs „teme"). */
+    protected function catalogRecordsKey(): string
+    {
+        return 'panel.catalog_nav.records';
+    }
+
     protected function countStat(?\stdClass $row): string
     {
         $count = $row !== null ? (int) $row->aggregate : 0;
 
         return $count > 0
-            ? (string) trans_choice('panel.catalog_nav.records', $count, ['count' => $count])
+            ? (string) trans_choice($this->catalogRecordsKey(), $count, ['count' => $count])
             : (string) __('panel.catalog_nav.no_records');
     }
 

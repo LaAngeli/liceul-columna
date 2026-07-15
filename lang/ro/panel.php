@@ -49,6 +49,7 @@ return [
         'grades' => ['label' => 'Note', 'plural' => 'Note', 'single' => 'notă'],
         'absences' => ['label' => 'Absențe', 'plural' => 'Absențe', 'single' => 'absență'],
         'grade_corrections' => ['label' => 'Corecții note', 'plural' => 'Corecții note', 'single' => 'corecție'],
+        'homework_corrections' => ['label' => 'Corecții teme', 'plural' => 'Corecții teme', 'single' => 'corecție de temă'],
         'absence_motivations' => ['label' => 'Motivări absențe', 'plural' => 'Motivări absențe', 'single' => 'cerere de motivare'],
         'academic_records' => ['label' => 'Foaie matricolă', 'plural' => 'Foaie matricolă', 'single' => 'înregistrare matricolă'],
         'homework' => ['label' => 'Teme', 'plural' => 'Teme', 'single' => 'temă'],
@@ -384,6 +385,21 @@ return [
             'withdraw_submit' => 'Retrage',
             'withdraw_success' => 'Cerere retrasă',
         ],
+        // Corecțiile de TEME: profesorul-autor cere, Dir / PVD / AO aprobă (decizia 2026-07-15).
+        'homework_correction' => [
+            'label' => 'Solicită corecție',
+            'heading' => 'Solicită corecția temei',
+            'description' => 'Pornești de la conținutul actual — corectează ce e greșit. Tema nu se schimbă până la aprobarea administrației.',
+            'reason' => 'Motivul corecției',
+            'submit' => 'Trimite corecția',
+            'success_title' => 'Corecție solicitată',
+            'success_body' => 'Va fi revizuită de administrație (director / prim-vicedirector / administrator operațional).',
+            'already_pending' => 'Tema are deja o corecție în așteptare.',
+            'expired_note' => 'Cererea a rămas fără obiect: tema a fost retrasă.',
+            'no_change' => 'Nu ai modificat nimic — cererea nu a fost depusă.',
+            'pending_tooltip' => 'Tema are o corecție în așteptarea aprobării.',
+            'approve_description' => 'Conținutul propus înlocuiește tema afișată elevilor. Modificarea rămâne în arhivă.',
+        ],
         'open_correction' => [
             'label' => 'Deschide corecție',
             'heading' => 'Deschide corecția din contestație',
@@ -518,6 +534,9 @@ return [
         ],
         'grade_corrections' => [
             'change' => 'Modificare',
+        ],
+        'homework_corrections' => [
+            'change' => 'Câmpuri propuse',
         ],
         'absence_motivations' => [
             'type_exception' => 'Excepție (tardivă)',
@@ -898,6 +917,7 @@ return [
         'academic_records' => ['heading' => 'Foaie matricolă goală', 'description' => 'Mediile istorice pe trepte apar aici.'],
         'homework' => ['heading' => 'Nicio temă', 'description' => 'Temele date claselor apar aici.'],
         'grade_corrections' => ['heading' => 'Nicio corecție', 'description' => 'Cererile de corecție a notelor apar aici.'],
+        'homework_corrections' => ['heading' => 'Nicio corecție de temă', 'description' => 'Cererile de corecție a temelor apar aici.'],
         'absence_motivations' => ['heading' => 'Nicio motivare', 'description' => 'Cererile de motivare a absențelor apar aici.'],
         'document_requests' => ['heading' => 'Nicio cerere', 'description' => 'Cererile tipice depuse de familii apar aici.'],
         'messages' => ['heading' => 'Inbox gol', 'description' => 'Mesajele primite apar aici.'],
@@ -973,7 +993,7 @@ return [
         'not_archived_body' => 'Nota a fost salvată pe examen, dar elevul nu are înmatriculare în anul examenului, deci treapta nu a putut fi determinată. Verifică înmatricularea elevului, apoi resalvează nota.',
     ],
 
-    // Navigatorul catalogului (Note / Absențe): meniul drill-down pe dimensiuni → entități → tabel.
+    // Navigatorul catalogului (Note / Absențe / Teme): meniul drill-down pe dimensiuni → entități → tabel.
     'catalog_nav' => [
         'aria' => 'Navigarea catalogului',
         'hint' => 'Alege cum navighezi: pe clase, pe discipline, pe profesori sau pe perioade — apoi deschide o entitate.',
@@ -987,6 +1007,7 @@ return [
         'classes' => '{1}:count clasă|[2,19]:count clase|[20,*]:count de clase',
         'subjects' => '{1}:count disciplină|[2,19]:count discipline|[20,*]:count de discipline',
         'records' => '{1}:count înregistrare|[2,19]:count înregistrări|[20,*]:count de înregistrări',
+        'homework_records' => '{1}:count temă|[2,19]:count teme|[20,*]:count de teme',
         'no_records' => 'fără înregistrări încă',
         'last_record' => 'ultima: :date',
         'homeroom' => 'Clasa mea',

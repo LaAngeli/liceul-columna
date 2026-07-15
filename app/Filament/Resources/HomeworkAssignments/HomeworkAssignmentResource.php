@@ -86,9 +86,13 @@ class HomeworkAssignmentResource extends Resource
         return $user !== null && ($user->isAdministrator() || $user->teacher !== null);
     }
 
+    /**
+     * Editarea DIRECTĂ = doar aprobatorii de corecții (Dir / PVD / AO + super-admin). Autorul
+     * cere corecția din listă — nu-și rescrie tema (decizia beneficiarului, 2026-07-15).
+     */
     public static function canEdit(Model $record): bool
     {
-        return self::canManage($record);
+        return auth('web')->user()?->canApproveHomeworkCorrections() ?? false;
     }
 
     public static function canDelete(Model $record): bool
@@ -97,7 +101,7 @@ class HomeworkAssignmentResource extends Resource
     }
 
     /**
-     * Editarea/ștergerea: administrația oricare temă; profesorul doar temele proprii.
+     * Retragerea (soft-delete): administrația oricare temă; profesorul doar temele proprii.
      */
     protected static function canManage(Model $record): bool
     {
