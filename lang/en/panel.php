@@ -638,6 +638,7 @@ return [
             'rename_translation_body' => 'Translation dictionaries are keyed on the exact Romanian name — after the rename, translations are missing for: :locales. Until added to lang/{ru,en}/subjects.php, the cabinet and site show the Romanian name.',
             'min_grade' => 'From grade',
             'max_grade' => 'To grade',
+            'grade_span' => 'Grade span (from–to)',
             'report_order' => 'Order',
             'report_order_long' => 'Academic record order',
         ],
@@ -969,6 +970,8 @@ return [
         ],
         'subject' => [
             'grading_type_locked' => 'The grading type cannot be changed: the subject already has grades of an incompatible type in the catalog.',
+            'grade_span_inverted' => '"Up to grade" cannot be lower than "From grade".',
+            'grade_span_overlap' => 'An active subject with this name already covers grades :min–:max — the spans cannot overlap.',
         ],
         'teaching_assignment' => [
             'duplicate' => 'The teacher already has this assignment (class + subject + group).',
@@ -996,6 +999,8 @@ return [
         'subjects' => '{1}:count subject|[2,*]:count subjects',
         'records' => '{1}:count record|[2,*]:count records',
         'homework_records' => '{1}:count assignment|[2,*]:count assignments',
+        'students_hint' => 'Pick a class to see its students. Global search (Ctrl+K) finds any student within your scope.',
+        'students_archive' => 'Archive (all students)',
         'no_records' => 'no records yet',
         'last_record' => 'latest: :date',
         'homeroom' => 'My class',

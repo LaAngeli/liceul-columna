@@ -1,19 +1,24 @@
 {{-- Meniul navigatorului: dimensiuni (tab-uri) + carduri de entitate cu statistici. --}}
 <div class="space-y-6">
     <div class="space-y-2">
-        <x-filament::tabs :label="__('panel.catalog_nav.aria')">
-            @foreach ($this->catalogDimensions() as $dimensionKey => $dimensionLabel)
-                <x-filament::tabs.item
-                    :active="$this->catalogActiveDimension() === $dimensionKey"
-                    wire:click="setCatalogDimension('{{ $dimensionKey }}')"
-                >
-                    {{ $dimensionLabel }}
-                </x-filament::tabs.item>
-            @endforeach
-        </x-filament::tabs>
+        @php($dimensions = $this->catalogDimensions())
+
+        {{-- Cu o singură dimensiune, meniul de tab-uri nu are ce comuta — rămâne doar ghidul. --}}
+        @if (count($dimensions) > 1)
+            <x-filament::tabs :label="__('panel.catalog_nav.aria')">
+                @foreach ($dimensions as $dimensionKey => $dimensionLabel)
+                    <x-filament::tabs.item
+                        :active="$this->catalogActiveDimension() === $dimensionKey"
+                        wire:click="setCatalogDimension('{{ $dimensionKey }}')"
+                    >
+                        {{ $dimensionLabel }}
+                    </x-filament::tabs.item>
+                @endforeach
+            </x-filament::tabs>
+        @endif
 
         <p class="text-sm text-gray-500 dark:text-gray-400">
-            {{ __('panel.catalog_nav.hint') }}
+            {{ $this->catalogHint() }}
         </p>
     </div>
 

@@ -651,6 +651,7 @@ return [
             'grading_type_short' => 'Mod notare',
             'min_grade' => 'De la clasa',
             'max_grade' => 'Până la clasa',
+            'grade_span' => 'Treptele (de la–până la)',
             'report_order' => 'Ordine',
             'report_order_long' => 'Ordine în foaia matricolă',
         ],
@@ -984,6 +985,8 @@ return [
         ],
         'subject' => [
             'grading_type_locked' => 'Modul de notare nu poate fi schimbat: disciplina are deja note de tip incompatibil în catalog.',
+            'grade_span_inverted' => '„Până la clasa" nu poate fi mai mică decât „De la clasa".',
+            'grade_span_overlap' => 'Există deja o disciplină activă cu acest nume pe treptele :min–:max — intervalele nu se pot suprapune.',
         ],
         'teaching_assignment' => [
             'duplicate' => 'Profesorul are deja această alocare (clasă + disciplină + grupă).',
@@ -1011,6 +1014,8 @@ return [
         'subjects' => '{1}:count disciplină|[2,19]:count discipline|[20,*]:count de discipline',
         'records' => '{1}:count înregistrare|[2,19]:count înregistrări|[20,*]:count de înregistrări',
         'homework_records' => '{1}:count temă|[2,19]:count teme|[20,*]:count de teme',
+        'students_hint' => 'Alege o clasă ca să-i vezi elevii. Căutarea globală (Ctrl+K) găsește orice elev din perimetrul tău.',
+        'students_archive' => 'Arhivă (toți elevii)',
         'no_records' => 'fără înregistrări încă',
         'last_record' => 'ultima: :date',
         'homeroom' => 'Clasa mea',

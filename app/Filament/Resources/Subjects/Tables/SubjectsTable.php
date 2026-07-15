@@ -28,13 +28,14 @@ class SubjectsTable
                 TextColumn::make('grading_type')
                     ->label(__('panel.forms.subject.grading_type_short'))
                     ->badge(),
+                // Intervalul de trepte, comasat („5–12") — două coloane numerice separate erau
+                // criptice; duplicatele legitime (aceeași disciplină pe trepte diferite) devin
+                // vizibile dintr-o privire.
                 TextColumn::make('min_grade')
-                    ->label(__('panel.forms.subject.min_grade'))
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('max_grade')
-                    ->label(__('panel.forms.subject.max_grade'))
-                    ->numeric()
+                    ->label(__('panel.forms.subject.grade_span'))
+                    ->state(fn ($record): string => $record->min_grade !== null && $record->max_grade !== null
+                        ? $record->min_grade.'–'.$record->max_grade
+                        : (string) __('panel.common.dash'))
                     ->sortable(),
                 TextColumn::make('report_order')
                     ->label(__('panel.forms.subject.report_order'))

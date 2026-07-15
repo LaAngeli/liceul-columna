@@ -106,6 +106,12 @@ trait HasCatalogNavigator
         return ['clase', 'discipline', 'profesori', 'perioade'];
     }
 
+    /** Textul-ghid de sub meniul navigatorului — suprascriptibil per catalog. */
+    public function catalogHint(): string
+    {
+        return (string) __('panel.catalog_nav.hint');
+    }
+
     /** Dimensiunea activă, garantat validă pentru rolul curent. */
     public function catalogActiveDimension(): string
     {

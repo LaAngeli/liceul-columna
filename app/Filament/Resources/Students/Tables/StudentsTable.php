@@ -8,6 +8,7 @@ use App\Actions\LogStudentAccess;
 use App\Actions\NotifyStudentFamily;
 use App\Enums\NotificationType;
 use App\Enums\StudentStatus;
+use App\Filament\Contracts\CatalogNavigator;
 use App\Filament\Exports\StudentExporter;
 use App\Models\CorigentaExam;
 use App\Models\SemesterValidation;
@@ -39,6 +40,15 @@ class StudentsTable
     {
         return $table
             ->defaultSort('last_name')
+            // Navigatorul de catalog (pagina de listare) restrânge interogarea la clasa aleasă
+            // (prin înmatriculări) sau o lasă întreagă în vederea „Arhivă" — vezi ListStudents.
+            ->modifyQueryUsing(function ($query, $livewire) {
+                if ($livewire instanceof CatalogNavigator) {
+                    $livewire->applyCatalogContext($query);
+                }
+
+                return $query;
+            })
             ->columns([
                 TextColumn::make('last_name')
                     ->label(__('panel.fields.last_name'))

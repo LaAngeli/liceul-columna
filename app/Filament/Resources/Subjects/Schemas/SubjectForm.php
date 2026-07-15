@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Subjects\Schemas;
 
 use App\Enums\GradingType;
 use App\Models\Grade;
+use App\Models\Subject;
 use Closure;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -60,12 +61,57 @@ class SubjectForm
                     ->label(__('panel.forms.subject.min_grade'))
                     ->numeric()
                     ->minValue(1)
-                    ->maxValue(12),
+                    ->maxValue(12)
+                    ->required()
+                    ->live(onBlur: true),
                 TextInput::make('max_grade')
                     ->label(__('panel.forms.subject.max_grade'))
                     ->numeric()
                     ->minValue(1)
-                    ->maxValue(12),
+                    ->maxValue(12)
+                    ->required()
+                    ->rules([
+                        // AUDIT 2026-07-15: intervalul de trepte se putea INVERSA (min 9, max 5) și
+                        // NIMIC nu împiedica două discipline active cu același nume pe trepte
+                        // suprapuse — duplicatele legitime (Matematică 1-4 calificativ / 5-12
+                        // numerică) devin ambigue la alocări dacă intervalele se ating.
+                        static fn (Get $get, ?Model $record): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
+                            $max = is_numeric($value) ? (int) $value : null;
+                            $min = is_numeric($minRaw = $get('min_grade')) ? (int) $minRaw : null;
+
+                            if ($max === null || $min === null) {
+                                return;
+                            }
+
+                            if ($max < $min) {
+                                $fail(__('panel.validation.subject.grade_span_inverted'));
+
+                                return;
+                            }
+
+                            $name = trim((string) $get('name'));
+
+                            if ($name === '') {
+                                return;
+                            }
+
+                            $conflict = Subject::query()
+                                ->where('name', $name)
+                                ->when($record !== null, fn ($query) => $query->whereKeyNot($record->getKey()))
+                                ->whereNotNull('min_grade')
+                                ->whereNotNull('max_grade')
+                                ->where('min_grade', '<=', $max)
+                                ->where('max_grade', '>=', $min)
+                                ->first();
+
+                            if ($conflict !== null) {
+                                $fail(__('panel.validation.subject.grade_span_overlap', [
+                                    'min' => $conflict->min_grade,
+                                    'max' => $conflict->max_grade,
+                                ]));
+                            }
+                        },
+                    ]),
                 TextInput::make('report_order')
                     ->label(__('panel.forms.subject.report_order_long'))
                     ->numeric(),
