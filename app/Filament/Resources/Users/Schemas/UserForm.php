@@ -3,15 +3,24 @@
 namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\AudienceDomain;
+use App\Enums\SecondLanguage;
+use App\Enums\Sex;
 use App\Enums\UserRole;
+use App\Models\AcademicYear;
 use App\Models\Enrollment;
+use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\Teacher;
+use App\Models\Term;
 use App\Models\User;
+use App\Support\ContentTranslator;
 use App\Support\TemporaryPassword;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -27,9 +36,20 @@ use Illuminate\Support\Collection;
  * (Identitate / Rol și asocieri / Acces), parolă TEMPORARĂ generată automat (regenerabilă și
  * copiabilă dintr-un click), asocierea cu fișa potrivită rolului (profesor/elev/copiii
  * părintelui), starea contului și trimiterea credențialelor pe e-mail.
+ *
+ * ONBOARDING UNIFICAT (cerința beneficiarului, a doua iterație): crearea unui cont pedagogic
+ * sau de elev este UN SINGUR FLUX cu fișa lui — implicit se creează o fișă NOUĂ (numele vine
+ * din Identitate), iar alternativa e legarea unei fișe existente fără cont. Tot aici se fac
+ * integrarea în module: alocările clasă×disciplină, clasa de diriginție, înmatricularea
+ * elevului în clasa anului curent și legătura cu conturile de părinte. Un cont nou de
+ * profesor/diriginte/elev NU mai poate exista fără fișă.
  */
 class UserForm
 {
+    public const FICHE_CREATE = 'create';
+
+    public const FICHE_LINK = 'link';
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -105,22 +125,170 @@ class UserForm
                                 UserRole::PrimVicedirector->value,
                                 UserRole::AdministratorOperational->value,
                             ], true)),
-                        // Asocierile per rol: contul capătă PERIMETRUL prin fișa legată.
+                        // ── Onboarding PROFESOR/DIRIGINTE: fișa (nouă sau existentă) + integrarea ──
+                        // Fișa e sursa perimetrului (alocări, diriginție): un cont pedagogic nou
+                        // nu poate exista fără ea. Implicit se CREEAZĂ o fișă nouă din datele de
+                        // Identitate; alternativa = legarea unei fișe existente rămase fără cont.
+                        Radio::make('teacher_fiche_mode')
+                            ->label(__('panel.forms.user.teacher_fiche_mode'))
+                            ->helperText(__('panel.forms.user.teacher_fiche_mode_hint'))
+                            ->options([
+                                self::FICHE_CREATE => __('panel.forms.user.fiche_mode_create'),
+                                self::FICHE_LINK => __('panel.forms.user.fiche_mode_link'),
+                            ])
+                            ->default(self::FICHE_CREATE)
+                            ->live()
+                            ->inline()
+                            ->inlineLabel(false)
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
+                                && self::isPedagogicRole($get)),
+                        Select::make('teacher_fiche_sex')
+                            ->label(__('panel.fields.sex'))
+                            ->options(Sex::class)
+                            ->native(false)
+                            ->visible(fn (Get $get, string $operation): bool => self::creatingTeacherFiche($get, $operation))
+                            ->required(fn (Get $get, string $operation): bool => self::creatingTeacherFiche($get, $operation)),
+                        TextInput::make('teacher_fiche_position')
+                            ->label(__('panel.forms.teacher.position'))
+                            ->maxLength(255)
+                            ->visible(fn (Get $get, string $operation): bool => self::creatingTeacherFiche($get, $operation)),
                         Select::make('teacher_id')
                             ->label(__('panel.forms.user.teacher_link'))
                             ->helperText(__('panel.forms.user.teacher_link_hint'))
                             ->options(fn (?Model $record): array => self::teacherOptions($record))
                             ->searchable()
-                            ->visible(fn (Get $get): bool => in_array($get('role'), [
-                                UserRole::Profesor->value,
-                                UserRole::Diriginte->value,
-                            ], true)),
+                            ->visible(fn (Get $get, string $operation): bool => self::isPedagogicRole($get)
+                                && ($operation !== 'create' || $get('teacher_fiche_mode') === self::FICHE_LINK))
+                            // Fluxul unificat: la creare, fișa e OBLIGATORIE (nouă sau existentă).
+                            ->required(fn (Get $get, string $operation): bool => $operation === 'create'
+                                && self::isPedagogicRole($get)
+                                && $get('teacher_fiche_mode') === self::FICHE_LINK),
+                        Repeater::make('teaching_pairs')
+                            ->label(__('panel.forms.user.assignments'))
+                            ->helperText(__('panel.forms.user.assignments_hint'))
+                            ->schema([
+                                Select::make('school_class_id')
+                                    ->label(__('panel.fields.class'))
+                                    ->options(fn (): array => self::assignableClassOptions())
+                                    ->searchable()
+                                    ->required(),
+                                Select::make('subject_id')
+                                    ->label(__('panel.fields.subject'))
+                                    ->options(fn (): array => self::subjectOptions())
+                                    ->searchable()
+                                    ->required(),
+                            ])
+                            ->columns(2)
+                            ->addActionLabel(__('panel.forms.user.add_assignment'))
+                            ->defaultItems(0)
+                            // Un profesor NOU intră direct cu perimetrul lui (≥ o alocare); la
+                            // legarea unei fișe existente, alocările ei pot exista deja → opțional.
+                            ->minItems(fn (Get $get, string $operation): int => self::creatingTeacherFiche($get, $operation) ? 1 : 0)
+                            ->validationMessages(['min' => __('panel.forms.user.assignments_min')])
+                            ->rules([
+                                static fn (): Closure => static function (string $attribute, mixed $value, Closure $fail): void {
+                                    if (! is_array($value)) {
+                                        return;
+                                    }
+
+                                    $seen = [];
+
+                                    foreach ($value as $row) {
+                                        if (! is_array($row)) {
+                                            continue;
+                                        }
+
+                                        $key = ($row['school_class_id'] ?? '').'×'.($row['subject_id'] ?? '');
+
+                                        if (isset($seen[$key])) {
+                                            $fail(__('panel.forms.user.assignments_duplicate'));
+
+                                            return;
+                                        }
+
+                                        $seen[$key] = true;
+                                    }
+                                },
+                            ])
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
+                                && self::isPedagogicRole($get)),
+                        Select::make('homeroom_class_id')
+                            ->label(__('panel.forms.user.homeroom_class'))
+                            ->helperText(__('panel.forms.user.homeroom_class_hint'))
+                            ->options(fn (): array => self::freeHomeroomClassOptions())
+                            ->searchable()
+                            ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
+                                && $get('role') === UserRole::Diriginte->value)
+                            // Dirigintele NOU primește clasa pe loc; la fișă existentă e opțional
+                            // (poate fi deja diriginte al unei clase).
+                            ->required(fn (Get $get, string $operation): bool => $operation === 'create'
+                                && $get('role') === UserRole::Diriginte->value
+                                && $get('teacher_fiche_mode') === self::FICHE_CREATE),
+
+                        // ── Onboarding ELEV: fișa + înmatricularea + legătura cu părinții ──
+                        Radio::make('student_fiche_mode')
+                            ->label(__('panel.forms.user.student_fiche_mode'))
+                            ->helperText(__('panel.forms.user.student_fiche_mode_hint'))
+                            ->options([
+                                self::FICHE_CREATE => __('panel.forms.user.fiche_mode_create'),
+                                self::FICHE_LINK => __('panel.forms.user.fiche_mode_link'),
+                            ])
+                            ->default(self::FICHE_CREATE)
+                            ->live()
+                            ->inline()
+                            ->inlineLabel(false)
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
+                                && $get('role') === UserRole::Elev->value),
+                        Select::make('student_fiche_sex')
+                            ->label(__('panel.fields.sex'))
+                            ->options(Sex::class)
+                            ->native(false)
+                            ->visible(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation))
+                            ->required(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation)),
+                        TextInput::make('student_fiche_register_number')
+                            ->label(__('panel.fields.register_number'))
+                            ->maxLength(10)
+                            ->visible(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation)),
+                        Select::make('student_fiche_second_language')
+                            ->label(__('panel.forms.student.second_language'))
+                            ->options(SecondLanguage::class)
+                            ->default(SecondLanguage::None->value)
+                            ->native(false)
+                            ->visible(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation))
+                            ->required(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation)),
                         Select::make('student_id')
                             ->label(__('panel.forms.user.student_link'))
                             ->helperText(__('panel.forms.user.student_link_hint'))
                             ->options(fn (?Model $record): array => self::studentOptions($record))
                             ->searchable()
-                            ->visible(fn (Get $get): bool => $get('role') === UserRole::Elev->value),
+                            ->visible(fn (Get $get, string $operation): bool => $get('role') === UserRole::Elev->value
+                                && ($operation !== 'create' || $get('student_fiche_mode') === self::FICHE_LINK))
+                            ->required(fn (Get $get, string $operation): bool => $operation === 'create'
+                                && $get('role') === UserRole::Elev->value
+                                && $get('student_fiche_mode') === self::FICHE_LINK),
+                        Select::make('enroll_class_id')
+                            ->label(__('panel.forms.user.enroll_class'))
+                            ->helperText(__('panel.forms.user.enroll_class_hint'))
+                            ->options(fn (): array => self::currentYearClassOptions())
+                            ->searchable()
+                            // Elevul NOU se înmatriculează pe loc în clasa lui (anul curent, cu
+                            // data de azi) — catalogul, orarul și cabinetul îl văd imediat.
+                            // Fișa EXISTENTĂ are deja istoricul ei în registrul Înmatriculări.
+                            ->visible(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation))
+                            ->required(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation)),
+                        Select::make('student_guardian_user_ids')
+                            ->label(__('panel.forms.user.student_guardians'))
+                            ->helperText(__('panel.forms.user.student_guardians_hint'))
+                            ->multiple()
+                            ->searchable()
+                            ->getSearchResultsUsing(fn (string $search): array => self::searchGuardianAccounts($search))
+                            ->getOptionLabelsUsing(fn (array $values): array => self::guardianAccountLabels($values))
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
+                                && $get('role') === UserRole::Elev->value),
                         Select::make('guardian_student_ids')
                             ->label(__('panel.forms.user.children'))
                             ->helperText(__('panel.forms.user.children_hint'))
@@ -182,6 +350,182 @@ class UserForm
                             ->dehydrated(),
                     ]),
             ]);
+    }
+
+    private static function isPedagogicRole(Get $get): bool
+    {
+        return in_array($get('role'), [UserRole::Profesor->value, UserRole::Diriginte->value], true);
+    }
+
+    private static function creatingTeacherFiche(Get $get, string $operation): bool
+    {
+        return $operation === 'create'
+            && self::isPedagogicRole($get)
+            && $get('teacher_fiche_mode') === self::FICHE_CREATE;
+    }
+
+    private static function creatingStudentFiche(Get $get, string $operation): bool
+    {
+        return $operation === 'create'
+            && $get('role') === UserRole::Elev->value
+            && $get('student_fiche_mode') === self::FICHE_CREATE;
+    }
+
+    /** Anul școlar „de lucru": cel cu semestrul curent, altfel cel mai nou. */
+    private static function currentYearId(): ?int
+    {
+        $id = Term::query()->where('is_current', true)->value('academic_year_id')
+            ?? AcademicYear::query()->max('id');
+
+        return $id === null ? null : (int) $id;
+    }
+
+    /**
+     * Clasele alocabile unui profesor — toate, cu anul în etichetă (cele mai noi întâi);
+     * aceeași listă ca în registrul alocărilor de pe fișa profesorului.
+     *
+     * @return array<int, string>
+     */
+    private static function assignableClassOptions(): array
+    {
+        $options = [];
+
+        $classes = SchoolClass::query()
+            ->with('academicYear')
+            ->orderByDesc('academic_year_id')
+            ->orderBy('grade_level')
+            ->orderBy('name')
+            ->get();
+
+        foreach ($classes as $class) {
+            $label = trim($class->name.' '.($class->section ?? ''));
+            $year = $class->academicYear?->name;
+            $options[$class->id] = $year === null ? $label : "{$label} ({$year})";
+        }
+
+        return $options;
+    }
+
+    /**
+     * Disciplinele din nomenclator, cu numele tradus în limba panoului.
+     *
+     * @return array<int, string>
+     */
+    private static function subjectOptions(): array
+    {
+        $options = [];
+
+        foreach (Subject::query()->orderBy('name')->get() as $subject) {
+            $options[$subject->id] = ContentTranslator::subject($subject->name);
+        }
+
+        return $options;
+    }
+
+    /**
+     * Clasele anului curent FĂRĂ diriginte în funcție — singurele care pot primi unul nou
+     * (o clasă nu are doi diriginți; ocuparea între timp e prinsă și la aplicare).
+     *
+     * @return array<int, string>
+     */
+    private static function freeHomeroomClassOptions(): array
+    {
+        $options = [];
+
+        $classes = SchoolClass::query()
+            ->when(self::currentYearId() !== null, fn ($query) => $query->where('academic_year_id', self::currentYearId()))
+            ->whereDoesntHave('homeroomTeacher')
+            ->orderBy('grade_level')
+            ->orderBy('name')
+            ->get();
+
+        foreach ($classes as $class) {
+            $options[$class->id] = trim($class->name.' '.($class->section ?? ''));
+        }
+
+        return $options;
+    }
+
+    /**
+     * Clasele anului curent — destinația înmatriculării elevului nou.
+     *
+     * @return array<int, string>
+     */
+    private static function currentYearClassOptions(): array
+    {
+        $options = [];
+
+        $classes = SchoolClass::query()
+            ->when(self::currentYearId() !== null, fn ($query) => $query->where('academic_year_id', self::currentYearId()))
+            ->orderBy('grade_level')
+            ->orderBy('name')
+            ->get();
+
+        foreach ($classes as $class) {
+            $options[$class->id] = trim($class->name.' '.($class->section ?? ''));
+        }
+
+        return $options;
+    }
+
+    /**
+     * Conturile de PĂRINTE, căutate pe server (nume sau utilizator) — legătura copil↔părinte
+     * se pregătește chiar la crearea elevului.
+     *
+     * @return array<int, string>
+     */
+    private static function searchGuardianAccounts(string $search): array
+    {
+        $search = trim($search);
+
+        $guardians = User::query()
+            ->whereHas('roles', fn ($query) => $query->where('name', UserRole::Parinte->value))
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($inner) use ($search): void {
+                    $inner->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('username', 'like', '%'.$search.'%');
+                });
+            })
+            ->orderBy('name')
+            ->limit(50)
+            ->get();
+
+        return self::labelGuardianAccounts($guardians);
+    }
+
+    /**
+     * Etichetele părinților selectați; doar conturile cu rolul de părinte primesc etichetă —
+     * un id străin rămâne fără ea și invalidează selecția (validarea selectului cu căutare).
+     *
+     * @param  array<int, int|string>  $values
+     * @return array<int, string>
+     */
+    private static function guardianAccountLabels(array $values): array
+    {
+        return self::labelGuardianAccounts(
+            User::query()
+                ->whereKey($values)
+                ->whereHas('roles', fn ($query) => $query->where('name', UserRole::Parinte->value))
+                ->orderBy('name')
+                ->get(),
+        );
+    }
+
+    /**
+     * @param  Collection<int, User>  $guardians
+     * @return array<int, string>
+     */
+    private static function labelGuardianAccounts(Collection $guardians): array
+    {
+        $options = [];
+
+        foreach ($guardians as $guardian) {
+            $options[$guardian->id] = filled($guardian->username)
+                ? $guardian->name.' ('.$guardian->username.')'
+                : (string) $guardian->name;
+        }
+
+        return $options;
     }
 
     /**

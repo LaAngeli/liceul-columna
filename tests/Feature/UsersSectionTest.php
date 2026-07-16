@@ -73,6 +73,20 @@ it('contextul unui rol arată doar conturile lui; un rol inexistent nu deschide 
 
 it('directorul creează conturi pentru fiecare rol pe care îl poate atribui', function () {
     foreach ($this->director->manageableRoleValues() as $index => $role) {
+        // Onboarding unificat: rolurile cu fișă (profesor/diriginte/elev) CER fișa la creare —
+        // aici legăm fișe existente (modul „link"); fluxul „fișă nouă" are testele lui dedicate.
+        $fiche = match ($role) {
+            UserRole::Profesor->value, UserRole::Diriginte->value => [
+                'teacher_fiche_mode' => 'link',
+                'teacher_id' => Teacher::factory()->create()->id,
+            ],
+            UserRole::Elev->value => [
+                'student_fiche_mode' => 'link',
+                'student_id' => Student::factory()->create()->id,
+            ],
+            default => [],
+        };
+
         Livewire::test(CreateUser::class)
             ->fillForm([
                 'last_name' => 'Cont', 'first_name' => $role,
@@ -80,6 +94,7 @@ it('directorul creează conturi pentru fiecare rol pe care îl poate atribui', f
                 'role' => $role,
                 'password' => 'Parola-Temp-'.$index,
                 'account_status' => 'active',
+                ...$fiche,
             ])
             ->call('create')
             ->assertHasNoFormErrors();
@@ -148,6 +163,8 @@ it('contul nou se autentifică cu parola temporară și e dus la schimbarea paro
             'last_name' => 'Elev', 'first_name' => 'Onboarding',
             'username' => 'elev.onboarding',
             'role' => UserRole::Elev->value,
+            'student_fiche_mode' => 'link',
+            'student_id' => Student::factory()->create()->id,
             'password' => 'Temp-Parola-9',
         ])
         ->call('create')
@@ -185,6 +202,7 @@ it('contul de elev se leagă de fișa lui, iar re-legarea eliberează fișa vech
             'last_name' => 'Elev', 'first_name' => 'Legat',
             'username' => 'elev.legat',
             'role' => UserRole::Elev->value,
+            'student_fiche_mode' => 'link',
             'student_id' => $ficheA->id,
             'password' => 'Temp-Parola-1',
         ])
@@ -212,6 +230,7 @@ it('contul de profesor se leagă de fișa de profesor, iar schimbarea rolului o 
             'last_name' => 'Prof', 'first_name' => 'Legat',
             'username' => 'prof.legat',
             'role' => UserRole::Profesor->value,
+            'teacher_fiche_mode' => 'link',
             'teacher_id' => $fiche->id,
             'password' => 'Temp-Parola-2',
         ])
@@ -262,6 +281,8 @@ it('trimite credențialele pe e-mail când opțiunea e bifată, cu parola tempor
             'username' => 'cont.cu.email',
             'email' => 'cont@test.columna',
             'role' => UserRole::Profesor->value,
+            'teacher_fiche_mode' => 'link',
+            'teacher_id' => Teacher::factory()->create()->id,
             'password' => 'Temp-Parola-4',
             'send_credentials' => true,
         ])

@@ -2,15 +2,16 @@
 
 namespace App\Filament\Resources\Students\Pages;
 
+use App\Enums\UserRole;
 use App\Filament\Concerns\HasCatalogNavigator;
 use App\Filament\Contracts\CatalogNavigator;
 use App\Filament\Resources\Students\StudentResource;
+use App\Filament\Resources\Users\UserResource;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Term;
 use Filament\Actions\Action;
-use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -54,7 +55,15 @@ class ListStudents extends ListRecords implements CatalogNavigator
                     $this->catalogNavMemo = [];
                     $this->resetCatalogPagination();
                 }),
-            CreateAction::make(),
+            // ONBOARDING UNIFICAT: elevul NOU nu se mai creează ca fișă separată — butonul duce
+            // în fluxul de cont (Utilizatori → creare, rol pre-completat), unde fișa, contul,
+            // înmatricularea și părinții se leagă împreună. Numele „create" rămâne (testele de
+            // autorizare pe listă verifică vizibilitatea lui); doar cine creează conturi îl vede.
+            Action::make('create')
+                ->label(__('panel.users_nav.onboard_student'))
+                ->icon('heroicon-o-plus')
+                ->url(UserResource::getUrl('create', ['rol' => UserRole::Elev->value]))
+                ->visible(fn (): bool => auth('web')->user()?->canManageAccounts() ?? false),
         ];
     }
 

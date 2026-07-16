@@ -85,15 +85,18 @@ it('resursele de administrație sunt ascunse profesorilor', function () {
     expect(AcademicYearResource::canAccess())->toBeTrue();
 });
 
-it('profesorul nu poate crea elevi/clase (read-only); administrația poate', function () {
+it('profesorul nu poate crea elevi/clase (read-only); administrația configurează prin editare', function () {
     $this->actingAs(profesorPredandLa());
     expect(StudentResource::canCreate())->toBeFalse()
         ->and(SchoolClassResource::canCreate())->toBeFalse();
 
+    // Onboarding unificat (2026-07-16): fișa de elev NU se mai creează separat nici de
+    // administrație — fluxul trece prin Utilizatori. Configurarea = editarea fișelor existente.
     $admin = User::factory()->create();
     $admin->assignRole(UserRole::Admin->value);
     $this->actingAs($admin);
-    expect(StudentResource::canCreate())->toBeTrue();
+    expect(StudentResource::canCreate())->toBeFalse()
+        ->and(StudentResource::canEdit(Student::factory()->create()))->toBeTrue();
 });
 
 it('dirigintele vede TOATĂ clasa lui, chiar fără să predea acolo', function () {

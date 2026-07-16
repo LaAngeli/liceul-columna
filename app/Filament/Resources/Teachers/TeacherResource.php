@@ -59,9 +59,15 @@ class TeacherResource extends Resource
     // Fișele de profesor sunt parte din CONFIGURAREA școlii (alocări §3.3) → creare/editare/ștergere
     // doar de configuratori (super-admin/director/AO), NU de prim-vicedirector. Consecvent cu
     // Elevi/Discipline/Clase (ManagedByConfigurators); audit M-6/#15.
+    /**
+     * ONBOARDING UNIFICAT (cerința beneficiarului, 2026-07-16): fișa de profesor NU se mai
+     * creează separat de cont — crearea trece exclusiv prin fluxul de utilizator (Utilizatori →
+     * rol Profesor/Diriginte), care naște împreună fișa + contul + alocările + diriginția.
+     * Butonul „create" din listă duce acolo; pagina directă de creare e închisă pentru toți.
+     */
     public static function canCreate(): bool
     {
-        return auth('web')->user()?->canConfigureSchool() ?? false;
+        return false;
     }
 
     public static function canEdit(Model $record): bool

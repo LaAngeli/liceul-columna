@@ -104,11 +104,17 @@ it('prim-vicedirectorul NU poate ForceDelete/Restore resurse de configurare', fu
 
 // ─── M-6: fișele de profesor = configurare (nu prim-vicedirector) ───────────────────────
 
-it('fișele de profesor: prim-vicedirectorul le vede dar NU le creează/editează; AO da', function () {
+it('fișele de profesor: prim-vicedirectorul le vede dar NU le editează; AO da', function () {
+    // Onboarding unificat (2026-07-16): fișa NU se mai creează separat — canCreate e închis
+    // pentru TOȚI (fluxul trece prin Utilizatori). Configurarea = editarea fișei existente.
+    $teacher = Teacher::factory()->create();
+
     actingAs(lotARoleUser(UserRole::PrimVicedirector->value));
     expect(TeacherResource::canAccess())->toBeTrue()   // vede (isAdministrator)
-        ->and(TeacherResource::canCreate())->toBeFalse(); // dar nu configurează
+        ->and(TeacherResource::canCreate())->toBeFalse()
+        ->and(TeacherResource::canEdit($teacher))->toBeFalse(); // dar nu configurează
 
     actingAs(lotARoleUser(UserRole::AdministratorOperational->value));
-    expect(TeacherResource::canCreate())->toBeTrue();
+    expect(TeacherResource::canCreate())->toBeFalse()
+        ->and(TeacherResource::canEdit($teacher))->toBeTrue();
 });

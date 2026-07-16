@@ -32,6 +32,17 @@ class StudentResource extends Resource
 
     protected static ?string $model = Student::class;
 
+    /**
+     * ONBOARDING UNIFICAT (cerința beneficiarului, 2026-07-16): fișa de elev NU se mai creează
+     * separat de cont — crearea trece exclusiv prin fluxul de utilizator (Utilizatori → rol Elev),
+     * care naște împreună fișa + contul + înmatricularea + legătura cu părinții. Butonul „create"
+     * din listă duce acolo; pagina directă de creare rămâne închisă pentru toți.
+     */
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;
 
     protected static ?int $navigationSort = 70;
