@@ -281,6 +281,11 @@ class UserForm
                             ->required(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation)),
                         Select::make('student_guardian_user_ids')
                             ->label(__('panel.forms.user.student_guardians'))
+                            // OPȚIONAL explicit (feedback beneficiar): fără marcaj, câmpul de
+                            // asociere „arăta" obligatoriu și sugera o dependență circulară
+                            // elev↔părinte. Elevul se creează complet și fără părinți; legătura
+                            // se închide oricând de pe contul părintelui (creare sau editare).
+                            ->hint(__('panel.forms.user.optional_hint'))
                             ->helperText(__('panel.forms.user.student_guardians_hint'))
                             ->multiple()
                             ->searchable()
@@ -291,6 +296,9 @@ class UserForm
                                 && $get('role') === UserRole::Elev->value),
                         Select::make('guardian_student_ids')
                             ->label(__('panel.forms.user.children'))
+                            // Aceeași regulă și pe partea părintelui: contul se creează și fără
+                            // copii (elevii pot să nu existe încă) — asocierea se face ulterior.
+                            ->hint(__('panel.forms.user.optional_hint'))
                             ->helperText(__('panel.forms.user.children_hint'))
                             // Căutare pe SERVER peste TOȚI elevii din registru (o listă pre-încărcată
                             // trunchia afișarea la sute de elevi — feedback beneficiar).

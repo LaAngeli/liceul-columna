@@ -13,6 +13,7 @@ use App\Enums\UserRole;
 use App\Filament\Resources\Students\Pages\ListStudents;
 use App\Filament\Resources\Teachers\Pages\ListTeachers;
 use App\Filament\Resources\Users\Pages\CreateUser;
+use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
@@ -262,6 +263,57 @@ it('elevul NOU fără clasă nu trece: înmatricularea e parte din flux', functi
 
     expect(User::query()->where('username', 'fara.clasa')->exists())->toBeFalse()
         ->and(Student::query()->where('last_name', 'Fara')->exists())->toBeFalse();
+});
+
+it('elevul nou se creează complet FĂRĂ părinți; legătura se face ulterior, de pe contul părintelui', function () {
+    // Fără dependență circulară elev↔părinte: câmpul „Părinții elevului" e OPȚIONAL.
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'last_name' => 'Fara', 'first_name' => 'Parinti',
+            'username' => 'fara.parinti',
+            'role' => UserRole::Elev->value,
+            'student_fiche_mode' => 'create',
+            'student_fiche_sex' => Sex::Male->value,
+            'enroll_class_id' => $this->classA->id,
+            'password' => 'Temp-Onboard-10',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $user = User::query()->where('username', 'fara.parinti')->sole();
+    $fiche = Student::query()->where('user_id', $user->id)->sole();
+
+    expect($fiche->guardians()->count())->toBe(0)
+        ->and(Enrollment::query()->where('student_id', $fiche->id)->exists())->toBeTrue();
+
+    // Drumul invers (propunerea beneficiarului): părintele — creat SAU editat ulterior —
+    // își alege copiii dintre elevii existenți; asocierea se închide de pe partea lui.
+    $parinte = User::factory()->create(['username' => 'parinte.ulterior']);
+    $parinte->assignRole(UserRole::Parinte->value);
+
+    Livewire::test(EditUser::class, ['record' => $parinte->getRouteKey()])
+        ->fillForm(['guardian_student_ids' => [$fiche->id]])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($fiche->guardians()->pluck('users.id')->all())->toBe([$parinte->id]);
+});
+
+it('părintele se creează FĂRĂ copii (câmpul e opțional — copiii se pot lega și mai târziu)', function () {
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'last_name' => 'Parinte', 'first_name' => 'Devreme',
+            'username' => 'parinte.devreme',
+            'role' => UserRole::Parinte->value,
+            'password' => 'Temp-Onboard-11',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $user = User::query()->where('username', 'parinte.devreme')->sole();
+
+    expect($user->getRoleNames()->all())->toBe([UserRole::Parinte->value])
+        ->and($user->students()->count())->toBe(0);
 });
 
 it('doar conturile cu rol de părinte pot fi legate drept părinți (id străin = respins)', function () {
