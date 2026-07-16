@@ -3,11 +3,13 @@
 namespace App\Filament\Resources\CorigentaExams\Tables;
 
 use App\Enums\CorigentaSeason;
+use App\Filament\Resources\CorigentaExams\Pages\ListCorigentaExams;
 use App\Support\ContentTranslator;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class CorigentaExamsTable
 {
@@ -15,6 +17,10 @@ class CorigentaExamsTable
     {
         return $table
             ->defaultSort('id', 'desc')
+            // Contextul navigatorului de configurare (sesiunea activă) — vezi ListCorigentaExams.
+            ->modifyQueryUsing(fn (Builder $query, $livewire): Builder => $livewire instanceof ListCorigentaExams
+                ? $livewire->applyYearContext($query)
+                : $query)
             ->columns([
                 TextColumn::make('student.full_name')
                     ->label(__('panel.fields.student'))

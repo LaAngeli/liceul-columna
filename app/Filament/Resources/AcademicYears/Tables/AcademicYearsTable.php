@@ -2,16 +2,11 @@
 
 namespace App\Filament\Resources\AcademicYears\Tables;
 
-use App\Jobs\ArchiveYearJob;
-use App\Models\AcademicYear;
-use App\Models\User;
-use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
-use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
@@ -49,29 +44,8 @@ class AcademicYearsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
-                // ÎNCHIDEREA ANULUI (spec §2.4/§2.5): arhivează mediile semestriale + anuale în
-                // foaia matricolă. Idempotentă — re-rularea după corecții reîmprospătează arhiva.
-                // Rulează pe QUEUE (mii de scrieri — sincron depășea limita PHP de 30s și lăsa
-                // matricola pe jumătate rescrisă); rezultatul vine în clopoțel, de la ArchiveYearJob.
-                // Echivalent CLI: `php artisan app:archive-year`.
-                Action::make('archiveYear')
-                    ->label(__('panel.actions.archive_year.label'))
-                    ->icon('heroicon-o-archive-box-arrow-down')
-                    ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalHeading(fn (AcademicYear $record): string => __('panel.actions.archive_year.heading', ['year' => $record->name]))
-                    ->modalDescription(fn (): string => __('panel.actions.archive_year.description'))
-                    ->modalSubmitActionLabel(__('panel.actions.archive_year.submit'))
-                    ->visible(fn (): bool => ($user = auth('web')->user()) instanceof User && $user->canConfigureSchool())
-                    ->action(function (AcademicYear $record): void {
-                        ArchiveYearJob::dispatch($record, (int) auth('web')->id());
-
-                        Notification::make()
-                            ->info()
-                            ->title(__('panel.actions.archive_year.queued', ['year' => $record->name]))
-                            ->body(__('panel.actions.archive_year.queued_body'))
-                            ->send();
-                    }),
+                // „Arhivează în matricolă" a devenit acțiune de PAGINĂ pe hub-ul de carduri
+                // (ListAcademicYears::archiveYearAction) — pagina nu mai randează tabelul.
                 EditAction::make(),
             ])
             ->toolbarActions([

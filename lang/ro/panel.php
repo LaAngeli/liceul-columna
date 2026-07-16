@@ -1065,6 +1065,28 @@ return [
     ],
 
     // Navigatorul catalogului (Note / Absențe / Teme): meniul drill-down pe dimensiuni → entități → tabel.
+    'config_nav' => [
+        'years_hint' => 'Hub-urile anilor școlari: conținutul fiecărui an, cu sărituri directe în Semestre / Clase / Înmatriculări (pre-filtrate) și operațiunile anului.',
+        'current_year' => 'An curent',
+        'terms' => '{0}fără semestre|{1}:count semestru|[2,19]:count semestre|[20,*]:count de semestre',
+        'enrollments' => '{0}fără înmatriculări|{1}:count înmatriculare|[2,19]:count înmatriculări|[20,*]:count de înmatriculări',
+        'terms_hint' => 'Semestrele anului activ. Anul se schimbă din pastile.',
+        'sessions_hint' => 'Sesiunile de corigență ale anului activ, cu fluxul propunere → aprobare → publicare.',
+        'commissions_hint' => 'Comisiile de examen ale anului activ.',
+        'summative_hint' => 'Designările de sumativă (obiect × clasă) ale anului activ — anul vine prin clasa desemnată.',
+        'exams_hint' => 'Examenele de corigență, pe sesiunea activă (an + sezon).',
+        'no_session' => 'Fără sesiune',
+        'schedules_hint' => 'Cele 9 tipuri de orar din Calendar. Alege un tip ca să-i vezi tabelele; „fără date" înseamnă că publicul nu are ce vedea acolo.',
+        'schedule_tables' => '{1}:count tabel|[2,19]:count tabele|[20,*]:count de tabele',
+        'schedule_public' => ':count publice',
+        'schedule_empty' => 'fără date încă',
+        'schedule_missing' => 'fără date',
+        'lessons_hint' => 'Orarul structurat, pe clase: alege anul, apoi clasa, ca să-i vezi și să-i completezi lecțiile.',
+        'lessons_per_week' => '{1}:count lecție/săptămână|[2,19]:count lecții/săptămână|[20,*]:count de lecții/săptămână',
+        'no_timetable' => 'fără orar încă',
+        'no_timetable_badge' => 'fără orar',
+    ],
+
     'users_nav' => [
         'hint' => 'Conturile platformei, organizate pe roluri. Alege un rol ca să-i deschizi lista; de pe cardul unui rol gol creezi primul cont, pre-completat.',
         'accounts' => '{0}fără conturi|{1}:count cont|[2,19]:count conturi|[20,*]:count de conturi',

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Terms\Tables;
 
+use App\Filament\Resources\Terms\Pages\ListTerms;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -11,6 +12,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class TermsTable
 {
@@ -18,11 +20,11 @@ class TermsTable
     {
         return $table
             ->defaultSort('starts_on', 'desc')
+            // Contextul navigatorului de configurare (anul activ) — vezi ListTerms.
+            ->modifyQueryUsing(fn (Builder $query, $livewire): Builder => $livewire instanceof ListTerms
+                ? $livewire->applyYearContext($query)
+                : $query)
             ->columns([
-                TextColumn::make('academicYear.name')
-                    ->label(__('panel.fields.academic_year'))
-                    ->searchable()
-                    ->sortable(),
                 TextColumn::make('number')
                     ->label(__('panel.forms.term.number_short'))
                     ->numeric()

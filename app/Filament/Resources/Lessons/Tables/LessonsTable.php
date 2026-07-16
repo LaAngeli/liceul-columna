@@ -3,12 +3,13 @@
 namespace App\Filament\Resources\Lessons\Tables;
 
 use App\Enums\Weekday;
-use App\Models\Lesson;
+use App\Filament\Resources\Lessons\Pages\ListLessons;
 use App\Support\ContentTranslator;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class LessonsTable
 {
@@ -16,11 +17,11 @@ class LessonsTable
     {
         return $table
             ->defaultSort('day_of_week')
+            // Contextul navigatorului de configurare (clasa activă) — vezi ListLessons.
+            ->modifyQueryUsing(fn (Builder $query, $livewire): Builder => $livewire instanceof ListLessons
+                ? $livewire->applyClassContext($query)
+                : $query)
             ->columns([
-                TextColumn::make('schoolClass.name')
-                    ->label(__('panel.fields.class'))
-                    ->formatStateUsing(fn (Lesson $record): string => trim(($record->schoolClass->name ?? '').' '.($record->schoolClass->section ?? '')))
-                    ->sortable(),
                 TextColumn::make('day_of_week')
                     ->label(__('panel.forms.lesson.weekday'))
                     ->badge()
@@ -40,11 +41,6 @@ class LessonsTable
                     ->placeholder(__('panel.common.dash')),
             ])
             ->filters([
-                SelectFilter::make('school_class_id')
-                    ->label(__('panel.fields.class'))
-                    ->relationship('schoolClass', 'name')
-                    ->searchable()
-                    ->preload(),
                 SelectFilter::make('day_of_week')
                     ->label(__('panel.forms.lesson.weekday'))
                     ->options(Weekday::options()),

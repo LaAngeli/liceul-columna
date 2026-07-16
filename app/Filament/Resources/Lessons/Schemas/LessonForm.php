@@ -19,12 +19,21 @@ class LessonForm
                 Select::make('academic_year_id')
                     ->label(__('panel.fields.academic_year'))
                     ->relationship('academicYear', 'name')
-                    ->default(fn (): ?int => AcademicYear::query()->latest('id')->value('id'))
+                    // Din orarul unei clase (navigator), contextul pre-completează anul + clasa —
+                    // validat (id străin = ignorat), nu preluat orbește.
+                    ->default(function (): ?int {
+                        $class = self::contextClass();
+
+                        return $class !== null
+                            ? (int) $class->academic_year_id
+                            : AcademicYear::query()->latest('id')->value('id');
+                    })
                     ->required(),
                 Select::make('school_class_id')
                     ->label(__('panel.fields.class'))
                     ->relationship('schoolClass', 'name')
                     ->getOptionLabelFromRecordUsing(fn (SchoolClass $record): string => trim($record->name.' '.($record->section ?? '')))
+                    ->default(fn (): ?int => self::contextClass()?->getKey())
                     ->searchable()
                     ->preload()
                     ->required(),
@@ -52,5 +61,17 @@ class LessonForm
                     ->label(__('panel.forms.lesson.room'))
                     ->maxLength(20),
             ]);
+    }
+
+    /** Clasa din contextul navigatorului (`?clasa=`), doar dacă există. */
+    private static function contextClass(): ?SchoolClass
+    {
+        $raw = request()->query('clasa');
+
+        if (! is_string($raw) || ! ctype_digit($raw)) {
+            return null;
+        }
+
+        return SchoolClass::query()->whereKey((int) $raw)->first();
     }
 }

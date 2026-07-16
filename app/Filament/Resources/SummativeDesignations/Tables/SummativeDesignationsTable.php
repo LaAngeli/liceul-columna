@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\SummativeDesignations\Tables;
 
+use App\Filament\Resources\SummativeDesignations\Pages\ListSummativeDesignations;
 use App\Models\SummativeDesignation;
 use App\Support\ContentTranslator;
 use Filament\Actions\BulkActionGroup;
@@ -11,13 +12,21 @@ use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class SummativeDesignationsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->with(['schoolClass', 'subject']))
+            ->modifyQueryUsing(function (Builder $query, $livewire): Builder {
+                $query->with(['schoolClass', 'subject']);
+
+                // Contextul navigatorului de configurare (anul activ) — vezi ListSummativeDesignations.
+                return $livewire instanceof ListSummativeDesignations
+                    ? $livewire->applyYearContext($query)
+                    : $query;
+            })
             ->columns([
                 TextColumn::make('schoolClass.name')
                     ->label(__('grading.designation.fields.class'))

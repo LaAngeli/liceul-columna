@@ -4,6 +4,7 @@ namespace App\Filament\Resources\CorigentaSessions\Tables;
 
 use App\Enums\CorigentaSessionStatus;
 use App\Enums\UserRole;
+use App\Filament\Resources\CorigentaSessions\Pages\ListCorigentaSessions;
 use App\Models\CorigentaSession;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -12,6 +13,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class CorigentaSessionsTable
 {
@@ -19,8 +21,11 @@ class CorigentaSessionsTable
     {
         return $table
             ->defaultSort('starts_on', 'desc')
+            // Contextul navigatorului de configurare (anul activ) — vezi ListCorigentaSessions.
+            ->modifyQueryUsing(fn (Builder $query, $livewire): Builder => $livewire instanceof ListCorigentaSessions
+                ? $livewire->applyYearContext($query)
+                : $query)
             ->columns([
-                TextColumn::make('academicYear.name')->label(__('panel.forms.corigenta_session.year'))->toggleable(),
                 TextColumn::make('season')->label(__('panel.forms.corigenta_session.season'))->badge(),
                 TextColumn::make('type')->label(__('panel.forms.corigenta_session.type'))->badge(),
                 TextColumn::make('starts_on')->label(__('panel.forms.corigenta_session.starts_on'))->date('d.m.Y')->sortable(),

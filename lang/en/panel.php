@@ -1049,6 +1049,28 @@ return [
         'not_archived_body' => 'The mark was saved on the exam, but the student has no enrollment in the exam year, so the grade level could not be determined. Check the enrollment, then re-save the mark.',
     ],
 
+    'config_nav' => [
+        'years_hint' => 'The school-year hubs: each year\'s contents, with direct jumps into Terms / Classes / Enrollments (pre-filtered) and the year\'s operations.',
+        'current_year' => 'Current year',
+        'terms' => '{0}no terms|{1}:count term|[2,*]:count terms',
+        'enrollments' => '{0}no enrollments|{1}:count enrollment|[2,*]:count enrollments',
+        'terms_hint' => 'The active year\'s terms. Switch the year from the pills.',
+        'sessions_hint' => 'The active year\'s corigenta sessions, with the propose → approve → publish flow.',
+        'commissions_hint' => 'The active year\'s exam commissions.',
+        'summative_hint' => 'The summative designations (subject × class) of the active year — the year comes through the designated class.',
+        'exams_hint' => 'The corigenta exams, by the active session (year + season).',
+        'no_session' => 'No session',
+        'schedules_hint' => 'The Calendar\'s nine timetable types. Pick one to see its tables; "no data" means the public has nothing to see there.',
+        'schedule_tables' => '{1}:count table|[2,*]:count tables',
+        'schedule_public' => ':count public',
+        'schedule_empty' => 'no data yet',
+        'schedule_missing' => 'no data',
+        'lessons_hint' => 'The structured timetable, by class: pick the year, then the class, to view and fill in its lessons.',
+        'lessons_per_week' => '{1}:count lesson/week|[2,*]:count lessons/week',
+        'no_timetable' => 'no timetable yet',
+        'no_timetable_badge' => 'no timetable',
+    ],
+
     'users_nav' => [
         'hint' => 'The platform\'s accounts, organised by role. Pick a role to open its list; from an empty role\'s card you create its first account, pre-filled.',
         'accounts' => '{0}no accounts|{1}:count account|[2,*]:count accounts',

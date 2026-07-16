@@ -2,27 +2,27 @@
 
 namespace App\Filament\Resources\Schedules\Tables;
 
-use App\Enums\ScheduleType;
+use App\Filament\Resources\Schedules\Pages\ListSchedules;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class SchedulesTable
 {
     public static function configure(Table $table): Table
     {
         return $table
-            ->defaultGroup('type')
             ->defaultSort('position')
+            // Contextul navigatorului de configurare (tipul activ) — vezi ListSchedules.
+            ->modifyQueryUsing(fn (Builder $query, $livewire): Builder => $livewire instanceof ListSchedules
+                ? $livewire->applyTypeContext($query)
+                : $query)
             ->columns([
-                TextColumn::make('type')
-                    ->label(__('panel.fields.type'))
-                    ->badge(),
                 TextColumn::make('label')
                     ->label(__('panel.forms.schedule.title'))
                     ->searchable(),
@@ -38,9 +38,6 @@ class SchedulesTable
                     ->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('type')
-                    ->label(__('panel.fields.type'))
-                    ->options(ScheduleType::options()),
                 TernaryFilter::make('is_public')
                     ->label(__('panel.forms.schedule.is_public_filter')),
             ])

@@ -157,9 +157,10 @@ it('acțiunea „Arhivează în matricolă" din panou rulează pentru configurat
     $director->assignRole(UserRole::Director->value);
     actingAs($director);
 
+    // Acțiune de PAGINĂ pe hub-ul de carduri (montată cu argumentul anului).
     Livewire::test(ListAcademicYears::class)
-        ->callTableAction('archiveYear', $this->year)
-        ->assertHasNoTableActionErrors();
+        ->callAction('archiveYear', arguments: ['year' => $this->year->getKey()])
+        ->assertHasNoActionErrors();
 
     expect(AcademicRecord::query()->count())->toBe(3);
 });
@@ -172,8 +173,8 @@ it('acțiunea din panou pune arhivarea pe COADĂ (sincron depășea limita de ex
     Bus::fake();
 
     Livewire::test(ListAcademicYears::class)
-        ->callTableAction('archiveYear', $this->year)
-        ->assertHasNoTableActionErrors();
+        ->callAction('archiveYear', arguments: ['year' => $this->year->getKey()])
+        ->assertHasNoActionErrors();
 
     Bus::assertDispatched(ArchiveYearJob::class, fn (ArchiveYearJob $job): bool => $job->year->is($this->year)
         && $job->initiatorId === $director->id);
