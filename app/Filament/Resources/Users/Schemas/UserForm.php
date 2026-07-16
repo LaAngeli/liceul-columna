@@ -46,15 +46,22 @@ class UserForm
                         TextInput::make('last_name')
                             ->label(__('panel.forms.user.name'))
                             ->required()
+                            // Doar litere (cu diacritice), spații, cratime, apostrof — fără cifre.
+                            ->regex("/^[\pL\pM'’ \\-\\.]+$/u")
+                            ->validationMessages(['regex' => __('panel.forms.user.name_letters')])
                             ->maxLength(120),
                         TextInput::make('first_name')
                             ->label(__('panel.forms.user.first_name'))
                             ->required()
+                            ->regex("/^[\pL\pM'’ \\-\\.]+$/u")
+                            ->validationMessages(['regex' => __('panel.forms.user.name_letters')])
                             ->maxLength(120),
                         TextInput::make('username')
                             ->label(__('panel.forms.user.username'))
                             // Identificatorul stabil de autentificare (mulți elevi/părinți nu au e-mail).
                             ->required()
+                            ->regex('/^[A-Za-z0-9._\-]+$/')
+                            ->validationMessages(['regex' => __('panel.forms.user.username_format')])
                             ->unique(ignoreRecord: true)
                             ->maxLength(60)
                             ->helperText(__('panel.forms.user.username_hint')),
@@ -117,9 +124,12 @@ class UserForm
                         Select::make('guardian_student_ids')
                             ->label(__('panel.forms.user.children'))
                             ->helperText(__('panel.forms.user.children_hint'))
-                            ->options(fn (): array => self::allStudentOptions())
+                            // Căutare pe SERVER peste TOȚI elevii din registru (o listă pre-încărcată
+                            // trunchia afișarea la sute de elevi — feedback beneficiar).
                             ->multiple()
                             ->searchable()
+                            ->getSearchResultsUsing(fn (string $search): array => self::searchStudents($search))
+                            ->getOptionLabelsUsing(fn (array $values): array => self::studentLabels($values))
                             ->columnSpanFull()
                             ->visible(fn (Get $get): bool => $get('role') === UserRole::Parinte->value),
                     ]),
@@ -253,14 +263,40 @@ class UserForm
     }
 
     /**
-     * TOȚI elevii (pentru copiii unui părinte), cu clasa curentă în etichetă.
+     * Căutare pe server peste TOȚI elevii din registru (pentru copiii unui părinte),
+     * cu clasa curentă în etichetă.
      *
      * @return array<int, string>
      */
-    private static function allStudentOptions(): array
+    private static function searchStudents(string $search): array
+    {
+        $search = trim($search);
+
+        return self::labelStudentsWithClass(
+            Student::query()
+                ->when($search !== '', function ($query) use ($search): void {
+                    $query->where(function ($inner) use ($search): void {
+                        $inner->where('last_name', 'like', '%'.$search.'%')
+                            ->orWhere('first_name', 'like', '%'.$search.'%');
+                    });
+                })
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->limit(50)
+                ->get(),
+        );
+    }
+
+    /**
+     * Etichetele copiilor deja selectați (id → „Nume Prenume — clasă").
+     *
+     * @param  array<int, int|string>  $values
+     * @return array<int, string>
+     */
+    private static function studentLabels(array $values): array
     {
         return self::labelStudentsWithClass(
-            Student::query()->orderBy('last_name')->orderBy('first_name')->get(),
+            Student::query()->whereKey($values)->orderBy('last_name')->orderBy('first_name')->get(),
         );
     }
 

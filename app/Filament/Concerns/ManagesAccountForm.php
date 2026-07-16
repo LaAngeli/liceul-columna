@@ -120,8 +120,15 @@ trait ManagesAccountForm
                 ->update(['user_id' => $user->getKey()]);
         }
 
-        // Copiii părintelui (pivotul guardian_student); alt rol → fără copii.
-        $user->students()->sync($role === UserRole::Parinte->value ? ($this->guardianStudentIds ?? []) : []);
+        // Copiii părintelui (pivotul guardian_student); alt rol → fără copii. Id-urile trec
+        // prin registru (selectul cu căutare pe server nu are listă statică de validat).
+        $childIds = $role === UserRole::Parinte->value ? ($this->guardianStudentIds ?? []) : [];
+
+        if ($childIds !== []) {
+            $childIds = Student::query()->whereKey($childIds)->pluck('id')->all();
+        }
+
+        $user->students()->sync($childIds);
 
         if ($this->sendCredentials && $this->plainTemporaryPassword !== null && filled($user->email)) {
             $user->notify(new TemporaryCredentials($this->plainTemporaryPassword));

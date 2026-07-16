@@ -108,6 +108,40 @@ it('editarea desparte numele în Nume + Prenume și îl recompune la salvare', f
     expect($user->fresh()->name)->toBe('Bujor-Cobili Carolina-Maria');
 });
 
+it('identitatea e validată: numele fără cifre, utilizatorul în format strict, e-mailul valid', function () {
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'last_name' => 'Popescu2', 'first_name' => 'Ana3',
+            'username' => 'nume cu spații',
+            'email' => 'nu-e-email',
+            'role' => UserRole::Elev->value,
+            'password' => 'Temp-Parola-8',
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['last_name', 'first_name', 'username', 'email']);
+
+    expect(User::query()->where('email', 'nu-e-email')->exists())->toBeFalse();
+});
+
+it('un id de copil care nu există în registru respinge selecția (validarea pe server)', function () {
+    $copil = Student::factory()->create();
+
+    // Selectul cu căutare pe server validează valorile prin etichetele din registru
+    // (getOptionLabelsUsing) — un id inexistent invalidează selecția, nu se strecoară.
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'last_name' => 'Părinte', 'first_name' => 'Filtrat',
+            'username' => 'parinte.filtrat',
+            'role' => UserRole::Parinte->value,
+            'guardian_student_ids' => [$copil->id, 999999],
+            'password' => 'Temp-Parola-9',
+        ])
+        ->call('create')
+        ->assertHasFormErrors();
+
+    expect(User::query()->where('username', 'parinte.filtrat')->exists())->toBeFalse();
+});
+
 it('contul nou se autentifică cu parola temporară și e dus la schimbarea parolei', function () {
     Livewire::test(CreateUser::class)
         ->fillForm([
