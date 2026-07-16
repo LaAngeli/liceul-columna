@@ -8,6 +8,7 @@
  * asocieri, autentificare cu parola temporară, suspendare (login + sesiuni), resetare de parolă.
  */
 
+use App\Enums\AudienceDomain;
 use App\Enums\UserRole;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
@@ -247,6 +248,33 @@ it('contul de profesor se leagă de fișa de profesor, iar schimbarea rolului o 
         ->assertHasNoFormErrors();
 
     expect($fiche->fresh()->user_id)->toBeNull();
+});
+
+it('domeniile de audiență NU se atribuie la creare (nici trimise pe furiș), ci doar la editare', function () {
+    // Câmpul e ascuns pe formularul de CREARE (desemnarea responsabilului de domeniu e o
+    // decizie deliberată, nu o bifă implicită a rolului) → starea trimisă nu se dehidratează.
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'last_name' => 'Vice', 'first_name' => 'Nou',
+            'username' => 'vice.nou',
+            'role' => UserRole::PrimVicedirector->value,
+            'audience_domains' => [AudienceDomain::Educatie->value],
+            'password' => 'Temp-Parola-20',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $user = User::query()->where('username', 'vice.nou')->sole();
+    expect($user->audienceDomains())->toBe([]);
+
+    // Desemnarea = pas explicit, din editarea contului; de-abia atunci contul preia domeniul
+    // (rutarea audiențelor + aprobarea motivărilor tardive pe „Educație").
+    Livewire::test(EditUser::class, ['record' => $user->getRouteKey()])
+        ->fillForm(['audience_domains' => [AudienceDomain::Educatie->value]])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($user->fresh()->handlesAudienceDomain(AudienceDomain::Educatie))->toBeTrue();
 });
 
 it('părintele primește copiii selectați (pivotul guardian_student)', function () {

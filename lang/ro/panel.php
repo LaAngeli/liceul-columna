@@ -843,7 +843,7 @@ return [
             'role' => 'Rol',
             'role_filter' => 'Rol',
             'audience_domains' => 'Domenii de audiență',
-            'audience_domains_hint' => 'Responsabilitățile de domeniu ale conducerii (spec §4.2): cererile de audiență ale părinților pe domeniu se rutează către acest cont; „Educație" validează și motivările tardive (excepțiile), „Instruire" conduce fluxul de corigență. Ambele se bifează când aceeași persoană acoperă ambele domenii.',
+            'audience_domains_hint' => 'Responsabilitățile de domeniu ale conducerii (spec §4.2): cererile de audiență ale părinților pe domeniu se rutează către acest cont; „Educație" validează și motivările tardive (excepțiile), „Instruire" conduce fluxul de corigență. E o DESEMNARE per persoană (de regulă un singur responsabil pe domeniu), nu un drept al rolului — se atribuie aici, după creare. Ambele se bifează când aceeași persoană acoperă ambele domenii.',
             'must_change_password' => 'Forțează schimbare parolă',
             'password_status' => 'Parolă',
             'password_must_change' => 'De schimbat',

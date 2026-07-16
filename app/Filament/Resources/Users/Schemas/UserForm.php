@@ -115,16 +115,23 @@ class UserForm
                             ->native(false)
                             ->live()
                             ->required(),
+                        // Domeniile de audiență NU apar la CREARE (feedback beneficiar): ele nu
+                        // sunt un drept implicit al rolului, ci o DESEMNARE per persoană —
+                        // responsabilul de Instruire/Educație primește rutarea audiențelor,
+                        // notificările și dreptul de aprobare a motivărilor tardive (Educație).
+                        // Desemnarea se face deliberat, DUPĂ creare, din editarea contului;
+                        // widget-ul „Audiențe fără responsabil" semnalează domeniile neacoperite.
                         CheckboxList::make('audience_domains')
                             ->label(__('panel.forms.user.audience_domains'))
                             ->helperText(__('panel.forms.user.audience_domains_hint'))
                             ->options(AudienceDomain::options())
                             ->columns(2)
-                            ->visible(fn (Get $get): bool => in_array($get('role'), [
-                                UserRole::Director->value,
-                                UserRole::PrimVicedirector->value,
-                                UserRole::AdministratorOperational->value,
-                            ], true)),
+                            ->visible(fn (Get $get, string $operation): bool => $operation !== 'create'
+                                && in_array($get('role'), [
+                                    UserRole::Director->value,
+                                    UserRole::PrimVicedirector->value,
+                                    UserRole::AdministratorOperational->value,
+                                ], true)),
                         // ── Onboarding PROFESOR/DIRIGINTE: fișa (nouă sau existentă) + integrarea ──
                         // Fișa e sursa perimetrului (alocări, diriginție): un cont pedagogic nou
                         // nu poate exista fără ea. Implicit se CREEAZĂ o fișă nouă din datele de

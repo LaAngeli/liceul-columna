@@ -830,7 +830,7 @@ return [
             'role' => 'Role',
             'role_filter' => 'Role',
             'audience_domains' => 'Audience domains',
-            'audience_domains_hint' => 'The leadership\'s domain responsibilities (spec §4.2): parents\' audience requests in the domain are routed to this account; "Upbringing" also validates late motivations (the exceptions), "Instruction" leads the corigenta flow. Tick both when one person covers both domains.',
+            'audience_domains_hint' => 'The leadership\'s domain responsibilities (spec §4.2): parents\' audience requests in the domain are routed to this account; "Upbringing" also validates late motivations (the exceptions), "Instruction" leads the corigenta flow. It is a per-person DESIGNATION (usually one responsible per domain), not a role right — it is assigned here, after creation. Tick both when one person covers both domains.',
             'must_change_password' => 'Force password change',
             'password_status' => 'Password',
             'password_must_change' => 'Must change',

@@ -299,6 +299,42 @@ it('elevul nou se creează complet FĂRĂ părinți; legătura se face ulterior,
     expect($fiche->guardians()->pluck('users.id')->all())->toBe([$parinte->id]);
 });
 
+it('editarea contului de elev nu cere părinți și păstrează legăturile existente', function () {
+    $parinte = User::factory()->create(['username' => 'parinte.pastrat']);
+    $parinte->assignRole(UserRole::Parinte->value);
+
+    // Elev complet: fișă + înmatriculare + părinte legat, din fluxul unificat.
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'last_name' => 'Editabil', 'first_name' => 'Elev',
+            'username' => 'editabil.elev',
+            'role' => UserRole::Elev->value,
+            'student_fiche_mode' => 'create',
+            'student_fiche_sex' => Sex::Male->value,
+            'enroll_class_id' => $this->classA->id,
+            'student_guardian_user_ids' => [$parinte->id],
+            'password' => 'Temp-Onboard-12',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $user = User::query()->where('username', 'editabil.elev')->sole();
+    $fiche = Student::query()->where('user_id', $user->id)->sole();
+
+    // La EDITARE câmpul „Părinții elevului" nici nu apare (e pas de creare) — salvarea nu cere
+    // nimic legat de părinți și NU pierde legăturile: tutorele, fișa și înmatricularea rămân.
+    Livewire::test(EditUser::class, ['record' => $user->getRouteKey()])
+        ->fillForm(['first_name' => 'Elevul-Redenumit'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $fiche->refresh();
+    expect($user->fresh()->name)->toBe('Editabil Elevul-Redenumit')
+        ->and($fiche->user_id)->toBe($user->id)
+        ->and($fiche->guardians()->pluck('users.id')->all())->toBe([$parinte->id])
+        ->and(Enrollment::query()->where('student_id', $fiche->id)->where('school_class_id', $this->classA->id)->exists())->toBeTrue();
+});
+
 it('părintele se creează FĂRĂ copii (câmpul e opțional — copiii se pot lega și mai târziu)', function () {
     Livewire::test(CreateUser::class)
         ->fillForm([
