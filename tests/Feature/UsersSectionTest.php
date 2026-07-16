@@ -75,7 +75,7 @@ it('directorul creează conturi pentru fiecare rol pe care îl poate atribui', f
     foreach ($this->director->manageableRoleValues() as $index => $role) {
         Livewire::test(CreateUser::class)
             ->fillForm([
-                'name' => 'Cont '.$role,
+                'last_name' => 'Cont', 'first_name' => $role,
                 'username' => 'cont-'.$role,
                 'role' => $role,
                 'password' => 'Parola-Temp-'.$index,
@@ -87,16 +87,31 @@ it('directorul creează conturi pentru fiecare rol pe care îl poate atribui', f
         $user = User::query()->where('username', 'cont-'.$role)->sole();
 
         expect($user->getRoleNames()->all())->toBe([$role])
+            // Nume + Prenume (câmpuri separate) recompuse în numele complet, pentru catalog.
+            ->and($user->name)->toBe('Cont '.$role)
             ->and($user->must_change_password)->toBeTrue()
             ->and(Hash::check('Parola-Temp-'.$index, $user->password))->toBeTrue()
             ->and($user->isSuspended())->toBeFalse();
     }
 });
 
+it('editarea desparte numele în Nume + Prenume și îl recompune la salvare', function () {
+    $user = User::factory()->create(['name' => 'Bujor-Cobili Carolina', 'username' => 'bujor.carolina']);
+    $user->assignRole(UserRole::Profesor->value);
+
+    Livewire::test(EditUser::class, ['record' => $user->getRouteKey()])
+        ->assertFormSet(['last_name' => 'Bujor-Cobili', 'first_name' => 'Carolina'])
+        ->fillForm(['first_name' => 'Carolina-Maria'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($user->fresh()->name)->toBe('Bujor-Cobili Carolina-Maria');
+});
+
 it('contul nou se autentifică cu parola temporară și e dus la schimbarea parolei', function () {
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'name' => 'Elev Onboarding',
+            'last_name' => 'Elev', 'first_name' => 'Onboarding',
             'username' => 'elev.onboarding',
             'role' => UserRole::Elev->value,
             'password' => 'Temp-Parola-9',
@@ -133,7 +148,7 @@ it('contul de elev se leagă de fișa lui, iar re-legarea eliberează fișa vech
 
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'name' => 'Elev Legat',
+            'last_name' => 'Elev', 'first_name' => 'Legat',
             'username' => 'elev.legat',
             'role' => UserRole::Elev->value,
             'student_id' => $ficheA->id,
@@ -160,7 +175,7 @@ it('contul de profesor se leagă de fișa de profesor, iar schimbarea rolului o 
 
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'name' => 'Prof Legat',
+            'last_name' => 'Prof', 'first_name' => 'Legat',
             'username' => 'prof.legat',
             'role' => UserRole::Profesor->value,
             'teacher_id' => $fiche->id,
@@ -187,7 +202,7 @@ it('părintele primește copiii selectați (pivotul guardian_student)', function
 
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'name' => 'Părinte Nou',
+            'last_name' => 'Părinte', 'first_name' => 'Nou',
             'username' => 'parinte.nou',
             'role' => UserRole::Parinte->value,
             'guardian_student_ids' => [$copil1->id, $copil2->id],
@@ -209,7 +224,7 @@ it('trimite credențialele pe e-mail când opțiunea e bifată, cu parola tempor
 
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'name' => 'Cont Cu Email',
+            'last_name' => 'Cont', 'first_name' => 'Cu Email',
             'username' => 'cont.cu.email',
             'email' => 'cont@test.columna',
             'role' => UserRole::Profesor->value,
@@ -233,7 +248,7 @@ it('opțiunea de trimitere fără e-mail completat e respinsă', function () {
 
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'name' => 'Cont Fara Email',
+            'last_name' => 'Cont', 'first_name' => 'Fara Email',
             'username' => 'cont.fara.email',
             'email' => null,
             'role' => UserRole::Elev->value,

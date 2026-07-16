@@ -33,6 +33,13 @@ trait ManagesAccountForm
      */
     protected function pullAccountExtras(array $data): array
     {
+        // Nume + Prenume (câmpuri separate în formular) se recompun în users.name —
+        // convenția catalogului: numele de familie ÎNTÂI („Nume Prenume").
+        if (isset($data['last_name']) || isset($data['first_name'])) {
+            $data['name'] = trim(trim((string) ($data['last_name'] ?? '')).' '.trim((string) ($data['first_name'] ?? '')));
+            unset($data['last_name'], $data['first_name']);
+        }
+
         $this->linkedTeacherId = filled($data['teacher_id'] ?? null) ? (int) $data['teacher_id'] : null;
         $this->linkedStudentId = filled($data['student_id'] ?? null) ? (int) $data['student_id'] : null;
         $this->guardianStudentIds = isset($data['guardian_student_ids']) && is_array($data['guardian_student_ids'])
@@ -132,6 +139,12 @@ trait ManagesAccountForm
         $record = $this->getRecord();
 
         if ($record instanceof User) {
+            // Despărțirea numelui stocat în cele două câmpuri: primul cuvânt = numele de
+            // familie (convenția „Nume Prenume" — inversul recompunerii din pullAccountExtras).
+            $parts = explode(' ', trim((string) $record->name), 2);
+            $data['last_name'] = $parts[0];
+            $data['first_name'] = $parts[1] ?? '';
+
             $data['teacher_id'] = $record->teacher?->getKey();
             $data['student_id'] = $record->student?->getKey();
             $data['guardian_student_ids'] = $record->students()->pluck('students.id')->all();

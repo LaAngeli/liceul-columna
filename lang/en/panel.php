@@ -821,7 +821,8 @@ return [
             'preferred_time' => 'Preferred visit time',
         ],
         'user' => [
-            'name' => 'Name',
+            'name' => 'Last name',
+            'first_name' => 'First name',
             'username' => 'Username',
             'email' => 'Email',
             'password' => 'Password',

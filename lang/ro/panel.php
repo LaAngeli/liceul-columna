@@ -835,6 +835,7 @@ return [
         ],
         'user' => [
             'name' => 'Nume',
+            'first_name' => 'Prenume',
             'username' => 'Utilizator',
             'email' => 'Email',
             'password' => 'Parolă',

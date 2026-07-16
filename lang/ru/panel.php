@@ -819,7 +819,8 @@ return [
             'preferred_time' => 'Удобное время для визита',
         ],
         'user' => [
-            'name' => 'Имя',
+            'name' => 'Фамилия',
+            'first_name' => 'Имя',
             'username' => 'Имя пользователя',
             'email' => 'Email',
             'password' => 'Пароль',

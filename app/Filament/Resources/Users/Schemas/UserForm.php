@@ -38,12 +38,19 @@ class UserForm
             ->columns(1)
             ->components([
                 Section::make(__('panel.forms.user.section_identity'))
+                    // Grilă 2×2 (feedback beneficiar): Nume | Prenume pe primul rând,
+                    // Utilizator | Email pe al doilea. Câmpurile separate se recompun în
+                    // users.name („Nume Prenume") la salvare — catalogul vede numele întreg.
                     ->columns(2)
                     ->schema([
-                        TextInput::make('name')
+                        TextInput::make('last_name')
                             ->label(__('panel.forms.user.name'))
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(120),
+                        TextInput::make('first_name')
+                            ->label(__('panel.forms.user.first_name'))
+                            ->required()
+                            ->maxLength(120),
                         TextInput::make('username')
                             ->label(__('panel.forms.user.username'))
                             // Identificatorul stabil de autentificare (mulți elevi/părinți nu au e-mail).
@@ -54,7 +61,6 @@ class UserForm
                         TextInput::make('email')
                             ->label(__('panel.forms.user.email'))
                             ->email()
-                            ->columnSpanFull()
                             ->unique(ignoreRecord: true)
                             // Opțional (autentificarea merge pe utilizator), dar OBLIGATORIU când
                             // se trimit credențialele pe e-mail (required condiționat = regulă
