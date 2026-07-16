@@ -33,9 +33,12 @@ class UserForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            // Secțiunile curg UNA SUB ALTA, pe toată lățimea (nu două coloane înghesuite) —
+            // câmpurile primesc lățime reală (feedback beneficiar, 2026-07-16).
+            ->columns(1)
             ->components([
                 Section::make(__('panel.forms.user.section_identity'))
-                    ->columns(3)
+                    ->columns(2)
                     ->schema([
                         TextInput::make('name')
                             ->label(__('panel.forms.user.name'))
@@ -51,6 +54,7 @@ class UserForm
                         TextInput::make('email')
                             ->label(__('panel.forms.user.email'))
                             ->email()
+                            ->columnSpanFull()
                             ->unique(ignoreRecord: true)
                             // Opțional (autentificarea merge pe utilizator), dar OBLIGATORIU când
                             // se trimit credențialele pe e-mail (required condiționat = regulă
