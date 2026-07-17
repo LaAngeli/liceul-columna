@@ -222,6 +222,15 @@
     }
 }
 
+/* Scroller fără scrollbar vizibil (barele de taburi de pe mobil folosesc fade-uri de margine
+   ca afordanță în loc de scrollbar). */
+.scrollbar-none {
+    scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+    display: none;
+}
+
 /* Conținut de articol (HTML migrat din WordPress) */
 .prose-columna {
     line-height: 1.75;

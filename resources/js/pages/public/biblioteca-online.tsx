@@ -148,8 +148,10 @@ function BookCard({ entry, catLabel, t }: { entry: Entry; catLabel?: string; t: 
 }
 
 function BookGrid({ entries, t, withCat }: { entries: Entry[]; t: (k: string, f?: string) => string; withCat?: (k: string) => string }) {
+    // grid-cols-1 EXPLICIT: fără el, coloana implicită se dimensionează la max-content-ul
+    // celui mai lat card (min-width:auto pe grid items) → toată pagina scrolla orizontal pe mobil.
     return (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {entries.map((e) => (
                 <BookCard key={e.id} entry={e} catLabel={withCat?.(e.catKey)} t={t} />
             ))}

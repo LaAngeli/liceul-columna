@@ -156,7 +156,7 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
                     <table className="w-full text-sm">
                         <thead className="text-left text-muted-foreground">
                             <tr className="border-b border-sidebar-border/70 dark:border-sidebar-border">
-                                <th scope="col" className="px-4 py-2 font-medium">{t('cabinet.notif_type')}</th>
+                                <th scope="col" className="px-2.5 py-2 font-medium sm:px-4">{t('cabinet.notif_type')}</th>
                                 {Object.entries(channels).map(([value, label]) => {
                                     const configured = channelStatus[value] ?? true;
 
@@ -164,7 +164,7 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
                                         <th
                                             key={value}
                                             scope="col"
-                                            className={`px-3 py-2 text-center font-medium ${configured ? '' : 'text-muted-foreground/70'}`}
+                                            className={`px-1.5 py-2 text-center font-medium sm:px-3 ${configured ? '' : 'text-muted-foreground/70'}`}
                                             title={configured ? undefined : t('cabinet.notif_channel_unconfigured')}
                                         >
                                             {label}
@@ -176,7 +176,7 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
                         <tbody>
                             {Object.entries(types).map(([typeValue, typeLabel]) => (
                                 <tr key={typeValue} className="border-t border-sidebar-border/70 dark:border-sidebar-border">
-                                    <th scope="row" className="px-4 py-2 text-left font-medium">{typeLabel}</th>
+                                    <th scope="row" className="px-2.5 py-2 text-left font-medium sm:px-4">{typeLabel}</th>
                                     {Object.entries(channels).map(([channelValue, channelLabel]) => {
                                         const configured = channelStatus[channelValue] ?? true;
 

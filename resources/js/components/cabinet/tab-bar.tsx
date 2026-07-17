@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
-import { useRef  } from 'react';
-import type {KeyboardEvent} from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -13,14 +13,18 @@ export interface TabItem {
 
 /**
  * Bară de taburi adresabilă (caller-ul controlează prin `active` + `onChange`; tipic URL searchParam `?tab=...`).
- * Pe mobil bară-scroll orizontal (overflow-x-auto). Țintă tactilă >=44px.
+ * Țintă tactilă >=44px.
+ *
+ * Mobil (audit responsive 2026-07-17): bara scrollează orizontal FĂRĂ scrollbar vizibil; marginile cu
+ * taburi ascunse primesc un fade-gradient (afordanța „mai există"), iar tabul ACTIV e adus automat în
+ * vizor (inclusiv la deschiderea unui link `?tab=...` — altfel tabul din coadă rămânea invizibil).
  *
  * Pattern WAI-ARIA Tabs complet (audit § a11y #11):
  *  • `role=tablist/tab/tabpanel` + `aria-selected`, `aria-controls`, `aria-labelledby` (deja existente)
  *  • navigare cu tastatura: ArrowLeft/Right (cu wrap), Home/End — mută tabul activ și focusul
  *  • roving tabindex: doar tabul activ are `tabIndex=0` (intră în ordinea Tab); restul `-1` (focus doar via săgeți)
  *
- * Folosită în `student-profile.tsx` pentru cele 5 taburi comasate (Prezentare, Situație, Orar&Teme, Istoric, Cereri).
+ * Folosită în `student-profile.tsx` (cele 5 taburi comasate) și `documents.tsx`.
  */
 export function TabBar({
     items,
@@ -36,7 +40,35 @@ export function TabBar({
     className?: string;
 }) {
     const listRef = useRef<HTMLDivElement>(null);
+    const [fades, setFades] = useState({ left: false, right: false });
     const activeIndex = Math.max(0, items.findIndex((i) => i.value === active));
+
+    const updateFades = useCallback(() => {
+        const el = listRef.current;
+
+        if (!el) {
+            return;
+        }
+
+        setFades({
+            left: el.scrollLeft > 4,
+            right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+        });
+    }, []);
+
+    // Tabul activ intră în vizor la mount (link direct ?tab=...) și la fiecare schimbare.
+    useEffect(() => {
+        const btn = listRef.current?.querySelector<HTMLButtonElement>(`[id="tab-${CSS.escape(active)}"]`);
+        btn?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+        updateFades();
+    }, [active, updateFades]);
+
+    useEffect(() => {
+        updateFades();
+        window.addEventListener('resize', updateFades);
+
+        return () => window.removeEventListener('resize', updateFades);
+    }, [updateFades]);
 
     function focusTab(idx: number): void {
         const value = items[idx]?.value;
@@ -88,46 +120,61 @@ export function TabBar({
     }
 
     return (
-        <div
-            ref={listRef}
-            role="tablist"
-            aria-label={ariaLabel}
-            onKeyDown={handleKeyDown}
-            className={cn(
-                '-mx-1 flex gap-1 overflow-x-auto border-b border-sidebar-border/70 px-1 dark:border-sidebar-border',
-                className,
-            )}
-        >
-            {items.map((item) => {
-                const isActive = item.value === active;
+        <div className={cn('relative', className)}>
+            <div
+                ref={listRef}
+                role="tablist"
+                aria-label={ariaLabel}
+                onKeyDown={handleKeyDown}
+                onScroll={updateFades}
+                className="scrollbar-none -mx-1 flex gap-1 overflow-x-auto border-b border-sidebar-border/70 px-1 dark:border-sidebar-border"
+            >
+                {items.map((item) => {
+                    const isActive = item.value === active;
 
-                return (
-                    <button
-                        key={item.value}
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        aria-controls={`tab-panel-${item.value}`}
-                        id={`tab-${item.value}`}
-                        tabIndex={isActive ? 0 : -1}
-                        onClick={() => onChange(item.value)}
-                        className={cn(
-                            'inline-flex h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                            isActive
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-muted-foreground hover:text-foreground',
-                        )}
-                    >
-                        {item.icon && <item.icon className="size-4" aria-hidden="true" />}
-                        <span>{item.label}</span>
-                        {item.badge !== undefined && item.badge !== 0 && (
-                            <Badge variant={isActive ? 'default' : 'secondary'} className="px-1.5 py-0">
-                                {item.badge}
-                            </Badge>
-                        )}
-                    </button>
-                );
-            })}
+                    return (
+                        <button
+                            key={item.value}
+                            type="button"
+                            role="tab"
+                            aria-selected={isActive}
+                            aria-controls={`tab-panel-${item.value}`}
+                            id={`tab-${item.value}`}
+                            tabIndex={isActive ? 0 : -1}
+                            onClick={() => onChange(item.value)}
+                            className={cn(
+                                'inline-flex h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                                isActive
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                            )}
+                        >
+                            {item.icon && <item.icon className="size-4" aria-hidden="true" />}
+                            <span>{item.label}</span>
+                            {item.badge !== undefined && item.badge !== 0 && (
+                                <Badge variant={isActive ? 'default' : 'secondary'} className="px-1.5 py-0">
+                                    {item.badge}
+                                </Badge>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+            {/* Fade-urile de margine — doar semnal vizual, nu blochează interacțiunea. */}
+            <div
+                aria-hidden="true"
+                className={cn(
+                    'pointer-events-none absolute inset-y-0 -left-1 w-8 bg-gradient-to-r from-background to-transparent transition-opacity duration-200',
+                    fades.left ? 'opacity-100' : 'opacity-0',
+                )}
+            />
+            <div
+                aria-hidden="true"
+                className={cn(
+                    'pointer-events-none absolute inset-y-0 -right-1 w-8 bg-gradient-to-l from-background to-transparent transition-opacity duration-200',
+                    fades.right ? 'opacity-100' : 'opacity-0',
+                )}
+            />
         </div>
     );
 }

@@ -73,16 +73,16 @@ export function SituationTab({
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 text-left text-muted-foreground">
                                 <tr>
-                                    <th scope="col" className="px-4 py-2 font-medium">{t('cabinet.subject')}</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">{t('cabinet.grades')}</th>
-                                    <th scope="col" className="px-4 py-2 text-right font-medium">{t('cabinet.average')}</th>
+                                    <th scope="col" className="px-2.5 py-2 font-medium sm:px-4">{t('cabinet.subject')}</th>
+                                    <th scope="col" className="px-2.5 py-2 font-medium sm:px-4">{t('cabinet.grades')}</th>
+                                    <th scope="col" className="px-2.5 py-2 text-right font-medium sm:px-4">{t('cabinet.average')}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {subjects.map((s) => (
                                     <tr key={s.subject} className="border-t">
-                                        <th scope="row" className="px-4 py-3 text-left font-medium">{s.subject}</th>
-                                        <td className="px-4 py-3">
+                                        <th scope="row" className="px-2.5 py-3 text-left font-medium sm:px-4">{s.subject}</th>
+                                        <td className="px-2.5 py-3 sm:px-4">
                                             <div className="flex flex-wrap gap-1.5">
                                                 {s.items.map((item, i) => {
                                                     // min-h-7: chip-ul e și țintă tactilă („Contestă") — 20px era sub minimul WCAG pe mobil.
@@ -115,7 +115,7 @@ export function SituationTab({
                                                 })}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3 text-right">
+                                        <td className="px-2.5 py-3 text-right sm:px-4">
                                             <div className="font-semibold">{s.average ?? '—'}</div>
                                             {s.mc != null && s.summative != null && (
                                                 <div className="mt-0.5 text-[11px] font-normal text-muted-foreground">
