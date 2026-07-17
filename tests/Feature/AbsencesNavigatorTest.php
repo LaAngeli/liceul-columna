@@ -69,7 +69,7 @@ function absNavDirector(): User
     return $user;
 }
 
-function absNavAbsence(Student $student, SchoolClass $class, ?Subject $subject, Term $term, ?Teacher $teacher = null): Absence
+function absNavAbsence(Student $student, SchoolClass $class, ?Subject $subject, Term $term, ?Teacher $teacher = null, string $on = '2025-10-10'): Absence
 {
     return Absence::factory()->create([
         'student_id' => $student->id,
@@ -77,10 +77,30 @@ function absNavAbsence(Student $student, SchoolClass $class, ?Subject $subject, 
         'subject_id' => $subject?->id,
         'term_id' => $term->id,
         'teacher_id' => $teacher?->id,
-        'occurred_on' => '2025-10-10',
+        'occurred_on' => $on,
         'is_motivated' => false,
     ]);
 }
+
+// ─── Bara temporală (2026-07-18): aceeași logică ca la Teme/Note, pe data absenței ────────
+
+it('modul „zi" arată doar absențele zilei de referință; navigarea mută perioada', function () {
+    actingAs(absNavDirector());
+
+    $onDay = absNavAbsence($this->ownStudent, $this->ownClass, $this->subject, $this->term, on: '2025-10-10');
+    $otherDay = absNavAbsence($this->ownStudent, $this->ownClass, $this->subject, $this->term, on: '2025-10-11');
+
+    $component = Livewire::withQueryParams(['mod' => 'zi', 'ref' => '2025-10-10'])
+        ->test(ListAbsences::class)
+        ->call('openCatalogEntity', $this->ownClass->id)
+        ->assertCanSeeTableRecords([$onDay])
+        ->assertCanNotSeeTableRecords([$otherDay]);
+
+    // ▶ pe zi: referința devine 11 oct → celalaltă absență intră, prima iese.
+    $component->call('shiftTimePeriod', 1)
+        ->assertCanSeeTableRecords([$otherDay])
+        ->assertCanNotSeeTableRecords([$onDay]);
+});
 
 // ─── Navigator scoped pe rol ─────────────────────────────────────────────────────────────
 

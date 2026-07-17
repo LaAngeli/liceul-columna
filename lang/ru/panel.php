@@ -1264,6 +1264,7 @@ return [
         'from' => 'С',
         'until' => 'По',
         'interval_indicator' => 'Срок: :from – :until',
+        'period_indicator' => 'Период: :from – :until',
     ],
 
     'document_nav' => [

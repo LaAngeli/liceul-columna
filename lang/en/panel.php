@@ -1266,6 +1266,7 @@ return [
         'from' => 'From',
         'until' => 'Until',
         'interval_indicator' => 'Due: :from – :until',
+        'period_indicator' => 'Period: :from – :until',
     ],
 
     'document_nav' => [

@@ -225,6 +225,11 @@ trait HasCatalogNavigator
             $this->constrainToClass($query, $this->resolvedClass());
         }
 
+        // Bara temporală (paginile cu HasTimeNavigator): Zi/Săptămână/Lună restrâng pe dată.
+        if (method_exists($this, 'applyTimeRange')) {
+            $this->applyTimeRange($query);
+        }
+
         return $query;
     }
 

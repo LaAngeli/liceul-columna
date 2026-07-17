@@ -1282,6 +1282,7 @@ return [
         'from' => 'De la',
         'until' => 'Până la',
         'interval_indicator' => 'Termen: :from – :until',
+        'period_indicator' => 'Perioada: :from – :until',
     ],
 
     'document_nav' => [

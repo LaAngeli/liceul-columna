@@ -3,19 +3,19 @@
 namespace App\Filament\Resources\HomeworkAssignments\Pages;
 
 use App\Filament\Concerns\HasCatalogNavigator;
+use App\Filament\Concerns\HasTimeNavigator;
 use App\Filament\Contracts\CatalogNavigator;
 use App\Filament\Resources\HomeworkAssignments\HomeworkAssignmentResource;
 use App\Models\HomeworkAssignment;
 use App\Models\SchoolClass;
 use App\Models\Term;
-use Carbon\CarbonImmutable;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Livewire\Attributes\Url;
 
 /**
  * Pagina „Teme" folosește navigatorul drill-down, ADAPTAT modelului temelor: tema țintește o
@@ -23,168 +23,21 @@ use Livewire\Attributes\Url;
  * Discipline / Profesori (fără „Perioade"), iar constrângerea de clasă se traduce în
  * (grade_level, section), incluzând temele date pe TOATĂ treapta (litera goală).
  *
- * TIMPUL e a doua axă (cerința beneficiarului 2026-07-18): în context, o bară temporală
- * comută între Toate / Zi / Săptămână / Lună, cu navigare ◀ ▶ pe perioadă și revenire la azi.
- * Filtrarea se face pe DATA EFECTIVĂ a temei (termen, cu fallback pe atribuire la legacy) —
- * starea trăiește în URL (?mod=, ?ref=) și e VALIDATĂ la citire.
+ * TIMPUL e a doua axă ({@see HasTimeNavigator}): bara Toate / Zi / Săptămână / Lună filtrează
+ * pe DATA EFECTIVĂ a temei (termen, cu fallback pe atribuire la legacy).
  */
 class ListHomeworkAssignments extends ListRecords implements CatalogNavigator
 {
-    use HasCatalogNavigator {
-        applyCatalogContext as baseApplyCatalogContext;
-    }
+    use HasCatalogNavigator;
+    use HasTimeNavigator;
 
     protected static string $resource = HomeworkAssignmentResource::class;
 
-    protected string $view = 'filament.catalog.homework-navigator';
+    protected string $view = 'filament.catalog.list-with-navigator';
 
-    /** Modul temporal activ: zi / saptamana / luna; null = toate temele contextului. */
-    #[Url(as: 'mod', except: null)]
-    public ?string $timeMode = null;
-
-    /** Data de referință a perioadei (Y-m-d); null = azi. */
-    #[Url(as: 'ref', except: null)]
-    public ?string $timeRef = null;
-
-    private const TIME_MODES = ['zi', 'saptamana', 'luna'];
-
-    /** Modul temporal VALIDAT — URL-ul nu se ia de bun. */
-    public function timeMode(): ?string
+    protected function timeDateExpression(): string|Expression
     {
-        return in_array($this->timeMode, self::TIME_MODES, true) ? $this->timeMode : null;
-    }
-
-    /** Data de referință VALIDATĂ (fallback: azi). */
-    public function timeRef(): CarbonImmutable
-    {
-        if (is_string($this->timeRef) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $this->timeRef) === 1) {
-            try {
-                return CarbonImmutable::createFromFormat('Y-m-d', $this->timeRef)->startOfDay();
-            } catch (\Throwable) {
-                // cade pe azi
-            }
-        }
-
-        return CarbonImmutable::today();
-    }
-
-    public function setTimeMode(string $mode): void
-    {
-        $this->timeMode = in_array($mode, self::TIME_MODES, true) ? $mode : null;
-        $this->timeRef = null;
-        $this->resetTable();
-    }
-
-    /** Pasul perioadei: ±1 zi / săptămână / lună, după modul activ. */
-    public function shiftTimePeriod(int $direction): void
-    {
-        $mode = $this->timeMode();
-
-        if ($mode === null) {
-            return;
-        }
-
-        $step = $direction >= 0 ? 1 : -1;
-        $ref = $this->timeRef();
-
-        $this->timeRef = match ($mode) {
-            'zi' => $ref->addDays($step)->toDateString(),
-            'saptamana' => $ref->addWeeks($step)->toDateString(),
-            default => $ref->addMonthsNoOverflow($step)->toDateString(),
-        };
-        $this->resetTable();
-    }
-
-    public function goToTimeToday(): void
-    {
-        $this->timeRef = null;
-        $this->resetTable();
-    }
-
-    public function timeRefIsToday(): bool
-    {
-        return $this->timeRef()->isToday();
-    }
-
-    /**
-     * Intervalul [început, sfârșit] al perioadei active — null când modul e „Toate".
-     *
-     * @return array{0: CarbonImmutable, 1: CarbonImmutable}|null
-     */
-    public function timeRange(): ?array
-    {
-        $ref = $this->timeRef();
-
-        return match ($this->timeMode()) {
-            'zi' => [$ref->startOfDay(), $ref->endOfDay()],
-            'saptamana' => [$ref->startOfWeek(), $ref->endOfWeek()],
-            'luna' => [$ref->startOfMonth(), $ref->endOfMonth()],
-            default => null,
-        };
-    }
-
-    /**
-     * Pastilele barei temporale (Toate + cele 3 moduri).
-     *
-     * @return array<int, array{key: string, label: string, active: bool}>
-     */
-    public function timePills(): array
-    {
-        $active = $this->timeMode();
-
-        $pills = [[
-            'key' => 'toate',
-            'label' => (string) __('panel.homework_time.all'),
-            'active' => $active === null,
-        ]];
-
-        foreach (self::TIME_MODES as $mode) {
-            $pills[] = [
-                'key' => $mode,
-                'label' => (string) __('panel.homework_time.'.$mode),
-                'active' => $active === $mode,
-            ];
-        }
-
-        return $pills;
-    }
-
-    /** Eticheta perioadei active („vineri, 18 iulie 2026" / „14–20 iul. 2026" / „iulie 2026"). */
-    public function timePeriodLabel(): string
-    {
-        $range = $this->timeRange();
-
-        if ($range === null) {
-            return '';
-        }
-
-        [$start, $end] = $range;
-
-        return match ($this->timeMode()) {
-            'zi' => ucfirst($start->translatedFormat('l, j F Y')),
-            'saptamana' => $start->translatedFormat('j M').' – '.$end->translatedFormat('j M Y'),
-            default => ucfirst($start->translatedFormat('F Y')),
-        };
-    }
-
-    /**
-     * Contextul catalogului + constrângerea temporală pe data efectivă (termen ?? atribuire).
-     *
-     * @param  Builder<Model>  $query
-     * @return Builder<Model>
-     */
-    public function applyCatalogContext(Builder $query): Builder
-    {
-        $query = $this->baseApplyCatalogContext($query);
-
-        if (($range = $this->timeRange()) !== null) {
-            $query->whereBetween(
-                HomeworkAssignment::effectiveOnExpression(),
-                [$range[0]->toDateString(), $range[1]->toDateString()],
-            );
-        }
-
-        return $query;
+        return HomeworkAssignment::effectiveOnExpression();
     }
 
     protected function getHeaderActions(): array

@@ -72,7 +72,7 @@ function navigatorDirector(): User
     return $user;
 }
 
-function navigatorGrade(Student $student, SchoolClass $class, Subject $subject, Term $term, ?Teacher $teacher = null): Grade
+function navigatorGrade(Student $student, SchoolClass $class, Subject $subject, Term $term, ?Teacher $teacher = null, string $on = '2025-10-10'): Grade
 {
     return Grade::factory()->create([
         'student_id' => $student->id,
@@ -82,9 +82,38 @@ function navigatorGrade(Student $student, SchoolClass $class, Subject $subject, 
         'teacher_id' => $teacher?->id,
         'evaluation_type' => EvaluationType::Curenta,
         'value' => 8,
-        'graded_on' => '2025-10-10',
+        'graded_on' => $on,
     ]);
 }
+
+// ─── Bara temporală (2026-07-18): aceeași logică ca la Teme, pe data acordării ────────────
+
+it('bara temporală filtrează notele pe data acordării; intervalul liber acoperă perioade arbitrare', function () {
+    actingAs(navigatorDirector());
+
+    $inWeek = navigatorGrade($this->ownStudent, $this->ownClass, $this->subject, $this->term, on: '2025-10-08');
+    $outsideWeek = navigatorGrade($this->ownStudent, $this->ownClass, $this->subject, $this->term, on: '2025-10-20');
+
+    // Modul „săptămână" pe referința 2025-10-06 (săptămâna 6–12 oct).
+    Livewire::withQueryParams(['mod' => 'saptamana', 'ref' => '2025-10-06'])
+        ->test(ListGrades::class)
+        ->call('openCatalogEntity', $this->ownClass->id)
+        ->assertCanSeeTableRecords([$inWeek])
+        ->assertCanNotSeeTableRecords([$outsideWeek]);
+
+    // Mod invalid din URL → „Toate" (ambele vizibile).
+    Livewire::withQueryParams(['mod' => 'decada'])
+        ->test(ListGrades::class)
+        ->call('openCatalogEntity', $this->ownClass->id)
+        ->assertCanSeeTableRecords([$inWeek, $outsideWeek]);
+
+    // Filtrul interval De la / Până la — independent de bară.
+    Livewire::test(ListGrades::class)
+        ->call('openCatalogEntity', $this->ownClass->id)
+        ->filterTable('interval', ['from' => '2025-10-15', 'until' => '2025-10-25'])
+        ->assertCanSeeTableRecords([$outsideWeek])
+        ->assertCanNotSeeTableRecords([$inWeek]);
+});
 
 // ─── Meniul de dimensiuni pe rol ─────────────────────────────────────────────────────────
 
