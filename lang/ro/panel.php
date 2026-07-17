@@ -1191,7 +1191,7 @@ return [
     ],
 
     'consent_nav' => [
-        'hint' => 'Dovada luării la cunoștință a notei de informare (Legea 133/2011 §7). Versiunea în vigoare: :version — elevii și părinții o confirmă obligatoriu la prima autentificare; personalul prelucrează datele pe temei de rol și nu e vizat. Cardurile arată acoperirea; „De confirmat" = conturile active care nu au încă versiunea curentă.',
+        'hint' => 'Dovada luării la cunoștință a notei de informare (Legea 133/2011 §7). Versiunea în vigoare: :version — elevii și părinții o confirmă obligatoriu la prima autentificare; personalul prelucrează datele pe temei de rol și nu e vizat. Cardurile arată acoperirea; „De confirmat" = conturile active care nu au încă versiunea curentă (familiile plecate din școală — fișe arhivate — nu intră).',
         'eyebrow' => 'Consimțăminte',
         'aria' => 'Vederile consimțămintelor',
         'segments' => [

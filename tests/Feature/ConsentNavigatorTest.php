@@ -9,6 +9,7 @@
 use App\Enums\UserRole;
 use App\Filament\Resources\ConsentAcknowledgments\Pages\ListConsentAcknowledgments;
 use App\Models\ConsentAcknowledgment;
+use App\Models\Student;
 use App\Models\User;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -109,6 +110,45 @@ it('vederea „De confirmat" listează conturile active fără versiunea curent�
         ->and(collect($missing['users'])->pluck('name')->all())->toBe(['Fara Confirmare', 'Versiune Veche'])
         ->and(collect($missing['users'])->firstWhere('name', 'Fara Confirmare')['previous'])->toBeNull()
         ->and(collect($missing['users'])->firstWhere('name', 'Versiune Veche')['previous'])->toBe('2025-01-01');
+});
+
+it('familiile PLECATE nu intră în populație: fișă arhivată = elev exclus; părinte exclus doar cu toți copiii arhivați', function () {
+    // Elev activ neconfirmat (rămâne în populație).
+    consentUser(UserRole::Elev, null, ['name' => 'Activ Ramas']);
+
+    // Elev PLECAT: cont legat de o fișă arhivată → iese din populație și din restanță.
+    $departedAccount = consentUser(UserRole::Elev, null, ['name' => 'Plecat Exclus']);
+    $departedFiche = Student::factory()->create(['user_id' => $departedAccount->id]);
+    $departedFiche->delete();
+
+    // Cont de elev FĂRĂ fișă (rătăcit) — poate intra în cont, deci rămâne „de confirmat".
+    consentUser(UserRole::Elev, null, ['name' => 'Fara Fisa']);
+
+    // Părinte cu un copil activ + unul arhivat → rămâne; părinte cu TOȚI copiii arhivați → exclus.
+    $activeChild = Student::factory()->create();
+    $archivedChild = Student::factory()->create();
+    $archivedChild->delete();
+
+    $parinteRamas = consentUser(UserRole::Parinte, null, ['name' => 'Parinte Ramas']);
+    $parinteRamas->students()->attach([$activeChild->id, $archivedChild->id]);
+
+    $parintePlecat = consentUser(UserRole::Parinte, null, ['name' => 'Parinte Plecat']);
+    $parintePlecat->students()->attach([$archivedChild->id]);
+
+    $page = Livewire::test(ListConsentAcknowledgments::class)->instance();
+    $cards = collect($page->roleCards());
+
+    // Elevi: Activ Ramas + Fara Fisa = 2 (Plecat Exclus nu se numără).
+    expect($cards->firstWhere('id', UserRole::Elev->value)['badge'])->toContain('2')
+        // Părinți: Parinte Ramas = 1 (Parinte Plecat exclus).
+        ->and($cards->firstWhere('id', UserRole::Parinte->value)['badge'])->toContain('1');
+
+    $missing = Livewire::withQueryParams(['rol' => 'elev', 'restanta' => '1'])
+        ->test(ListConsentAcknowledgments::class)
+        ->instance()
+        ->missingUsers();
+
+    expect(collect($missing['users'])->pluck('name')->all())->toBe(['Activ Ramas', 'Fara Fisa']);
 });
 
 it('căutarea din „De confirmat" îngustează lista, dar totalul segmentului rămâne', function () {

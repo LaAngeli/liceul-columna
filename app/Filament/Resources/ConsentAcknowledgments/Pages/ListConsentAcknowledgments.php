@@ -241,9 +241,7 @@ class ListConsentAcknowledgments extends ListRecords
         $this->coverage = [];
 
         foreach (self::TARGET_ROLES as $role) {
-            $accounts = User::query()
-                ->whereNull('suspended_at')
-                ->whereHas('roles', fn (Builder $roles) => $roles->where('name', $role->value));
+            $accounts = $this->segmentAccounts($role);
 
             $this->coverage[$role->value] = [
                 'total' => (clone $accounts)->count(),
@@ -264,12 +262,54 @@ class ListConsentAcknowledgments extends ListRecords
      */
     private function missingQuery(UserRole $role): Builder
     {
-        return User::query()
-            ->whereNull('suspended_at')
-            ->whereHas('roles', fn (Builder $roles) => $roles->where('name', $role->value))
+        return $this->segmentAccounts($role)
             ->where(function (Builder $query): void {
                 $query->whereNull('privacy_acknowledged_version')
                     ->orWhere('privacy_acknowledged_version', '!=', $this->currentVersion());
             });
+    }
+
+    /**
+     * Populația REALĂ a segmentului: conturi active (nesuspendate), FĂRĂ cele ale familiilor
+     * plecate din școală — un elev cu fișa ARHIVATĂ (respectiv un părinte ai cărui copii sunt
+     * toți arhivați) nu mai e „de confirmat"; altfel acoperirea ar rămâne mincinoasă pe veci.
+     * Conturile fără nicio fișă rămân în populație (pot intra în cont → confirmă la login).
+     *
+     * @return Builder<User>
+     */
+    private function segmentAccounts(UserRole $role): Builder
+    {
+        $query = User::query()
+            ->whereNull('suspended_at')
+            ->whereHas('roles', fn (Builder $roles) => $roles->where('name', $role->value));
+
+        if ($role === UserRole::Elev) {
+            // Fișa e unică per cont: existența unei fișe ARHIVATE = elevul a plecat.
+            $query->whereNotExists(function ($sub): void {
+                $sub->selectRaw('1')
+                    ->from('students')
+                    ->whereColumn('students.user_id', 'users.id')
+                    ->whereNotNull('students.deleted_at');
+            });
+        }
+
+        if ($role === UserRole::Parinte) {
+            // Exclus doar părintele care ARE copii legați, dar niciunul activ (familia a plecat).
+            $query->whereNot(function (Builder $left): void {
+                $left->whereExists(function ($any): void {
+                    $any->selectRaw('1')
+                        ->from('guardian_student')
+                        ->whereColumn('guardian_student.guardian_user_id', 'users.id');
+                })->whereNotExists(function ($active): void {
+                    $active->selectRaw('1')
+                        ->from('guardian_student')
+                        ->join('students', 'students.id', '=', 'guardian_student.student_id')
+                        ->whereColumn('guardian_student.guardian_user_id', 'users.id')
+                        ->whereNull('students.deleted_at');
+                });
+            });
+        }
+
+        return $query;
     }
 }

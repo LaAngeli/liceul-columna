@@ -1175,7 +1175,7 @@ return [
     ],
 
     'consent_nav' => [
-        'hint' => 'Proof of acknowledging the privacy notice (Law 133/2011 §7). Version in force: :version — students and parents must confirm it at first sign-in; staff processes data on a role basis and is not covered. The cards show coverage; "To confirm" lists active accounts still missing the current version.',
+        'hint' => 'Proof of acknowledging the privacy notice (Law 133/2011 §7). Version in force: :version — students and parents must confirm it at first sign-in; staff processes data on a role basis and is not covered. The cards show coverage; "To confirm" lists active accounts still missing the current version (families who left the school — archived records — are not counted).',
         'eyebrow' => 'Consents',
         'aria' => 'Consent views',
         'segments' => [
