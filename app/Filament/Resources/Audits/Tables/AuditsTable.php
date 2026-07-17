@@ -2,22 +2,28 @@
 
 namespace App\Filament\Resources\Audits\Tables;
 
-use App\Models\Absence;
-use App\Models\AcademicRecord;
+use App\Filament\Resources\Audits\Pages\ListAudits;
 use App\Models\Audit;
-use App\Models\Grade;
-use App\Models\Student;
-use App\Models\TermAverage;
+use App\Support\AuditCategories;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
+/**
+ * Tabelul jurnalului — trăiește în contextul categoriei din navigator, deci filtrul de tip
+ * oferă DOAR tipurile categoriei curente (etichetate complet, nu 5 tipuri hardcodate ca înainte).
+ * Read-only: singura acțiune e vizualizarea detaliilor (valori vechi/noi).
+ */
 class AuditsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query, $livewire): Builder => $livewire instanceof ListAudits
+                ? $livewire->applyAuditContext($query)
+                : $query)
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('created_at')
@@ -62,16 +68,33 @@ class AuditsTable
                     ]),
                 SelectFilter::make('auditable_type')
                     ->label(__('panel.tables.audits.data_type'))
-                    ->options([
-                        Grade::class => __('panel.forms.audit.data_type_grade'),
-                        Absence::class => __('panel.forms.audit.data_type_absence'),
-                        AcademicRecord::class => __('panel.forms.audit.data_type_academic_record'),
-                        TermAverage::class => __('panel.forms.audit.data_type_term_average'),
-                        Student::class => __('panel.forms.audit.data_type_student'),
-                    ]),
+                    ->options(fn ($livewire): array => self::typeOptions($livewire)),
             ])
             ->recordActions([
                 ViewAction::make(),
             ]);
+    }
+
+    /**
+     * Opțiunile filtrului de tip: tipurile CATEGORIEI curente (sau toate cele mapate, în afara
+     * navigatorului / în bucket-ul „Altele" — acolo tipurile sunt necunoscute dinainte).
+     *
+     * @return array<string, string>
+     */
+    private static function typeOptions(mixed $livewire): array
+    {
+        $types = null;
+
+        if ($livewire instanceof ListAudits && ($category = $livewire->activeCategory()) !== null) {
+            $types = AuditCategories::typesFor($category);
+        }
+
+        $options = [];
+
+        foreach ($types ?? AuditCategories::allMapped() as $type) {
+            $options[$type] = Audit::labelForType($type);
+        }
+
+        return $options;
     }
 }

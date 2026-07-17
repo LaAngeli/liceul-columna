@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Support\Facades\Lang;
 use OwenIt\Auditing\Models\Audit as BaseAudit;
 
 /**
- * Extinde modelul de audit owen-it cu etichete RO, pentru viewer-ul din panou (spec §7 / L133).
- * Aceeași tabelă `audits` — doar adăugăm ajutoare de afișare; scrierea rămâne a pachetului.
+ * Extinde modelul de audit owen-it cu etichete traduse, pentru viewer-ul din panou (spec §7 /
+ * L133). Aceeași tabelă `audits` — doar adăugăm ajutoare de afișare; scrierea rămâne a pachetului.
  *
  * @property string $event
  * @property string $auditable_type
@@ -14,33 +15,30 @@ use OwenIt\Auditing\Models\Audit as BaseAudit;
 class Audit extends BaseAudit
 {
     /**
-     * Eticheta RO a tipului de date auditat (din clasa modelului).
+     * Eticheta tradusă a tipului de date auditat (din clasa modelului). TOATE modelele Auditable
+     * au cheie în `panel.audit_types` (garantat de test); un tip nou fără cheie cade pe numele
+     * clasei — vizibil, nu ascuns.
      */
     public function auditableLabel(): string
     {
-        return match (class_basename($this->auditable_type)) {
-            'Grade' => 'Notă',
-            'Absence' => 'Absență',
-            'AcademicRecord' => 'Foaie matricolă',
-            'TermAverage' => 'Medie semestrială',
-            'Student' => 'Elev (date personale)',
-            default => class_basename($this->auditable_type),
-        };
+        return self::labelForType($this->auditable_type);
+    }
+
+    /** Aceeași etichetă, pentru un tip dat (opțiunile filtrelor din viewer). */
+    public static function labelForType(string $auditableType): string
+    {
+        $key = 'panel.audit_types.'.class_basename($auditableType);
+
+        return Lang::has($key) ? (string) trans($key) : class_basename($auditableType);
     }
 
     /**
-     * Eticheta RO a evenimentului (inclusiv accesul: vizualizare/export, spec §7).
+     * Eticheta tradusă a evenimentului (inclusiv accesul: vizualizare/export, spec §7).
      */
     public function eventLabel(): string
     {
-        return match ($this->event) {
-            'created' => 'Creare',
-            'updated' => 'Modificare',
-            'deleted' => 'Ștergere',
-            'restored' => 'Restaurare',
-            'viewed' => 'Vizualizare',
-            'exported' => 'Export',
-            default => $this->event,
-        };
+        $key = 'panel.tables.audits.event_'.$this->event;
+
+        return Lang::has($key) ? (string) trans($key) : $this->event;
     }
 }
