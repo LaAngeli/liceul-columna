@@ -4,7 +4,7 @@
 @section('subtitle', $subjectName)
 
 @section('body')
-    <table>
+    <table class="data">
         <thead>
             <tr>
                 <th class="idx">Nr.</th>
@@ -14,7 +14,7 @@
         </thead>
         <tbody>
             @forelse ($rows as $row)
-                <tr>
+                <tr class="{{ $loop->even ? 'alt' : '' }}">
                     <td class="idx">{{ $row['index'] }}</td>
                     <td>{{ $row['name'] }}</td>
                     <td class="num">{{ $row['average'] !== null ? number_format($row['average'], 2, ',', '') : '—' }}</td>

@@ -85,10 +85,9 @@ it('exportul listei de elevi e jurnalizat ca „exported" per elev', function ()
 
 it('generarea unui raport per-clasă e jurnalizată ca „exported" pentru fiecare elev al clasei', function () {
     Livewire::test(Reports::class)
-        ->fillForm([
-            'report_type' => StaffReportType::ClassRoster->value,
-            'school_class_id' => $this->class->id,
-        ])
+        ->call('openCategory', 'elevi')
+        ->call('openReport', StaffReportType::ClassRoster->value)
+        ->set('data.school_class_id', $this->class->id)
         ->call('generate');
 
     $audit = Audit::query()

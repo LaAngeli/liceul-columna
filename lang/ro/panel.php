@@ -1164,6 +1164,32 @@ return [
         'action' => 'Autentificare',
     ],
 
+    'reports_nav' => [
+        'reports_count' => '{1}un raport|[2,19]:count rapoarte|[20,*]:count de rapoarte',
+        'categories' => [
+            'elevi' => 'Elevi',
+            'evaluare' => 'Note & evaluare',
+            'frecventa' => 'Absențe & frecvență',
+            'clase' => 'Clase',
+            'profesori' => 'Profesori',
+            'administrative' => 'Administrative',
+        ],
+        'category_descriptions' => [
+            'elevi' => 'Liste de clasă și clasamente — documente pe elevi.',
+            'evaluare' => 'Situații, distribuții și evoluții ale notelor și mediilor.',
+            'frecventa' => 'Statistica absențelor: totaluri, luni, elevi.',
+            'clase' => 'Situația completă și promovabilitatea unei clase.',
+            'profesori' => 'Activitatea cadrelor didactice în semestrul curent.',
+            'administrative' => 'Sinteze manageriale la nivel de școală.',
+        ],
+        'formats' => [
+            'table' => 'tabel',
+            'ranking' => 'clasament',
+            'chart' => 'grafic',
+            'stats' => 'statistici',
+        ],
+    ],
+
     'consent_nav' => [
         'hint' => 'Dovada luării la cunoștință a notei de informare (Legea 133/2011 §7). Versiunea în vigoare: :version — elevii și părinții o confirmă obligatoriu la prima autentificare; personalul prelucrează datele pe temei de rol și nu e vizat. Cardurile arată acoperirea; „De confirmat" = conturile active care nu au încă versiunea curentă.',
         'eyebrow' => 'Consimțăminte',

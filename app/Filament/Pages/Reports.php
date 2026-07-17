@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Actions\Documents\BuildStaffReportData;
 use App\Actions\Documents\RenderPdf;
 use App\Actions\LogStudentAccess;
+use App\Enums\ReportCategory;
 use App\Enums\StaffReportType;
 use App\Models\SchoolClass;
 use App\Models\Student;
@@ -15,16 +16,18 @@ use BackedEnum;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Builder;
+use Livewire\Attributes\Url;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * „Rapoarte" — generatele de STAFF (spec §2): produse LA CERERE, per-clasă, cu scoping pe rol
- * (`prof_disc_clasa`). Profesorul alege doar clasele/disciplinele lui, dirigintele situația completă
- * a clasei lui, administrația orice. Gardul e RE-verificat pe server la generare (§1), nu doar în UI.
+ * „Generare rapoarte" — RESTRUCTURAT pe limbajul navigatoarelor (cerința beneficiarului):
+ * categorii logice (Elevi / Note & evaluare / Absențe / Clase / Profesori / Administrative) →
+ * cardurile rapoartelor din categorie → parametrii + generare. Utilizatorul vede DOAR
+ * categoriile și rapoartele pe care rolul lui le poate genera; gardul e RE-verificat pe server
+ * la generare (§1), nu doar în UI.
  *
  * @property-read Schema $form
  */
@@ -38,6 +41,14 @@ class Reports extends Page
     protected static ?string $slug = 'rapoarte';
 
     protected string $view = 'filament.pages.reports';
+
+    /** Categoria deschisă (contextul) — validată la citire. */
+    #[Url(as: 'categorie', except: null)]
+    public ?string $activeCategory = null;
+
+    /** Raportul ales din categorie — validat la citire (categorie + disponibilitate pe rol). */
+    #[Url(as: 'raport', except: null)]
+    public ?string $activeReport = null;
 
     /** @var array<string, mixed>|null */
     public ?array $data = [];
@@ -70,49 +81,168 @@ class Reports extends Page
         $this->form->fill();
     }
 
+    // ── Navigatorul: categorii → rapoarte → parametri ────────────────────────────────────
+
+    public function activeCategory(): ?ReportCategory
+    {
+        if ($this->activeCategory === null) {
+            return null;
+        }
+
+        foreach ($this->availableCategories() as $category) {
+            if ($category->value === $this->activeCategory) {
+                return $category;
+            }
+        }
+
+        return null;
+    }
+
+    public function activeReport(): ?StaffReportType
+    {
+        $category = $this->activeCategory();
+
+        if ($category === null || $this->activeReport === null) {
+            return null;
+        }
+
+        foreach ($this->availableReports() as $type) {
+            if ($type->value === $this->activeReport && $type->category() === $category) {
+                return $type;
+            }
+        }
+
+        return null;
+    }
+
+    public function openCategory(string $key): void
+    {
+        $this->activeCategory = ReportCategory::tryFrom($key)?->value;
+        $this->activeReport = null;
+    }
+
+    public function leaveCategory(): void
+    {
+        $this->activeCategory = null;
+        $this->activeReport = null;
+    }
+
+    public function openReport(string $type): void
+    {
+        $this->activeReport = StaffReportType::tryFrom($type)?->value;
+        $this->form->fill();
+    }
+
+    public function leaveReport(): void
+    {
+        $this->activeReport = null;
+    }
+
+    /**
+     * Cardurile categoriilor — doar cele în care rolul are cel puțin un raport.
+     *
+     * @return array<int, array{id: string, title: string, description: string, icon: string, count: int}>
+     */
+    public function categoryCards(): array
+    {
+        $reports = $this->availableReports();
+        $cards = [];
+
+        foreach ($this->availableCategories() as $category) {
+            $count = count(array_filter($reports, fn (StaffReportType $type): bool => $type->category() === $category));
+
+            $cards[] = [
+                'id' => $category->value,
+                'title' => $category->label(),
+                'description' => $category->description(),
+                'icon' => $category->icon(),
+                'count' => $count,
+            ];
+        }
+
+        return $cards;
+    }
+
+    /**
+     * Cardurile rapoartelor din categoria deschisă.
+     *
+     * @return array<int, array{id: string, title: string, description: string, icon: string, format: string, active: bool}>
+     */
+    public function reportCards(): array
+    {
+        $category = $this->activeCategory();
+
+        if ($category === null) {
+            return [];
+        }
+
+        $cards = [];
+
+        foreach ($this->availableReports() as $type) {
+            if ($type->category() !== $category) {
+                continue;
+            }
+
+            $cards[] = [
+                'id' => $type->value,
+                'title' => $type->getLabel(),
+                'description' => $type->description(),
+                'icon' => $type->icon(),
+                'format' => $type->formatTag(),
+                'active' => $this->activeReport()?->value === $type->value,
+            ];
+        }
+
+        return $cards;
+    }
+
+    /** Raportul ales are nevoie de parametri (clasă/disciplină)? Fără — generarea e directă. */
+    public function reportNeedsParameters(): bool
+    {
+        $type = $this->activeReport();
+
+        return $type !== null && ($type->needsClass() || $type->needsSubject());
+    }
+
     public function form(Schema $schema): Schema
     {
         return $schema
             ->components([
-                Select::make('report_type')
-                    ->label(__('panel.pages.reports.type'))
-                    ->options($this->reportTypeOptions())
-                    ->native(false)
-                    ->live()
-                    ->required(),
                 Select::make('school_class_id')
                     ->label(__('panel.fields.class'))
                     ->options($this->classOptions())
                     ->searchable()
                     ->native(false)
-                    ->required(),
+                    ->visible(fn (): bool => $this->activeReport()?->needsClass() ?? false)
+                    ->required(fn (): bool => $this->activeReport()?->needsClass() ?? false),
                 Select::make('subject_id')
                     ->label(__('panel.fields.subject'))
                     ->options($this->subjectOptions())
                     ->searchable()
                     ->native(false)
-                    ->visible(fn (Get $get): bool => self::typeNeedsSubject($get('report_type')))
-                    ->required(fn (Get $get): bool => self::typeNeedsSubject($get('report_type'))),
+                    ->visible(fn (): bool => $this->activeReport()?->needsSubject() ?? false)
+                    ->required(fn (): bool => $this->activeReport()?->needsSubject() ?? false),
             ])
             ->statePath('data');
     }
 
     /**
-     * Generează raportul ales și îl întoarce ca descărcare PDF (Livewire). Re-verifică pe server că
-     * utilizatorul are dreptul la exact (clasa, disciplina) cerute — apărare la un state manipulat.
+     * Generează raportul ales și îl întoarce ca descărcare PDF (Livewire). Re-verifică pe server
+     * că utilizatorul are dreptul la exact (raport, clasă, disciplină) — apărare la state manipulat.
      */
     public function generate(): ?StreamedResponse
     {
         $data = $this->form->getState();
         $user = auth('web')->user();
-
-        $type = StaffReportType::tryFrom((string) ($data['report_type'] ?? ''));
+        $type = $this->activeReport();
 
         if (! $user instanceof User || $type === null) {
             return null;
         }
 
-        $classId = (int) ($data['school_class_id'] ?? 0);
+        $classId = $type->needsClass() && isset($data['school_class_id']) && $data['school_class_id'] !== ''
+            ? (int) $data['school_class_id']
+            : null;
         $subjectId = isset($data['subject_id']) && $data['subject_id'] !== '' ? (int) $data['subject_id'] : null;
 
         if (! $type->canGenerate($user, $classId, $subjectId)) {
@@ -121,18 +251,17 @@ class Reports extends Page
             return null;
         }
 
-        // Jurnalizarea accesului (L133 §7): raportul conține PII-ul elevilor clasei → fiecare elev
-        // intră în jurnal ca „exported" — aliniat cu exportul din tabel și descărcările din cabinet.
-        // DOAR elevii care chiar APAR în raport (activi — whereNull left_on, ca
-        // BuildStaffReportData::classStudents): un „exported" fals-pozitiv pe un elev plecat ar face
-        // jurnalul nefiabil exact la întrebarea L133 „cine mi-a exportat datele?".
-        $log = app(LogStudentAccess::class);
-        Student::query()
-            ->whereHas('enrollments', fn (Builder $q) => $q
-                ->where('school_class_id', $classId)
-                ->whereNull('left_on'))
-            ->get()
-            ->each(fn (Student $s) => $log->record($s, 'exported', 'Raport staff: '.$type->getLabel()));
+        // Jurnalizarea accesului (L133 §7) — DOAR pentru rapoartele care numesc elevi individual
+        // (lista, clasamentul, situațiile, absențele); agregatele fără nume nu exportă PII.
+        if ($type->containsStudentPii() && $classId !== null) {
+            $log = app(LogStudentAccess::class);
+            Student::query()
+                ->whereHas('enrollments', fn (Builder $q) => $q
+                    ->where('school_class_id', $classId)
+                    ->whereNull('left_on'))
+                ->get()
+                ->each(fn (Student $s) => $log->record($s, 'exported', 'Raport staff: '.$type->getLabel()));
+        }
 
         // Document oficial → randare consecventă în RO (denumiri de discipline + antete).
         app()->setLocale('ro');
@@ -155,21 +284,20 @@ class Reports extends Page
         );
     }
 
-    /** @return array<string, string> */
-    private function reportTypeOptions(): array
+    /** @return list<StaffReportType> */
+    private function availableReports(): array
     {
         $user = auth('web')->user();
 
-        if (! $user instanceof User) {
-            return [];
-        }
+        return $user instanceof User ? StaffReportType::availableFor($user) : [];
+    }
 
-        $options = [];
-        foreach (StaffReportType::availableFor($user) as $type) {
-            $options[$type->value] = $type->getLabel();
-        }
+    /** @return list<ReportCategory> */
+    private function availableCategories(): array
+    {
+        $user = auth('web')->user();
 
-        return $options;
+        return $user instanceof User ? StaffReportType::categoriesFor($user) : [];
     }
 
     /** @return array<int, string> */
@@ -206,10 +334,5 @@ class Reports extends Page
         }
 
         return $options;
-    }
-
-    private static function typeNeedsSubject(mixed $value): bool
-    {
-        return is_string($value) && (StaffReportType::tryFrom($value)?->needsSubject() ?? false);
     }
 }

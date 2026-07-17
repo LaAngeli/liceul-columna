@@ -3,7 +3,7 @@
 @section('title', 'Lista de clasă')
 
 @section('body')
-    <table>
+    <table class="data">
         <thead>
             <tr>
                 <th class="idx">Nr.</th>
@@ -13,7 +13,7 @@
         </thead>
         <tbody>
             @forelse ($students as $student)
-                <tr>
+                <tr class="{{ $loop->even ? 'alt' : '' }}">
                     <td class="idx">{{ $student['index'] }}</td>
                     <td>{{ $student['name'] }}</td>
                     <td>{{ $student['registerNumber'] ?? '—' }}</td>

@@ -6,11 +6,14 @@ use App\Enums\UserRole;
 use App\Filament\Pages\Reports;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
+use App\Models\Grade;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
+use App\Models\Term;
+use App\Models\TermAverage;
 use App\Models\User;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -79,14 +82,17 @@ it('tipurile disponibile urmează rolul (profesor vs diriginte vs administrație
     $subject = Subject::factory()->create();
 
     $prof = reportTeacher($class, $subject);
-    expect(StaffReportType::availableFor($prof))->toBe([StaffReportType::ClassRoster, StaffReportType::ClassSubjectSituation]);
+    expect(StaffReportType::availableFor($prof))
+        ->toBe([StaffReportType::ClassRoster, StaffReportType::ClassSubjectSituation, StaffReportType::GradeDistribution]);
 
     $dirig = reportTeacher($class, $subject, homeroom: SchoolClass::factory()->for($this->year)->create());
-    expect(StaffReportType::availableFor($dirig))->toContain(StaffReportType::ClassFullSituation);
+    expect(StaffReportType::availableFor($dirig))->toContain(StaffReportType::ClassFullSituation)
+        ->toContain(StaffReportType::PromotionRate)
+        ->not->toContain(StaffReportType::SchoolOverview);
 
     $director = User::factory()->create();
     $director->assignRole(UserRole::Director->value);
-    expect(StaffReportType::availableFor($director))->toHaveCount(3);
+    expect(StaffReportType::availableFor($director))->toHaveCount(count(StaffReportType::cases()));
 });
 
 // ─── Pagina Rapoarte: acces + generare ──────────────────────────────────────────────────
@@ -112,15 +118,19 @@ it('generarea unui raport permis produce un PDF; un raport în afara scope-ului 
     $prof = reportTeacher($classA, $chimie);
     actingAs($prof);
 
-    // Permis: lista clasei A → descărcare PDF.
+    // Permis: lista clasei A → descărcare PDF (fluxul navigatorului: categorie → raport → parametri).
     Livewire::test(Reports::class)
-        ->fillForm(['report_type' => StaffReportType::ClassRoster->value, 'school_class_id' => $classA->id])
+        ->call('openCategory', 'elevi')
+        ->call('openReport', StaffReportType::ClassRoster->value)
+        ->set('data.school_class_id', $classA->id)
         ->call('generate')
         ->assertFileDownloaded();
 
     // În afara scope-ului: lista clasei B (nu o predă) → respins, fără descărcare.
     Livewire::test(Reports::class)
-        ->fillForm(['report_type' => StaffReportType::ClassRoster->value, 'school_class_id' => $classB->id])
+        ->call('openCategory', 'elevi')
+        ->call('openReport', StaffReportType::ClassRoster->value)
+        ->set('data.school_class_id', $classB->id)
         ->call('generate')
         ->assertNoFileDownloaded();
 });
@@ -135,4 +145,150 @@ it('lista de clasă conține elevii înmatriculați activ', function () {
 
     expect($data['students'])->toHaveCount(3)
         ->and($data['className'])->not->toBeEmpty();
+});
+
+// ─── Navigatorul pe categorii + rapoartele noi (2026-07-17) ──────────────────────────────
+
+it('categoriile navigatorului urmează rolul: profesorul nu vede Profesori/Administrative', function () {
+    $classA = SchoolClass::factory()->for($this->year)->create();
+    $subject = Subject::factory()->create();
+
+    $admin = User::factory()->create();
+    $admin->assignRole(UserRole::Director->value);
+    expect(collect(StaffReportType::categoriesFor($admin))->pluck('value')->all())
+        ->toBe(['elevi', 'evaluare', 'frecventa', 'clase', 'profesori', 'administrative']);
+
+    $profesor = reportTeacher($classA, $subject);
+    expect(collect(StaffReportType::categoriesFor($profesor))->pluck('value')->all())
+        ->toBe(['elevi', 'evaluare']);
+
+    $diriginte = reportTeacher($classA, $subject, $classA);
+    expect(collect(StaffReportType::categoriesFor($diriginte))->pluck('value')->all())
+        ->toBe(['elevi', 'evaluare', 'frecventa', 'clase']);
+});
+
+it('rapoartele de școală sunt doar ale administrației; dirigintele analizează doar clasa lui', function () {
+    $classA = SchoolClass::factory()->for($this->year)->create();
+    $classB = SchoolClass::factory()->for($this->year)->create();
+    $subject = Subject::factory()->create();
+
+    $diriginte = reportTeacher($classA, $subject, $classA);
+
+    expect(StaffReportType::TeacherActivity->canGenerate($diriginte, null, null))->toBeFalse()
+        ->and(StaffReportType::SchoolOverview->canGenerate($diriginte, null, null))->toBeFalse()
+        ->and(StaffReportType::StudentRanking->canGenerate($diriginte, $classA->id, null))->toBeTrue()
+        ->and(StaffReportType::StudentRanking->canGenerate($diriginte, $classB->id, null))->toBeFalse()
+        ->and(StaffReportType::PromotionRate->canGenerate($diriginte, $classA->id, null))->toBeTrue()
+        ->and(StaffReportType::AbsenceStatistics->canGenerate($diriginte, $classB->id, null))->toBeFalse();
+
+    $admin = User::factory()->create();
+    $admin->assignRole(UserRole::AdministratorOperational->value);
+    expect(StaffReportType::TeacherActivity->canGenerate($admin, null, null))->toBeTrue()
+        ->and(StaffReportType::SchoolOverview->canGenerate($admin, null, null))->toBeTrue();
+});
+
+it('clasamentul ordonează descrescător după medie, cu elevii fără medie la coadă', function () {
+    $class = SchoolClass::factory()->for($this->year)->create();
+    $term = Term::factory()->for($this->year)->create(['is_current' => true]);
+    $subject = Subject::factory()->create();
+
+    $weak = Student::factory()->create(['last_name' => 'AAA', 'first_name' => 'Slab']);
+    $strong = Student::factory()->create(['last_name' => 'BBB', 'first_name' => 'Tare']);
+    $none = Student::factory()->create(['last_name' => 'CCC', 'first_name' => 'FaraMedie']);
+
+    foreach ([$weak, $strong, $none] as $student) {
+        Enrollment::factory()->for($student)->for($class)->for($this->year)->create();
+    }
+
+    TermAverage::query()->create(['student_id' => $weak->id, 'subject_id' => $subject->id, 'school_class_id' => $class->id, 'term_id' => $term->id, 'value' => 6.5]);
+    TermAverage::query()->create(['student_id' => $strong->id, 'subject_id' => $subject->id, 'school_class_id' => $class->id, 'term_id' => $term->id, 'value' => 9.8]);
+
+    $data = app(BuildStaffReportData::class)->build(StaffReportType::StudentRanking, $class->id, null);
+
+    expect($data['rows'][0]['name'])->toContain('BBB')
+        ->and($data['rows'][0]['rank'])->toBe(1)
+        ->and($data['rows'][1]['rank'])->toBe(2)
+        ->and($data['rows'][2]['rank'])->toBeNull()
+        ->and($data['periodLabel'])->toContain($term->name)
+        ->and($data['generatedBy'])->not->toBe('');
+});
+
+it('distribuția notelor numără corect pe tranșe și calculează media', function () {
+    $class = SchoolClass::factory()->for($this->year)->create();
+    $term = Term::factory()->for($this->year)->create(['is_current' => true]);
+    $subject = Subject::factory()->create();
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($this->year)->create();
+
+    foreach ([9, 9, 7, 4] as $value) {
+        Grade::factory()->create([
+            'student_id' => $student->id,
+            'subject_id' => $subject->id,
+            'school_class_id' => $class->id,
+            'term_id' => $term->id,
+            'value' => $value,
+        ]);
+    }
+
+    $data = app(BuildStaffReportData::class)->build(StaffReportType::GradeDistribution, $class->id, $subject->id);
+
+    expect($data['total'])->toBe(4)
+        ->and($data['buckets'][9])->toBe(2)
+        ->and($data['buckets'][7])->toBe(1)
+        ->and($data['buckets'][4])->toBe(1)
+        ->and($data['mean'])->toBe(7.25);
+});
+
+it('promovabilitatea numără statuturile și disciplinele cu restanțe', function () {
+    $class = SchoolClass::factory()->for($this->year)->create();
+    $term = Term::factory()->for($this->year)->create(['is_current' => true]);
+    $subject = Subject::factory()->create(['name' => 'Matematica']);
+
+    $ok = Student::factory()->create();
+    $failing = Student::factory()->create();
+    foreach ([$ok, $failing] as $student) {
+        Enrollment::factory()->for($student)->for($class)->for($this->year)->create();
+    }
+
+    TermAverage::query()->create(['student_id' => $ok->id, 'subject_id' => $subject->id, 'school_class_id' => $class->id, 'term_id' => $term->id, 'value' => 8]);
+    TermAverage::query()->create(['student_id' => $failing->id, 'subject_id' => $subject->id, 'school_class_id' => $class->id, 'term_id' => $term->id, 'value' => 4]);
+
+    $data = app(BuildStaffReportData::class)->build(StaffReportType::PromotionRate, $class->id, null);
+
+    expect($data['statusCounts']['promovat'])->toBe(1)
+        ->and($data['statusCounts']['corigent'])->toBe(1)
+        ->and($data['promotionPercent'])->toBe(50)
+        ->and($data['failingSubjects'])->toHaveKey('Matematica');
+});
+
+it('sinteza școlii agregă pe clasele anului curent, fără PII de elevi', function () {
+    $class = SchoolClass::factory()->for($this->year)->create();
+    $term = Term::factory()->for($this->year)->create(['is_current' => true]);
+    $subject = Subject::factory()->create();
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($this->year)->create();
+    TermAverage::query()->create(['student_id' => $student->id, 'subject_id' => $subject->id, 'school_class_id' => $class->id, 'term_id' => $term->id, 'value' => 4.5]);
+
+    $data = app(BuildStaffReportData::class)->build(StaffReportType::SchoolOverview, null, null);
+
+    $row = collect($data['rows'])->firstWhere('students', 1);
+    expect($row)->not->toBeNull()
+        ->and($row['failing'])->toBe(1)
+        ->and($data['totals']['students'])->toBe(1)
+        ->and(StaffReportType::SchoolOverview->containsStudentPii())->toBeFalse();
+});
+
+it('generarea unui raport nou (clasament) produce PDF pentru diriginte', function () {
+    $class = SchoolClass::factory()->for($this->year)->create();
+    $subject = Subject::factory()->create();
+    $diriginte = reportTeacher($class, $subject, $class);
+
+    actingAs($diriginte);
+
+    Livewire::test(Reports::class)
+        ->call('openCategory', 'elevi')
+        ->call('openReport', StaffReportType::StudentRanking->value)
+        ->set('data.school_class_id', $class->id)
+        ->call('generate')
+        ->assertHasNoErrors();
 });

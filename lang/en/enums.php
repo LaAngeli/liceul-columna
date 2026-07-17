@@ -169,5 +169,37 @@ return [
             'label' => 'Full class situation',
             'description' => 'Each student\'s overall average and preliminary status.',
         ],
+        'student_ranking' => [
+            'label' => 'Student ranking',
+            'description' => 'The class ordered by the overall average of the current term.',
+        ],
+        'grade_distribution' => [
+            'label' => 'Grade distribution',
+            'description' => 'Histogram of active grades in a subject, with their mean.',
+        ],
+        'averages_evolution' => [
+            'label' => 'Averages evolution',
+            'description' => 'Class averages per subject, compared across the current year terms.',
+        ],
+        'subject_averages' => [
+            'label' => 'Subject situation',
+            'description' => 'The class average in every subject, with comparative bars.',
+        ],
+        'absence_statistics' => [
+            'label' => 'Absence statistics',
+            'description' => 'Class attendance: totals, motivated/unmotivated, monthly and per-student breakdown.',
+        ],
+        'promotion_rate' => [
+            'label' => 'Class promotion rate',
+            'description' => 'Promoted, failing and deferred students + subjects with the most failing grades.',
+        ],
+        'teacher_activity' => [
+            'label' => 'Teacher activity',
+            'description' => 'Grades and absences recorded in the current term, assignments and homeroom duty.',
+        ],
+        'school_overview' => [
+            'label' => 'School overview',
+            'description' => 'Current-year classes: headcount, class average and failing students — at a glance.',
+        ],
     ],
 ];

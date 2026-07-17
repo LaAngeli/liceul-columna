@@ -172,5 +172,37 @@ return [
             'label' => 'Situația completă a clasei',
             'description' => 'Media generală și statutul preliminar al fiecărui elev.',
         ],
+        'student_ranking' => [
+            'label' => 'Clasamentul elevilor',
+            'description' => 'Elevii clasei ordonați după media generală a semestrului curent.',
+        ],
+        'grade_distribution' => [
+            'label' => 'Distribuția notelor',
+            'description' => 'Histograma notelor active la o disciplină, cu media lor.',
+        ],
+        'averages_evolution' => [
+            'label' => 'Evoluția mediilor',
+            'description' => 'Media clasei pe discipline, comparată între semestrele anului curent.',
+        ],
+        'subject_averages' => [
+            'label' => 'Situația disciplinelor',
+            'description' => 'Media clasei la fiecare disciplină, cu bare comparative.',
+        ],
+        'absence_statistics' => [
+            'label' => 'Statistica absențelor',
+            'description' => 'Frecvența clasei: totaluri, motivate/nemotivate, defalcare pe luni și pe elevi.',
+        ],
+        'promotion_rate' => [
+            'label' => 'Promovabilitatea clasei',
+            'description' => 'Promovați, corigenți și amânați + disciplinele cu cele mai multe restanțe.',
+        ],
+        'teacher_activity' => [
+            'label' => 'Activitatea profesorilor',
+            'description' => 'Note și absențe consemnate în semestrul curent, alocările și diriginția fiecărui cadru.',
+        ],
+        'school_overview' => [
+            'label' => 'Sinteza școlii',
+            'description' => 'Clasele anului curent: efective, media clasei și corigenți — dintr-o privire.',
+        ],
     ],
 ];

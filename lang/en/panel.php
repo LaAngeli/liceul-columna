@@ -1148,6 +1148,32 @@ return [
         'action' => 'Sign in',
     ],
 
+    'reports_nav' => [
+        'reports_count' => '{1}one report|[2,*]:count reports',
+        'categories' => [
+            'elevi' => 'Students',
+            'evaluare' => 'Grades & assessment',
+            'frecventa' => 'Absences & attendance',
+            'clase' => 'Classes',
+            'profesori' => 'Teachers',
+            'administrative' => 'Administrative',
+        ],
+        'category_descriptions' => [
+            'elevi' => 'Class lists and rankings — student documents.',
+            'evaluare' => 'Situations, distributions and evolution of grades and averages.',
+            'frecventa' => 'Absence statistics: totals, months, students.',
+            'clase' => 'The full situation and promotion rate of a class.',
+            'profesori' => 'Teaching staff activity in the current term.',
+            'administrative' => 'School-level managerial syntheses.',
+        ],
+        'formats' => [
+            'table' => 'table',
+            'ranking' => 'ranking',
+            'chart' => 'chart',
+            'stats' => 'stats',
+        ],
+    ],
+
     'consent_nav' => [
         'hint' => 'Proof of acknowledging the privacy notice (Law 133/2011 §7). Version in force: :version — students and parents must confirm it at first sign-in; staff processes data on a role basis and is not covered. The cards show coverage; "To confirm" lists active accounts still missing the current version.',
         'eyebrow' => 'Consents',
