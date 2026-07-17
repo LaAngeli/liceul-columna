@@ -37,12 +37,14 @@ class DocumentsTable
                     ->color(fn (DocumentCategory $state): string => $state->color())
                     ->icon(fn (DocumentCategory $state): string => $state->icon()),
 
+                // Mobile-first: pe telefon rămân titlul (+descrierea), categoria și publicarea.
                 TextColumn::make('access_level')
                     ->label(__('panel.tables.documents.access_level'))
                     ->badge()
                     ->formatStateUsing(fn (DocumentAccessLevel $state): string => $state->getLabel())
                     ->color(fn (DocumentAccessLevel $state): string => $state->color())
                     ->icon(fn (DocumentAccessLevel $state): string => $state->icon())
+                    ->visibleFrom('sm')
                     ->description(fn (Document $record): ?string => $record->access_level === DocumentAccessLevel::RoleSpecific
                         ? self::rolesSummary($record)
                         : null),
@@ -52,12 +54,14 @@ class DocumentsTable
                     ->label(__('panel.tables.documents.file'))
                     ->placeholder(__('panel.common.dash'))
                     ->limit(28)
+                    ->visibleFrom('md')
                     ->description(fn (Document $record): ?string => $record->formattedSize()),
 
                 TextColumn::make('version')
                     ->label(__('panel.tables.documents.version'))
                     ->placeholder(__('panel.common.dash'))
-                    ->toggleable(),
+                    ->toggleable()
+                    ->visibleFrom('lg'),
 
                 IconColumn::make('is_published')
                     ->label(__('panel.tables.documents.published'))

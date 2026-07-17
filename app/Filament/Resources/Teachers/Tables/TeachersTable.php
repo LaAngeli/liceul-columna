@@ -46,20 +46,25 @@ class TeachersTable
                     ->label(__('panel.fields.first_name'))
                     ->searchable()
                     ->sortable(),
+                // Mobile-first: pe telefon rămâne identitatea + diriginția; acoperirea/emailul
+                // intră progresiv (fișa le are pe toate).
                 TextColumn::make('homeroom_of')
                     ->label(__('panel.tables.teachers.homeroom_of'))
                     ->state(fn (Teacher $record, $livewire): string => ($livewire instanceof ListTeachers
                         ? ($livewire->homeroomOfMap()->get($record->id) ?? '')
-                        : '') ?: (string) __('panel.common.dash')),
+                        : '') ?: (string) __('panel.common.dash'))
+                    ->visibleFrom('sm'),
                 TextColumn::make('subjects_count')
                     ->label(__('panel.tables.teachers.coverage'))
                     ->state(fn (Teacher $record): string => __('panel.tables.teachers.coverage_value', [
                         'subjects' => (int) $record->getAttribute('subjects_count'),
                         'classes' => (int) $record->getAttribute('classes_count'),
-                    ])),
+                    ]))
+                    ->visibleFrom('md'),
                 TextColumn::make('email')
                     ->label(__('panel.fields.email'))
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('lg'),
                 TextColumn::make('sex')
                     ->label(__('panel.fields.sex'))
                     ->badge()

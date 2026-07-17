@@ -33,12 +33,15 @@ class LessonsTable
                     ->label(__('panel.fields.subject'))
                     ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state))
                     ->searchable(),
+                // Mobile-first: pe telefon rămân ziua, ora și disciplina (esența orarului).
                 TextColumn::make('teacher.full_name')
                     ->label(__('panel.forms.lesson.teacher_short'))
-                    ->placeholder(__('panel.common.dash')),
+                    ->placeholder(__('panel.common.dash'))
+                    ->visibleFrom('md'),
                 TextColumn::make('room')
                     ->label(__('panel.forms.lesson.room'))
-                    ->placeholder(__('panel.common.dash')),
+                    ->placeholder(__('panel.common.dash'))
+                    ->visibleFrom('sm'),
             ])
             ->filters([
                 SelectFilter::make('day_of_week')

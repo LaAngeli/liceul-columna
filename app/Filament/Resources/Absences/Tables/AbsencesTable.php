@@ -10,6 +10,7 @@ use App\Models\Absence;
 use App\Models\AbsenceMotivation;
 use App\Support\ContentTranslator;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -58,12 +59,13 @@ class AbsencesTable
                     ->url(fn (Absence $record): string => StudentResource::getUrl('view', ['record' => $record->student_id]))
                     ->color('primary')
                     ->description(fn (Absence $record): ?string => $record->schoolClass?->name),
-                // DISCIPLINA
+                // DISCIPLINA — pe telefon rămân elevul, data și starea motivării (esența absenței).
                 TextColumn::make('subject.name')
                     ->label(__('panel.fields.subject'))
                     ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state))
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
                 // DATA
                 TextColumn::make('occurred_on')
                     ->label(__('panel.fields.date'))
@@ -73,9 +75,10 @@ class AbsencesTable
                 IconColumn::make('is_motivated')
                     ->label(__('panel.fields.is_motivated'))
                     ->boolean(),
-                // SEM.
+                // SEM. — pe mobil semestrul e de regulă deja în contextul navigatorului.
                 TextColumn::make('term.number')
-                    ->label(__('panel.fields.term_short')),
+                    ->label(__('panel.fields.term_short'))
+                    ->visibleFrom('md'),
                 // AUTOR — ascuns default.
                 TextColumn::make('teacher.full_name')
                     ->label(__('panel.fields.author'))
@@ -108,76 +111,80 @@ class AbsencesTable
                     ->falseLabel(__('panel.tables.absences.motivation_only_no')),
                 TrashedFilter::make(),
             ])
+            // Acțiunile pe rând în grup „⋮" (mobile-first): butonul lat „Motivează cu dovadă"
+            // lățea fiecare rând.
             ->recordActions([
-                // Motivare CU DOVADĂ, pe perioadă: creează un AbsenceMotivation aprobat (recenzent =
-                // cel care are dovada), cu justificativ stocat PRIVAT, și marchează motivate absențele
-                // elevului din interval. Sursă unică pentru is_motivated (nu un toggle brut în formular).
-                Action::make('motivate')
-                    ->label(__('panel.tables.absences.motivate.label'))
-                    ->icon(Heroicon::OutlinedCheckBadge)
-                    ->color('success')
-                    ->modalHeading(__('panel.tables.absences.motivate.heading'))
-                    ->modalSubmitActionLabel(__('panel.tables.absences.motivate.submit'))
-                    ->visible(fn (Absence $record): bool => ! $record->is_motivated && self::canMotivate($record))
-                    ->fillForm(fn (Absence $record): array => [
-                        'period_start' => $record->occurred_on,
-                        'period_end' => $record->occurred_on,
-                    ])
-                    ->schema([
-                        DatePicker::make('period_start')
-                            ->label(__('panel.tables.absences.motivate.period_start'))
-                            ->required()
-                            ->maxDate(now())
-                            ->validationMessages(['before_or_equal' => __('validation.not_future_date')]),
-                        DatePicker::make('period_end')
-                            ->label(__('panel.tables.absences.motivate.period_end'))
-                            ->required()
-                            ->maxDate(now())
-                            ->validationMessages(['before_or_equal' => __('validation.not_future_date')])
-                            ->afterOrEqual('period_start'),
-                        Textarea::make('reason')
-                            ->label(__('panel.fields.reason'))
-                            ->required()
-                            ->maxLength(500)
-                            ->rows(2),
-                        FileUpload::make('document_path')
-                            ->label(__('panel.tables.absences.motivate.document'))
-                            ->helperText(__('panel.tables.absences.motivate.document_hint'))
-                            ->disk('local')
-                            ->directory('motivations')
-                            ->visibility('private')
-                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])
-                            ->maxSize(5120)
-                            ->required(),
-                    ])
-                    ->action(function (Absence $record, array $data): void {
-                        $userId = (int) auth('web')->id();
+                ActionGroup::make([
+                    // Motivare CU DOVADĂ, pe perioadă: creează un AbsenceMotivation aprobat (recenzent =
+                    // cel care are dovada), cu justificativ stocat PRIVAT, și marchează motivate absențele
+                    // elevului din interval. Sursă unică pentru is_motivated (nu un toggle brut în formular).
+                    Action::make('motivate')
+                        ->label(__('panel.tables.absences.motivate.label'))
+                        ->icon(Heroicon::OutlinedCheckBadge)
+                        ->color('success')
+                        ->modalHeading(__('panel.tables.absences.motivate.heading'))
+                        ->modalSubmitActionLabel(__('panel.tables.absences.motivate.submit'))
+                        ->visible(fn (Absence $record): bool => ! $record->is_motivated && self::canMotivate($record))
+                        ->fillForm(fn (Absence $record): array => [
+                            'period_start' => $record->occurred_on,
+                            'period_end' => $record->occurred_on,
+                        ])
+                        ->schema([
+                            DatePicker::make('period_start')
+                                ->label(__('panel.tables.absences.motivate.period_start'))
+                                ->required()
+                                ->maxDate(now())
+                                ->validationMessages(['before_or_equal' => __('validation.not_future_date')]),
+                            DatePicker::make('period_end')
+                                ->label(__('panel.tables.absences.motivate.period_end'))
+                                ->required()
+                                ->maxDate(now())
+                                ->validationMessages(['before_or_equal' => __('validation.not_future_date')])
+                                ->afterOrEqual('period_start'),
+                            Textarea::make('reason')
+                                ->label(__('panel.fields.reason'))
+                                ->required()
+                                ->maxLength(500)
+                                ->rows(2),
+                            FileUpload::make('document_path')
+                                ->label(__('panel.tables.absences.motivate.document'))
+                                ->helperText(__('panel.tables.absences.motivate.document_hint'))
+                                ->disk('local')
+                                ->directory('motivations')
+                                ->visibility('private')
+                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])
+                                ->maxSize(5120)
+                                ->required(),
+                        ])
+                        ->action(function (Absence $record, array $data): void {
+                            $userId = (int) auth('web')->id();
 
-                        $motivation = AbsenceMotivation::create([
-                            'student_id' => $record->student_id,
-                            'requested_by_user_id' => $userId,
-                            'reason' => $data['reason'],
-                            'period_start' => $data['period_start'],
-                            'period_end' => $data['period_end'],
-                            'document_path' => $data['document_path'],
-                            'status' => RequestStatus::Pending,
-                            'is_exception' => false,
-                        ]);
+                            $motivation = AbsenceMotivation::create([
+                                'student_id' => $record->student_id,
+                                'requested_by_user_id' => $userId,
+                                'reason' => $data['reason'],
+                                'period_start' => $data['period_start'],
+                                'period_end' => $data['period_end'],
+                                'document_path' => $data['document_path'],
+                                'status' => RequestStatus::Pending,
+                                'is_exception' => false,
+                            ]);
 
-                        // Recenzentul e cel care depune dovada → aprobare imediată: marchează motivate
-                        // absențele elevului din interval (o dovadă acoperă toată perioada).
-                        $motivation->approve($userId);
+                            // Recenzentul e cel care depune dovada → aprobare imediată: marchează motivate
+                            // absențele elevului din interval (o dovadă acoperă toată perioada).
+                            $motivation->approve($userId);
 
-                        Notification::make()
-                            ->success()
-                            ->title(__('panel.tables.absences.motivate.success'))
-                            ->send();
-                    }),
-                // Editarea absențelor: profesorul/dirigintele (scoped) sau autoritatea academică.
-                // Administratorul operațional/tehnic vede, dar NU editează (§3.3).
-                EditAction::make()
-                    ->visible(fn (): bool => (auth('web')->user()?->canAdministerCatalog() ?? false)
-                        || auth('web')->user()?->teacher !== null),
+                            Notification::make()
+                                ->success()
+                                ->title(__('panel.tables.absences.motivate.success'))
+                                ->send();
+                        }),
+                    // Editarea absențelor: profesorul/dirigintele (scoped) sau autoritatea academică.
+                    // Administratorul operațional/tehnic vede, dar NU editează (§3.3).
+                    EditAction::make()
+                        ->visible(fn (): bool => (auth('web')->user()?->canAdministerCatalog() ?? false)
+                            || auth('web')->user()?->teacher !== null),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

@@ -17,6 +17,7 @@ use App\Models\Term;
 use App\Models\User;
 use App\Notifications\CatalogNotification;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -49,6 +50,8 @@ class StudentsTable
 
                 return $query;
             })
+            // Mobile-first (directiva 2026-07-17): pe telefon rămâne identitatea (nume + prenume);
+            // atributele de fișă intră progresiv — detaliile complete sunt oricum în fișă (View).
             ->columns([
                 TextColumn::make('last_name')
                     ->label(__('panel.fields.last_name'))
@@ -60,17 +63,21 @@ class StudentsTable
                     ->sortable(),
                 TextColumn::make('sex')
                     ->label(__('panel.forms.student.sex_short'))
-                    ->badge(),
+                    ->badge()
+                    ->visibleFrom('sm'),
                 TextColumn::make('register_number')
                     ->label(__('panel.fields.register_number'))
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('md'),
                 TextColumn::make('second_language')
                     ->label(__('panel.forms.student.second_language_short'))
-                    ->badge(),
+                    ->badge()
+                    ->visibleFrom('md'),
                 TextColumn::make('english_group')
                     ->label(__('panel.forms.student.english_group_short'))
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('lg'),
                 TextColumn::make('user.name')
                     ->label(__('panel.forms.student.account_short'))
                     ->searchable()
@@ -98,87 +105,89 @@ class StudentsTable
                     ),
                 TrashedFilter::make(),
             ])
+            // Fișa inline; validarea statutului + editarea în grup „⋮" (butonul lat „Validează
+            // statutul" lățea fiecare rând — sursa scrollului orizontal pe mobil).
             ->recordActions([
-                Action::make('validateStatus')
-                    ->label(__('panel.forms.student.validate_status.label'))
-                    ->icon('heroicon-o-check-badge')
-                    ->color('success')
-                    ->visible(fn (): bool => auth('web')->user()?->canValidateSemester() ?? false)
-                    ->modalHeading(fn (): string => __('panel.forms.student.validate_status.heading'))
-                    ->modalDescription(fn (): string => __('panel.forms.student.validate_status.description'))
-                    ->schema([
-                        Select::make('status')
-                            ->label(__('panel.forms.student.validate_status.status'))
-                            ->options(StudentStatus::class)
-                            ->default(fn (Student $record): ?string => self::computedStatus($record))
-                            ->required(),
-                        TextInput::make('order_reference')
-                            ->label(__('panel.forms.student.validate_status.order_reference'))
-                            ->maxLength(120),
-                    ])
-                    ->action(function (Student $record, array $data): void {
-                        $termId = Term::query()->where('is_current', true)->value('id');
-
-                        if ($termId === null) {
-                            Notification::make()->warning()->title(__('panel.forms.student.validate_status.no_current_term'))->send();
-
-                            return;
-                        }
-
-                        // Select-ul livrează string în request-ul clasic, dar ENUM pe alte căi
-                        // (ex. teste Livewire) — normalizăm o singură dată, la intrare.
-                        $status = $data['status'] instanceof StudentStatus
-                            ? $data['status']
-                            : StudentStatus::from((string) $data['status']);
-
-                        SemesterValidation::updateOrCreate(
-                            ['student_id' => $record->id, 'term_id' => (int) $termId],
-                            [
-                                'status' => $status,
-                                'order_reference' => $data['order_reference'] ?? null,
-                                'validated_by_user_id' => auth()->id(),
-                                'validated_at' => now(),
-                            ],
-                        );
-
-                        // „Corigent" → generează automat intrările de corigență (per disciplină restantă),
-                        // vizibile părintelui/dirigintelui; data + comisia se completează din sesiune (§2.5).
-                        if ($status === StudentStatus::Corigent) {
-                            $term = Term::query()->find((int) $termId);
-                            if ($term !== null) {
-                                app(GenerateCorigentaExams::class)->forStudentTerm($record, $term);
-                            }
-                        } else {
-                            // Re-validare pe alt statut (ex. Corigent → Promovat, după contestație):
-                            // examenele generate dar NEDATE (fără notă) rămân fără obiect — altfel
-                            // familia continuă să vadă „lichidare corigență" deși statutul oficial
-                            // s-a schimbat. Cele CU notă = istoric de examen, rămân.
-                            CorigentaExam::query()
-                                ->where('student_id', $record->id)
-                                ->where('term_id', (int) $termId)
-                                ->whereNull('mark')
-                                ->get()
-                                ->each(fn (CorigentaExam $exam) => $exam->delete());
-                        }
-
-                        // Statutul OFICIAL (Consiliul profesoral + ordin) s-a validat → familia e
-                        // ÎNȘTIINȚATĂ (§5, StatusChange) — „luarea la cunoștință" din cabinet nu
-                        // poate depinde de o vizită spontană.
-                        app(NotifyStudentFamily::class)->send($record, new CatalogNotification(
-                            NotificationType::StatusChange,
-                            ['student' => $record->full_name, 'status' => $status->getLabel()],
-                            route('cabinet.student', ['student' => $record->id], false),
-                        ));
-
-                        Notification::make()->success()->title(__('panel.forms.student.validate_status.success'))->send();
-                    }),
-                // Fișa read-only (situație + discipline restante) — accesibilă tuturor cu drept de
-                // consultare, inclusiv diriginților (care NU pot edita fișa de elev).
                 ViewAction::make(),
-                // Editarea fișei doar pentru configuratori (§3.3). Guard explicit: EditAction nu se
-                // auto-ascunde consecvent, iar un diriginte care apasă „Editare" ar primi 403.
-                EditAction::make()
-                    ->visible(fn (): bool => ($user = auth('web')->user()) instanceof User && $user->canConfigureSchool()),
+                ActionGroup::make([
+                    Action::make('validateStatus')
+                        ->label(__('panel.forms.student.validate_status.label'))
+                        ->icon('heroicon-o-check-badge')
+                        ->color('success')
+                        ->visible(fn (): bool => auth('web')->user()?->canValidateSemester() ?? false)
+                        ->modalHeading(fn (): string => __('panel.forms.student.validate_status.heading'))
+                        ->modalDescription(fn (): string => __('panel.forms.student.validate_status.description'))
+                        ->schema([
+                            Select::make('status')
+                                ->label(__('panel.forms.student.validate_status.status'))
+                                ->options(StudentStatus::class)
+                                ->default(fn (Student $record): ?string => self::computedStatus($record))
+                                ->required(),
+                            TextInput::make('order_reference')
+                                ->label(__('panel.forms.student.validate_status.order_reference'))
+                                ->maxLength(120),
+                        ])
+                        ->action(function (Student $record, array $data): void {
+                            $termId = Term::query()->where('is_current', true)->value('id');
+
+                            if ($termId === null) {
+                                Notification::make()->warning()->title(__('panel.forms.student.validate_status.no_current_term'))->send();
+
+                                return;
+                            }
+
+                            // Select-ul livrează string în request-ul clasic, dar ENUM pe alte căi
+                            // (ex. teste Livewire) — normalizăm o singură dată, la intrare.
+                            $status = $data['status'] instanceof StudentStatus
+                                ? $data['status']
+                                : StudentStatus::from((string) $data['status']);
+
+                            SemesterValidation::updateOrCreate(
+                                ['student_id' => $record->id, 'term_id' => (int) $termId],
+                                [
+                                    'status' => $status,
+                                    'order_reference' => $data['order_reference'] ?? null,
+                                    'validated_by_user_id' => auth()->id(),
+                                    'validated_at' => now(),
+                                ],
+                            );
+
+                            // „Corigent" → generează automat intrările de corigență (per disciplină restantă),
+                            // vizibile părintelui/dirigintelui; data + comisia se completează din sesiune (§2.5).
+                            if ($status === StudentStatus::Corigent) {
+                                $term = Term::query()->find((int) $termId);
+                                if ($term !== null) {
+                                    app(GenerateCorigentaExams::class)->forStudentTerm($record, $term);
+                                }
+                            } else {
+                                // Re-validare pe alt statut (ex. Corigent → Promovat, după contestație):
+                                // examenele generate dar NEDATE (fără notă) rămân fără obiect — altfel
+                                // familia continuă să vadă „lichidare corigență" deși statutul oficial
+                                // s-a schimbat. Cele CU notă = istoric de examen, rămân.
+                                CorigentaExam::query()
+                                    ->where('student_id', $record->id)
+                                    ->where('term_id', (int) $termId)
+                                    ->whereNull('mark')
+                                    ->get()
+                                    ->each(fn (CorigentaExam $exam) => $exam->delete());
+                            }
+
+                            // Statutul OFICIAL (Consiliul profesoral + ordin) s-a validat → familia e
+                            // ÎNȘTIINȚATĂ (§5, StatusChange) — „luarea la cunoștință" din cabinet nu
+                            // poate depinde de o vizită spontană.
+                            app(NotifyStudentFamily::class)->send($record, new CatalogNotification(
+                                NotificationType::StatusChange,
+                                ['student' => $record->full_name, 'status' => $status->getLabel()],
+                                route('cabinet.student', ['student' => $record->id], false),
+                            ));
+
+                            Notification::make()->success()->title(__('panel.forms.student.validate_status.success'))->send();
+                        }),
+                    // Editarea fișei doar pentru configuratori (§3.3). Guard explicit: EditAction nu se
+                    // auto-ascunde consecvent, iar un diriginte care apasă „Editare" ar primi 403.
+                    EditAction::make()
+                        ->visible(fn (): bool => ($user = auth('web')->user()) instanceof User && $user->canConfigureSchool()),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

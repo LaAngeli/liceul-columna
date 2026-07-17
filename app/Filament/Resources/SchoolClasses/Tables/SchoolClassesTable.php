@@ -25,17 +25,21 @@ class SchoolClassesTable
                     ->label(__('panel.fields.class'))
                     ->searchable()
                     ->sortable(),
+                // Mobile-first: pe telefon rămân clasa și dirigintele (semnalul-cheie).
                 TextColumn::make('section')
                     ->label(__('panel.fields.section'))
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('sm'),
                 TextColumn::make('grade_level')
                     ->label(__('panel.fields.grade_level'))
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('academicYear.name')
                     ->label(__('panel.fields.academic_year'))
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('homeroomTeacher.full_name')
                     ->label(__('panel.tables.school_classes.homeroom')),
             ])

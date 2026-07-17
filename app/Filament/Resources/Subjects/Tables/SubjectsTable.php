@@ -56,11 +56,13 @@ class SubjectsTable
                     ->sortable()
                     ->description(fn (Subject $record): ?string => $record->abbreviation),
                 // TREPTELE la care se predă (cifre romane + ciclul) — nu scara de note.
+                // Mobile-first: pe telefon rămân disciplina, tipul de notare și acoperirea.
                 TextColumn::make('min_grade')
                     ->label(__('panel.forms.subject.grade_span'))
                     ->state(fn (Subject $record): string => self::gradeSpan($record))
                     ->description(fn (Subject $record): ?string => self::cycleSpan($record))
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('grading_type')
                     ->label(__('panel.forms.subject.grading_type_short'))
                     ->badge(),
@@ -71,7 +73,8 @@ class SubjectsTable
                     ->state(fn (Subject $record): string => __('panel.tables.subjects.coverage_value', [
                         'classes' => (int) $record->getAttribute('classes_count'),
                         'teachers' => (int) $record->getAttribute('teachers_count'),
-                    ])),
+                    ]))
+                    ->visibleFrom('sm'),
                 TextColumn::make('report_order')
                     ->label(__('panel.forms.subject.report_order'))
                     ->numeric()

@@ -7,6 +7,7 @@ use App\Filament\Resources\Enrollments\Pages\ListEnrollments;
 use App\Filament\Resources\Students\StudentResource;
 use App\Models\Enrollment;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -44,20 +45,24 @@ class EnrollmentsTable
                     ->sortable(['last_name'])
                     ->url(fn (Enrollment $record): string => StudentResource::getUrl('view', ['record' => $record->student_id]))
                     ->color('primary'),
+                // Mobile-first: pe telefon rămân elevul și statutul; datele intră progresiv.
                 TextColumn::make('student.register_number')
                     ->label(__('panel.fields.register_number'))
                     ->placeholder(__('panel.common.dash'))
-                    ->toggleable(),
+                    ->toggleable()
+                    ->visibleFrom('md'),
                 TextColumn::make('enrolled_on')
                     ->label(__('panel.fields.enrolled_on'))
                     ->date()
                     ->placeholder(__('panel.common.dash'))
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
                 TextColumn::make('left_on')
                     ->label(__('panel.fields.left_on'))
                     ->date()
                     ->placeholder(__('panel.common.dash'))
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('status')
                     ->label(__('panel.tables.enrollments.status'))
                     ->state(fn (Enrollment $record): string => $record->left_on === null ? 'active' : 'departed')
@@ -68,34 +73,37 @@ class EnrollmentsTable
             ->filters([
                 TrashedFilter::make(),
             ])
+            // Acțiunile în grup „⋮" (mobile-first): butonul lat „Marchează plecarea" lățea rândul.
             ->recordActions([
-                // Operațiunea de zi cu zi a registrului: elevul pleacă → data plecării, un click.
-                Action::make('departure')
-                    ->label(__('panel.tables.enrollments.departure_label'))
-                    ->icon('heroicon-o-arrow-right-start-on-rectangle')
-                    ->color('warning')
-                    ->visible(fn (Enrollment $record): bool => $record->left_on === null
-                        && ! $record->trashed()
-                        && EnrollmentResource::canEdit($record))
-                    ->modalHeading(__('panel.tables.enrollments.departure_heading'))
-                    ->modalSubmitActionLabel(__('panel.tables.enrollments.departure_label'))
-                    ->schema([
-                        DatePicker::make('left_on')
-                            ->label(__('panel.fields.left_on'))
-                            ->required()
-                            ->default(now())
-                            // Plecarea nu poate precede înmatricularea (interval negativ).
-                            ->minDate(fn (Enrollment $record) => $record->enrolled_on?->copy()->addDay()),
-                    ])
-                    ->action(function (Enrollment $record, array $data): void {
-                        $record->update(['left_on' => $data['left_on']]);
+                ActionGroup::make([
+                    // Operațiunea de zi cu zi a registrului: elevul pleacă → data plecării, un click.
+                    Action::make('departure')
+                        ->label(__('panel.tables.enrollments.departure_label'))
+                        ->icon('heroicon-o-arrow-right-start-on-rectangle')
+                        ->color('warning')
+                        ->visible(fn (Enrollment $record): bool => $record->left_on === null
+                            && ! $record->trashed()
+                            && EnrollmentResource::canEdit($record))
+                        ->modalHeading(__('panel.tables.enrollments.departure_heading'))
+                        ->modalSubmitActionLabel(__('panel.tables.enrollments.departure_label'))
+                        ->schema([
+                            DatePicker::make('left_on')
+                                ->label(__('panel.fields.left_on'))
+                                ->required()
+                                ->default(now())
+                                // Plecarea nu poate precede înmatricularea (interval negativ).
+                                ->minDate(fn (Enrollment $record) => $record->enrolled_on?->copy()->addDay()),
+                        ])
+                        ->action(function (Enrollment $record, array $data): void {
+                            $record->update(['left_on' => $data['left_on']]);
 
-                        Notification::make()
-                            ->success()
-                            ->title(__('panel.tables.enrollments.departure_success'))
-                            ->send();
-                    }),
-                EditAction::make(),
+                            Notification::make()
+                                ->success()
+                                ->title(__('panel.tables.enrollments.departure_success'))
+                                ->send();
+                        }),
+                    EditAction::make(),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

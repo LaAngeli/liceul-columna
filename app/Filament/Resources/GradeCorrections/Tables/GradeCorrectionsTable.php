@@ -8,6 +8,7 @@ use App\Filament\Resources\Students\StudentResource;
 use App\Models\GradeCorrection;
 use App\Support\ContentTranslator;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\Textarea;
@@ -58,12 +59,14 @@ class GradeCorrectionsTable
                         .' → '
                         .($record->new_value ?? $record->new_calificativ ?? '—')
                     )),
-                // MOTIV + tooltip pentru textul complet.
+                // MOTIV + tooltip pentru textul complet. Pe telefon rămân elevul (+disciplina),
+                // modificarea și starea — esența deciziei.
                 TextColumn::make('reason')
                     ->label(__('panel.fields.reason'))
                     ->wrap()
                     ->limit(50)
-                    ->tooltip(fn (GradeCorrection $record): ?string => mb_strlen((string) $record->reason) > 50 ? $record->reason : null),
+                    ->tooltip(fn (GradeCorrection $record): ?string => mb_strlen((string) $record->reason) > 50 ? $record->reason : null)
+                    ->visibleFrom('sm'),
                 // STARE (badge)
                 TextColumn::make('status')
                     ->label(__('panel.fields.status'))
@@ -74,6 +77,7 @@ class GradeCorrectionsTable
                     ->label(__('panel.fields.date'))
                     ->dateTime('d.m.Y H:i')
                     ->sortable()
+                    ->visibleFrom('lg')
                     ->description(fn (GradeCorrection $record): ?string => $record->requestedBy?->name),
                 // REVIZUITĂ DE — ascunsă default.
                 TextColumn::make('reviewedBy.name')
@@ -91,63 +95,66 @@ class GradeCorrectionsTable
                         || ! $livewire->isQueueManagerView()
                         || $livewire->isArchiveView()),
             ])
+            // Acțiunile pe rând în grup „⋮" (mobile-first): trei butoane late lățeau rândul.
             ->recordActions([
-                // Solicitantul își poate RETRAGE cererea cât timp e în așteptare (a greșit valoarea
-                // sau motivul) — altfel ar aglomera coada administrației cu cereri moarte.
-                Action::make('withdraw')
-                    ->label(__('panel.actions.request_correction.withdraw'))
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('gray')
-                    ->requiresConfirmation()
-                    ->modalHeading(fn (): string => __('panel.actions.request_correction.withdraw_heading'))
-                    ->modalDescription(fn (): string => __('panel.actions.request_correction.withdraw_description'))
-                    ->modalSubmitActionLabel(__('panel.actions.request_correction.withdraw_submit'))
-                    ->visible(fn (GradeCorrection $record): bool => $record->isPending()
-                        && $record->requested_by_user_id === auth('web')->id())
-                    ->action(function (GradeCorrection $record): void {
-                        $record->withdraw();
+                ActionGroup::make([
+                    // Solicitantul își poate RETRAGE cererea cât timp e în așteptare (a greșit valoarea
+                    // sau motivul) — altfel ar aglomera coada administrației cu cereri moarte.
+                    Action::make('withdraw')
+                        ->label(__('panel.actions.request_correction.withdraw'))
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->color('gray')
+                        ->requiresConfirmation()
+                        ->modalHeading(fn (): string => __('panel.actions.request_correction.withdraw_heading'))
+                        ->modalDescription(fn (): string => __('panel.actions.request_correction.withdraw_description'))
+                        ->modalSubmitActionLabel(__('panel.actions.request_correction.withdraw_submit'))
+                        ->visible(fn (GradeCorrection $record): bool => $record->isPending()
+                            && $record->requested_by_user_id === auth('web')->id())
+                        ->action(function (GradeCorrection $record): void {
+                            $record->withdraw();
 
-                        Notification::make()->success()->title(__('panel.actions.request_correction.withdraw_success'))->send();
-                    }),
-                Action::make('approve')
-                    ->label(__('panel.actions.approve.label'))
-                    ->icon('heroicon-o-check')
-                    ->color('success')
-                    ->modalSubmitActionLabel(__('panel.actions.approve.label'))
-                    ->visible(fn (GradeCorrection $record): bool => $record->isPending()
-                        && (auth('web')->user()?->canApproveGradeCorrections() ?? false))
-                    ->modalHeading(fn (): string => __('panel.actions.approve.label'))
-                    ->modalDescription(fn (): string => __('panel.actions.approve_bulk.description'))
-                    ->schema([
-                        Textarea::make('review_note')
-                            ->label(__('panel.common.review_note'))
-                            ->maxLength(255),
-                    ])
-                    ->action(function (GradeCorrection $record, array $data): void {
-                        $record->approve((int) auth()->id(), $data['review_note'] ?? null);
+                            Notification::make()->success()->title(__('panel.actions.request_correction.withdraw_success'))->send();
+                        }),
+                    Action::make('approve')
+                        ->label(__('panel.actions.approve.label'))
+                        ->icon('heroicon-o-check')
+                        ->color('success')
+                        ->modalSubmitActionLabel(__('panel.actions.approve.label'))
+                        ->visible(fn (GradeCorrection $record): bool => $record->isPending()
+                            && (auth('web')->user()?->canApproveGradeCorrections() ?? false))
+                        ->modalHeading(fn (): string => __('panel.actions.approve.label'))
+                        ->modalDescription(fn (): string => __('panel.actions.approve_bulk.description'))
+                        ->schema([
+                            Textarea::make('review_note')
+                                ->label(__('panel.common.review_note'))
+                                ->maxLength(255),
+                        ])
+                        ->action(function (GradeCorrection $record, array $data): void {
+                            $record->approve((int) auth()->id(), $data['review_note'] ?? null);
 
-                        Notification::make()->success()->title(__('panel.actions.approve.success'))->send();
-                    }),
-                Action::make('reject')
-                    ->label(__('panel.actions.reject.label'))
-                    ->icon('heroicon-o-x-mark')
-                    ->color('danger')
-                    ->modalSubmitActionLabel(__('panel.actions.reject.label'))
-                    ->visible(fn (GradeCorrection $record): bool => $record->isPending()
-                        && (auth('web')->user()?->canApproveGradeCorrections() ?? false))
-                    ->modalHeading(fn (): string => __('panel.actions.reject.label'))
-                    ->schema([
-                        // Profesorul trebuie să afle DE CE i s-a respins corecția, altfel o redepune.
-                        Textarea::make('review_note')
-                            ->label(__('panel.common.rejection_reason'))
-                            ->required()
-                            ->maxLength(255),
-                    ])
-                    ->action(function (GradeCorrection $record, array $data): void {
-                        $record->reject((int) auth()->id(), $data['review_note'] ?? null);
+                            Notification::make()->success()->title(__('panel.actions.approve.success'))->send();
+                        }),
+                    Action::make('reject')
+                        ->label(__('panel.actions.reject.label'))
+                        ->icon('heroicon-o-x-mark')
+                        ->color('danger')
+                        ->modalSubmitActionLabel(__('panel.actions.reject.label'))
+                        ->visible(fn (GradeCorrection $record): bool => $record->isPending()
+                            && (auth('web')->user()?->canApproveGradeCorrections() ?? false))
+                        ->modalHeading(fn (): string => __('panel.actions.reject.label'))
+                        ->schema([
+                            // Profesorul trebuie să afle DE CE i s-a respins corecția, altfel o redepune.
+                            Textarea::make('review_note')
+                                ->label(__('panel.common.rejection_reason'))
+                                ->required()
+                                ->maxLength(255),
+                        ])
+                        ->action(function (GradeCorrection $record, array $data): void {
+                            $record->reject((int) auth()->id(), $data['review_note'] ?? null);
 
-                        Notification::make()->warning()->title(__('panel.actions.reject.success'))->send();
-                    }),
+                            Notification::make()->warning()->title(__('panel.actions.reject.success'))->send();
+                        }),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

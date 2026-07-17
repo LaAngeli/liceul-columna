@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\TemporaryCredentials;
 use App\Support\TemporaryPassword;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -42,6 +43,9 @@ class UsersTable
                     ? $livewire->applyRoleContext($query)
                     : $query;
             })
+            // Mobile-first (directiva 2026-07-17): pe telefon rămân identitatea, ASOCIEREA
+            // (perimetrul contului) și starea; username/email intră progresiv — rămân căutabile
+            // și pe mobil (căutarea nu depinde de vizibilitatea coloanei).
             ->columns([
                 TextColumn::make('name')
                     ->label(__('panel.fields.name'))
@@ -50,17 +54,21 @@ class UsersTable
                 TextColumn::make('username')
                     ->label(__('panel.forms.user.username'))
                     ->placeholder(__('panel.common.dash'))
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('lg'),
                 TextColumn::make('email')
                     ->label(__('panel.fields.email'))
                     ->placeholder(__('panel.common.dash'))
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('md'),
                 // Asocierea care dă PERIMETRUL contului: fișa (profesor/elev) sau copiii (părinte).
+                // Pe telefon rămân numele + STAREA (semnalul operațional: suspendat/parolă temporară).
                 TextColumn::make('association')
                     ->label(__('panel.forms.user.association'))
                     ->state(fn (User $record): string => self::associationSummary($record))
                     ->badge()
-                    ->color(fn (User $record): string => self::associationMissing($record) ? 'warning' : 'gray'),
+                    ->color(fn (User $record): string => self::associationMissing($record) ? 'warning' : 'gray')
+                    ->visibleFrom('sm'),
                 TextColumn::make('account_state')
                     ->label(__('panel.forms.user.account_state'))
                     ->state(fn (User $record): string => match (true) {
@@ -90,117 +98,121 @@ class UsersTable
                     ->falseLabel(__('panel.forms.user.password_set')),
             ])
             ->defaultSort('name')
+            // Editarea inline; operațiunile de cont în grup „⋮" — 4 butoane late lățeau rândul
+            // (sursa scrollului orizontal pe mobil).
             ->recordActions([
-                EditAction::make(),
-                // Parolă temporară NOUĂ, generată — fluxul de recuperare de zi cu zi („mi-am uitat
-                // parola"): admin-ul o vede/copiază din notificare și, opțional, o trimite pe e-mail.
-                Action::make('newPassword')
-                    ->label(__('panel.forms.user.new_password'))
-                    ->icon(Heroicon::OutlinedKey)
-                    ->color('gray')
-                    ->visible(fn (User $record): bool => self::canOperateOn($record))
-                    ->modalHeading(__('panel.forms.user.new_password_heading'))
-                    ->modalDescription(fn (User $record): string => __('panel.forms.user.new_password_description', ['name' => $record->name]))
-                    ->modalSubmitActionLabel(__('panel.forms.user.new_password'))
-                    ->schema([
-                        TextInput::make('password')
-                            ->label(__('panel.forms.user.temp_password'))
-                            ->helperText(__('panel.forms.user.temp_password_hint'))
-                            ->default(fn (): string => TemporaryPassword::generate())
-                            ->password()
-                            ->revealable()
-                            ->required()
-                            ->maxLength(255)
-                            ->suffixAction(
-                                Action::make('regeneratePassword')
-                                    ->label(__('panel.forms.user.regenerate_password'))
-                                    ->tooltip(__('panel.forms.user.regenerate_password'))
-                                    ->icon('heroicon-o-arrow-path')
-                                    ->action(fn (Set $set) => $set('password', TemporaryPassword::generate())),
-                            ),
-                        Toggle::make('send_credentials')
-                            ->label(__('panel.forms.user.send_credentials'))
-                            ->helperText(__('panel.forms.user.send_credentials_hint'))
-                            ->visible(fn (User $record): bool => filled($record->email)),
-                    ])
-                    ->action(function (User $record, array $data): void {
-                        $record->forceFill([
-                            'password' => (string) $data['password'],
-                            'must_change_password' => true,
-                        ])->save();
+                ActionGroup::make([
+                    EditAction::make(),
+                    // Parolă temporară NOUĂ, generată — fluxul de recuperare de zi cu zi („mi-am uitat
+                    // parola"): admin-ul o vede/copiază din notificare și, opțional, o trimite pe e-mail.
+                    Action::make('newPassword')
+                        ->label(__('panel.forms.user.new_password'))
+                        ->icon(Heroicon::OutlinedKey)
+                        ->color('gray')
+                        ->visible(fn (User $record): bool => self::canOperateOn($record))
+                        ->modalHeading(__('panel.forms.user.new_password_heading'))
+                        ->modalDescription(fn (User $record): string => __('panel.forms.user.new_password_description', ['name' => $record->name]))
+                        ->modalSubmitActionLabel(__('panel.forms.user.new_password'))
+                        ->schema([
+                            TextInput::make('password')
+                                ->label(__('panel.forms.user.temp_password'))
+                                ->helperText(__('panel.forms.user.temp_password_hint'))
+                                ->default(fn (): string => TemporaryPassword::generate())
+                                ->password()
+                                ->revealable()
+                                ->required()
+                                ->maxLength(255)
+                                ->suffixAction(
+                                    Action::make('regeneratePassword')
+                                        ->label(__('panel.forms.user.regenerate_password'))
+                                        ->tooltip(__('panel.forms.user.regenerate_password'))
+                                        ->icon('heroicon-o-arrow-path')
+                                        ->action(fn (Set $set) => $set('password', TemporaryPassword::generate())),
+                                ),
+                            Toggle::make('send_credentials')
+                                ->label(__('panel.forms.user.send_credentials'))
+                                ->helperText(__('panel.forms.user.send_credentials_hint'))
+                                ->visible(fn (User $record): bool => filled($record->email)),
+                        ])
+                        ->action(function (User $record, array $data): void {
+                            $record->forceFill([
+                                'password' => (string) $data['password'],
+                                'must_change_password' => true,
+                            ])->save();
 
-                        if (($data['send_credentials'] ?? false) && filled($record->email)) {
-                            $record->notify(new TemporaryCredentials((string) $data['password']));
-                        }
+                            if (($data['send_credentials'] ?? false) && filled($record->email)) {
+                                $record->notify(new TemporaryCredentials((string) $data['password']));
+                            }
 
-                        // Parola rămâne în notificare (persistentă) — admin-ul o copiază/dictează.
-                        Notification::make()->success()
-                            ->title(__('panel.forms.user.new_password_success'))
-                            ->body(__('panel.forms.user.new_password_body', ['password' => (string) $data['password']]))
-                            ->persistent()
-                            ->send();
-                    }),
-                Action::make('toggleSuspension')
-                    ->label(fn (User $record): string => $record->isSuspended()
-                        ? (string) __('panel.forms.user.reactivate')
-                        : (string) __('panel.forms.user.suspend'))
-                    ->icon(fn (User $record): string => $record->isSuspended() ? 'heroicon-o-play' : 'heroicon-o-pause')
-                    ->color(fn (User $record): string => $record->isSuspended() ? 'success' : 'danger')
-                    ->visible(fn (User $record): bool => self::canOperateOn($record))
-                    ->requiresConfirmation()
-                    ->modalHeading(fn (User $record): string => $record->isSuspended()
-                        ? (string) __('panel.forms.user.reactivate_heading')
-                        : (string) __('panel.forms.user.suspend_heading'))
-                    ->modalDescription(fn (User $record): string => $record->isSuspended()
-                        ? (string) __('panel.forms.user.reactivate_description', ['name' => $record->name])
-                        : (string) __('panel.forms.user.suspend_description', ['name' => $record->name]))
-                    ->action(function (User $record): void {
-                        $suspending = ! $record->isSuspended();
+                            // Parola rămâne în notificare (persistentă) — admin-ul o copiază/dictează.
+                            Notification::make()->success()
+                                ->title(__('panel.forms.user.new_password_success'))
+                                ->body(__('panel.forms.user.new_password_body', ['password' => (string) $data['password']]))
+                                ->persistent()
+                                ->send();
+                        }),
+                    Action::make('toggleSuspension')
+                        ->label(fn (User $record): string => $record->isSuspended()
+                            ? (string) __('panel.forms.user.reactivate')
+                            : (string) __('panel.forms.user.suspend'))
+                        ->icon(fn (User $record): string => $record->isSuspended() ? 'heroicon-o-play' : 'heroicon-o-pause')
+                        ->color(fn (User $record): string => $record->isSuspended() ? 'success' : 'danger')
+                        ->visible(fn (User $record): bool => self::canOperateOn($record))
+                        ->requiresConfirmation()
+                        ->modalHeading(fn (User $record): string => $record->isSuspended()
+                            ? (string) __('panel.forms.user.reactivate_heading')
+                            : (string) __('panel.forms.user.suspend_heading'))
+                        ->modalDescription(fn (User $record): string => $record->isSuspended()
+                            ? (string) __('panel.forms.user.reactivate_description', ['name' => $record->name])
+                            : (string) __('panel.forms.user.suspend_description', ['name' => $record->name]))
+                        ->action(function (User $record): void {
+                            $suspending = ! $record->isSuspended();
 
-                        $record->forceFill(['suspended_at' => $suspending ? now() : null])->save();
+                            $record->forceFill(['suspended_at' => $suspending ? now() : null])->save();
 
-                        Notification::make()
-                            ->{$suspending ? 'warning' : 'success'}()
-                            ->title($suspending
-                                ? __('panel.forms.user.suspend_success', ['name' => $record->name])
-                                : __('panel.forms.user.reactivate_success', ['name' => $record->name]))
-                            ->send();
-                    }),
-                // Recuperare cont (telefon pierdut / email inaccesibil): golește AMBELE metode 2FA,
-                // cu motiv obligatoriu — cine/când/de ce rămân pe cont și în audit (tiparul anulării
-                // de note). Vizibilă doar celor care pot administra conturile și doar pe rolurile
-                // pe care le pot administra (ierarhia pe server).
-                Action::make('resetTwoFactor')
-                    ->label(__('panel.forms.user.twofa_reset'))
-                    ->icon(Heroicon::OutlinedShieldExclamation)
-                    ->color('warning')
-                    ->visible(fn (User $record): bool => $record->hasTwoFactorConfigured() && self::canOperateOn($record))
-                    ->requiresConfirmation()
-                    ->modalHeading(__('panel.forms.user.twofa_reset_heading'))
-                    ->modalDescription(__('panel.forms.user.twofa_reset_description'))
-                    ->schema([
-                        Textarea::make('reason')
-                            ->label(__('panel.forms.user.twofa_reset_reason'))
-                            ->required()
-                            ->maxLength(255),
-                    ])
-                    ->action(function (User $record, array $data): void {
-                        $record->forceFill([
-                            'two_factor_secret' => null,
-                            'two_factor_recovery_codes' => null,
-                            'two_factor_confirmed_at' => null,
-                            'two_factor_email_enabled_at' => null,
-                            'two_factor_reset_at' => now(),
-                            'two_factor_reset_by_user_id' => auth('web')->id(),
-                            'two_factor_reset_reason' => $data['reason'],
-                        ])->save();
+                            Notification::make()
+                                ->{$suspending ? 'warning' : 'success'}()
+                                ->title($suspending
+                                    ? __('panel.forms.user.suspend_success', ['name' => $record->name])
+                                    : __('panel.forms.user.reactivate_success', ['name' => $record->name]))
+                                ->send();
+                        }),
+                    // Recuperare cont (telefon pierdut / email inaccesibil): golește AMBELE metode 2FA,
+                    // cu motiv obligatoriu — cine/când/de ce rămân pe cont și în audit (tiparul anulării
+                    // de note). Vizibilă doar celor care pot administra conturile și doar pe rolurile
+                    // pe care le pot administra (ierarhia pe server).
+                    Action::make('resetTwoFactor')
+                        ->label(__('panel.forms.user.twofa_reset'))
+                        ->icon(Heroicon::OutlinedShieldExclamation)
+                        ->color('warning')
+                        ->visible(fn (User $record): bool => $record->hasTwoFactorConfigured() && self::canOperateOn($record))
+                        ->requiresConfirmation()
+                        ->modalHeading(__('panel.forms.user.twofa_reset_heading'))
+                        ->modalDescription(__('panel.forms.user.twofa_reset_description'))
+                        ->schema([
+                            Textarea::make('reason')
+                                ->label(__('panel.forms.user.twofa_reset_reason'))
+                                ->required()
+                                ->maxLength(255),
+                        ])
+                        ->action(function (User $record, array $data): void {
+                            $record->forceFill([
+                                'two_factor_secret' => null,
+                                'two_factor_recovery_codes' => null,
+                                'two_factor_confirmed_at' => null,
+                                'two_factor_email_enabled_at' => null,
+                                'two_factor_reset_at' => now(),
+                                'two_factor_reset_by_user_id' => auth('web')->id(),
+                                'two_factor_reset_reason' => $data['reason'],
+                            ])->save();
 
-                        $record->twoFactorEmailCode()->delete();
+                            $record->twoFactorEmailCode()->delete();
 
-                        Notification::make()->success()
-                            ->title(__('panel.forms.user.twofa_reset_success'))
-                            ->send();
-                    }),
+                            Notification::make()->success()
+                                ->title(__('panel.forms.user.twofa_reset_success'))
+                                ->send();
+                        }),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

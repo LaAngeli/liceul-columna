@@ -28,13 +28,16 @@ class AcademicRecordsTable
                     ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state))
                     ->searchable()
                     ->sortable(),
+                // Mobile-first: pe telefon rămân elevul, disciplina și media (esența foii matricole).
                 TextColumn::make('grade_level')
                     ->label(__('panel.fields.class'))
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
                 TextColumn::make('period')
                     ->label(__('panel.fields.period'))
                     ->badge()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
                 TextColumn::make('value')
                     ->label(__('panel.forms.academic_record.value'))
                     ->numeric(2)
@@ -43,7 +46,8 @@ class AcademicRecordsTable
                     ->label(__('panel.forms.academic_record.calificativ'))
                     ->placeholder(__('panel.common.dash'))
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
             ])
             ->filters([
                 SelectFilter::make('grade_level')

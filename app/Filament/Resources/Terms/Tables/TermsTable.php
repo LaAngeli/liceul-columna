@@ -32,14 +32,17 @@ class TermsTable
                 TextColumn::make('name')
                     ->label(__('panel.forms.term.name'))
                     ->searchable(),
+                // Mobile-first: pe telefon rămân numărul, numele și marcajul „curent".
                 TextColumn::make('starts_on')
                     ->label(__('panel.fields.starts_on'))
                     ->date()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
                 TextColumn::make('ends_on')
                     ->label(__('panel.fields.ends_on'))
                     ->date()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
                 IconColumn::make('is_current')
                     ->label(__('panel.fields.is_current'))
                     ->boolean(),

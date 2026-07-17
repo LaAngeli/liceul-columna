@@ -13,6 +13,7 @@ use App\Models\Grade;
 use App\Models\GradeCorrection;
 use App\Support\ContentTranslator;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Actions\ExportBulkAction;
@@ -84,14 +85,16 @@ class GradesTable
                     ->tooltip(fn (Grade $record): ?string => $record->hasPendingCorrection()
                         ? (string) __('panel.tables.grades.pending_correction_tooltip')
                         : null),
-                // SEM.
+                // SEM. — pe mobil semestrul e de regulă deja în contextul navigatorului.
                 TextColumn::make('term.number')
-                    ->label(__('panel.fields.term_short')),
+                    ->label(__('panel.fields.term_short'))
+                    ->visibleFrom('md'),
                 // DATA + motivul anulării ca sub-text (fost coloană „Anulare" separată).
                 TextColumn::make('graded_on')
                     ->label(__('panel.fields.date'))
                     ->date()
                     ->sortable()
+                    ->visibleFrom('sm')
                     ->description(fn (Grade $record): ?string => $record->annulment_reason !== null
                         ? (string) __('panel.tables.grades.annulled_prefix', ['reason' => $record->annulment_reason])
                         : null)
@@ -131,105 +134,109 @@ class GradesTable
                     ->falseLabel(__('panel.tables.grades.active_only'))
                     ->nullable(),
             ])
+            // Acțiunile pe rând în grup „⋮" (mobile-first): butoanele late („Solicită corecție",
+            // „Anulează") lățeau fiecare rând — sursa scrollului orizontal.
             ->recordActions([
-                // Editarea directă a valorii rămâne doar pentru autoritatea academică (cale
-                // excepțională); profesorii corectează prin solicitare cu aprobare (§3.1).
-                // Administratorul operațional/tehnic NU editează note (§3.2).
-                EditAction::make()
-                    ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
-                        && (auth('web')->user()?->canAdministerCatalog() ?? false)),
-                Action::make('requestCorrection')
-                    ->label(__('panel.actions.request_correction.label'))
-                    ->icon('heroicon-o-pencil-square')
-                    ->color('warning')
-                    ->modalSubmitActionLabel(__('panel.actions.request_correction.submit'))
-                    // Doar profesorul care PREDĂ (clasa, disciplina) notei poate cere corecția — nu
-                    // dirigintele pe o disciplină străină lui, deși vede nota clasei (audit M-1/#10).
-                    // O notă nu poate avea două cereri în așteptare simultan.
-                    ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
-                        && ! (auth('web')->user()?->canAdministerCatalog() ?? false)
-                        && self::teacherTeachesGrade($record)
-                        && ! $record->hasPendingCorrection())
-                    ->modalHeading(fn (): string => __('panel.actions.request_correction.heading'))
-                    ->modalDescription(fn (): string => __('panel.actions.request_correction.description'))
-                    ->schema([
-                        // Corecția trebuie să propună o nouă valoare: cel puțin una dintre notă/calificativ
-                        // (requiredWithout reciproc → blochează „nicio modificare de valoare"). Intervalul
-                        // notei e FIX 1–10 (scala oficială, §3); CÂMPUL (notă vs calificativ) urmează
-                        // disciplina (audit M-5/#11). CORECȚIE: Subject::min_grade/max_grade NU sunt
-                        // limitele notei — sunt „De la clasă / Până la clasă" (treapta la care se predă
-                        // disciplina, ex. Chimie 7–12 = clasele VII-XII); le folosisem greșit ca bounds.
-                        // `validationAttribute` pe AMBELE câmpuri: fără el, mesajul `requiredWithout`
-                        // scurgea calea internă a perechii („mounted actions.0.data.new calificativ").
-                        TextInput::make('new_value')
-                            ->label(__('panel.actions.request_correction.new_value'))
-                            ->validationAttribute(__('panel.actions.request_correction.new_value'))
-                            ->numeric()
-                            ->minValue(1)
-                            ->maxValue(10)
-                            ->visible(fn (Grade $record): bool => $record->subject->grading_type === GradingType::Numeric)
-                            ->requiredWithout('new_calificativ'),
-                        TextInput::make('new_calificativ')
-                            ->label(__('panel.actions.request_correction.new_calificativ'))
-                            ->validationAttribute(__('panel.actions.request_correction.new_calificativ'))
-                            ->maxLength(10)
-                            ->visible(fn (Grade $record): bool => $record->subject->grading_type !== GradingType::Numeric)
-                            ->requiredWithout('new_value'),
-                        Textarea::make('reason')
-                            ->label(__('panel.actions.request_correction.reason'))
-                            ->required()
-                            ->maxLength(255),
-                    ])
-                    // Unicitatea cererii în așteptare e impusă în `GradeCorrectionObserver::creating`,
-                    // nu aici: Filament reevaluează `visible()` și la execuția acțiunii, deci o gardă
-                    // în acest closure ar fi cod mort — invariantul trebuie să stea lângă model.
-                    ->action(function (Grade $record, array $data): void {
-                        GradeCorrection::create([
-                            'grade_id' => $record->id,
-                            'requested_by_user_id' => auth()->id(),
-                            'old_value' => $record->value,
-                            'new_value' => $data['new_value'] ?? null,
-                            'old_calificativ' => $record->calificativ,
-                            'new_calificativ' => $data['new_calificativ'] ?? null,
-                            'reason' => $data['reason'],
-                        ]);
+                ActionGroup::make([
+                    // Editarea directă a valorii rămâne doar pentru autoritatea academică (cale
+                    // excepțională); profesorii corectează prin solicitare cu aprobare (§3.1).
+                    // Administratorul operațional/tehnic NU editează note (§3.2).
+                    EditAction::make()
+                        ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
+                            && (auth('web')->user()?->canAdministerCatalog() ?? false)),
+                    Action::make('requestCorrection')
+                        ->label(__('panel.actions.request_correction.label'))
+                        ->icon('heroicon-o-pencil-square')
+                        ->color('warning')
+                        ->modalSubmitActionLabel(__('panel.actions.request_correction.submit'))
+                        // Doar profesorul care PREDĂ (clasa, disciplina) notei poate cere corecția — nu
+                        // dirigintele pe o disciplină străină lui, deși vede nota clasei (audit M-1/#10).
+                        // O notă nu poate avea două cereri în așteptare simultan.
+                        ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
+                            && ! (auth('web')->user()?->canAdministerCatalog() ?? false)
+                            && self::teacherTeachesGrade($record)
+                            && ! $record->hasPendingCorrection())
+                        ->modalHeading(fn (): string => __('panel.actions.request_correction.heading'))
+                        ->modalDescription(fn (): string => __('panel.actions.request_correction.description'))
+                        ->schema([
+                            // Corecția trebuie să propună o nouă valoare: cel puțin una dintre notă/calificativ
+                            // (requiredWithout reciproc → blochează „nicio modificare de valoare"). Intervalul
+                            // notei e FIX 1–10 (scala oficială, §3); CÂMPUL (notă vs calificativ) urmează
+                            // disciplina (audit M-5/#11). CORECȚIE: Subject::min_grade/max_grade NU sunt
+                            // limitele notei — sunt „De la clasă / Până la clasă" (treapta la care se predă
+                            // disciplina, ex. Chimie 7–12 = clasele VII-XII); le folosisem greșit ca bounds.
+                            // `validationAttribute` pe AMBELE câmpuri: fără el, mesajul `requiredWithout`
+                            // scurgea calea internă a perechii („mounted actions.0.data.new calificativ").
+                            TextInput::make('new_value')
+                                ->label(__('panel.actions.request_correction.new_value'))
+                                ->validationAttribute(__('panel.actions.request_correction.new_value'))
+                                ->numeric()
+                                ->minValue(1)
+                                ->maxValue(10)
+                                ->visible(fn (Grade $record): bool => $record->subject->grading_type === GradingType::Numeric)
+                                ->requiredWithout('new_calificativ'),
+                            TextInput::make('new_calificativ')
+                                ->label(__('panel.actions.request_correction.new_calificativ'))
+                                ->validationAttribute(__('panel.actions.request_correction.new_calificativ'))
+                                ->maxLength(10)
+                                ->visible(fn (Grade $record): bool => $record->subject->grading_type !== GradingType::Numeric)
+                                ->requiredWithout('new_value'),
+                            Textarea::make('reason')
+                                ->label(__('panel.actions.request_correction.reason'))
+                                ->required()
+                                ->maxLength(255),
+                        ])
+                        // Unicitatea cererii în așteptare e impusă în `GradeCorrectionObserver::creating`,
+                        // nu aici: Filament reevaluează `visible()` și la execuția acțiunii, deci o gardă
+                        // în acest closure ar fi cod mort — invariantul trebuie să stea lângă model.
+                        ->action(function (Grade $record, array $data): void {
+                            GradeCorrection::create([
+                                'grade_id' => $record->id,
+                                'requested_by_user_id' => auth()->id(),
+                                'old_value' => $record->value,
+                                'new_value' => $data['new_value'] ?? null,
+                                'old_calificativ' => $record->calificativ,
+                                'new_calificativ' => $data['new_calificativ'] ?? null,
+                                'reason' => $data['reason'],
+                            ]);
 
-                        Notification::make()
-                            ->success()
-                            ->title(__('panel.actions.request_correction.success_title'))
-                            ->body(__('panel.actions.request_correction.success_body'))
-                            ->send();
-                    }),
-                Action::make('annul')
-                    ->label(__('panel.actions.annul.label'))
-                    ->icon('heroicon-o-no-symbol')
-                    ->color('danger')
-                    ->requiresConfirmation()
-                    // Anularea scoate nota din medii — o poate face autoritatea academică sau profesorul
-                    // care PREDĂ (clasa, disciplina) notei, NU dirigintele pe o disciplină străină (M-1/#07).
-                    ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
-                        && ((auth('web')->user()?->canAdministerCatalog() ?? false)
-                            || self::teacherTeachesGrade($record)))
-                    ->modalHeading(fn (): string => __('panel.actions.annul.heading'))
-                    ->modalDescription(fn (): string => __('panel.actions.annul.description'))
-                    ->schema([
-                        Textarea::make('annulment_reason')
-                            ->label(__('panel.actions.annul.reason'))
-                            ->required()
-                            ->maxLength(255),
-                    ])
-                    ->action(function (Grade $record, array $data): void {
-                        $record->update([
-                            'annulled_at' => now(),
-                            'annulled_by_user_id' => auth()->id(),
-                            'annulment_reason' => $data['annulment_reason'],
-                        ]);
+                            Notification::make()
+                                ->success()
+                                ->title(__('panel.actions.request_correction.success_title'))
+                                ->body(__('panel.actions.request_correction.success_body'))
+                                ->send();
+                        }),
+                    Action::make('annul')
+                        ->label(__('panel.actions.annul.label'))
+                        ->icon('heroicon-o-no-symbol')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        // Anularea scoate nota din medii — o poate face autoritatea academică sau profesorul
+                        // care PREDĂ (clasa, disciplina) notei, NU dirigintele pe o disciplină străină (M-1/#07).
+                        ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
+                            && ((auth('web')->user()?->canAdministerCatalog() ?? false)
+                                || self::teacherTeachesGrade($record)))
+                        ->modalHeading(fn (): string => __('panel.actions.annul.heading'))
+                        ->modalDescription(fn (): string => __('panel.actions.annul.description'))
+                        ->schema([
+                            Textarea::make('annulment_reason')
+                                ->label(__('panel.actions.annul.reason'))
+                                ->required()
+                                ->maxLength(255),
+                        ])
+                        ->action(function (Grade $record, array $data): void {
+                            $record->update([
+                                'annulled_at' => now(),
+                                'annulled_by_user_id' => auth()->id(),
+                                'annulment_reason' => $data['annulment_reason'],
+                            ]);
 
-                        Notification::make()
-                            ->success()
-                            ->title(__('panel.actions.annul.success'))
-                            ->send();
-                    }),
+                            Notification::make()
+                                ->success()
+                                ->title(__('panel.actions.annul.success'))
+                                ->send();
+                        }),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

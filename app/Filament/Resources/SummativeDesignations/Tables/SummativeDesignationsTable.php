@@ -46,7 +46,8 @@ class SummativeDesignationsTable
                 TextColumn::make('order_reference')
                     ->label(__('grading.designation.fields.order_reference'))
                     ->placeholder(__('panel.common.dash'))
-                    ->toggleable(),
+                    ->toggleable()
+                    ->visibleFrom('md'),
             ])
             ->filters([
                 SelectFilter::make('school_class_id')

@@ -9,6 +9,7 @@ use App\Filament\Resources\AdmissionRequests\Pages\ListAdmissionRequests;
 use App\Filament\Resources\AdmissionRequests\Schemas\AdmissionRequestInfolist;
 use App\Models\AdmissionRequest;
 use Carbon\Carbon;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\ViewAction;
@@ -31,11 +32,14 @@ class AdmissionRequestsTable
                 ? $livewire->applyAdmissionContext($query)
                 : $query)
             ->defaultSort('created_at', 'desc')
+            // Mobile-first (directiva 2026-07-17): pe telefon rămân copilul (+vârsta), data vizitei
+            // (semnalul cozii) și starea; restul intră progresiv — totul e oricum în fișă.
             ->columns([
                 TextColumn::make('created_at')
                     ->label(__('panel.fields.received_at'))
                     ->dateTime('d.m.Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('lg'),
                 TextColumn::make('child_name')
                     ->label(__('panel.tables.admissions.child'))
                     ->weight('bold')
@@ -46,6 +50,7 @@ class AdmissionRequestsTable
                 TextColumn::make('desired_class')
                     ->label(__('panel.fields.class'))
                     ->placeholder(__('panel.common.dash'))
+                    ->visibleFrom('md')
                     ->visible(fn ($livewire): bool => ! $livewire instanceof ListAdmissionRequests
                         || $livewire->activeType() !== AdmissionRequestType::Visit),
                 TextColumn::make('preferred_time')
@@ -58,12 +63,14 @@ class AdmissionRequestsTable
                         || $livewire->activeType() !== AdmissionRequestType::Enrollment),
                 TextColumn::make('parent_name')
                     ->label(__('panel.tables.admissions.parent'))
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('md'),
                 TextColumn::make('phone')
                     ->label(__('panel.fields.phone'))
                     // Secretariatul sună dintr-un click — numărul devine link tel: curățat.
                     ->url(fn (AdmissionRequest $record): string => 'tel:'.preg_replace('/[^+\d]/', '', $record->phone))
-                    ->color('primary'),
+                    ->color('primary')
+                    ->visibleFrom('sm'),
                 TextColumn::make('email')
                     ->label(__('panel.fields.email'))
                     ->placeholder(__('panel.common.dash'))
@@ -81,6 +88,7 @@ class AdmissionRequestsTable
                     ->label(__('panel.forms.admission.processed_by'))
                     ->placeholder(__('panel.common.dash'))
                     ->description(fn (AdmissionRequest $record): ?string => $record->processed_at?->format('d.m.Y H:i'))
+                    ->visibleFrom('md')
                     ->visible(fn ($livewire): bool => $livewire instanceof ListAdmissionRequests && $livewire->isArchiveView()),
                 TextColumn::make('staff_note')
                     ->label(__('panel.forms.admission.staff_note'))
@@ -94,12 +102,16 @@ class AdmissionRequestsTable
                     ->label(__('panel.fields.status_label'))
                     ->options(fn ($livewire): array => self::statusOptions($livewire)),
             ])
+            // Fișa inline; procesarea în grup „⋮" (mobile-first) — decizia se ia oricum în fișă,
+            // care are toate acțiunile în antet.
             ->recordActions([
                 ViewAction::make(),
-                AdmissionRequestActions::markContacted(),
-                AdmissionRequestActions::enroll(),
-                AdmissionRequestActions::refuse(),
-                AdmissionRequestActions::reopen(),
+                ActionGroup::make([
+                    AdmissionRequestActions::markContacted(),
+                    AdmissionRequestActions::enroll(),
+                    AdmissionRequestActions::refuse(),
+                    AdmissionRequestActions::reopen(),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

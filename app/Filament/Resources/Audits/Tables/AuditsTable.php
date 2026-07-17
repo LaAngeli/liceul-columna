@@ -26,14 +26,19 @@ class AuditsTable
                 : $query)
             ->defaultSort('created_at', 'desc')
             ->columns([
+                // Data compactă cu ora dedesubt — rândul jurnalului rămâne îngust pe mobil.
                 TextColumn::make('created_at')
                     ->label(__('panel.fields.date'))
-                    ->dateTime('d.m.Y H:i')
+                    ->date('d.m.Y')
+                    ->description(fn (Audit $record): ?string => $record->created_at?->format('H:i'))
                     ->sortable(),
                 TextColumn::make('user.name')
                     ->label(__('panel.fields.author'))
                     ->placeholder(__('panel.common.system'))
-                    ->searchable(),
+                    ->searchable()
+                    // Numele lungi nu lățesc rândul — textul complet rămâne la survol.
+                    ->limit(24)
+                    ->tooltip(fn (Audit $record): ?string => mb_strlen((string) $record->user?->name) > 24 ? $record->user?->name : null),
                 TextColumn::make('event')
                     ->label(__('panel.tables.audits.action'))
                     ->badge()
@@ -45,12 +50,16 @@ class AuditsTable
                         'viewed', 'exported' => 'info',
                         default => 'gray',
                     }),
+                // Mobile-first: pe telefon rămân data, autorul și acțiunea; tipul/id-ul intră progresiv
+                // (detaliile complete sunt în fișa intrării).
                 TextColumn::make('auditable_type')
                     ->label(__('panel.tables.audits.data_type'))
-                    ->formatStateUsing(fn (Audit $record): string => $record->auditableLabel()),
+                    ->formatStateUsing(fn (Audit $record): string => $record->auditableLabel())
+                    ->visibleFrom('sm'),
                 TextColumn::make('auditable_id')
                     ->label(__('panel.tables.audits.id'))
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('ip_address')
                     ->label(__('panel.forms.consent.ip'))
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -71,7 +80,9 @@ class AuditsTable
                     ->options(fn ($livewire): array => self::typeOptions($livewire)),
             ])
             ->recordActions([
-                ViewAction::make(),
+                // Icon-button: jurnalul e read-only, iar eticheta „Vizualizare" lățea fiecare rând.
+                ViewAction::make()
+                    ->iconButton(),
             ]);
     }
 

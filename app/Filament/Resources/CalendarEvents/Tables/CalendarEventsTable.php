@@ -27,10 +27,12 @@ class CalendarEventsTable
                     ->label(__('panel.fields.type'))
                     ->badge(),
 
+                // Mobile-first: pe telefon rămân titlul, tipul și data.
                 TextColumn::make('visibility_scope')
                     ->label(__('panel.forms.calendar_event.audience'))
                     ->badge()
-                    ->color('gray'),
+                    ->color('gray')
+                    ->visibleFrom('md'),
 
                 TextColumn::make('starts_on')
                     ->label(__('panel.forms.calendar_event.starts'))
@@ -40,7 +42,8 @@ class CalendarEventsTable
                 TextColumn::make('creator.name')
                     ->label(__('panel.fields.author'))
                     ->placeholder(__('panel.common.dash'))
-                    ->toggleable(),
+                    ->toggleable()
+                    ->visibleFrom('lg'),
             ])
             ->defaultSort('starts_on', 'desc')
             // Fără filtru, evenimentele șterse intrau în limb: dirigintele poate șterge (policy
