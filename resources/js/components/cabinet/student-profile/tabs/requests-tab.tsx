@@ -14,6 +14,7 @@ interface DocumentRequestItem {
     status: 'pending' | 'approved' | 'rejected';
     statusLabel: string;
     pdfUrl: string | null;
+    note: string | null;
 }
 
 interface CorigentaExamItem {
@@ -166,12 +167,19 @@ export function RequestsTab({
                                         <div className="grid gap-1.5">
                                             <label htmlFor="req_details" className="text-xs text-muted-foreground">
                                                 {t('cabinet.requests_details')}
+                                                {/* Contestația fără detalii e neprocesabilă (ce notă? de ce?) — obligatoriu. */}
+                                                {requestType === 'contestatie' && <span className="text-destructive"> *</span>}
                                             </label>
                                             <textarea
                                                 id="req_details"
                                                 name="details"
                                                 rows={3}
-                                                placeholder={t('cabinet.requests_details_ph')}
+                                                required={requestType === 'contestatie'}
+                                                placeholder={
+                                                    requestType === 'contestatie'
+                                                        ? t('cabinet.requests_details_contestation_ph')
+                                                        : t('cabinet.requests_details_ph')
+                                                }
                                                 maxLength={1500}
                                                 className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                                             />
@@ -205,28 +213,36 @@ export function RequestsTab({
                             ) : (
                                 <ul className="divide-y">
                                     {documentRequests.map((r) => (
-                                        <li key={r.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                                            <div className="min-w-0">
-                                                <p className="truncate text-sm font-medium">{r.type}</p>
-                                                <p className="text-xs text-muted-foreground">{r.date}</p>
-                                            </div>
-                                            <div className="flex shrink-0 items-center gap-2">
-                                                <span
-                                                    className={`rounded-md px-2 py-0.5 text-xs font-semibold ${motivationStatusClass(r.status)}`}
-                                                >
-                                                    {t(`cabinet.motivation_status_${r.status}`, r.statusLabel)}
-                                                </span>
-                                                {r.pdfUrl && (
-                                                    <a
-                                                        href={r.pdfUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-primary hover:underline"
+                                        <li key={r.id} className="px-4 py-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-medium">{r.type}</p>
+                                                    <p className="text-xs text-muted-foreground">{r.date}</p>
+                                                </div>
+                                                <div className="flex shrink-0 items-center gap-2">
+                                                    <span
+                                                        className={`rounded-md px-2 py-0.5 text-xs font-semibold ${motivationStatusClass(r.status)}`}
                                                     >
-                                                        PDF
-                                                    </a>
-                                                )}
+                                                        {t(`cabinet.motivation_status_${r.status}`, r.statusLabel)}
+                                                    </span>
+                                                    {r.pdfUrl && (
+                                                        <a
+                                                            href={r.pdfUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-primary hover:underline"
+                                                        >
+                                                            PDF
+                                                        </a>
+                                                    )}
+                                                </div>
                                             </div>
+                                            {/* Comentariul secretariatului (procesare/respingere) — familia vede DE CE. */}
+                                            {r.note && (
+                                                <p className="mt-1.5 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground">
+                                                    <span className="font-medium">{t('cabinet.requests_note')}:</span> {r.note}
+                                                </p>
+                                            )}
                                         </li>
                                     ))}
                                 </ul>

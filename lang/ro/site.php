@@ -797,6 +797,8 @@ return [
         'requests_type' => 'Tipul cererii',
         'requests_details' => 'Detalii / motiv',
         'requests_details_ph' => 'Completează detaliile cererii…',
+        'requests_details_contestation_ph' => 'Descrie nota contestată: disciplina, data, motivul contestării…',
+        'requests_note' => 'Răspunsul secretariatului',
         'requests_submit' => 'Generează cererea',
         'requests_sent' => 'Cererea a fost generată și transmisă secretariatului.',
         'requests_none' => 'Nicio cerere depusă.',

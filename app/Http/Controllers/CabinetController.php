@@ -581,13 +581,20 @@ class CabinetController extends Controller
 
         // Cererile cu interval (învoirea) CER perioada (DocumentRequestType::needsPeriod) — fără
         // ea, secretariatul primea o „cerere de învoire" care nu spune CÂND (neprocesabilă).
-        $needsPeriod = DocumentRequestType::tryFrom((string) $request->input('type'))?->needsPeriod() ?? false;
+        $type = DocumentRequestType::tryFrom((string) $request->input('type'));
+        $needsPeriod = $type?->needsPeriod() ?? false;
+
+        // Contestația FĂRĂ detalii e neprocesabilă (ce notă? de ce?) — comentariul depunătorului
+        // e obligatoriu aici; la celelalte tipuri rămâne opțional (feedback beneficiar).
+        $needsDetails = $type === DocumentRequestType::Contestatie;
 
         $data = $request->validate([
             'type' => ['required', new Enum(DocumentRequestType::class)],
-            'details' => ['nullable', 'string', 'max:1500'],
+            'details' => [$needsDetails ? 'required' : 'nullable', 'string', 'max:1500'],
             'period_start' => [$needsPeriod ? 'required' : 'nullable', 'date'],
             'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
+        ], [
+            'details.required' => __('cabinet_flash.contestation_details_required'),
         ]);
 
         // Anti-duplicat: o cerere PENDING de același tip pentru același elev nu se redepune —
@@ -868,6 +875,8 @@ class CabinetController extends Controller
                 'status' => $request->status->value,
                 'statusLabel' => $request->status->label(),
                 'pdfUrl' => $request->pdf_path !== null ? route('cabinet.requests.pdf', $request) : null,
+                // Comentariul secretariatului la procesare/respingere — familia vede DE CE.
+                'note' => $request->review_note,
             ])
             ->all();
     }

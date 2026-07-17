@@ -405,7 +405,12 @@ it('acțiunea „Deschide corecție" apare doar pe CONTESTAȚIILE în așteptare
     Livewire::actingAs($ao)
         ->test(ListDocumentRequests::class)
         ->assertActionVisible(TestAction::make('openCorrection')->table($contestation))
-        ->assertActionHidden(TestAction::make('openCorrection')->table($adeverinta))
+        ->assertActionHidden(TestAction::make('openCorrection')->table($adeverinta));
+
+    // Cererea PROCESATĂ trăiește în vederea „Arhivă" a navigatorului — acolo acțiunea nu există.
+    Livewire::actingAs($ao)
+        ->withQueryParams(['arhiva' => '1'])
+        ->test(ListDocumentRequests::class)
         ->assertActionHidden(TestAction::make('openCorrection')->table($processed));
 });
 

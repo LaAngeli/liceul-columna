@@ -4,10 +4,13 @@ namespace App\Filament\Resources\DocumentRequests;
 
 use App\Enums\RequestStatus;
 use App\Filament\Resources\DocumentRequests\Pages\ListDocumentRequests;
+use App\Filament\Resources\DocumentRequests\Pages\ViewDocumentRequest;
+use App\Filament\Resources\DocumentRequests\Schemas\DocumentRequestInfolist;
 use App\Filament\Resources\DocumentRequests\Tables\DocumentRequestsTable;
 use App\Models\DocumentRequest;
 use BackedEnum;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 
@@ -53,6 +56,11 @@ class DocumentRequestResource extends Resource
         return false;
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return DocumentRequestInfolist::configure($schema);
+    }
+
     public static function table(Table $table): Table
     {
         return DocumentRequestsTable::configure($table);
@@ -62,6 +70,7 @@ class DocumentRequestResource extends Resource
     {
         return [
             'index' => ListDocumentRequests::route('/'),
+            'view' => ViewDocumentRequest::route('/{record}'),
         ];
     }
 

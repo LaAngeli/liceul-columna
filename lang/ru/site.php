@@ -797,6 +797,8 @@ return [
         'requests_type' => 'Тип заявления',
         'requests_details' => 'Детали / причина',
         'requests_details_ph' => 'Укажите детали заявления…',
+        'requests_details_contestation_ph' => 'Опишите оспариваемую оценку: предмет, дата, причина апелляции…',
+        'requests_note' => 'Ответ секретариата',
         'requests_submit' => 'Сформировать заявление',
         'requests_sent' => 'Заявление сформировано и передано в секретариат.',
         'requests_none' => 'Нет поданных заявлений.',

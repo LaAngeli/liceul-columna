@@ -797,6 +797,8 @@ return [
         'requests_type' => 'Request type',
         'requests_details' => 'Details / reason',
         'requests_details_ph' => 'Describe your request…',
+        'requests_details_contestation_ph' => 'Describe the contested grade: subject, date, reason for the contestation…',
+        'requests_note' => 'Front office reply',
         'requests_submit' => 'Generate request',
         'requests_sent' => 'Request generated and sent to the secretariat.',
         'requests_none' => 'No requests submitted.',

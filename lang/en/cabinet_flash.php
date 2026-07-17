@@ -12,6 +12,7 @@ return [
     'status_acknowledged' => 'Your acknowledgement has been recorded.',
     'request_generated' => 'The request was generated and sent to the front office.',
     // VALIDATION message (not a toast): anti-duplicate on document request submission.
+    'contestation_details_required' => 'A contestation needs details: which grade you contest (subject, date) and why.',
     'request_duplicate_pending' => 'A request of this type is already pending for this student — the front office will process it; no need to resubmit.',
     'email_change_via_staff' => 'The e-mail address is already set. To change it, contact the front office — it is the account login.',
     'motivation_duplicate_pending' => 'There is already a pending absence-excuse request covering this period.',
