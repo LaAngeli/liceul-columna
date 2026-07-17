@@ -14,6 +14,7 @@ return [
         'new_calendar_event' => 'Новое событие в календаре',
         'calendar_event_cancelled' => 'Событие отменено',
         'contestation_rejected' => 'Результат апелляции',
+        'document_request_closed' => 'Ответ на поданное заявление',
         'new_message' => 'Новое сообщение',
         'status_change' => 'Изменение статуса',
         'announcement' => 'Объявление руководства',
@@ -92,7 +93,11 @@ return [
     ],
     'document_request_submitted' => [
         'title' => 'Новое типовое заявление',
-        'body' => 'В секретариат подано новое заявление: :doc_type.',
+        'body' => 'В секретариат подано новое заявление: :doc_type — :student.',
+    ],
+    'document_request_closed' => [
+        'title' => 'Ответ на поданное заявление',
+        'body' => 'Заявление «:doc_type» по :student: :status. Подробности — в кабинете, раздел «Заявления».',
     ],
     'admission_request_submitted' => [
         'title' => 'Новая заявка на зачисление',

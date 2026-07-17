@@ -32,8 +32,11 @@ class DocumentRequestObserver
         // pică, rândul se dă înapoi; notificarea nu trebuie să anunțe o cerere anulată. Fără tranzacție
         // activă, closure-ul rulează imediat.
         $docType = $request->type->getLabel();
+        $studentName = (string) $request->student?->full_name;
+        // Link direct în coada tipului respectiv — secretariatul aterizează pe cererea de procesat.
+        $queueUrl = '/admin/document-requests?tip='.$request->type->value;
 
-        DB::afterCommit(function () use ($docType): void {
+        DB::afterCommit(function () use ($docType, $studentName, $queueUrl): void {
             $this->notifier->byRole(
                 [
                     UserRole::Admin->value,
@@ -41,7 +44,8 @@ class DocumentRequestObserver
                 ],
                 new CatalogNotification(
                     NotificationType::DocumentRequestSubmitted,
-                    ['doc_type' => $docType],
+                    ['doc_type' => $docType, 'student' => $studentName],
+                    $queueUrl,
                 ),
             );
         });
@@ -59,23 +63,31 @@ class DocumentRequestObserver
             return;
         }
 
+        // Tip DEDICAT (nu StatusChange, care e al statutului academic): familia află CE cerere
+        // s-a închis și cu ce decizie, iar linkul aterizează direct pe tabul Cereri al copilului.
         $this->family->send($student, new CatalogNotification(
-            NotificationType::StatusChange,
-            ['student' => $student->full_name, 'status' => $request->status->getLabel()],
-            route('cabinet.student', ['student' => $student->id], false),
+            NotificationType::DocumentRequestClosed,
+            [
+                'doc_type' => $request->type->getLabel(),
+                'student' => $student->full_name,
+                'status' => mb_strtolower($request->status->getLabel()),
+            ],
+            route('cabinet.student', ['student' => $student->id, 'tab' => 'requests'], false),
         ));
     }
 
     /**
      * Invariantul de igienă „rând șters ⇒ fișier șters": la dispariția DEFINITIVĂ a cererii
-     * (forceDelete — soft delete-ul păstrează fișierul, rândul e restaurabil), PDF-ul ei (PII de
-     * minor) nu rămâne orfan în storage-ul privat — un fișier fără rând-mamă nu mai poate fi
-     * găsit la o cerere de ștergere a persoanei vizate (L133).
+     * (forceDelete — soft delete-ul păstrează fișierele, rândul e restaurabil), PDF-ul ei ȘI
+     * justificativul atașat (PII de minor) nu rămân orfani în storage-ul privat — un fișier fără
+     * rând-mamă nu mai poate fi găsit la o cerere de ștergere a persoanei vizate (L133).
      */
     public function forceDeleted(DocumentRequest $request): void
     {
-        if (is_string($request->pdf_path) && $request->pdf_path !== '') {
-            Storage::disk('local')->delete($request->pdf_path);
+        foreach ([$request->pdf_path, $request->attachment_path] as $path) {
+            if (is_string($path) && $path !== '') {
+                Storage::disk('local')->delete($path);
+            }
         }
     }
 }

@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * O cerere tipică depusă de familie (spec §4.3), generată PDF și transmisă secretariatului.
@@ -22,8 +24,12 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $reviewed_at
  */
 #[ObservedBy(DocumentRequestObserver::class)]
-class DocumentRequest extends Model
+class DocumentRequest extends Model implements Auditable
 {
+    // Auditable: depunerea, decizia (aprobat/respins, de cine) și retragerea lasă istoric —
+    // cereri formale cu PII de minori; „cine a închis ce" trebuie să fie reconstruibil (L133 §7).
+    use AuditableTrait;
+
     /** @use HasFactory<DocumentRequestFactory> */
     use HasFactory, SoftDeletes;
 
@@ -33,6 +39,7 @@ class DocumentRequest extends Model
         'requested_by_user_id',
         'payload',
         'pdf_path',
+        'attachment_path',
         'status',
         'reviewed_by_user_id',
         'reviewed_at',

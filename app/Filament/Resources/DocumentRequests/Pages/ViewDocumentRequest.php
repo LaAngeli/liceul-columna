@@ -23,6 +23,7 @@ class ViewDocumentRequest extends ViewRecord
     {
         return [
             DocumentRequestActions::pdf(),
+            DocumentRequestActions::attachment(),
             DocumentRequestActions::openCorrection(),
             DocumentRequestActions::process(),
             DocumentRequestActions::reject(),

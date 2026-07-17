@@ -11,11 +11,13 @@ use App\Enums\CorrectionStatus;
 use App\Enums\DocumentRequestType;
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
+use App\Enums\NotificationType;
 use App\Enums\RequestStatus;
 use App\Enums\UserRole;
 use App\Filament\Resources\DocumentRequests\Pages\ListDocumentRequests;
 use App\Filament\Resources\DocumentRequests\Pages\ViewDocumentRequest;
 use App\Models\AcademicYear;
+use App\Models\Audit;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
@@ -25,6 +27,9 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Term;
 use App\Models\User;
+use App\Notifications\CatalogNotification;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -199,24 +204,177 @@ function contestationGradeFixture(): array
     return ['grade' => $grade, 'student' => $student, 'parent' => $parent];
 }
 
-it('contestația fără motiv e respinsă la depunere; celelalte tipuri rămân cu detalii opționale', function () {
+it('detaliile sunt OBLIGATORII la toate tipurile — o cerere fără conținut e neprocesabilă', function () {
     ['grade' => $grade, 'student' => $student, 'parent' => $parent] = contestationGradeFixture();
 
     actingAs($parent);
 
+    // Contestație fără motiv → mesajul dedicat contestației.
     $this->post(route('cabinet.requests.store', $student), [
         'type' => DocumentRequestType::Contestatie->value,
         'grade_id' => $grade->id,
         'details' => '',
     ])->assertSessionHasErrors(['details']);
 
-    expect(DocumentRequest::query()->count())->toBe(0);
-
-    // Adeverința rămâne cu detalii OPȚIONALE (regula e doar pentru contestație).
+    // Adeverință fără detalii → respinsă și ea (destinația/scopul sunt esența cererii).
     $this->post(route('cabinet.requests.store', $student), [
         'type' => DocumentRequestType::Adeverinta->value,
         'details' => '',
-    ])->assertSessionDoesntHaveErrors(['details']);
+    ])->assertSessionHasErrors(['details']);
+
+    expect(DocumentRequest::query()->count())->toBe(0);
+});
+
+it('învoirea nu se poate cere pentru trecut — pentru absențe petrecute există motivarea (§2.1)', function () {
+    ['student' => $student, 'parent' => $parent] = contestationGradeFixture();
+
+    actingAs($parent);
+    $this->post(route('cabinet.requests.store', $student), [
+        'type' => DocumentRequestType::Invoire->value,
+        'details' => 'Plecare în familie.',
+        'period_start' => now()->subDays(3)->toDateString(),
+        'period_end' => now()->subDay()->toDateString(),
+    ])->assertSessionHasErrors(['period_start']);
+
+    expect(DocumentRequest::query()->count())->toBe(0);
+});
+
+it('justificativul se atașează la depunere, se descarcă doar de familie/administrație și dispare la ștergerea definitivă', function () {
+    Storage::fake('local');
+    ['student' => $student, 'parent' => $parent] = contestationGradeFixture();
+
+    actingAs($parent);
+    $this->post(route('cabinet.requests.store', $student), [
+        'type' => DocumentRequestType::Invoire->value,
+        'details' => 'Participare la concurs — invitația anexată.',
+        'period_start' => now()->addDay()->toDateString(),
+        'period_end' => now()->addDays(2)->toDateString(),
+        'attachment' => UploadedFile::fake()->create('invitatie.pdf', 120, 'application/pdf'),
+    ])->assertSessionDoesntHaveErrors()->assertRedirect();
+
+    $request = DocumentRequest::query()->firstOrFail();
+
+    expect($request->attachment_path)->not->toBeNull();
+    Storage::disk('local')->assertExists($request->attachment_path);
+
+    // Familia și administrația îl descarcă; un părinte STRĂIN — nu (403).
+    $this->get(route('cabinet.requests.attachment', $request))->assertOk();
+    actingAs($this->director)->get(route('cabinet.requests.attachment', $request))->assertOk();
+
+    $stranger = User::factory()->create();
+    $stranger->assignRole(UserRole::Parinte->value);
+    actingAs($stranger)->get(route('cabinet.requests.attachment', $request))->assertForbidden();
+
+    // Igiena L133: ștergerea DEFINITIVĂ curăță și justificativul, nu doar PDF-ul.
+    $attachmentPath = $request->attachment_path;
+    $pdfPath = $request->pdf_path;
+    $request->forceDelete();
+    Storage::disk('local')->assertMissing($attachmentPath);
+    Storage::disk('local')->assertMissing($pdfPath);
+
+    // Tipurile de fișier neacceptate sunt respinse la validare.
+    actingAs($parent)->post(route('cabinet.requests.store', $student), [
+        'type' => DocumentRequestType::Adeverinta->value,
+        'details' => 'Pentru dosar.',
+        'attachment' => UploadedFile::fake()->create('script.exe', 10, 'application/octet-stream'),
+    ])->assertSessionHasErrors(['attachment']);
+});
+
+it('familia își RETRAGE cererea în așteptare (anti-duplicatul se deblochează); după decizie nu se mai poate', function () {
+    Storage::fake('local');
+    ['student' => $student, 'parent' => $parent] = contestationGradeFixture();
+
+    actingAs($parent);
+    $this->post(route('cabinet.requests.store', $student), [
+        'type' => DocumentRequestType::Adeverinta->value,
+        'details' => 'Pentru dosarul de bursă.',
+    ])->assertRedirect();
+
+    $request = DocumentRequest::query()->firstOrFail();
+
+    // Cât e în așteptare, redepunerea aceluiași tip e blocată (anti-duplicat).
+    $this->post(route('cabinet.requests.store', $student), [
+        'type' => DocumentRequestType::Adeverinta->value,
+        'details' => 'A doua, identică.',
+    ])->assertSessionHasErrors(['type']);
+
+    // Un străin nu poate retrage cererea altei familii.
+    $stranger = User::factory()->create();
+    $stranger->assignRole(UserRole::Parinte->value);
+    actingAs($stranger)->post(route('cabinet.requests.withdraw', $request))->assertForbidden();
+
+    // Familia retrage → soft delete (restaurabil) + anti-duplicatul se deblochează.
+    actingAs($parent)->post(route('cabinet.requests.withdraw', $request))
+        ->assertRedirect()
+        ->assertInertiaFlash('toast.type', 'success');
+
+    expect(DocumentRequest::query()->find($request->id))->toBeNull()
+        ->and(DocumentRequest::withTrashed()->findOrFail($request->id)->trashed())->toBeTrue();
+
+    $this->post(route('cabinet.requests.store', $student), [
+        'type' => DocumentRequestType::Adeverinta->value,
+        'details' => 'Varianta corectată.',
+    ])->assertSessionDoesntHaveErrors();
+
+    // Cererea DECISĂ rămâne în istoric — retragerea e refuzată (422).
+    $second = DocumentRequest::query()->where('status', RequestStatus::Pending->value)->firstOrFail();
+    $second->markProcessed($this->director->id);
+    actingAs($parent)->post(route('cabinet.requests.withdraw', $second))->assertStatus(422);
+});
+
+it('depunerea și decizia lasă urmă în jurnalul de audit (L133 §7)', function () {
+    config(['audit.console' => true]);
+
+    $request = DocumentRequest::factory()->create();
+    $request->markProcessed($this->director->id, 'Gata la secretariat.');
+
+    $updated = Audit::query()
+        ->where('auditable_type', DocumentRequest::class)
+        ->where('auditable_id', $request->id)
+        ->where('event', 'updated')
+        ->latest('id')
+        ->first();
+
+    expect(Audit::query()->where('auditable_type', DocumentRequest::class)->where('event', 'created')->exists())->toBeTrue()
+        ->and($updated)->not->toBeNull()
+        ->and($updated->new_values['status'] ?? null)->toBe(RequestStatus::Approved->value)
+        ->and((int) $updated->user_id)->toBe($this->director->id);
+});
+
+it('închiderea cererii anunță familia cu tipul DEDICAT (link pe tabul Cereri); depunerea numește elevul către secretariat', function () {
+    Notification::fake();
+
+    ['student' => $student, 'parent' => $parent] = contestationGradeFixture();
+
+    $ao = User::factory()->create();
+    $ao->assignRole(UserRole::AdministratorOperational->value);
+
+    $request = DocumentRequest::factory()->create([
+        'student_id' => $student->id,
+        'requested_by_user_id' => $parent->id,
+    ]);
+
+    // Depunerea: secretariatul află TIPUL și ELEVUL, cu link direct în coada tipului.
+    Notification::assertSentTo(
+        $ao,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::DocumentRequestSubmitted
+            && ($n->params['student'] ?? '') === $student->full_name
+            && str_contains((string) $n->url, 'tip='),
+    );
+
+    $request->markProcessed($ao->id, 'Gata.');
+
+    // Închiderea: tip DEDICAT (nu StatusChange — acela e al statutului academic), link pe tabul Cereri.
+    Notification::assertSentTo(
+        $parent,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::DocumentRequestClosed
+            && ($n->params['doc_type'] ?? '') !== ''
+            && str_contains((string) $n->url, 'tab=requests'),
+    );
+    Notification::assertNotSentTo(
+        $parent,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::StatusChange,
+    );
 });
 
 it('contestația se depune CU nota: lipsa ei, nota altui elev sau una cu corecție în așteptare sunt respinse', function () {

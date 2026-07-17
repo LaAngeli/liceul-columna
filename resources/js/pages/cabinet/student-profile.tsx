@@ -125,7 +125,10 @@ interface Props {
         status: 'pending' | 'approved' | 'rejected';
         statusLabel: string;
         pdfUrl: string | null;
+        attachmentUrl?: string | null;
+        note: string | null;
         grade?: string | null;
+        canWithdraw?: boolean;
     }[];
     // Notele contestabile (doar familia) — alimentează selectul obligatoriu al contestației.
     contestableGrades?: { id: number; label: string }[];

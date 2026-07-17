@@ -19,6 +19,12 @@ return [
     'contestation_grade_invalid' => 'Nota aleasă nu există sau nu aparține acestui elev.',
     'contestation_grade_pending' => 'Nota aleasă are deja o corecție în așteptare — conducerea o va judeca; nu e nevoie de o contestație nouă.',
     'request_duplicate_pending' => 'Există deja o cerere de acest tip în așteptare pentru acest elev — secretariatul o va procesa; nu e nevoie să o redepui.',
+    // Cererile fără conținut sunt neprocesabile — detaliile sunt obligatorii la toate tipurile.
+    'request_details_required' => 'Cererea are nevoie de detalii ca să poată fi procesată (motivul, destinația sau tema — vezi indicațiile din formular).',
+    // Învoirea e prospectivă; pentru absențe deja petrecute există motivarea absențelor.
+    'invoire_past_period' => 'Învoirea se cere pentru zile viitoare. Pentru absențe deja petrecute folosește „Motivarea absențelor" din tabul Situație.',
+    'attachment_upload_failed' => 'Încărcarea justificativului a eșuat. Reîncearcă.',
+    'request_withdrawn' => 'Cererea a fost retrasă. Poți depune una nouă oricând.',
     // Mesaj de VALIDARE: schimbarea emailului de login deja setat trece prin secretariat (#37).
     'email_change_via_staff' => 'Adresa de e-mail e deja setată. Pentru a o schimba, contactează secretariatul — e identificatorul de conectare al contului.',
     // Mesaj de VALIDARE: anti-duplicat la motivarea absențelor (perioadă suprapusă).

@@ -51,6 +51,14 @@ class DocumentRequestInfolist
                             ->label(__('panel.document_nav.period'))
                             ->state(fn (DocumentRequest $record): string => self::periodLabel($record))
                             ->visible(fn (DocumentRequest $record): bool => $record->type->needsPeriod()),
+                        // Justificativul atașat de familie — decizia se ia CU documentul în față.
+                        TextEntry::make('attachment')
+                            ->label(__('panel.actions.document.label'))
+                            ->state(fn (): string => __('panel.document_nav.attachment_present'))
+                            ->url(fn (DocumentRequest $record): string => route('cabinet.requests.attachment', $record), shouldOpenInNewTab: true)
+                            ->color('primary')
+                            ->icon('heroicon-o-paper-clip')
+                            ->visible(fn (DocumentRequest $record): bool => $record->attachment_path !== null),
                         // Nota contestată — snapshot-ul din depunere (disciplină, valoare, dată,
                         // profesor): decizia se ia cu contextul în față, nu reconstruindu-l.
                         TextEntry::make('contested_grade')

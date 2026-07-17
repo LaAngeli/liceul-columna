@@ -12,6 +12,7 @@ use App\Models\ConsentAcknowledgment;
 use App\Models\CorigentaExam;
 use App\Models\CorigentaSession;
 use App\Models\Document;
+use App\Models\DocumentRequest;
 use App\Models\GalleryAlbum;
 use App\Models\Grade;
 use App\Models\Holiday;
@@ -65,6 +66,7 @@ class AuditCategories
             ],
             'admitere' => [
                 AdmissionRequest::class,
+                DocumentRequest::class,
             ],
             'continut' => [
                 Post::class,

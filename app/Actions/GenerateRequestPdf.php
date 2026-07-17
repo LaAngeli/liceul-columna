@@ -43,6 +43,8 @@ class GenerateRequestPdf
                 'period' => $this->formatPeriod($start, $end),
                 // Nota contestată (snapshot din depunere) — documentul oficial identifică UNIC nota.
                 'contestedGrade' => $request->contestedGradeLabel(),
+                // Documentul tipărit consemnează că cererea are justificativ anexat electronic.
+                'hasAttachment' => $request->attachment_path !== null,
                 'date' => now()->format('d.m.Y'),
             ])->render();
         } finally {

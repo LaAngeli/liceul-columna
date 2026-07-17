@@ -198,10 +198,14 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     // Descărcare atașament — autorizată la participanții firului (PII de minori), în controller.
     Route::get('cabinet/mesaje/atasament/{attachment}', [MessagesController::class, 'downloadAttachment'])->name('cabinet.messages.attachment');
 
-    // Cereri tipice (spec §4.3): depunere (→ PDF, secretariat) + descărcare PDF privat.
+    // Cereri tipice (spec §4.3): depunere (→ PDF, secretariat) + descărcare PDF/justificativ privat
+    // + retragerea cererii încă neprocesate (familia).
     Route::post('cabinet/elev/{student}/cereri', [CabinetController::class, 'requestDocument'])
         ->middleware('throttle:20,1')->name('cabinet.requests.store');
     Route::get('cabinet/cereri/{documentRequest}/pdf', [CabinetController::class, 'downloadRequest'])->name('cabinet.requests.pdf');
+    Route::get('cabinet/cereri/{documentRequest}/justificativ', [CabinetController::class, 'downloadRequestAttachment'])->name('cabinet.requests.attachment');
+    Route::post('cabinet/cereri/{documentRequest}/retrage', [CabinetController::class, 'withdrawRequest'])
+        ->middleware('throttle:20,1')->name('cabinet.requests.withdraw');
 
     // Pagina „Documente" a familiei (spec §2/§3): statice vizibile + generate per-copil + cereri.
     Route::get('cabinet/documente', [CabinetDocumentsController::class, 'index'])

@@ -1,11 +1,11 @@
-import { Form } from '@inertiajs/react';
+import { Form, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { SectionHeading } from '@/components/cabinet/section-heading';
 import { motivationStatusClass } from '@/components/cabinet/student-profile/helpers';
 import { SkeletonTable } from '@/components/cabinet/student-profile/skeletons';
 import { useTranslations } from '@/lib/i18n';
-import { store as requestRoute } from '@/routes/cabinet/requests';
+import { store as requestRoute, withdraw as withdrawRoute } from '@/routes/cabinet/requests';
 
 interface DocumentRequestItem {
     id: number;
@@ -14,9 +14,13 @@ interface DocumentRequestItem {
     status: 'pending' | 'approved' | 'rejected';
     statusLabel: string;
     pdfUrl: string | null;
+    /** Justificativul atașat la depunere (dacă există). */
+    attachmentUrl?: string | null;
     note: string | null;
     /** Nota contestată (snapshot din depunere) — doar la contestații. */
     grade?: string | null;
+    /** Familia își poate retrage cererea cât e încă neprocesată. */
+    canWithdraw?: boolean;
 }
 
 interface CorigentaExamItem {
@@ -63,6 +67,23 @@ export function RequestsTab({
             setGradeId(String(contestIntent.gradeId));
         }
     }, [contestIntent]);
+
+    // Placeholderele ghidează CE se scrie la fiecare tip — detaliile sunt obligatorii peste tot
+    // (o cerere fără motiv/destinație/temă e neprocesabilă).
+    const detailPlaceholders: Record<string, string> = {
+        invoire: t('cabinet.requests_details_ph_invoire'),
+        adeverinta: t('cabinet.requests_details_ph_adeverinta'),
+        transfer: t('cabinet.requests_details_ph_transfer'),
+        sedinta: t('cabinet.requests_details_ph_sedinta'),
+        contestatie: t('cabinet.requests_details_contestation_ph'),
+    };
+    const today = new Date().toISOString().slice(0, 10);
+
+    function withdrawRequest(id: number) {
+        if (window.confirm(t('cabinet.requests_withdraw_confirm'))) {
+            router.post(withdrawRoute(id).url, {}, { preserveScroll: true });
+        }
+    }
 
     return (
         <div className="flex flex-col gap-6">
@@ -185,11 +206,13 @@ export function RequestsTab({
                                                     <label htmlFor="req_start" className="text-xs text-muted-foreground">
                                                         {t('cabinet.motivation_from')}
                                                     </label>
+                                                    {/* Învoirea e prospectivă — pentru trecut există motivarea absențelor. */}
                                                     <input
                                                         id="req_start"
                                                         name="period_start"
                                                         type="date"
                                                         required
+                                                        min={today}
                                                         className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                                                     />
                                                     {errors.period_start && (
@@ -205,6 +228,7 @@ export function RequestsTab({
                                                         name="period_end"
                                                         type="date"
                                                         required
+                                                        min={today}
                                                         className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                                                     />
                                                     {errors.period_end && (
@@ -217,23 +241,32 @@ export function RequestsTab({
                                         <div className="grid gap-1.5">
                                             <label htmlFor="req_details" className="text-xs text-muted-foreground">
                                                 {t('cabinet.requests_details')}
-                                                {/* Contestația fără detalii e neprocesabilă (ce notă? de ce?) — obligatoriu. */}
-                                                {requestType === 'contestatie' && <span className="text-destructive"> *</span>}
+                                                {requestType !== '' && <span className="text-destructive"> *</span>}
                                             </label>
                                             <textarea
                                                 id="req_details"
                                                 name="details"
                                                 rows={3}
-                                                required={requestType === 'contestatie'}
-                                                placeholder={
-                                                    requestType === 'contestatie'
-                                                        ? t('cabinet.requests_details_contestation_ph')
-                                                        : t('cabinet.requests_details_ph')
-                                                }
+                                                required={requestType !== ''}
+                                                placeholder={detailPlaceholders[requestType] ?? t('cabinet.requests_details_ph')}
                                                 maxLength={1500}
                                                 className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                                             />
                                             {errors.details && <p className="text-xs text-destructive">{errors.details}</p>}
+                                        </div>
+
+                                        <div className="grid gap-1.5">
+                                            <label htmlFor="req_attachment" className="text-xs text-muted-foreground">
+                                                {t('cabinet.requests_attachment')}
+                                            </label>
+                                            <input
+                                                id="req_attachment"
+                                                name="attachment"
+                                                type="file"
+                                                accept=".pdf,.jpg,.jpeg,.png"
+                                                className="rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
+                                            />
+                                            {errors.attachment && <p className="text-xs text-destructive">{errors.attachment}</p>}
                                         </div>
 
                                         <button
@@ -286,6 +319,25 @@ export function RequestsTab({
                                                         >
                                                             PDF
                                                         </a>
+                                                    )}
+                                                    {r.attachmentUrl && (
+                                                        <a
+                                                            href={r.attachmentUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-primary hover:underline"
+                                                        >
+                                                            📎 {t('cabinet.requests_attachment_view')}
+                                                        </a>
+                                                    )}
+                                                    {r.canWithdraw && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => withdrawRequest(r.id)}
+                                                            className="rounded-md px-2 py-0.5 text-xs font-medium text-destructive hover:bg-destructive/10"
+                                                        >
+                                                            {t('cabinet.requests_withdraw')}
+                                                        </button>
                                                     )}
                                                 </div>
                                             </div>

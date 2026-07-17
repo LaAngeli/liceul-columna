@@ -430,7 +430,7 @@ class CabinetController extends Controller
             // altfel afla că familia depune transfer/contestație și primea link PDF garantat 403.
             'documentRequests' => Inertia::defer(fn (): array => ($viewer instanceof User
                 && ($this->isFamilyOf($viewer, $student) || $viewer->isAdministrator()))
-                ? $this->documentRequests($student)
+                ? $this->documentRequests($student, $this->isFamilyOf($viewer, $student))
                 : []),
             // Notele contestabile pentru formularul de contestație (doar familia depune) — cererea
             // se depune CU nota vizată, nu cu o descriere liberă din care secretariatul ghicește.
@@ -591,20 +591,29 @@ class CabinetController extends Controller
         $needsPeriod = $type?->needsPeriod() ?? false;
 
         // Contestația FĂRĂ context e neprocesabilă: cere NOTA contestată (disciplina, valoarea,
-        // data, profesorul vin din notă — nu re-tastate) + motivul familiei. La celelalte tipuri
-        // detaliile rămân opționale (feedback beneficiar).
+        // data, profesorul vin din notă — nu re-tastate). Detaliile sunt OBLIGATORII la TOATE
+        // tipurile: o cerere fără motiv/destinație/temă e neprocesabilă și ar produce doar un
+        // ping-pong (secretariatul respinge cerând detalii → familia redepune). Placeholderele
+        // din formular ghidează CE se scrie la fiecare tip.
         $needsGrade = $type === DocumentRequestType::Contestatie;
-        $needsDetails = $type === DocumentRequestType::Contestatie;
 
         $data = $request->validate([
             'type' => ['required', new Enum(DocumentRequestType::class)],
             'grade_id' => [$needsGrade ? 'required' : 'nullable', 'integer'],
-            'details' => [$needsDetails ? 'required' : 'nullable', 'string', 'max:1500'],
-            'period_start' => [$needsPeriod ? 'required' : 'nullable', 'date'],
+            'details' => ['required', 'string', 'max:1500'],
+            // Învoirea e PROSPECTIVĂ (se cere înainte de absență); pentru absențe deja petrecute
+            // există fluxul de motivare (§2.1) — simetric cu regula lui „doar trecut".
+            'period_start' => [$needsPeriod ? 'required' : 'nullable', 'date', 'after_or_equal:today'],
             'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
+            // Justificativ opțional (bilet medical, cererea școlii noi, foto lucrării) — PII de
+            // minor, stocat PRIVAT, aceleași limite ca justificativul motivărilor.
+            'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ], [
-            'details.required' => __('cabinet_flash.contestation_details_required'),
+            'details.required' => $type === DocumentRequestType::Contestatie
+                ? __('cabinet_flash.contestation_details_required')
+                : __('cabinet_flash.request_details_required'),
             'grade_id.required' => __('cabinet_flash.contestation_grade_required'),
+            'period_start.after_or_equal' => __('cabinet_flash.invoire_past_period'),
         ]);
 
         // Anti-duplicat: o cerere PENDING de același tip pentru același elev nu se redepune —
@@ -643,16 +652,31 @@ class CabinetController extends Controller
             ];
         }
 
+        // Justificativul (PII de minor) → stocare PRIVATĂ; un eșec de scriere NU se înghite tăcut
+        // (cerere fără document + toast de succes) — același contract ca la motivări.
+        $attachmentPath = null;
+        $file = $request->file('attachment');
+        if ($file instanceof UploadedFile) {
+            $stored = $file->store('cereri/justificative', 'local');
+            if ($stored === false) {
+                throw ValidationException::withMessages([
+                    'attachment' => __('cabinet_flash.attachment_upload_failed'),
+                ]);
+            }
+            $attachmentPath = $stored;
+        }
+
         // Cererea + PDF-ul într-o TRANZACȚIE: dacă randarea mpdf pică (tempDir, memorie), rândul se
         // dă înapoi → fără cerere PENDING orfană (fără PDF, dar care blochează redepunerea și a
         // notificat deja secretariatul). Notificarea observer-ului rulează afterCommit → nu anunță
         // o cerere anulată. (#37)
-        DB::transaction(function () use ($data, $student, $user, $payload): void {
+        DB::transaction(function () use ($data, $student, $user, $payload, $attachmentPath): void {
             $documentRequest = DocumentRequest::create([
                 'type' => $data['type'],
                 'student_id' => $student->id,
                 'requested_by_user_id' => $user->id,
                 'payload' => $payload,
+                'attachment_path' => $attachmentPath,
             ]);
 
             app(GenerateRequestPdf::class)->generate($documentRequest);
@@ -696,6 +720,60 @@ class CabinetController extends Controller
             $documentRequest->pdf_path,
             'cerere-'.$documentRequest->type->value.'.pdf',
         );
+    }
+
+    /**
+     * Descărcarea justificativului atașat unei cereri tipice — fișier PRIVAT (PII de minor):
+     * familia elevului sau administrația (care procesează). Accesul se jurnalizează.
+     */
+    public function downloadRequestAttachment(Request $request, DocumentRequest $documentRequest, LogStudentAccess $accessLog): StreamedResponse
+    {
+        $user = $request->user('web');
+        $student = $documentRequest->student;
+        abort_unless(
+            $user instanceof User
+                && ($user->isAdministrator() || ($student !== null && $this->isFamilyOf($user, $student))),
+            403,
+        );
+        abort_unless(
+            $documentRequest->attachment_path !== null && Storage::disk('local')->exists($documentRequest->attachment_path),
+            404,
+        );
+
+        if ($student !== null) {
+            $accessLog->record($student, 'exported', 'Descărcare justificativ cerere tipică');
+        }
+
+        return Storage::disk('local')->download(
+            $documentRequest->attachment_path,
+            'justificativ-'.$documentRequest->id.'.'.pathinfo($documentRequest->attachment_path, PATHINFO_EXTENSION),
+        );
+    }
+
+    /**
+     * Familia își RETRAGE o cerere încă neprocesată (depusă greșit / rămasă fără obiect): soft
+     * delete — rândul rămâne restaurabil, PDF-ul pe disc (igiena forceDeleted îl curăță doar la
+     * ștergerea definitivă), iar anti-duplicatul se deblochează pentru o depunere corectă.
+     * După decizie retragerea nu mai e posibilă (răspunsul secretariatului rămâne în istoric).
+     */
+    public function withdrawRequest(Request $request, DocumentRequest $documentRequest): RedirectResponse
+    {
+        $user = $request->user('web');
+        $student = $documentRequest->student;
+        abort_unless(
+            $user instanceof User && $student !== null && $this->isFamilyOf($user, $student),
+            403,
+        );
+        abort_unless($documentRequest->status === RequestStatus::Pending, 422);
+
+        $documentRequest->delete();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => __('cabinet_flash.request_withdrawn'),
+        ]);
+
+        return back();
     }
 
     /**
@@ -887,7 +965,7 @@ class CabinetController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function documentRequests(Student $student): array
+    private function documentRequests(Student $student, bool $familyViewer = false): array
     {
         return DocumentRequest::query()
             ->where('student_id', $student->id)
@@ -901,10 +979,16 @@ class CabinetController extends Controller
                 'status' => $request->status->value,
                 'statusLabel' => $request->status->label(),
                 'pdfUrl' => $request->pdf_path !== null ? route('cabinet.requests.pdf', $request) : null,
+                // Justificativul atașat la depunere — descărcabil de familie (și administrație).
+                'attachmentUrl' => $request->attachment_path !== null
+                    ? route('cabinet.requests.attachment', $request)
+                    : null,
                 // Comentariul secretariatului la procesare/respingere — familia vede DE CE.
                 'note' => $request->review_note,
                 // Nota contestată (snapshot din depunere) — familia își recunoaște cererea.
                 'grade' => $this->contestedGradeLabelFor($request),
+                // Familia își poate retrage cererea cât e încă neprocesată.
+                'canWithdraw' => $familyViewer && $request->status === RequestStatus::Pending,
             ])
             ->all();
     }

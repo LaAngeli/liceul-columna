@@ -5,9 +5,11 @@ namespace Database\Seeders;
 use App\Actions\SendMessage;
 use App\Enums\AudienceDomain;
 use App\Enums\CorrectionStatus;
+use App\Enums\DocumentRequestType;
 use App\Enums\RequestStatus;
 use App\Enums\UserRole;
 use App\Models\AbsenceMotivation;
+use App\Models\DocumentRequest;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
 use App\Models\Lesson;
@@ -46,12 +48,113 @@ class DemoTestDataSeeder extends Seeder
         GradeCorrection::query()->where('reason', 'like', self::MARKER.'%')->delete();
         AbsenceMotivation::query()->where('reason', 'like', self::MARKER.'%')->delete();
         Message::query()->where('body', 'like', self::MARKER.'%')->forceDelete();
+        // forceDelete PE MODEL (nu pe query): observer-ul curăță PDF/justificativ dacă există.
+        DocumentRequest::withTrashed()
+            ->where('payload->details', 'like', self::MARKER.'%')
+            ->get()
+            ->each(fn (DocumentRequest $request) => $request->forceDelete());
 
         $this->seedRoleAccounts();
         $this->seedCorrections();
         $this->seedMotivations();
         $this->seedMessages();
+        $this->seedDocumentRequests();
         $this->seedLessons();
+    }
+
+    /**
+     * Cereri tipice DEMO pe toate cele 5 tipuri, cu statusuri mixte (în așteptare / aprobată cu
+     * comentariu / respinsă cu motiv), pe copiii conturilor demo — ca fiecare compartiment al
+     * secțiunii „Cereri" să aibă ce procesa/afișa. Contestațiile acoperă AMBELE forme: cu nota
+     * purtată din depunere (fluxul curent) și legacy (fără notă — selectul rămâne la procesare).
+     */
+    private function seedDocumentRequests(): void
+    {
+        $parent = User::query()->where('email', 'parinte@columna.test')->first();
+        $studentUser = User::query()->where('email', 'elev@columna.test')->first();
+        $reviewer = User::query()->where('email', 'operational@columna.test')->first()
+            ?? User::query()->where('email', 'admin@liceul-columna.test')->first();
+
+        $children = $parent?->students()->orderBy('id')->get() ?? new Collection;
+        $ownFiche = $studentUser !== null
+            ? Student::query()->where('user_id', $studentUser->id)->first()
+            : null;
+
+        if ($parent === null || $children->isEmpty()) {
+            $this->command->warn('Fără copii legați de părintele demo — sar peste cererile tipice.');
+
+            return;
+        }
+
+        $first = $children->first();
+        $second = $children->skip(1)->first() ?? $first;
+
+        $make = function (Student $student, User $requester, DocumentRequestType $type, array $payload): DocumentRequest {
+            return DocumentRequest::create([
+                'type' => $type,
+                'student_id' => $student->id,
+                'requested_by_user_id' => $requester->id,
+                'payload' => $payload,
+            ]);
+        };
+
+        // Copilul 1: învoire ÎN AȘTEPTARE (cu perioadă viitoare), adeverință APROBATĂ cu
+        // comentariu, transfer RESPINS cu motiv.
+        $make($first, $parent, DocumentRequestType::Invoire, [
+            'details' => self::MARKER.' Participare la concursul republican de matematică.',
+            'period_start' => now()->addDays(7)->toDateString(),
+            'period_end' => now()->addDays(9)->toDateString(),
+        ]);
+
+        $adeverinta = $make($first, $parent, DocumentRequestType::Adeverinta, [
+            'details' => self::MARKER.' Necesară pentru dosarul de bursă al elevului.',
+        ]);
+        $reviewer !== null && $adeverinta->markProcessed($reviewer->id, self::MARKER.' Adeverința e gata — se ridică de la secretariat.');
+
+        $transfer = $make($first, $parent, DocumentRequestType::Transfer, [
+            'details' => self::MARKER.' Transfer la LT „Ion Creangă" — schimbarea domiciliului.',
+        ]);
+        $reviewer !== null && $transfer->markRejected($reviewer->id, self::MARKER.' Lipsesc actele școlii de destinație — reveniți cu acordul lor.');
+
+        // Copilul 2: ședință ÎN AȘTEPTARE + contestație NOUĂ (cu nota purtată din depunere).
+        $make($second, $parent, DocumentRequestType::Sedinta, [
+            'details' => self::MARKER.' Doresc o întâlnire cu dirigintele despre adaptarea copilului.',
+        ]);
+
+        $contestable = Grade::query()
+            ->where('student_id', $second->id)
+            ->whereNull('annulled_at')
+            ->whereDoesntHave('corrections', fn ($q) => $q->where('status', CorrectionStatus::Pending))
+            ->with(['subject', 'teacher'])
+            ->orderByDesc('graded_on')
+            ->first();
+
+        if ($contestable !== null) {
+            $make($second, $parent, DocumentRequestType::Contestatie, [
+                'details' => self::MARKER.' Considerăm că lucrarea a fost punctată greșit la ultimul subiect.',
+                'grade_id' => $contestable->id,
+                'grade' => [
+                    'subject' => (string) $contestable->subject->name,
+                    'value' => $contestable->value !== null ? (string) (float) $contestable->value : null,
+                    'calificativ' => $contestable->calificativ,
+                    'graded_on' => $contestable->graded_on->format('d.m.Y'),
+                    'teacher' => $contestable->teacher?->full_name,
+                ],
+            ]);
+        }
+
+        // Elevul demo (cont propriu): adeverință în așteptare + contestație LEGACY (fără notă).
+        // ($ownFiche non-null implică $studentUser non-null — fișa se caută doar cu cont existent.)
+        if ($ownFiche !== null) {
+            $make($ownFiche, $studentUser, DocumentRequestType::Adeverinta, [
+                'details' => self::MARKER.' Adeverință pentru legitimația de transport.',
+            ]);
+            $make($ownFiche, $studentUser, DocumentRequestType::Contestatie, [
+                'details' => self::MARKER.' Consider că lucrarea de la ultima evaluare a fost punctată greșit.',
+            ]);
+        }
+
+        $this->command->info('Cereri tipice demo: toate cele 5 tipuri, statusuri mixte (+ contestație nouă și legacy).');
     }
 
     /**

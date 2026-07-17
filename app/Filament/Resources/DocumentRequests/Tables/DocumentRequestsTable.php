@@ -45,6 +45,7 @@ class DocumentRequestsTable
                     ->searchable(['last_name', 'first_name']),
                 TextColumn::make('requestedBy.name')
                     ->label(__('panel.fields.requested_by'))
+                    ->searchable()
                     ->toggleable(),
                 TextColumn::make('details')
                     ->label(__('panel.document_nav.family_details'))
@@ -81,6 +82,7 @@ class DocumentRequestsTable
             ->recordActions([
                 ViewAction::make(),
                 DocumentRequestActions::pdf(),
+                DocumentRequestActions::attachment(),
                 DocumentRequestActions::openCorrection(),
                 DocumentRequestActions::process(),
                 DocumentRequestActions::reject(),

@@ -19,6 +19,7 @@ return [
         'new_calendar_event' => 'Eveniment nou în calendar',
         'calendar_event_cancelled' => 'Eveniment anulat',
         'contestation_rejected' => 'Rezultatul contestației',
+        'document_request_closed' => 'Răspuns la cererea depusă',
         'new_message' => 'Mesaj nou',
         'status_change' => 'Schimbare de statut',
         'announcement' => 'Anunț al conducerii',
@@ -99,7 +100,11 @@ return [
     ],
     'document_request_submitted' => [
         'title' => 'Cerere tipică nouă',
-        'body' => 'A fost depusă o cerere nouă la secretariat: :doc_type.',
+        'body' => 'A fost depusă o cerere nouă la secretariat: :doc_type — :student.',
+    ],
+    'document_request_closed' => [
+        'title' => 'Răspuns la cererea depusă',
+        'body' => 'Cererea „:doc_type" pentru :student a fost :status. Detaliile sunt în cabinet, la secțiunea Cereri.',
     ],
     'admission_request_submitted' => [
         'title' => 'Cerere de înscriere nouă',

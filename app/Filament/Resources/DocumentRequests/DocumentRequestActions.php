@@ -40,6 +40,19 @@ class DocumentRequestActions
             );
     }
 
+    /** Justificativul atașat de familie la depunere (rută autentificată — PII de minor). */
+    public static function attachment(): Action
+    {
+        return Action::make('attachment')
+            ->label(__('panel.actions.document.label'))
+            ->icon('heroicon-o-paper-clip')
+            ->visible(fn (DocumentRequest $record): bool => $record->attachment_path !== null)
+            ->url(
+                fn (DocumentRequest $record): string => route('cabinet.requests.attachment', $record),
+                shouldOpenInNewTab: true,
+            );
+    }
+
     /**
      * Marchează cererea procesată, cu comentariu OPȚIONAL pentru familie (vizibil în cabinet) —
      * „adeverința e gata la secretariat", „ședința e programată miercuri la 14:00" etc.

@@ -92,10 +92,12 @@ it('procesarea unei cereri de document notifică familia', function () {
 
     $request->markProcessed($reviewer->id);
 
+    // Tip DEDICAT (2026-07-17): închiderea cererii nu mai folosește StatusChange generic —
+    // notificarea numește TIPUL cererii și decizia, cu link direct pe tabul Cereri.
     Notification::assertSentTo(
         $student->user,
         CatalogNotification::class,
-        fn (CatalogNotification $n): bool => $n->type === NotificationType::StatusChange,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::DocumentRequestClosed,
     );
 });
 
@@ -117,7 +119,7 @@ it('respingerea unei cereri de document o trece în Rejected și notifică famil
     Notification::assertSentTo(
         $student->user,
         CatalogNotification::class,
-        fn (CatalogNotification $n): bool => $n->type === NotificationType::StatusChange,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::DocumentRequestClosed,
     );
 });
 

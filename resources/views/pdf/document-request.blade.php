@@ -50,6 +50,9 @@
     @if ($contestedGrade)
         <div class="field"><span class="label">Nota contestată:</span> <strong>{{ $contestedGrade }}</strong></div>
     @endif
+    @if ($hasAttachment)
+        <div class="field"><span class="label">Justificativ:</span> anexat electronic la cerere</div>
+    @endif
     <div class="field"><span class="label">Data:</span> {{ $date }}</div>
 
     <div class="body">

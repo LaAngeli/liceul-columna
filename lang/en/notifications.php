@@ -14,6 +14,7 @@ return [
         'new_calendar_event' => 'New calendar event',
         'calendar_event_cancelled' => 'Event cancelled',
         'contestation_rejected' => 'Contestation outcome',
+        'document_request_closed' => 'Reply to your request',
         'new_message' => 'New message',
         'status_change' => 'Status change',
         'announcement' => 'Management announcement',
@@ -92,7 +93,11 @@ return [
     ],
     'document_request_submitted' => [
         'title' => 'New document request',
-        'body' => 'A new request was submitted to the office: :doc_type.',
+        'body' => 'A new request was submitted to the office: :doc_type — :student.',
+    ],
+    'document_request_closed' => [
+        'title' => 'Reply to your request',
+        'body' => 'The ":doc_type" request for :student was :status. Details are in the cabinet, under Requests.',
     ],
     'admission_request_submitted' => [
         'title' => 'New admission request',
