@@ -69,12 +69,16 @@ class UserForm
                             // Doar litere (cu diacritice), spații, cratime, apostrof — fără cifre.
                             ->regex("/^[\pL\pM'’ \\-\\.]+$/u")
                             ->validationMessages(['regex' => __('panel.forms.user.name_letters')])
+                            // Pre-completare din alt modul (ex. o cerere de admitere înmatriculată
+                            // trimite numele copilului) — doar sugestie, validată oricum la salvare.
+                            ->default(fn (): ?string => self::requestedNameDefault('nume'))
                             ->maxLength(120),
                         TextInput::make('first_name')
                             ->label(__('panel.forms.user.first_name'))
                             ->required()
                             ->regex("/^[\pL\pM'’ \\-\\.]+$/u")
                             ->validationMessages(['regex' => __('panel.forms.user.name_letters')])
+                            ->default(fn (): ?string => self::requestedNameDefault('prenume'))
                             ->maxLength(120),
                         TextInput::make('username')
                             ->label(__('panel.forms.user.username'))
@@ -568,6 +572,24 @@ class UserForm
         }
 
         return array_key_exists($raw, self::roleOptions()) ? $raw : null;
+    }
+
+    /**
+     * Pre-completarea numelui din query string (`?nume=`/`?prenume=`) — puntea dinspre alte
+     * module (ex. admiterea trimite numele copilului înmatriculat). Igienizată și plafonată;
+     * regexul câmpului o validează oricum la salvare.
+     */
+    private static function requestedNameDefault(string $key): ?string
+    {
+        $raw = request()->query($key);
+
+        if (! is_string($raw)) {
+            return null;
+        }
+
+        $clean = trim(strip_tags($raw));
+
+        return $clean === '' ? null : mb_substr($clean, 0, 120);
     }
 
     /**

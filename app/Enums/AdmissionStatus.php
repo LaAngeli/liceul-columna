@@ -35,4 +35,30 @@ enum AdmissionStatus: string implements HasLabel
             self::Refuzat => 'danger',
         };
     }
+
+    /** Cererea e închisă (nu mai are nevoie de procesare). */
+    public function isFinal(): bool
+    {
+        return $this === self::Inmatriculat || $this === self::Refuzat;
+    }
+
+    /**
+     * Stările din coada „De procesat".
+     *
+     * @return list<string>
+     */
+    public static function pendingValues(): array
+    {
+        return [self::Nou->value, self::Contactat->value];
+    }
+
+    /**
+     * Stările arhivei (cereri închise).
+     *
+     * @return list<string>
+     */
+    public static function finalValues(): array
+    {
+        return [self::Inmatriculat->value, self::Refuzat->value];
+    }
 }

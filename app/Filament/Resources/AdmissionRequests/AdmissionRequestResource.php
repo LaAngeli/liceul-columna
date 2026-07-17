@@ -2,11 +2,10 @@
 
 namespace App\Filament\Resources\AdmissionRequests;
 
-use App\Enums\AdmissionStatus;
 use App\Filament\Concerns\AdministratorOnly;
-use App\Filament\Resources\AdmissionRequests\Pages\EditAdmissionRequest;
 use App\Filament\Resources\AdmissionRequests\Pages\ListAdmissionRequests;
-use App\Filament\Resources\AdmissionRequests\Schemas\AdmissionRequestForm;
+use App\Filament\Resources\AdmissionRequests\Pages\ViewAdmissionRequest;
+use App\Filament\Resources\AdmissionRequests\Schemas\AdmissionRequestInfolist;
 use App\Filament\Resources\AdmissionRequests\Tables\AdmissionRequestsTable;
 use App\Models\AdmissionRequest;
 use BackedEnum;
@@ -14,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class AdmissionRequestResource extends Resource
 {
@@ -45,9 +45,9 @@ class AdmissionRequestResource extends Resource
         return __('panel.resources.admission_requests.plural');
     }
 
-    public static function form(Schema $schema): Schema
+    public static function infolist(Schema $schema): Schema
     {
-        return AdmissionRequestForm::configure($schema);
+        return AdmissionRequestInfolist::configure($schema);
     }
 
     public static function table(Table $table): Table
@@ -55,16 +55,24 @@ class AdmissionRequestResource extends Resource
         return AdmissionRequestsTable::configure($table);
     }
 
+    /** Cererile se nasc pe site-ul public (formularul familiei) — panoul doar le procesează. */
     public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    /** Datele trimise de familie nu se rescriu de personal — procesarea = acțiuni cu urmă. */
+    public static function canEdit(Model $record): bool
     {
         return false;
     }
 
     public static function getNavigationBadge(): ?string
     {
-        $new = AdmissionRequest::query()->where('status', AdmissionStatus::Nou)->count();
+        // Coada întreagă (nou + contactat) — o cerere contactată e tot de lucru, nu dispare.
+        $pending = AdmissionRequest::query()->pending()->count();
 
-        return $new > 0 ? (string) $new : null;
+        return $pending > 0 ? (string) $pending : null;
     }
 
     public static function getNavigationBadgeColor(): ?string
@@ -81,7 +89,7 @@ class AdmissionRequestResource extends Resource
     {
         return [
             'index' => ListAdmissionRequests::route('/'),
-            'edit' => EditAdmissionRequest::route('/{record}/edit'),
+            'view' => ViewAdmissionRequest::route('/{record}'),
         ];
     }
 }
