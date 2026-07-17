@@ -47,6 +47,9 @@
     @if ($period)
         <div class="field"><span class="label">Perioada:</span> {{ $period }}</div>
     @endif
+    @if ($contestedGrade)
+        <div class="field"><span class="label">Nota contestată:</span> <strong>{{ $contestedGrade }}</strong></div>
+    @endif
     <div class="field"><span class="label">Data:</span> {{ $date }}</div>
 
     <div class="body">

@@ -77,6 +77,67 @@ class DocumentRequest extends Model
     }
 
     /**
+     * Id-ul notei contestate, purtat de cerere DIN DEPUNERE (payload) — contestațiile noi îl au
+     * obligatoriu; cererile vechi (dinainte ca formularul să ceară nota) întorc null.
+     */
+    public function contestedGradeId(): ?int
+    {
+        $id = $this->payload['grade_id'] ?? null;
+
+        return is_numeric($id) ? (int) $id : null;
+    }
+
+    /**
+     * SNAPSHOT-ul notei contestate, înghețat la depunere: disciplină, valoare/calificativ, data
+     * acordării, profesorul. Cererea păstrează ce s-a contestat ATUNCI, chiar dacă nota se
+     * schimbă între timp.
+     *
+     * @return array{subject: string, value: string|null, calificativ: string|null, graded_on: string|null, teacher: string|null}|null
+     */
+    public function contestedGradeSnapshot(): ?array
+    {
+        $snapshot = $this->payload['grade'] ?? null;
+
+        if (! is_array($snapshot)) {
+            return null;
+        }
+
+        return [
+            'subject' => (string) ($snapshot['subject'] ?? ''),
+            'value' => isset($snapshot['value']) && $snapshot['value'] !== '' ? (string) $snapshot['value'] : null,
+            'calificativ' => isset($snapshot['calificativ']) && $snapshot['calificativ'] !== '' ? (string) $snapshot['calificativ'] : null,
+            'graded_on' => isset($snapshot['graded_on']) ? (string) $snapshot['graded_on'] : null,
+            'teacher' => isset($snapshot['teacher']) && $snapshot['teacher'] !== '' ? (string) $snapshot['teacher'] : null,
+        ];
+    }
+
+    /** Eticheta notei contestate (din snapshot), cu numele brut al disciplinei — panou/PDF. */
+    public function contestedGradeLabel(): ?string
+    {
+        $snapshot = $this->contestedGradeSnapshot();
+
+        return $snapshot !== null ? self::composeGradeLabel($snapshot) : null;
+    }
+
+    /**
+     * Compune eticheta „disciplină — valoare (dată) · profesor" dintr-un snapshot; separată ca
+     * apelanții să poată substitui disciplina TRADUSĂ (cabinetul multilingv).
+     *
+     * @param  array{subject: string, value: string|null, calificativ: string|null, graded_on: string|null, teacher: string|null}  $snapshot
+     */
+    public static function composeGradeLabel(array $snapshot): string
+    {
+        $label = sprintf(
+            '%s — %s (%s)',
+            $snapshot['subject'],
+            $snapshot['value'] ?? $snapshot['calificativ'] ?? '—',
+            $snapshot['graded_on'] ?? '—',
+        );
+
+        return $snapshot['teacher'] !== null ? $label.' · '.$snapshot['teacher'] : $label;
+    }
+
+    /**
      * withTrashed: cererea elevului ARHIVAT rămâne afișabilă (nume în tabel) și închizibilă de
      * administrație — fără el, relația era null și descărcarea PDF crăpa cu TypeError (500).
      *

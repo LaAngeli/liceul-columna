@@ -9,6 +9,7 @@ use App\Actions\Documents\GenerateStudentDocumentPdf;
 use App\Actions\GenerateRequestPdf;
 use App\Actions\LogStudentAccess;
 use App\Enums\AcademicRecordPeriod;
+use App\Enums\CorrectionStatus;
 use App\Enums\DocumentRequestType;
 use App\Enums\GeneratedDocumentType;
 use App\Enums\RequestStatus;
@@ -431,6 +432,11 @@ class CabinetController extends Controller
                 && ($this->isFamilyOf($viewer, $student) || $viewer->isAdministrator()))
                 ? $this->documentRequests($student)
                 : []),
+            // Notele contestabile pentru formularul de contestație (doar familia depune) — cererea
+            // se depune CU nota vizată, nu cu o descriere liberă din care secretariatul ghicește.
+            'contestableGrades' => Inertia::defer(fn (): array => $canRequestMotivation
+                ? $this->contestableGrades($student)
+                : []),
             // Lichidarea corigenței = planificare familie↔administrație (tabul „Cereri"); profesorul
             // de disciplină o vede în panou, nu în cabinet (minim necesar, coerent cu motivations).
             'corigentaExams' => Inertia::defer(fn (): array => $canSeeSensitive ? $this->corigentaExams($student) : []),
@@ -584,17 +590,21 @@ class CabinetController extends Controller
         $type = DocumentRequestType::tryFrom((string) $request->input('type'));
         $needsPeriod = $type?->needsPeriod() ?? false;
 
-        // Contestația FĂRĂ detalii e neprocesabilă (ce notă? de ce?) — comentariul depunătorului
-        // e obligatoriu aici; la celelalte tipuri rămâne opțional (feedback beneficiar).
+        // Contestația FĂRĂ context e neprocesabilă: cere NOTA contestată (disciplina, valoarea,
+        // data, profesorul vin din notă — nu re-tastate) + motivul familiei. La celelalte tipuri
+        // detaliile rămân opționale (feedback beneficiar).
+        $needsGrade = $type === DocumentRequestType::Contestatie;
         $needsDetails = $type === DocumentRequestType::Contestatie;
 
         $data = $request->validate([
             'type' => ['required', new Enum(DocumentRequestType::class)],
+            'grade_id' => [$needsGrade ? 'required' : 'nullable', 'integer'],
             'details' => [$needsDetails ? 'required' : 'nullable', 'string', 'max:1500'],
             'period_start' => [$needsPeriod ? 'required' : 'nullable', 'date'],
             'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
         ], [
             'details.required' => __('cabinet_flash.contestation_details_required'),
+            'grade_id.required' => __('cabinet_flash.contestation_grade_required'),
         ]);
 
         // Anti-duplicat: o cerere PENDING de același tip pentru același elev nu se redepune —
@@ -615,6 +625,22 @@ class CabinetController extends Controller
         if (! empty($data['period_start'])) {
             $payload['period_start'] = $data['period_start'];
             $payload['period_end'] = $data['period_end'] ?? $data['period_start'];
+        }
+
+        // Nota contestată se validează pe SERVER (a elevului, activă, fără corecție în așteptare)
+        // și se ÎNGHEAȚĂ în payload ca snapshot: procesatorul analizează contextul, nu îl
+        // reconstruiește; iar dacă nota se schimbă între timp, cererea păstrează ce s-a contestat.
+        if ($needsGrade) {
+            $contestedGrade = $this->resolveContestedGrade($student, (int) $data['grade_id']);
+
+            $payload['grade_id'] = $contestedGrade->id;
+            $payload['grade'] = [
+                'subject' => (string) $contestedGrade->subject->name,
+                'value' => $contestedGrade->value !== null ? (string) (float) $contestedGrade->value : null,
+                'calificativ' => $contestedGrade->calificativ,
+                'graded_on' => $contestedGrade->graded_on->format('d.m.Y'),
+                'teacher' => $contestedGrade->teacher?->full_name,
+            ];
         }
 
         // Cererea + PDF-ul într-o TRANZACȚIE: dacă randarea mpdf pică (tempDir, memorie), rândul se
@@ -877,8 +903,84 @@ class CabinetController extends Controller
                 'pdfUrl' => $request->pdf_path !== null ? route('cabinet.requests.pdf', $request) : null,
                 // Comentariul secretariatului la procesare/respingere — familia vede DE CE.
                 'note' => $request->review_note,
+                // Nota contestată (snapshot din depunere) — familia își recunoaște cererea.
+                'grade' => $this->contestedGradeLabelFor($request),
             ])
             ->all();
+    }
+
+    /** Eticheta notei contestate pentru cabinet — disciplina TRADUSĂ în limba interfeței. */
+    private function contestedGradeLabelFor(DocumentRequest $request): ?string
+    {
+        $snapshot = $request->contestedGradeSnapshot();
+
+        if ($snapshot === null) {
+            return null;
+        }
+
+        $snapshot['subject'] = ContentTranslator::subject($snapshot['subject']);
+
+        return DocumentRequest::composeGradeLabel($snapshot);
+    }
+
+    /**
+     * Notele pe care familia le poate contesta: active (neanulate), fără o corecție deja în
+     * așteptare — aceleași reguli ca validarea de la depunere (resolveContestedGrade), ca UI-ul
+     * și serverul să nu divergă. Eticheta identifică UNIC nota: disciplină — valoare (dată) · profesor.
+     *
+     * @return array<int, array{id: int, label: string}>
+     */
+    private function contestableGrades(Student $student): array
+    {
+        return $student->grades()
+            ->active()
+            ->whereDoesntHave('corrections', fn (Builder $query) => $query->where('status', CorrectionStatus::Pending))
+            ->with(['subject', 'teacher'])
+            ->orderByDesc('graded_on')
+            ->get()
+            ->map(fn (Grade $grade): array => [
+                'id' => $grade->id,
+                'label' => DocumentRequest::composeGradeLabel([
+                    'subject' => ContentTranslator::subject((string) $grade->subject->name),
+                    'value' => $grade->value !== null ? (string) (float) $grade->value : null,
+                    'calificativ' => $grade->calificativ,
+                    'graded_on' => $grade->graded_on->format('d.m.Y'),
+                    'teacher' => $grade->teacher?->full_name,
+                ]),
+            ])
+            ->all();
+    }
+
+    /**
+     * Nota vizată de o contestație, validată pe server: a elevului, activă și fără o corecție
+     * deja în așteptare. Erorile cad pe câmpul grade_id al formularului.
+     */
+    private function resolveContestedGrade(Student $student, int $gradeId): Grade
+    {
+        $grade = Grade::query()
+            ->whereKey($gradeId)
+            ->where('student_id', $student->id)
+            ->active()
+            ->with(['subject', 'teacher'])
+            ->first();
+
+        if ($grade === null) {
+            throw ValidationException::withMessages([
+                'grade_id' => __('cabinet_flash.contestation_grade_invalid'),
+            ]);
+        }
+
+        $hasPendingCorrection = $grade->corrections()
+            ->where('status', CorrectionStatus::Pending)
+            ->exists();
+
+        if ($hasPendingCorrection) {
+            throw ValidationException::withMessages([
+                'grade_id' => __('cabinet_flash.contestation_grade_pending'),
+            ]);
+        }
+
+        return $grade;
     }
 
     /**
@@ -993,6 +1095,8 @@ class CabinetController extends Controller
                 'mc' => $ms !== null && $ms->mc_value !== null ? (float) $ms->mc_value : null,
                 'summative' => $ms !== null && $ms->summative_value !== null ? (float) $ms->summative_value : null,
                 'items' => $items->map(fn (Grade $grade): array => [
+                    // Id-ul permite „Contestă această notă" din chip (pre-completarea cererii).
+                    'id' => $grade->id,
                     'value' => $grade->value,
                     'calificativ' => $grade->calificativ,
                     'date' => $grade->graded_on->format('d.m.Y'),

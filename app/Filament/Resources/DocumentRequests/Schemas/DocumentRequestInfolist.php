@@ -26,9 +26,12 @@ class DocumentRequestInfolist
                     ->description(__('panel.document_nav.section_request_hint'))
                     ->columns(3)
                     ->schema([
+                        // Text simplu, NU badge: etichetele lungi („Cerere de reexaminare /
+                        // contestație a notei") se frâng pe două rânduri în loc să se trunchieze.
                         TextEntry::make('type')
                             ->label(__('panel.fields.type'))
-                            ->badge()
+                            ->weight('medium')
+                            ->color('primary')
                             ->formatStateUsing(fn (DocumentRequestType $state): string => $state->label()),
                         TextEntry::make('created_at')
                             ->label(__('panel.fields.received_at'))
@@ -48,6 +51,14 @@ class DocumentRequestInfolist
                             ->label(__('panel.document_nav.period'))
                             ->state(fn (DocumentRequest $record): string => self::periodLabel($record))
                             ->visible(fn (DocumentRequest $record): bool => $record->type->needsPeriod()),
+                        // Nota contestată — snapshot-ul din depunere (disciplină, valoare, dată,
+                        // profesor): decizia se ia cu contextul în față, nu reconstruindu-l.
+                        TextEntry::make('contested_grade')
+                            ->label(__('panel.document_nav.contested_grade'))
+                            ->state(fn (DocumentRequest $record): string => (string) $record->contestedGradeLabel())
+                            ->weight('bold')
+                            ->visible(fn (DocumentRequest $record): bool => $record->contestedGradeLabel() !== null)
+                            ->columnSpanFull(),
                         TextEntry::make('family_details')
                             ->label(__('panel.document_nav.family_details'))
                             ->state(fn (DocumentRequest $record): string => (string) ($record->payload['details'] ?? ''))

@@ -41,6 +41,8 @@ class GenerateRequestPdf
                 'parentName' => $request->requestedBy?->name,
                 'details' => isset($payload['details']) ? (string) $payload['details'] : '',
                 'period' => $this->formatPeriod($start, $end),
+                // Nota contestată (snapshot din depunere) — documentul oficial identifică UNIC nota.
+                'contestedGrade' => $request->contestedGradeLabel(),
                 'date' => now()->format('d.m.Y'),
             ])->render();
         } finally {

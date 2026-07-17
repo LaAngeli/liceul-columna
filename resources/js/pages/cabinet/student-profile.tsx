@@ -41,6 +41,7 @@ interface StatusAck {
 }
 
 interface GradeItem {
+    id?: number;
     value: string | null;
     calificativ: string | null;
     date: string | null;
@@ -124,7 +125,10 @@ interface Props {
         status: 'pending' | 'approved' | 'rejected';
         statusLabel: string;
         pdfUrl: string | null;
+        grade?: string | null;
     }[];
+    // Notele contestabile (doar familia) — alimentează selectul obligatoriu al contestației.
+    contestableGrades?: { id: number; label: string }[];
 }
 
 type TabValue = 'overview' | 'situation' | 'schedule' | 'history' | 'requests';
@@ -143,6 +147,10 @@ function readInitialTab(): TabValue {
 export default function StudentProfile(props: Props) {
     const t = useTranslations();
     const [activeTab, setActiveTab] = useState<TabValue>(readInitialTab);
+    // Intenția „Contestă această notă" pornită din chip-ul unei note (tab Situație): comută pe
+    // tabul Cereri cu formularul pre-completat. Token-ul crește la fiecare click, ca aceeași notă
+    // să poată re-declanșa pre-completarea după un submit.
+    const [contestIntent, setContestIntent] = useState<{ gradeId: number; token: number } | null>(null);
 
     // Sincronizare cu butoanele back/forward din browser (URL bookmark-abil).
     useEffect(() => {
@@ -159,6 +167,11 @@ export default function StudentProfile(props: Props) {
         url.searchParams.set('tab', tab);
         // replaceState: nu poluează istoria browserului cu fiecare click pe tab.
         window.history.replaceState({}, '', url);
+    }
+
+    function startContestation(gradeId: number) {
+        setContestIntent((prev) => ({ gradeId, token: (prev?.token ?? 0) + 1 }));
+        changeTab('requests');
     }
 
     const tabs: TabItem[] = [
@@ -216,6 +229,7 @@ export default function StudentProfile(props: Props) {
                         absencesUnmotivated={props.absencesUnmotivated}
                         motivations={props.motivations}
                         canRequestMotivation={props.canRequestMotivation}
+                        onContestGrade={props.canRequestMotivation ? startContestation : undefined}
                     />
                 </TabPanel>
 
@@ -238,6 +252,8 @@ export default function StudentProfile(props: Props) {
                         corigentaExams={props.corigentaExams}
                         requestTypes={props.requestTypes}
                         canRequestMotivation={props.canRequestMotivation}
+                        contestableGrades={props.contestableGrades}
+                        contestIntent={contestIntent}
                     />
                 </TabPanel>
             </div>

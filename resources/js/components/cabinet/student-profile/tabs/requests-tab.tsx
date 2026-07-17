@@ -1,5 +1,5 @@
 import { Form } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { SectionHeading } from '@/components/cabinet/section-heading';
 import { motivationStatusClass } from '@/components/cabinet/student-profile/helpers';
@@ -15,6 +15,8 @@ interface DocumentRequestItem {
     statusLabel: string;
     pdfUrl: string | null;
     note: string | null;
+    /** Nota contestată (snapshot din depunere) — doar la contestații. */
+    grade?: string | null;
 }
 
 interface CorigentaExamItem {
@@ -30,6 +32,8 @@ interface CorigentaExamItem {
 
 /**
  * Tab Cereri — cereri tipice (formular + listă + PDF) + calendar lichidare corigență.
+ * Contestația se depune CU nota vizată (select obligatoriu); un chip de notă din tabul Situație
+ * poate pre-completa formularul (contestIntent).
  */
 export function RequestsTab({
     studentId,
@@ -37,15 +41,28 @@ export function RequestsTab({
     corigentaExams,
     requestTypes,
     canRequestMotivation,
+    contestableGrades,
+    contestIntent,
 }: {
     studentId: number;
     documentRequests?: DocumentRequestItem[];
     corigentaExams?: CorigentaExamItem[];
     requestTypes: Record<string, string>;
     canRequestMotivation: boolean;
+    contestableGrades?: { id: number; label: string }[];
+    /** Pre-selecția venită din chip-ul unei note (token crește la fiecare click — re-aplicabil). */
+    contestIntent?: { gradeId: number; token: number } | null;
 }) {
     const t = useTranslations();
     const [requestType, setRequestType] = useState('');
+    const [gradeId, setGradeId] = useState('');
+
+    useEffect(() => {
+        if (contestIntent) {
+            setRequestType('contestatie');
+            setGradeId(String(contestIntent.gradeId));
+        }
+    }, [contestIntent]);
 
     return (
         <div className="flex flex-col gap-6">
@@ -100,7 +117,10 @@ export function RequestsTab({
                             <Form
                                 {...requestRoute.form(studentId)}
                                 resetOnSuccess
-                                onSuccess={() => setRequestType('')}
+                                onSuccess={() => {
+                                    setRequestType('');
+                                    setGradeId('');
+                                }}
                                 className="rounded-xl border bg-card p-4 shadow-sm"
                             >
                                 {({ processing, errors, recentlySuccessful }) => (
@@ -128,6 +148,36 @@ export function RequestsTab({
                                             </select>
                                             {errors.type && <p className="text-xs text-destructive">{errors.type}</p>}
                                         </div>
+
+                                        {/* Contestația se depune CU nota vizată — disciplina, valoarea, data și
+                                            profesorul vin din notă (zero re-tastare); serverul re-validează. */}
+                                        {requestType === 'contestatie' && (
+                                            <div className="grid gap-1.5">
+                                                <label htmlFor="req_grade" className="text-xs text-muted-foreground">
+                                                    {t('cabinet.requests_grade')}
+                                                    <span className="text-destructive"> *</span>
+                                                </label>
+                                                <select
+                                                    id="req_grade"
+                                                    name="grade_id"
+                                                    required
+                                                    value={gradeId}
+                                                    onChange={(e) => setGradeId(e.target.value)}
+                                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                >
+                                                    <option value="">—</option>
+                                                    {(contestableGrades ?? []).map((g) => (
+                                                        <option key={g.id} value={g.id}>
+                                                            {g.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {contestableGrades !== undefined && contestableGrades.length === 0 && (
+                                                    <p className="text-xs text-muted-foreground">{t('cabinet.requests_grade_none')}</p>
+                                                )}
+                                                {errors.grade_id && <p className="text-xs text-destructive">{errors.grade_id}</p>}
+                                            </div>
+                                        )}
 
                                         {requestType === 'invoire' && (
                                             <div className="grid grid-cols-2 gap-3">
@@ -217,7 +267,9 @@ export function RequestsTab({
                                             <div className="flex items-center justify-between gap-3">
                                                 <div className="min-w-0">
                                                     <p className="truncate text-sm font-medium">{r.type}</p>
-                                                    <p className="text-xs text-muted-foreground">{r.date}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {[r.date, r.grade].filter(Boolean).join(' · ')}
+                                                    </p>
                                                 </div>
                                                 <div className="flex shrink-0 items-center gap-2">
                                                     <span

@@ -425,7 +425,9 @@ return [
         'open_correction' => [
             'label' => 'Deschide corecție',
             'heading_for' => 'Contestația lui :student',
-            'description' => 'Alege nota contestată și propune valoarea corectă. Corecția intră la aprobarea conducerii, iar contestația e marcată procesată, cu trimitere la corecție.',
+            'description' => 'Cererea poartă nota contestată de familie — analizeaz-o și propune valoarea corectă. Corecția intră la aprobarea conducerii, iar contestația e marcată procesată, cu trimitere la corecție.',
+            'description_legacy' => 'Cerere depusă înainte ca formularul din cabinet să ceară nota: alege nota contestată din listă, apoi propune valoarea corectă. Corecția intră la aprobarea conducerii, iar contestația e marcată procesată, cu trimitere la corecție.',
+            'reason_hint' => 'Motivarea deciziei tale — ajunge la aprobatorii corecției. Textul familiei rămâne atașat cererii; nu-l repeta.',
             'family_details' => 'Comentariul familiei',
             'grade' => 'Nota contestată',
             'submit' => 'Deschide corecția',
@@ -1284,6 +1286,7 @@ return [
         'review_note_hint' => 'Vizibil familiei în cabinet, la această cerere.',
         'still_open' => 'În lucru',
         'no_note' => 'Fără comentariu',
+        'contested_grade' => 'Nota contestată',
         'request_summary' => ':type pentru :student — depusă de :requester la :date.',
     ],
 

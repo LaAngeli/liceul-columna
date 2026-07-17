@@ -413,7 +413,9 @@ return [
         'open_correction' => [
             'label' => 'Open correction',
             'heading_for' => 'Contestation: :student',
-            'description' => 'Pick the contested grade and propose the correct value. The correction goes to management for approval, and the contestation is marked processed with a reference to the correction.',
+            'description' => 'The request carries the contested grade — review it and propose the correct value. The correction goes to management for approval, and the contestation is marked processed with a reference to the correction.',
+            'description_legacy' => 'Request filed before the cabinet form required the grade: pick the contested grade from the list, then propose the correct value. The correction goes to management for approval, and the contestation is marked processed with a reference to the correction.',
+            'reason_hint' => 'Your own justification — it goes to the correction approvers. The family\'s text stays attached to the request; do not repeat it.',
             'family_details' => 'Family comment',
             'grade' => 'Contested grade',
             'submit' => 'Open correction',
@@ -1268,6 +1270,7 @@ return [
         'review_note_hint' => 'Visible to the family in the cabinet, on this request.',
         'still_open' => 'In progress',
         'no_note' => 'No comment',
+        'contested_grade' => 'Contested grade',
         'request_summary' => ':type for :student — submitted by :requester on :date.',
     ],
 

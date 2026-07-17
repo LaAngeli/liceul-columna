@@ -12,8 +12,12 @@ return [
     'motivation_sent_exception' => 'Cererea (excepție, după termen) a fost transmisă vicedirectorului pe educație.',
     'status_acknowledged' => 'Confirmarea a fost înregistrată.',
     'request_generated' => 'Cererea a fost generată și transmisă secretariatului.',
-    // Mesaj de VALIDARE (nu toast): anti-duplicat la depunerea cererilor tipice.
-    'contestation_details_required' => 'Contestația are nevoie de detalii: ce notă contești (disciplina, data) și de ce.',
+    // Mesaje de VALIDARE (nu toast) la depunerea contestației: nota se ALEGE (nu se descrie), iar
+    // motivul explică DE CE — contextul (disciplină, valoare, dată, profesor) vine din notă.
+    'contestation_details_required' => 'Contestația are nevoie de motiv: explică de ce consideri nota incorectă.',
+    'contestation_grade_required' => 'Alege nota pe care o contești din listă.',
+    'contestation_grade_invalid' => 'Nota aleasă nu există sau nu aparține acestui elev.',
+    'contestation_grade_pending' => 'Nota aleasă are deja o corecție în așteptare — conducerea o va judeca; nu e nevoie de o contestație nouă.',
     'request_duplicate_pending' => 'Există deja o cerere de acest tip în așteptare pentru acest elev — secretariatul o va procesa; nu e nevoie să o redepui.',
     // Mesaj de VALIDARE: schimbarea emailului de login deja setat trece prin secretariat (#37).
     'email_change_via_staff' => 'Adresa de e-mail e deja setată. Pentru a o schimba, contactează secretariatul — e identificatorul de conectare al contului.',

@@ -38,6 +38,7 @@ export function SituationTab({
     absencesUnmotivated,
     motivations,
     canRequestMotivation,
+    onContestGrade,
 }: {
     studentId: number;
     subjects?: SubjectGrades[];
@@ -46,6 +47,8 @@ export function SituationTab({
     absencesUnmotivated: number;
     motivations?: MotivationItem[];
     canRequestMotivation: boolean;
+    /** Familia poate porni o contestație direct din chip-ul notei (pre-completează cererea). */
+    onContestGrade?: (gradeId: number) => void;
 }) {
     const t = useTranslations();
 
@@ -81,19 +84,34 @@ export function SituationTab({
                                         <th scope="row" className="px-4 py-3 text-left font-medium">{s.subject}</th>
                                         <td className="px-4 py-3">
                                             <div className="flex flex-wrap gap-1.5">
-                                                {s.items.map((item, i) => (
-                                                    <span
-                                                        key={i}
-                                                        className={`inline-flex min-w-7 items-center justify-center rounded-md px-2 py-0.5 text-xs font-semibold ${
-                                                            item.isSummative
-                                                                ? 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/40 dark:text-amber-300'
-                                                                : 'bg-primary/10 text-primary'
-                                                        }`}
-                                                        title={[item.typeLabel, item.date].filter(Boolean).join(' · ') || undefined}
-                                                    >
-                                                        {gradeLabel(item)}
-                                                    </span>
-                                                ))}
+                                                {s.items.map((item, i) => {
+                                                    const chipClass = `inline-flex min-w-7 items-center justify-center rounded-md px-2 py-0.5 text-xs font-semibold ${
+                                                        item.isSummative
+                                                            ? 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/40 dark:text-amber-300'
+                                                            : 'bg-primary/10 text-primary'
+                                                    }`;
+                                                    const tooltip = [item.typeLabel, item.date].filter(Boolean).join(' · ');
+                                                    const gradeId = item.id;
+
+                                                    // Familia poate contesta direct din chip — cererea se
+                                                    // deschide cu nota deja selectată (zero re-tastare).
+                                                    return onContestGrade && gradeId != null ? (
+                                                        <button
+                                                            key={i}
+                                                            type="button"
+                                                            onClick={() => onContestGrade(gradeId)}
+                                                            title={[tooltip, t('cabinet.grade_contest_hint')].filter(Boolean).join(' · ')}
+                                                            aria-label={`${t('cabinet.grade_contest_hint')}: ${s.subject} — ${gradeLabel(item)}`}
+                                                            className={`${chipClass} cursor-pointer transition-shadow hover:ring-2 hover:ring-primary/40`}
+                                                        >
+                                                            {gradeLabel(item)}
+                                                        </button>
+                                                    ) : (
+                                                        <span key={i} className={chipClass} title={tooltip || undefined}>
+                                                            {gradeLabel(item)}
+                                                        </span>
+                                                    );
+                                                })}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-right">
@@ -115,6 +133,9 @@ export function SituationTab({
                         <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500/40 ring-1 ring-amber-500/40" />
                         {t('cabinet.summative_legend')}
                     </p>
+                )}
+                {onContestGrade && subjects !== undefined && subjects.length > 0 && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">{t('cabinet.grade_contest_legend')}</p>
                 )}
             </section>
 

@@ -96,7 +96,8 @@ class DocumentRequestActions
      * Fluxul contestație→corecție (#36): contestația familiei NU rămâne un PDF mort —
      * administrația o transformă într-o cerere formală de corecție (judecată apoi de aprobatorii
      * din „Corecții note"), iar cererea e închisă cu trimitere la corecție. Modalul poartă
-     * CONTEXTUL: al cui e contestația, cine a depus-o și ce a scris familia.
+     * CONTEXTUL: al cui e contestația, cine a depus-o, ce a scris familia și — la cererile noi —
+     * NOTA contestată din depunere (snapshot): procesatorul analizează, nu reconstruiește.
      */
     public static function openCorrection(): Action
     {
@@ -112,7 +113,9 @@ class DocumentRequestActions
             ]))
             // Contextul cererii chiar în modal: cine a depus, când, pentru cine — plus procedura.
             ->modalDescription(fn (DocumentRequest $record): string => self::requestSummary($record)
-                .' '.__('panel.actions.open_correction.description'))
+                .' '.($record->contestedGradeId() !== null
+                    ? __('panel.actions.open_correction.description')
+                    : __('panel.actions.open_correction.description_legacy')))
             ->schema([
                 // Ce a scris familia — read-only, ca decizia să se ia CU cererea în față.
                 Textarea::make('family_details')
@@ -122,12 +125,22 @@ class DocumentRequestActions
                     ->dehydrated(false)
                     ->rows(3)
                     ->visible(fn (DocumentRequest $record): bool => filled($record->payload['details'] ?? null)),
+                // Cererea NOUĂ poartă nota din depunere: contextul se AFIȘEAZĂ, nu se selectează.
+                TextInput::make('contested_grade')
+                    ->label(__('panel.actions.open_correction.grade'))
+                    ->default(fn (DocumentRequest $record): string => (string) $record->contestedGradeLabel())
+                    ->disabled()
+                    ->dehydrated(false)
+                    ->visible(fn (DocumentRequest $record): bool => $record->contestedGradeId() !== null),
+                // Fallback pentru cererile VECHI (depuse înainte ca formularul din cabinet să
+                // ceară nota): selecția rămâne la procesare, ca ele să poată fi închise.
                 Select::make('grade_id')
                     ->label(__('panel.actions.open_correction.grade'))
                     ->options(fn (DocumentRequest $record): array => self::contestableGradeOptions($record))
                     ->required()
-                    ->live(),
-                // Perechea notă/calificativ urmează disciplina notei ALESE (ca la profesor);
+                    ->live()
+                    ->visible(fn (DocumentRequest $record): bool => $record->contestedGradeId() === null),
+                // Perechea notă/calificativ urmează disciplina notei VIZATE (snapshot sau selecție);
                 // `requiredWithout` reciproc blochează „nicio propunere de valoare".
                 TextInput::make('new_value')
                     ->label(__('panel.actions.request_correction.new_value'))
@@ -135,22 +148,24 @@ class DocumentRequestActions
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(10)
-                    ->visible(fn (Get $get): bool => self::selectedGradeIsNumeric($get('grade_id')))
+                    ->visible(fn (Get $get, DocumentRequest $record): bool => self::targetGradeIsNumeric($record, $get('grade_id')))
                     ->requiredWithout('new_calificativ'),
                 TextInput::make('new_calificativ')
                     ->label(__('panel.actions.request_correction.new_calificativ'))
                     ->validationAttribute(__('panel.actions.request_correction.new_calificativ'))
                     ->maxLength(10)
-                    ->visible(fn (Get $get): bool => ! self::selectedGradeIsNumeric($get('grade_id')))
+                    ->visible(fn (Get $get, DocumentRequest $record): bool => ! self::targetGradeIsNumeric($record, $get('grade_id')))
                     ->requiredWithout('new_value'),
+                // Motivul PROPRIU al procesatorului — FĂRĂ default copiat din textul familiei
+                // (acela rămâne atașat cererii); motivul ajunge la aprobatorii corecției.
                 Textarea::make('reason')
                     ->label(__('panel.actions.request_correction.reason'))
-                    ->default(fn (DocumentRequest $record): string => (string) ($record->payload['details'] ?? ''))
+                    ->helperText(__('panel.actions.open_correction.reason_hint'))
                     ->required()
                     ->maxLength(255),
             ])
             ->action(function (DocumentRequest $record, array $data): void {
-                $grade = Grade::query()->findOrFail((int) $data['grade_id']);
+                $grade = Grade::query()->findOrFail($record->contestedGradeId() ?? (int) ($data['grade_id'] ?? 0));
 
                 try {
                     $correction = GradeCorrection::create([
@@ -219,7 +234,8 @@ class DocumentRequestActions
                 $grade->id => sprintf(
                     '%s — %s (%s)',
                     $grade->subject->name,
-                    $grade->value !== null ? rtrim(rtrim($grade->value, '0'), '.') : (string) $grade->calificativ,
+                    // (string)(float): „7.00" → „7", dar și „10" rămâne „10" (rtrim pe '0' îl rupea).
+                    $grade->value !== null ? (string) (float) $grade->value : (string) $grade->calificativ,
                     $grade->graded_on->format('d.m.Y'),
                 ),
             ])
@@ -227,16 +243,19 @@ class DocumentRequestActions
     }
 
     /**
-     * Disciplina notei selectate se notează numeric (1–10) sau prin calificativ? Comută câmpul de
-     * valoare propusă din modal. Fără selecție încă → numeric (cazul dominant).
+     * Disciplina notei VIZATE (snapshot-ul cererii sau selecția legacy) se notează numeric (1–10)
+     * sau prin calificativ? Comută câmpul de valoare propusă. Fără țintă încă → numeric (dominant).
      */
-    private static function selectedGradeIsNumeric(mixed $gradeId): bool
+    private static function targetGradeIsNumeric(DocumentRequest $record, mixed $selectedGradeId): bool
     {
-        if ($gradeId === null || $gradeId === '') {
+        $gradeId = $record->contestedGradeId()
+            ?? (is_numeric($selectedGradeId) ? (int) $selectedGradeId : null);
+
+        if ($gradeId === null) {
             return true;
         }
 
-        $grade = Grade::query()->with('subject')->find((int) $gradeId);
+        $grade = Grade::query()->with('subject')->find($gradeId);
 
         return $grade === null || $grade->subject->grading_type === GradingType::Numeric;
     }

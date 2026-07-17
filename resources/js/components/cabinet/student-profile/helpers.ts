@@ -5,6 +5,8 @@
 export type Trend = 'up' | 'stable' | 'down' | null;
 
 export interface GradeItem {
+    /** Id-ul notei — permite „Contestă această notă" (pre-completarea cererii din chip). */
+    id?: number;
     value: string | null;
     calificativ: string | null;
     date: string | null;
