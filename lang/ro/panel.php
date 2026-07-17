@@ -1164,6 +1164,29 @@ return [
         'action' => 'Autentificare',
     ],
 
+    'consent_nav' => [
+        'hint' => 'Dovada luării la cunoștință a notei de informare (Legea 133/2011 §7). Versiunea în vigoare: :version — elevii și părinții o confirmă obligatoriu la prima autentificare; personalul prelucrează datele pe temei de rol și nu e vizat. Cardurile arată acoperirea; „De confirmat" = conturile active care nu au încă versiunea curentă.',
+        'eyebrow' => 'Consimțăminte',
+        'aria' => 'Vederile consimțămintelor',
+        'segments' => [
+            'elev' => 'Elevi',
+            'parinte' => 'Părinți',
+        ],
+        'stat_confirmed' => 'Versiunea curentă: :confirmed din :total (:percent%)',
+        'proofs_count' => '{0}fără dovezi înregistrate|{1}o dovadă înregistrată|[2,19]:count dovezi înregistrate|[20,*]:count de dovezi înregistrate',
+        'missing_badge' => 'De confirmat: :count',
+        'view_proofs' => 'Dovezi',
+        'view_missing' => 'De confirmat',
+        'search_placeholder' => 'Caută după nume sau utilizator…',
+        'never_confirmed' => 'Nicio confirmare',
+        'old_version' => 'Versiunea :version',
+        'more_missing' => 'Încă :count de conturi — folosește căutarea ca să le găsești.',
+        'missing_empty_title' => 'Acoperire completă',
+        'missing_empty_description' => 'Toate conturile active ale segmentului au confirmat versiunea curentă.',
+        'superseded' => 'versiune anterioară',
+        'filter_current' => 'Versiunea curentă',
+    ],
+
     'audit_nav' => [
         'hint' => 'Jurnalul modificărilor și al accesului la date (L133 §7), secționat pe categorii. Alege o categorie ca să-i vezi intrările — jurnalul e doar de citit, niciodată de editat.',
         'eyebrow' => 'Jurnal de audit',

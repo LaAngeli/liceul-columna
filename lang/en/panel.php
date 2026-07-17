@@ -1148,6 +1148,29 @@ return [
         'action' => 'Sign in',
     ],
 
+    'consent_nav' => [
+        'hint' => 'Proof of acknowledging the privacy notice (Law 133/2011 §7). Version in force: :version — students and parents must confirm it at first sign-in; staff processes data on a role basis and is not covered. The cards show coverage; "To confirm" lists active accounts still missing the current version.',
+        'eyebrow' => 'Consents',
+        'aria' => 'Consent views',
+        'segments' => [
+            'elev' => 'Students',
+            'parinte' => 'Parents',
+        ],
+        'stat_confirmed' => 'Current version: :confirmed of :total (:percent%)',
+        'proofs_count' => '{0}no recorded proofs|{1}one recorded proof|[2,*]:count recorded proofs',
+        'missing_badge' => 'To confirm: :count',
+        'view_proofs' => 'Proofs',
+        'view_missing' => 'To confirm',
+        'search_placeholder' => 'Search by name or username…',
+        'never_confirmed' => 'Never confirmed',
+        'old_version' => 'Version :version',
+        'more_missing' => ':count more accounts — use the search to find them.',
+        'missing_empty_title' => 'Full coverage',
+        'missing_empty_description' => 'Every active account in the segment has confirmed the current version.',
+        'superseded' => 'previous version',
+        'filter_current' => 'Current version',
+    ],
+
     'audit_nav' => [
         'hint' => 'The log of changes and data access (Law 133 §7), sectioned by data category. Pick a category to see its entries — the log is read-only, never edited.',
         'eyebrow' => 'Audit log',
