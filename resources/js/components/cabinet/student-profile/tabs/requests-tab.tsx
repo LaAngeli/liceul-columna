@@ -304,9 +304,12 @@ export function RequestsTab({
                                                         {[r.date, r.grade].filter(Boolean).join(' · ')}
                                                     </p>
                                                 </div>
-                                                <div className="flex shrink-0 items-center gap-2">
+                                                {/* Țintele tactile ale acțiunilor ≥28px (min-h-7) — chip-urile de
+                                                    20px erau sub minimul WCAG pe mobil; flex-wrap: pe ecrane
+                                                    înguste acțiunile coboară pe rândul următor, fără overflow. */}
+                                                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                                                     <span
-                                                        className={`rounded-md px-2 py-0.5 text-xs font-semibold ${motivationStatusClass(r.status)}`}
+                                                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${motivationStatusClass(r.status)}`}
                                                     >
                                                         {t(`cabinet.motivation_status_${r.status}`, r.statusLabel)}
                                                     </span>
@@ -315,7 +318,7 @@ export function RequestsTab({
                                                             href={r.pdfUrl}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-primary hover:underline"
+                                                            className="inline-flex min-h-7 items-center rounded-md bg-muted px-2.5 text-xs font-medium text-primary hover:underline"
                                                         >
                                                             PDF
                                                         </a>
@@ -325,7 +328,7 @@ export function RequestsTab({
                                                             href={r.attachmentUrl}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-primary hover:underline"
+                                                            className="inline-flex min-h-7 items-center rounded-md bg-muted px-2.5 text-xs font-medium text-primary hover:underline"
                                                         >
                                                             📎 {t('cabinet.requests_attachment_view')}
                                                         </a>
@@ -334,7 +337,7 @@ export function RequestsTab({
                                                         <button
                                                             type="button"
                                                             onClick={() => withdrawRequest(r.id)}
-                                                            className="rounded-md px-2 py-0.5 text-xs font-medium text-destructive hover:bg-destructive/10"
+                                                            className="inline-flex min-h-7 items-center rounded-md px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10"
                                                         >
                                                             {t('cabinet.requests_withdraw')}
                                                         </button>

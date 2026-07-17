@@ -85,7 +85,8 @@ export function SituationTab({
                                         <td className="px-4 py-3">
                                             <div className="flex flex-wrap gap-1.5">
                                                 {s.items.map((item, i) => {
-                                                    const chipClass = `inline-flex min-w-7 items-center justify-center rounded-md px-2 py-0.5 text-xs font-semibold ${
+                                                    // min-h-7: chip-ul e și țintă tactilă („Contestă") — 20px era sub minimul WCAG pe mobil.
+                                                    const chipClass = `inline-flex min-h-7 min-w-7 items-center justify-center rounded-md px-2 py-0.5 text-xs font-semibold ${
                                                         item.isSummative
                                                             ? 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/40 dark:text-amber-300'
                                                             : 'bg-primary/10 text-primary'
