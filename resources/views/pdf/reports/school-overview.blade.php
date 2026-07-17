@@ -30,9 +30,10 @@
                     <td style="padding: 5px 9px;">
                         <table width="100%" style="border-collapse: collapse;">
                             <tr>
-                                <td width="{{ max(1, min(100, $row['percent'])) }}%" bgcolor="{{ $row['average'] !== null && $row['average'] < 5 ? '#b3261e' : '#0f4d77' }}" style="font-size: 2pt; line-height: 8px; padding: 0; border: none;">&nbsp;</td>
+                                {{-- Fundalul INLINE, nu doar bgcolor: zebra `tr.alt td` altfel l-ar suprascrie pe rândurile alternate. --}}
+                                <td width="{{ max(1, min(100, $row['percent'])) }}%" style="background: {{ $row['average'] !== null && $row['average'] < 5 ? '#b3261e' : '#0f4d77' }}; font-size: 2pt; line-height: 8px; padding: 0; border: none;">&nbsp;</td>
                                 @if ($row['percent'] < 100)
-                                    <td bgcolor="#eef2f6" style="font-size: 2pt; line-height: 8px; padding: 0; border: none;">&nbsp;</td>
+                                    <td style="background: #eef2f6; font-size: 2pt; line-height: 8px; padding: 0; border: none;">&nbsp;</td>
                                 @endif
                             </tr>
                         </table>

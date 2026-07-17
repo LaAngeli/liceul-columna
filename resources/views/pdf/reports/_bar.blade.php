@@ -11,10 +11,10 @@
     <td class="bar-track">
         <table width="100%" style="border-collapse: collapse;">
             <tr>
-                <td width="{{ max(1, min(100, (int) $percent)) }}%" bgcolor="{{ $barHex }}" style="font-size: 2pt; line-height: 9px; padding: 0; border: none;">&nbsp;</td>
+                <td width="{{ max(1, min(100, (int) $percent)) }}%" style="background: {{ $barHex }}; font-size: 2pt; line-height: 9px; padding: 0; border: none;">&nbsp;</td>
                 {{-- La 100% restul NU se randează: un &nbsp; suplimentar ar depăși 100% și mpdf ar comprima bara. --}}
                 @if ((int) $percent < 100)
-                    <td bgcolor="#eef2f6" style="font-size: 2pt; line-height: 9px; padding: 0; border: none;">&nbsp;</td>
+                    <td style="background: #eef2f6; font-size: 2pt; line-height: 9px; padding: 0; border: none;">&nbsp;</td>
                 @endif
             </tr>
         </table>

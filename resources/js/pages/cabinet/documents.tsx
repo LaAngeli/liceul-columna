@@ -35,6 +35,7 @@ interface RequestDoc {
     date: string | null;
     statusLabel: string;
     url: string | null;
+    note: string | null;
 }
 
 interface Child {
@@ -150,21 +151,29 @@ export default function DocumentsPage({ categories, schoolDocuments, children }:
         <div className="rounded-xl border border-sidebar-border/70 bg-card dark:border-sidebar-border">
             <ul className="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
                 {child.requests.map((req) => (
-                    <li key={req.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                        <Inbox className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                        <span className="min-w-0 flex-1 truncate">{req.type}</span>
-                        {req.date && <span className="shrink-0 text-xs text-muted-foreground">{req.date}</span>}
-                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">{req.statusLabel}</span>
-                        {req.url && (
-                            <a
-                                href={req.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="shrink-0 text-primary hover:underline"
-                                aria-label={`${t('cabinet.documents_download')}: ${req.type}`}
-                            >
-                                <Download className="size-4" />
-                            </a>
+                    <li key={req.id} className="px-4 py-2.5 text-sm">
+                        <div className="flex items-center gap-3">
+                            <Inbox className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                            <span className="min-w-0 flex-1 truncate">{req.type}</span>
+                            {req.date && <span className="shrink-0 text-xs text-muted-foreground">{req.date}</span>}
+                            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">{req.statusLabel}</span>
+                            {req.url && (
+                                <a
+                                    href={req.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="shrink-0 text-primary hover:underline"
+                                    aria-label={`${t('cabinet.documents_download')}: ${req.type}`}
+                                >
+                                    <Download className="size-4" />
+                                </a>
+                            )}
+                        </div>
+                        {/* Răspunsul secretariatului — aceeași informație ca în profilul elevului. */}
+                        {req.note && (
+                            <p className="mt-1.5 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground">
+                                <span className="font-medium">{t('cabinet.requests_note')}:</span> {req.note}
+                            </p>
                         )}
                     </li>
                 ))}

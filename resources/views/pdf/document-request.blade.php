@@ -4,8 +4,11 @@
     <meta charset="utf-8">
     <style>
         body { font-family: DejaVuSans, sans-serif; font-size: 12pt; color: #1a2233; line-height: 1.5; }
-        .header { text-align: center; border-bottom: 2px solid #1a2233; padding-bottom: 8px; margin-bottom: 24px; }
-        .header .school { font-size: 15pt; font-weight: bold; letter-spacing: 1px; }
+        /* Format de SCRISOARE (cerere către direcțiune) — deliberat diferit de rapoartele
+           instituționale; doar antetul poartă aceeași emblemă și culorile brandului. */
+        .header { border-bottom: 2px solid #0f4d77; padding-bottom: 8px; margin-bottom: 24px; }
+        .header td { border: none; padding: 0; vertical-align: middle; }
+        .header .school { font-size: 15pt; font-weight: bold; letter-spacing: 1px; color: #0f4d77; }
         .header .sub { font-size: 9pt; color: #667; }
         .to { text-align: right; margin-bottom: 28px; }
         .title { text-align: center; font-size: 14pt; font-weight: bold; text-transform: uppercase; margin: 18px 0 24px; }
@@ -18,10 +21,17 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="school">IPL „LICEUL COLUMNA"</div>
-        <div class="sub">Chișinău, Republica Moldova</div>
-    </div>
+    <table class="header" width="100%">
+        <tr>
+            <td style="width: 44px;">
+                <img src="{{ public_path('images/logo/columna-crest-color.png') }}" style="width: 38px;" alt="">
+            </td>
+            <td style="padding-left: 8px;">
+                <div class="school">IPL „LICEUL COLUMNA"</div>
+                <div class="sub">Chișinău, Republica Moldova</div>
+            </td>
+        </tr>
+    </table>
 
     <div class="to">
         Către Direcțiunea<br>

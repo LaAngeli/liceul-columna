@@ -115,6 +115,9 @@ class CabinetDocumentsController extends Controller
                 'date' => $request->created_at?->format('d.m.Y'),
                 'statusLabel' => $request->status->label(),
                 'url' => $request->pdf_path !== null ? route('cabinet.requests.pdf', $request) : null,
+                // Comentariul secretariatului (procesare/respingere) — aceeași informație ca în
+                // profilul elevului; fără el, cele două suprafețe ale familiei spuneau lucruri diferite.
+                'note' => $request->review_note,
             ])
             ->all();
     }

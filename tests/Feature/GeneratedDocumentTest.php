@@ -168,6 +168,25 @@ it('badge-ul „Cereri" arată totalul REAL, nu lista plafonată la 15 (#36)', f
         );
 });
 
+it('cererile din pagina Documente poartă răspunsul secretariatului (coerent cu profilul)', function () {
+    $student = Student::factory()->create();
+    $parent = familyParent($student);
+
+    $request = DocumentRequest::factory()->create([
+        'student_id' => $student->id,
+        'requested_by_user_id' => $parent->id,
+    ]);
+    $request->markProcessed(User::factory()->create()->id, 'Adeverința e gata la secretariat.');
+
+    actingAs($parent)
+        ->get(route('cabinet.documents'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('cabinet/documents')
+            ->where('children.0.requests.0.note', 'Adeverința e gata la secretariat.')
+        );
+});
+
 // ─── Igiena fișierelor bibliotecii (audit Documente, #35) ─────────────────────────────────
 
 it('înlocuirea fișierului șterge versiunea veche; forceDelete șterge fișierul; soft delete nu', function () {
