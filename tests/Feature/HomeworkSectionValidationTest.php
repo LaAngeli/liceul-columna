@@ -102,6 +102,7 @@ it('crearea pe perechea proprie reușește: treapta+litera derivă din clasă, a
             'class_target' => 'class:'.$this->class->id,
             'subject_id' => $this->subject->id,
             'assigned_on' => now()->toDateString(),
+            'due_on' => now()->addDay()->toDateString(),
             'required_task' => 'Ex. 1-3, pag. 10',
         ])
         ->call('create')
@@ -113,7 +114,40 @@ it('crearea pe perechea proprie reușește: treapta+litera derivă din clasă, a
         ->and($homework->section)->toBe('1')
         ->and($homework->teacher_id)->toBe($this->teacher->id)
         ->and($homework->author_name)->toBe($this->teacher->full_name)
-        ->and($homework->subject_name)->toBe($this->subject->name);
+        ->and($homework->subject_name)->toBe($this->subject->name)
+        ->and($homework->due_on?->toDateString())->toBe(now()->addDay()->toDateString());
+});
+
+// ─── Componenta temporală (2026-07-18): termenul e OBLIGATORIU și nu precede atribuirea ───
+
+it('tema fără TERMEN e respinsă — termenul e fundamentul afișărilor cronologice', function () {
+    Livewire::test(CreateHomeworkAssignment::class)
+        ->fillForm([
+            'class_target' => 'class:'.$this->class->id,
+            'subject_id' => $this->subject->id,
+            'assigned_on' => now()->toDateString(),
+            'due_on' => null,
+            'required_task' => 'Ex. 1-3, pag. 10',
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['due_on']);
+
+    expect(HomeworkAssignment::query()->count())->toBe(0);
+});
+
+it('termenul dinaintea datei de atribuire e respins', function () {
+    Livewire::test(CreateHomeworkAssignment::class)
+        ->fillForm([
+            'class_target' => 'class:'.$this->class->id,
+            'subject_id' => $this->subject->id,
+            'assigned_on' => now()->toDateString(),
+            'due_on' => now()->subDay()->toDateString(),
+            'required_task' => 'Ex. 1-3, pag. 10',
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['due_on']);
+
+    expect(HomeworkAssignment::query()->count())->toBe(0);
 });
 
 // ─── Protecția pe SERVER — stratul 1: formularul respinge valori din afara opțiunilor ─────
@@ -125,6 +159,7 @@ it('FORMULAR: disciplina pe care N-O PREDĂ în clasa aleasă e respinsă (nu e 
             'class_target' => 'class:'.$this->class->id,
             'subject_id' => $this->foreignSubject->id,
             'assigned_on' => now()->toDateString(),
+            'due_on' => now()->addDay()->toDateString(),
             'required_task' => 'X',
         ])
         ->call('create')
@@ -139,6 +174,7 @@ it('FORMULAR: clasa fără alocare proprie e respinsă, chiar la aceeași treapt
             'class_target' => 'class:'.$this->otherClass->id,
             'subject_id' => $this->subject->id,
             'assigned_on' => now()->toDateString(),
+            'due_on' => now()->addDay()->toDateString(),
             'required_task' => 'X',
         ])
         ->call('create')
@@ -153,6 +189,7 @@ it('FORMULAR: profesorul NU poate alege „toată treapta" (grade:7 nu e în op�
             'class_target' => 'grade:7',
             'subject_id' => $this->subject->id,
             'assigned_on' => now()->toDateString(),
+            'due_on' => now()->addDay()->toDateString(),
             'required_task' => 'X',
         ])
         ->call('create')
@@ -252,6 +289,7 @@ it('administrația poate da temă pentru toată treapta, iar secția intră NULL
             'class_target' => 'grade:7',
             'subject_id' => $this->subject->id,
             'assigned_on' => now()->toDateString(),
+            'due_on' => now()->addDay()->toDateString(),
             'topic' => 'Anunț pentru toată treapta',
         ])
         ->call('create')
@@ -275,6 +313,7 @@ it('o temă fără subiect ȘI fără sarcină obligatorie e respinsă', functio
             'class_target' => 'class:'.$this->class->id,
             'subject_id' => $this->subject->id,
             'assigned_on' => now()->toDateString(),
+            'due_on' => now()->addDay()->toDateString(),
             'optional_task' => 'doar opțională',
         ])
         ->call('create')

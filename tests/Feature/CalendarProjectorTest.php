@@ -60,6 +60,27 @@ it('agregă teme, absențe și structura pentru elevul din scope', function () {
         ->and($items->where('source', 'homework')->pluck('title'))->toContain('Matematică');
 });
 
+it('tema cu TERMEN se proiectează pe termen (data efectivă), nu pe ziua lecției', function () {
+    $year = AcademicYear::factory()->create();
+    $class = SchoolClass::factory()->for($year)->create(['grade_level' => 9, 'section' => 'A']);
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($year)->create();
+
+    // Atribuită în MAI (în afara ferestrei), cu termen în IUNIE → intră în fereastră, PE termen.
+    HomeworkAssignment::factory()->create([
+        'grade_level' => 9,
+        'section' => 'A',
+        'subject_name' => 'Matematică',
+        'assigned_on' => '2026-05-28',
+        'due_on' => '2026-06-03',
+    ]);
+
+    $homework = collectCalendar(calendarScopeFor($student))->where('source', 'homework');
+
+    expect($homework)->toHaveCount(1)
+        ->and($homework->first()->date)->toBe('2026-06-03');
+});
+
 it('nu include tema unei alte clase', function () {
     $year = AcademicYear::factory()->create();
     $class = SchoolClass::factory()->for($year)->create(['grade_level' => 9, 'section' => 'A']);

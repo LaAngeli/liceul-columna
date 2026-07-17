@@ -5,7 +5,9 @@ namespace App\Models;
 use App\Console\Commands\SendHomeworkDigest;
 use App\Enums\CorrectionStatus;
 use App\Observers\HomeworkAssignmentObserver;
+use Carbon\CarbonInterface;
 use Database\Factories\HomeworkAssignmentFactory;
+use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,9 +15,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Temă academică dată unei clase (treaptă + literă) la o disciplină.
+ *
+ * TIMPUL e axa modulului (2026-07-18): `assigned_on` = data ATRIBUIRII (lecția la care s-a dat),
+ * `due_on` = TERMENUL („pentru ce zi") — obligatoriu în formulare; null doar la legacy. Toate
+ * afișările cronologice folosesc DATA EFECTIVĂ {@see effectiveOn()} = due_on ?? assigned_on.
  *
  * Notificarea familiilor se face printr-un DIGEST ZILNIC (un singur rezumat/seară/clasă) —
  * vezi {@see SendHomeworkDigest}. Per-temă instant a fost dezactivat
@@ -25,6 +32,7 @@ use Illuminate\Support\Carbon;
  * @property string $subject_name
  * @property string|null $section
  * @property Carbon $assigned_on
+ * @property Carbon|null $due_on
  * @property array<int, string>|null $links
  */
 #[ObservedBy(HomeworkAssignmentObserver::class)]
@@ -41,6 +49,7 @@ class HomeworkAssignment extends Model
         'grade_level',
         'section',
         'assigned_on',
+        'due_on',
         'topic',
         'required_task',
         'optional_task',
@@ -52,8 +61,24 @@ class HomeworkAssignment extends Model
         return [
             'grade_level' => 'integer',
             'assigned_on' => 'date',
+            'due_on' => 'date',
             'links' => 'array',
         ];
+    }
+
+    /**
+     * Data EFECTIVĂ a temei — termenul, iar la temele legacy (fără termen) data atribuirii.
+     * Axa unică a sortărilor, grupărilor pe zile și filtrelor temporale.
+     */
+    public function effectiveOn(): CarbonInterface
+    {
+        return $this->due_on ?? $this->assigned_on;
+    }
+
+    /** Expresia SQL a datei efective — perechea lui {@see effectiveOn()} pentru sortări/filtre. */
+    public static function effectiveOnExpression(): Expression
+    {
+        return DB::raw('COALESCE(due_on, assigned_on)');
     }
 
     // Relații cu `withTrashed()`: tema e ISTORIC — arhivarea disciplinei/profesorului nu lasă

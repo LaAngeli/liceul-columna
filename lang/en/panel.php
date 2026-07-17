@@ -669,6 +669,12 @@ return [
             'add_link' => 'Add link',
             'topic_column' => 'Topic',
             'class_column' => 'Class',
+            'assigned_on' => 'Assigned on (lesson date)',
+            'due_on' => 'Due — for date',
+            'due_on_short' => 'Due',
+            'due_on_hint' => 'The day the homework is FOR — it drives everything: the student list, filters, the digest.',
+            'due_before_assigned' => 'The due date cannot precede the assignment date.',
+            'no_due_legacy' => 'no due date (legacy — assignment date)',
         ],
         'subject' => [
             'name' => 'Name',
@@ -1245,6 +1251,21 @@ return [
         'Document' => 'Document',
         'CalendarEvent' => 'Calendar event',
         'Holiday' => 'Holiday',
+    ],
+
+    // Homework time bar: modes + period navigation + interval.
+    'homework_time' => [
+        'aria' => 'Homework period',
+        'all' => 'All',
+        'zi' => 'Day',
+        'saptamana' => 'Week',
+        'luna' => 'Month',
+        'today' => 'Today',
+        'prev' => 'Previous period',
+        'next' => 'Next period',
+        'from' => 'From',
+        'until' => 'Until',
+        'interval_indicator' => 'Due: :from – :until',
     ],
 
     'document_nav' => [

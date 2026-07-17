@@ -64,10 +64,11 @@ class SendHomeworkDigest extends Command
                 ->get();
 
             foreach ($students as $student) {
+                // Linkul aterizează pe tabul „Orar & teme" — acolo trăiesc temele, grupate pe zile.
                 $notifier->send($student, new CatalogNotification(
                     NotificationType::NewHomework,
                     ['class' => $label, 'count' => (string) $items->count()],
-                    route('cabinet.student', ['student' => $student->id], false),
+                    route('cabinet.student', ['student' => $student->id, 'tab' => 'schedule'], false),
                 ));
                 $notified++;
             }

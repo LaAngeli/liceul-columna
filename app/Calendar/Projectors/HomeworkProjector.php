@@ -30,9 +30,14 @@ class HomeworkProjector implements CalendarProjector
                 continue;
             }
 
+            // Tema se proiectează pe DATA EFECTIVĂ (termen ?? atribuire — axa modulului,
+            // 2026-07-18): în calendar elevul o vede în ziua PENTRU care e, nu în ziua lecției.
             $query = HomeworkAssignment::query()
                 ->where('grade_level', $class->grade_level)
-                ->whereBetween('assigned_on', [$from->toDateString(), $to->toDateString()]);
+                ->whereBetween(
+                    HomeworkAssignment::effectiveOnExpression(),
+                    [$from->toDateString(), $to->toDateString()],
+                );
 
             if ($class->section === null) {
                 $query->whereNull('section');
@@ -41,6 +46,8 @@ class HomeworkProjector implements CalendarProjector
             }
 
             foreach ($query->get() as $homework) {
+                // Garda de transfer rămâne pe data ATRIBUIRII: tema îi aparține elevului care era
+                // în clasă când s-a dat, indiferent unde cade termenul.
                 if (! $this->access->wasEnrolledOn($student, $homework->assigned_on)) {
                     continue;
                 }
@@ -54,7 +61,7 @@ class HomeworkProjector implements CalendarProjector
                     source: 'homework',
                     category: CalendarCategory::Homework,
                     title: $title,
-                    date: $homework->assigned_on->toDateString(),
+                    date: $homework->effectiveOn()->toDateString(),
                     deepLink: "/cabinet/elev/{$student->id}#homework",
                     studentId: $student->id,
                 );

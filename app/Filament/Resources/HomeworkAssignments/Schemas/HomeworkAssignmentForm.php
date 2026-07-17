@@ -55,11 +55,22 @@ class HomeworkAssignmentForm
                     ->searchable()
                     ->required(),
                 DatePicker::make('assigned_on')
-                    ->label(__('panel.fields.date'))
+                    ->label(__('panel.forms.homework.assigned_on'))
                     ->required()
                     // Data lecției poate fi și în viitor (planificare) — digestul zilnic o preia
                     // în ziua respectivă. Decizie asumată, spre deosebire de note/absențe.
                     ->default(now()),
+                // TERMENUL („pentru ce zi e tema") — OBLIGATORIU (cerința beneficiarului
+                // 2026-07-18): e axa tuturor afișărilor cronologice (elev, filtre, digest).
+                // Nu poate preceda atribuirea.
+                DatePicker::make('due_on')
+                    ->label(__('panel.forms.homework.due_on'))
+                    ->helperText(__('panel.forms.homework.due_on_hint'))
+                    ->required()
+                    ->afterOrEqual('assigned_on')
+                    ->validationMessages([
+                        'after_or_equal' => __('panel.forms.homework.due_before_assigned'),
+                    ]),
                 // O temă fără subiect ȘI fără sarcină obligatorie e goală — cel puțin unul.
                 Textarea::make('topic')
                     ->label(__('panel.forms.homework.topic'))

@@ -682,6 +682,12 @@ return [
             'add_link' => 'Adaugă link',
             'topic_column' => 'Subiectul',
             'class_column' => 'Clasa',
+            'assigned_on' => 'Atribuită la (data lecției)',
+            'due_on' => 'Termen — pentru data',
+            'due_on_short' => 'Termen',
+            'due_on_hint' => 'Ziua PENTRU care e tema — după ea se ordonează tot: lista elevului, filtrele, digestul.',
+            'due_before_assigned' => 'Termenul nu poate preceda data atribuirii.',
+            'no_due_legacy' => 'fără termen (istoric — data atribuirii)',
         ],
         'subject' => [
             'name' => 'Denumire',
@@ -1261,6 +1267,21 @@ return [
         'Document' => 'Document',
         'CalendarEvent' => 'Eveniment calendar',
         'Holiday' => 'Zi liberă',
+    ],
+
+    // Bara temporală a Temelor (timpul = axa modulului): moduri + navigare pe perioadă + interval.
+    'homework_time' => [
+        'aria' => 'Perioada temelor',
+        'all' => 'Toate',
+        'zi' => 'Zi',
+        'saptamana' => 'Săptămână',
+        'luna' => 'Lună',
+        'today' => 'Azi',
+        'prev' => 'Perioada anterioară',
+        'next' => 'Perioada următoare',
+        'from' => 'De la',
+        'until' => 'Până la',
+        'interval_indicator' => 'Termen: :from – :until',
     ],
 
     'document_nav' => [

@@ -1288,23 +1288,52 @@ class CabinetController extends Controller
             return [];
         }
 
-        return HomeworkAssignment::query()
+        // TIMPUL e axa (2026-07-18): temele „de făcut" (data efectivă azi/viitor) vin TOATE,
+        // cronologic ASC — elevul vede întâi ce urmează; istoricul recent (DESC) vine separat,
+        // limitat, și e pliat în UI. Data efectivă = termen ?? atribuire (legacy fără termen).
+        $base = fn (): Builder => HomeworkAssignment::query()
             ->where('grade_level', $class->grade_level)
             ->where(function (Builder $query) use ($class): void {
                 $query->where('section', $class->section)->orWhereNull('section');
+            });
+
+        $expression = HomeworkAssignment::effectiveOnExpression();
+        $today = today()->toDateString();
+
+        $upcoming = $base()
+            ->where($expression, '>=', $today)
+            ->orderBy($expression)
+            ->get();
+        $past = $base()
+            ->where($expression, '<', $today)
+            ->orderByDesc($expression)
+            ->limit(20)
+            ->get();
+
+        return $upcoming->concat($past)
+            ->map(function (HomeworkAssignment $homework): array {
+                $effective = $homework->effectiveOn();
+
+                return [
+                    'id' => $homework->id,
+                    'date' => $homework->assigned_on->format('d.m.Y'),
+                    'due' => $homework->due_on?->format('d.m.Y'),
+                    // Cheia de GRUPARE pe zile (stabilă, sortabilă) + eticheta zilei tradusă în
+                    // limba interfeței (serverul cunoaște locale-ul; frontend-ul n-are formatter).
+                    'effectiveDate' => $effective->toDateString(),
+                    'dayLabel' => ucfirst($effective->translatedFormat('l, j F')),
+                    'status' => match (true) {
+                        $effective->isToday() => 'today',
+                        $effective->isFuture() => 'upcoming',
+                        default => 'past',
+                    },
+                    'subject' => ContentTranslator::subject((string) $homework->subject_name),
+                    'topic' => $homework->topic,
+                    'required' => $homework->required_task,
+                    'optional' => $homework->optional_task,
+                    'links' => $homework->links ?? [],
+                ];
             })
-            ->orderByDesc('assigned_on')
-            ->limit(25)
-            ->get()
-            ->map(fn (HomeworkAssignment $homework): array => [
-                'id' => $homework->id,
-                'date' => $homework->assigned_on->format('d.m.Y'),
-                'subject' => ContentTranslator::subject((string) $homework->subject_name),
-                'topic' => $homework->topic,
-                'required' => $homework->required_task,
-                'optional' => $homework->optional_task,
-                'links' => $homework->links ?? [],
-            ])
             ->all();
     }
 

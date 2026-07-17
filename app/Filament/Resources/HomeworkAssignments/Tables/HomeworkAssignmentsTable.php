@@ -14,12 +14,16 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 
 class HomeworkAssignmentsTable
 {
@@ -29,11 +33,17 @@ class HomeworkAssignmentsTable
             ->emptyStateHeading(__('panel.empty.homework.heading'))
             ->emptyStateDescription(__('panel.empty.homework.description'))
             ->emptyStateIcon('heroicon-o-clipboard-document-list')
-            ->defaultSort('assigned_on', 'desc')
+            // Cronologie pe DATA EFECTIVĂ (termen ?? atribuire) — axa modulului: cele mai
+            // recente/apropiate sus. Aliasul selectat permite sortarea pe expresie.
+            ->defaultSort('effective_on', 'desc')
             // Navigatorul de catalog (pagina de listare) restrânge interogarea la contextul ales;
             // `withCount` alimentează `hasPendingCorrection()` fără o interogare per rând (N+1).
             ->modifyQueryUsing(function ($query, $livewire) {
-                $query->withCount(['corrections as pending_corrections_count' => fn ($q) => $q->where('status', CorrectionStatus::Pending)]);
+                $query
+                    ->select('homework_assignments.*')
+                    // Perechea literală a HomeworkAssignment::effectiveOnExpression() (alias sortabil).
+                    ->selectRaw('COALESCE(due_on, assigned_on) as effective_on')
+                    ->withCount(['corrections as pending_corrections_count' => fn ($q) => $q->where('status', CorrectionStatus::Pending)]);
 
                 if ($livewire instanceof CatalogNavigator) {
                     $livewire->applyCatalogContext($query);
@@ -42,10 +52,27 @@ class HomeworkAssignmentsTable
                 return $query;
             })
             ->columns([
+                // TERMENUL — prima coloană, cu semnal de stare: viitor (verde), AZI (atenție),
+                // trecut (gri). Temele legacy fără termen cad pe data atribuirii, marcat distinct.
+                TextColumn::make('due_on')
+                    ->label(__('panel.forms.homework.due_on_short'))
+                    ->state(fn (HomeworkAssignment $record): string => $record->effectiveOn()->format('d.m.Y'))
+                    ->badge()
+                    ->color(fn (HomeworkAssignment $record): string => match (true) {
+                        $record->effectiveOn()->isToday() => 'warning',
+                        $record->effectiveOn()->isFuture() => 'success',
+                        default => 'gray',
+                    })
+                    ->description(fn (HomeworkAssignment $record): ?string => $record->due_on === null
+                        ? (string) __('panel.forms.homework.no_due_legacy')
+                        : null)
+                    ->sortable(query: fn (Builder $query, string $direction): Builder => $query
+                        ->orderBy(HomeworkAssignment::effectiveOnExpression(), $direction === 'desc' ? 'desc' : 'asc')),
                 TextColumn::make('assigned_on')
-                    ->label(__('panel.fields.date'))
+                    ->label(__('panel.forms.homework.assigned_on'))
                     ->date()
                     ->sortable()
+                    ->visibleFrom('lg')
                     // Iconița de ceas marchează tema cu o corecție nesoluționată (altfel nu s-ar
                     // vedea de ce a dispărut acțiunea „Solicită corecție" de pe rând).
                     ->icon(fn (HomeworkAssignment $record): ?string => $record->hasPendingCorrection() ? 'heroicon-o-clock' : null)
@@ -74,6 +101,30 @@ class HomeworkAssignmentsTable
                     ->visibleFrom('lg'),
             ])
             ->filters([
+                // Interval liber pe DATA EFECTIVĂ (termen ?? atribuire) — complementar barei
+                // temporale din navigator (Zi/Săptămână/Lună), pentru perioade arbitrare.
+                Filter::make('interval')
+                    ->schema([
+                        DatePicker::make('from')
+                            ->label(__('panel.homework_time.from')),
+                        DatePicker::make('until')
+                            ->label(__('panel.homework_time.until')),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when($data['from'] ?? null, fn (Builder $q, string $date): Builder => $q
+                            ->where(HomeworkAssignment::effectiveOnExpression(), '>=', $date))
+                        ->when($data['until'] ?? null, fn (Builder $q, string $date): Builder => $q
+                            ->where(HomeworkAssignment::effectiveOnExpression(), '<=', $date)))
+                    ->indicateUsing(function (array $data): ?string {
+                        if (blank($data['from'] ?? null) && blank($data['until'] ?? null)) {
+                            return null;
+                        }
+
+                        return __('panel.homework_time.interval_indicator', [
+                            'from' => filled($data['from'] ?? null) ? Carbon::parse((string) $data['from'])->format('d.m.Y') : '…',
+                            'until' => filled($data['until'] ?? null) ? Carbon::parse((string) $data['until'])->format('d.m.Y') : '…',
+                        ]);
+                    }),
                 // Filtrele acoperite de navigator dispar când contextul respectiv e activ.
                 SelectFilter::make('grade_level')
                     ->label(__('panel.fields.class'))
