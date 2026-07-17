@@ -116,6 +116,22 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): string => View::make('filament.topbar.live-datetime')->render(),
             )
+            // Afordanțe interactive (audit UI/UX 2026-07-17): Tailwind v4 a scos `cursor: pointer`
+            // de pe butoane, deci cardurile navigatoarelor, pastilele vederilor și rândurile-buton
+            // arătau săgeată deși sunt apăsabile. Regulă de PANOU injectată în <head> (supraviețuiește
+            // morphing-ului Livewire; deliberat NU în theme.css): tot ce e apăsabil arată mâna, ce e
+            // dezactivat arată interdicția + micro-hover pe filtrele/evenimentele calendarului
+            // (singurele interactive fără feedback — restul claselor cal-*/navigatoarele îl au deja).
+            ->renderHook(
+                PanelsRenderHook::STYLES_AFTER,
+                fn (): string => '<style>'
+                    .'button:not(:disabled),[role="button"]:not([aria-disabled="true"]),summary,input[type="checkbox"]:not(:disabled),input[type="radio"]:not(:disabled){cursor:pointer}'
+                    .'button:disabled,[aria-disabled="true"]{cursor:not-allowed}'
+                    .'.cal-tab:not([aria-pressed="true"]):hover,.cal-chip[aria-pressed="false"]:hover,.cal-chip-all:hover{opacity:1}'
+                    .'.cal-pill:hover{filter:brightness(.94)}.dark .cal-pill:hover{filter:brightness(1.15)}'
+                    .'.cal-daybar:hover{background:color-mix(in srgb,currentColor 4%,transparent)}'
+                    .'</style>',
+            )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([

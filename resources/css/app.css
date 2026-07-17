@@ -202,6 +202,24 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    /* Afordanțe interactive (audit UI/UX 2026-07-17): Tailwind v4 a scos `cursor: pointer`
+       de pe butoane (preflight-ul v3 îl punea), așa că orice <button> — rândurile din Mesaje,
+       taburile, chip-urile, acordeoanele — arăta săgeată deși e apăsabil. Restaurăm semnalul
+       universal: tot ce e apăsabil arată mâna; ce e dezactivat arată interdicția. */
+    button:not(:disabled),
+    [role='button']:not([aria-disabled='true']),
+    summary,
+    input[type='checkbox']:not(:disabled),
+    input[type='radio']:not(:disabled),
+    ::file-selector-button {
+        cursor: pointer;
+    }
+
+    button:disabled,
+    [aria-disabled='true'] {
+        cursor: not-allowed;
+    }
 }
 
 /* Conținut de articol (HTML migrat din WordPress) */

@@ -59,8 +59,9 @@ onNav(1);
     const entry = entries[index];
     const btn = 'inline-flex size-11 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20';
 
+    // cursor-zoom-out pe overlay = afordanța „click în afara imaginii închide"; figure o anulează.
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-surface-navy/95 p-4 backdrop-blur-sm sm:p-8" role="dialog" aria-modal="true" onClick={onClose}>
+        <div className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-surface-navy/95 p-4 backdrop-blur-sm sm:p-8" role="dialog" aria-modal="true" onClick={onClose}>
             <button type="button" onClick={onClose} className={cn(btn, 'absolute top-4 right-4 z-10')} aria-label={t('gallery.close', 'Închide')}>
                 <X className="size-5" />
             </button>
@@ -77,7 +78,7 @@ onNav(1);
                     <ChevronLeft className="size-6" />
                 </button>
             )}
-            <figure className="flex max-h-full max-w-5xl flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <figure className="flex max-h-full max-w-5xl cursor-default flex-col items-center" onClick={(e) => e.stopPropagation()}>
                 <img src={entry.src} alt={entry.alt} className="max-h-[80vh] w-auto rounded-[10px] object-contain shadow-2xl" />
                 <figcaption className="mt-4 flex items-center gap-2 text-sm text-white/80">
                     <span className="font-semibold text-white">{entry.albumLabel}</span>
