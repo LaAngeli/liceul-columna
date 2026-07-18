@@ -162,6 +162,10 @@ return [
             'label' => 'Dosarul elevului',
             'description' => 'Document combinat: situația semestrului curent și evoluția mediilor pe ani.',
         ],
+        'absence_report' => [
+            'label' => 'Raportul absențelor',
+            'description' => 'Toate absențele anului școlar curent, pe date, cu statutul motivării.',
+        ],
     ],
     'staff_report_type' => [
         'class_roster' => [

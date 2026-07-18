@@ -661,6 +661,7 @@ return [
         'average' => 'Media',
         'no_grades' => 'Nicio notă înregistrată.',
         'no_absences' => 'Fără absențe înregistrate.',
+        'whole_day_absence' => 'Zi întreagă',
         'no_timetable' => 'Orar indisponibil deocamdată.',
         'no_homework' => 'Fără teme recente.',
         'no_dynamics' => 'Date insuficiente pentru dinamică.',

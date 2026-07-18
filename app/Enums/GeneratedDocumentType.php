@@ -15,6 +15,7 @@ enum GeneratedDocumentType: string implements HasLabel
     case Transcript = 'transcript';        // Foaia matricolă (istoricul pe trepte, bilingvă RO/EN)
     case TermSituation = 'term_situation'; // Situația școlară — semestrul curent
     case StudentFile = 'student_file';     // Dosarul elevului (situația curentă + evoluția pe ani)
+    case AbsenceReport = 'absence_report'; // Raportul absențelor — anul curent, pe date, cu motivarea
 
     public function getLabel(): string
     {
@@ -38,6 +39,7 @@ enum GeneratedDocumentType: string implements HasLabel
             self::Transcript => 'heroicon-o-rectangle-stack',
             self::TermSituation => 'heroicon-o-document-chart-bar',
             self::StudentFile => 'heroicon-o-folder-open',
+            self::AbsenceReport => 'heroicon-o-calendar-date-range',
         };
     }
 
@@ -48,6 +50,7 @@ enum GeneratedDocumentType: string implements HasLabel
             self::Transcript => 'pdf.documents.transcript',
             self::TermSituation => 'pdf.documents.term-situation',
             self::StudentFile => 'pdf.documents.student-file',
+            self::AbsenceReport => 'pdf.documents.absence-report',
         };
     }
 
@@ -58,6 +61,7 @@ enum GeneratedDocumentType: string implements HasLabel
             self::Transcript => 'foaia-matricola',
             self::TermSituation => 'situatia-scolara',
             self::StudentFile => 'dosarul-elevului',
+            self::AbsenceReport => 'raport-absente',
         };
     }
 }

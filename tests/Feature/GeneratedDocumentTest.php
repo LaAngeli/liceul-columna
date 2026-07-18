@@ -145,7 +145,7 @@ it('pagina Documente randează pentru familie: documentele copilului + cele ale 
             ->component('cabinet/documents')
             ->has('categories', 5)                     // toate cele 5 subcategorii = taburi mereu prezente
             ->has('children', 1)
-            ->has('children.0.generated', 3)          // foaie matricolă + situația școlară + dosarul elevului
+            ->has('children.0.generated', 4)          // foaie matricolă + situația + dosarul + raportul absențelor
             ->has('schoolDocuments')
         );
 });

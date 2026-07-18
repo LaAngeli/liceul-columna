@@ -661,6 +661,7 @@ return [
         'average' => 'Average',
         'no_grades' => 'No grades recorded.',
         'no_absences' => 'No absences recorded.',
+        'whole_day_absence' => 'Whole day',
         'no_timetable' => 'Timetable not available yet.',
         'no_homework' => 'No recent homework.',
         'no_dynamics' => 'Not enough data for trends.',

@@ -18,6 +18,7 @@ use App\Enums\StudentStatus;
 use App\Enums\UserRole;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
+use App\Models\AcademicYear;
 use App\Models\CorigentaExam;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
@@ -889,7 +890,75 @@ class CabinetController extends Controller
             ];
         }
 
+        if ($type === GeneratedDocumentType::AbsenceReport) {
+            return $this->absenceReportData($student, $className);
+        }
+
         return $this->termSituationData($student, $className);
+    }
+
+    /**
+     * Datele „Raportului absențelor": TOATE absențele anului școlar curent (anul semestrului
+     * `is_current`), detaliate pe DATE și grupate pe semestre — completează situația școlară,
+     * care agregă doar pe discipline. Fără semestru curent (vacanță), raportul iese gol — onest.
+     *
+     * @return array<string, mixed>
+     */
+    private function absenceReportData(Student $student, ?string $className): array
+    {
+        $currentTerm = Term::query()->where('is_current', true)->first(['id', 'academic_year_id']);
+
+        $terms = $currentTerm === null
+            ? collect()
+            : Term::query()
+                ->where('academic_year_id', $currentTerm->academic_year_id)
+                ->orderBy('number')
+                ->get(['id', 'number']);
+
+        $yearName = $currentTerm === null
+            ? null
+            : AcademicYear::query()->whereKey($currentTerm->academic_year_id)->value('name');
+
+        $absences = $terms->isEmpty()
+            ? collect()
+            : $student->absences()
+                ->whereIn('term_id', $terms->pluck('id'))
+                ->with('subject')
+                ->orderBy('occurred_on')
+                ->get();
+
+        $byTerm = $absences->groupBy('term_id');
+        $wholeDayLabel = (string) __('site.cabinet.whole_day_absence');
+
+        $sections = [];
+        foreach ($terms as $term) {
+            /** @var Collection<int, Absence> $rows */
+            $rows = $byTerm->get($term->id, collect());
+
+            $sections[] = [
+                'label' => 'Semestrul '.((int) $term->number === 1 ? 'I' : 'II'),
+                'rows' => $rows->map(fn (Absence $absence): array => [
+                    'date' => $absence->occurred_on->format('d.m.Y'),
+                    'subject' => $absence->subject !== null
+                        ? ContentTranslator::subject((string) $absence->subject->name)
+                        : $wholeDayLabel,
+                    'motivated' => (bool) $absence->is_motivated,
+                ])->values()->all(),
+                'motivated' => $rows->where('is_motivated', true)->count(),
+                'unmotivated' => $rows->where('is_motivated', false)->count(),
+            ];
+        }
+
+        return [
+            'studentName' => $student->full_name,
+            'className' => $className,
+            'yearLabel' => $yearName,
+            'sections' => $sections,
+            'total' => $absences->count(),
+            'totalMotivated' => $absences->where('is_motivated', true)->count(),
+            'totalUnmotivated' => $absences->where('is_motivated', false)->count(),
+            'date' => now()->format('d.m.Y'),
+        ];
     }
 
     /**
@@ -1261,8 +1330,14 @@ class CabinetController extends Controller
         $absences = [];
         // Pe subject_id (nu pe nume) — vezi nota din gradesBySubject despre duplicatele legacy.
         foreach ($student->absences->groupBy('subject_id') as $items) {
+            // Absența pe ZI ÎNTREAGĂ nu are disciplină (subject null) — fără gardă, profilul
+            // și situația școlară crăpau pe `->name` la primul elev cu o astfel de absență.
+            $subjectName = $items->first()->subject?->name;
+
             $absences[] = [
-                'subject' => ContentTranslator::subject((string) $items->first()->subject->name),
+                'subject' => $subjectName !== null
+                    ? ContentTranslator::subject((string) $subjectName)
+                    : (string) __('site.cabinet.whole_day_absence'),
                 'count' => $items->count(),
             ];
         }

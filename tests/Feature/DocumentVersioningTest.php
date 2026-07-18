@@ -13,6 +13,7 @@ use App\Filament\Resources\Documents\Pages\EditDocument;
 use App\Filament\Resources\Documents\RelationManagers\VersionsRelationManager;
 use App\Filament\Resources\Students\Pages\ViewStudent;
 use App\Http\Controllers\CabinetController;
+use App\Models\Absence;
 use App\Models\AcademicRecord;
 use App\Models\AcademicYear;
 use App\Models\Document;
@@ -23,6 +24,7 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
+use App\Models\Term;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -254,4 +256,78 @@ it('dosarul elevului combină situația semestrului cu evoluția pe ani și se g
         ->get(route('cabinet.document.generate', ['student' => $student->id, 'type' => 'student_file']))
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf');
+});
+
+// ─── Raportul absențelor — anul curent, pe date (Faza 5) ─────────────────────────────────
+
+it('raportul absențelor grupează pe semestre, etichetează ziua întreagă și numără motivarea', function () {
+    $year = AcademicYear::factory()->create(['name' => '2025-2026']);
+    $term1 = Term::factory()->for($year)->create(['number' => 1, 'is_current' => false]);
+    $term2 = Term::factory()->for($year)->create(['number' => 2, 'is_current' => true]);
+    $class = SchoolClass::factory()->for($year)->create();
+
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($year)->create();
+
+    $subject = Subject::factory()->create(['name' => 'Matematică']);
+
+    // Sem. I: absență MOTIVATĂ la disciplină; Sem. II: absență NEMOTIVATĂ pe zi întreagă.
+    Absence::factory()->create([
+        'student_id' => $student->id, 'school_class_id' => $class->id,
+        'subject_id' => $subject->id, 'term_id' => $term1->id,
+        'occurred_on' => '2025-10-06', 'is_motivated' => true,
+    ]);
+    Absence::factory()->create([
+        'student_id' => $student->id, 'school_class_id' => $class->id,
+        'subject_id' => null, 'term_id' => $term2->id,
+        'occurred_on' => '2026-03-11', 'is_motivated' => false,
+    ]);
+
+    $method = new ReflectionMethod(CabinetController::class, 'generatedDocumentData');
+    $data = $method->invoke(app(CabinetController::class), GeneratedDocumentType::AbsenceReport, $student);
+
+    expect($data['yearLabel'])->toBe('2025-2026')
+        ->and($data['total'])->toBe(2)
+        ->and($data['totalMotivated'])->toBe(1)
+        ->and($data['totalUnmotivated'])->toBe(1)
+        ->and($data['sections'][0]['label'])->toBe('Semestrul I')
+        ->and($data['sections'][0]['rows'][0])->toBe(['date' => '06.10.2025', 'subject' => 'Matematică', 'motivated' => true])
+        ->and($data['sections'][1]['rows'][0]['subject'])->toBe('Zi întreagă')
+        ->and($data['sections'][1]['unmotivated'])->toBe(1);
+
+    $html = view(GeneratedDocumentType::AbsenceReport->blade(), $data)->render();
+    expect($html)
+        ->toContain('Raportul absențelor')
+        ->toContain('Anul școlar 2025-2026')
+        ->toContain('Zi întreagă');
+
+    // Fluxul complet prin ruta gardată.
+    $parent = User::factory()->create(['email_verified_at' => now()]);
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+
+    actingAs($parent)
+        ->get(route('cabinet.document.generate', ['student' => $student->id, 'type' => 'absence_report']))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
+
+it('REGRESIE: situația școlară nu mai crapă la absența pe zi întreagă (subject null)', function () {
+    $year = AcademicYear::factory()->create();
+    $term = Term::factory()->for($year)->create(['number' => 2, 'is_current' => true]);
+    $class = SchoolClass::factory()->for($year)->create();
+
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($year)->create();
+
+    Absence::factory()->create([
+        'student_id' => $student->id, 'school_class_id' => $class->id,
+        'subject_id' => null, 'term_id' => $term->id,
+        'occurred_on' => '2026-03-12', 'is_motivated' => false,
+    ]);
+
+    $method = new ReflectionMethod(CabinetController::class, 'generatedDocumentData');
+    $data = $method->invoke(app(CabinetController::class), GeneratedDocumentType::TermSituation, $student);
+
+    expect(collect($data['absences'])->pluck('subject'))->toContain('Zi întreagă');
 });

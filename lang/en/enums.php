@@ -159,6 +159,10 @@ return [
             'label' => 'Student file',
             'description' => 'Combined document: current term situation and year-over-year average dynamics.',
         ],
+        'absence_report' => [
+            'label' => 'Absence report',
+            'description' => 'All absences of the current school year, by date, with motivation status.',
+        ],
     ],
     'staff_report_type' => [
         'class_roster' => [

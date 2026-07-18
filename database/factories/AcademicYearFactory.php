@@ -14,7 +14,10 @@ class AcademicYearFactory extends Factory
 
     public function definition(): array
     {
-        $start = fake()->unique()->numberBetween(2000, 2099);
+        // Plafonat la 2090: testele folosesc ani hardcodați „în viitorul îndepărtat" (2098–2100,
+        // ex. RoleInteractionCoherenceTest) — un an generat aleator peste ei dădea coliziune
+        // UNIQUE pe `name` (flaky, 1/100, dependent de secvența faker).
+        $start = fake()->unique()->numberBetween(2000, 2090);
 
         return [
             'name' => $start.'–'.($start + 1),
