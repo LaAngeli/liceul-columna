@@ -50,48 +50,90 @@ const TILE_VALUE: Record<Tone, string> = {
     neutral: 'text-foreground',
 };
 
-/** Tile de statistică (varianta B) — valoare + etichetă, cu accent de culoare pe muchia stângă. */
-function StatTile({ value, label, sub, tone }: { value: string | number; label: string; sub?: string; tone: Tone }) {
+/**
+ * Tile de statistică (varianta B) — valoare + etichetă, cu accent de culoare pe muchia stângă.
+ * E un LINK către secțiunea exactă din profil (cerința beneficiarului: tile-urile duc la tipul
+ * de informație indicat) — `relative z-10` îl ridică deasupra linkului „întins" al cardului.
+ */
+function StatTile({
+    value,
+    label,
+    sub,
+    tone,
+    href,
+    ariaLabel,
+}: {
+    value: string | number;
+    label: string;
+    sub?: string;
+    tone: Tone;
+    href: string;
+    ariaLabel: string;
+}) {
     return (
-        <div className={cn('rounded-lg border border-l-[3px] bg-muted/30 p-2.5', TILE_BORDER[tone])}>
+        <Link
+            href={href}
+            aria-label={ariaLabel}
+            className={cn(
+                'relative z-10 rounded-lg border border-l-[3px] bg-muted/30 p-2.5',
+                'transition-[background-color,box-shadow] duration-150',
+                'hover:bg-muted/70 hover:ring-1 hover:ring-primary/40',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'motion-reduce:transition-none',
+                TILE_BORDER[tone],
+            )}
+        >
             <div className={cn('text-xl font-semibold leading-tight tabular-nums', TILE_VALUE[tone])}>{value}</div>
             <div className="truncate text-[11px] leading-tight text-muted-foreground">{label}</div>
             {sub && <div className="mt-0.5 truncate text-[10px] text-muted-foreground/80">{sub}</div>}
-        </div>
+        </Link>
     );
 }
 
 /**
  * Cardul-standing (combinație A+B): cadranul radial al mediei (spotlight) + rând de tile-uri de
- * statistici (ultima notă, absențe noi, motivări). Întreg cardul e un Link spre profil (card-link
- * pattern, a11y: `focus-visible` ring, `aria-label` descriptiv).
+ * statistici (ultima notă, absențe noi, motivări). Cardul rămâne clickabil ÎNTREG spre profil
+ * prin linkul „întins" de pe numele elevului (pseudo-elementul `after` acoperă cardul — ancorele
+ * nu se pot imbrica), iar fiecare tile e propriul link către secțiunea lui din tabul Situație.
  */
 export function StandingCard({ student }: { student: CockpitChild }) {
     const t = useTranslations();
     const getInitials = useInitials();
 
     const trend = student.trend !== null ? TREND_VISUAL[student.trend] : null;
+    const profileUrl = `/cabinet/elev/${student.id}`;
+    const situationUrl = (section: 'note' | 'absente' | 'motivari') =>
+        `${profileUrl}?tab=situation&sectiune=${section}`;
 
     return (
-        <Link
-            href={`/cabinet/elev/${student.id}`}
-            aria-label={`${student.name} — ${t('cabinet.cockpit_view_profile')}`}
+        <div
             className={cn(
-                'group flex flex-col gap-5 rounded-2xl border bg-card p-5 text-card-foreground shadow-sm',
+                'group relative flex flex-col gap-5 rounded-2xl border bg-card p-5 text-card-foreground shadow-sm',
                 'transition-[box-shadow,border-color] duration-200',
                 'hover:border-primary hover:shadow-md',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 'motion-reduce:transition-none',
                 student.isAtRisk && 'border-destructive/40',
             )}
         >
-            {/* Identitate */}
+            {/* Identitate — numele poartă linkul întins peste tot cardul */}
             <div className="flex items-center gap-3">
                 <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary ring-1 ring-primary/10">
                     {getInitials(student.name)}
                 </span>
                 <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-semibold leading-tight">{student.name}</h3>
+                    <h3 className="truncate font-semibold leading-tight">
+                        <Link
+                            href={profileUrl}
+                            aria-label={`${student.name} — ${t('cabinet.cockpit_view_profile')}`}
+                            className={cn(
+                                'focus-visible:outline-none',
+                                'after:absolute after:inset-0 after:rounded-2xl after:content-[""]',
+                                'focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-offset-2',
+                            )}
+                        >
+                            {student.name}
+                        </Link>
+                    </h3>
                     <p className="text-sm text-muted-foreground">{student.class ?? t('cabinet.class_unassigned')}</p>
                 </div>
                 {student.statusValue !== null && (
@@ -120,19 +162,25 @@ export function StandingCard({ student }: { student: CockpitChild }) {
                         label={t('cabinet.cockpit_last_grade')}
                         sub={student.lastGrade ? student.lastGrade.subject : undefined}
                         tone="navy"
+                        href={situationUrl('note')}
+                        ariaLabel={`${student.name} — ${t('cabinet.cockpit_last_grade')}`}
                     />
                     <StatTile
                         value={student.recentAbsences}
                         label={t('cabinet.cockpit_tile_absences')}
                         tone={student.recentAbsences > 0 ? 'danger' : 'neutral'}
+                        href={situationUrl('absente')}
+                        ariaLabel={`${student.name} — ${t('cabinet.cockpit_tile_absences')}`}
                     />
                     <StatTile
                         value={student.pendingMotivations}
                         label={t('cabinet.cockpit_tile_motivations')}
                         tone={student.pendingMotivations > 0 ? 'amber' : 'neutral'}
+                        href={situationUrl('motivari')}
+                        ariaLabel={`${student.name} — ${t('cabinet.cockpit_tile_motivations')}`}
                     />
                 </div>
             </div>
-        </Link>
+        </div>
     );
 }

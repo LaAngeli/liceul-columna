@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { BookOpen, ClipboardList, FileText, History, LayoutDashboard } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ProfileHeader } from '@/components/cabinet/student-profile/header';
 import type { Trend } from '@/components/cabinet/student-profile/helpers';
 import { HistoryTab } from '@/components/cabinet/student-profile/tabs/history-tab';
@@ -156,6 +156,21 @@ function readInitialTab(): TabValue {
     return param !== null && (VALID_TABS as readonly string[]).includes(param) ? (param as TabValue) : 'overview';
 }
 
+// Secțiunea-țintă din tabul Situație (?sectiune=note|absente|motivari) — deep-link-urile
+// tile-urilor din cockpit („Ultima notă" / „Absențe noi" / „Motivări") aterizează exact
+// pe blocul indicat, nu doar pe tab. Validat: orice altă valoare se ignoră.
+const VALID_SECTIONS = ['note', 'absente', 'motivari'] as const;
+
+function readSectionParam(): string | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    const param = new URLSearchParams(window.location.search).get('sectiune');
+
+    return param !== null && (VALID_SECTIONS as readonly string[]).includes(param) ? param : null;
+}
+
 export default function StudentProfile(props: Props) {
     const t = useTranslations();
     const [activeTab, setActiveTab] = useState<TabValue>(readInitialTab);
@@ -172,11 +187,46 @@ export default function StudentProfile(props: Props) {
         return () => window.removeEventListener('popstate', onPop);
     }, []);
 
+    // Intenția de secțiune din URL: derulează la blocul-țintă din tabul Situație (ancorele
+    // `sectiune-*`). Tabelele de note/absențe sosesc DEFERRED și cresc layout-ul de deasupra
+    // țintei — de aceea poziția se re-ajustează la fiecare sosire de date, iar intenția se
+    // consumă abia când blocurile dinaintea țintei sunt stabile. Navigarea manuală pe taburi
+    // nu re-derulează (changeTab șterge parametrul, iar intenția e consumată).
+    const pendingSection = useRef<string | null>(readSectionParam());
+
+    useEffect(() => {
+        if (activeTab !== 'situation' || pendingSection.current === null) {
+            return;
+        }
+
+        const target = document.getElementById(`sectiune-${pendingSection.current}`);
+
+        if (!target) {
+            pendingSection.current = null;
+
+            return;
+        }
+
+        // Ancorele de sub „Note" se mută doar când sosesc notele și absențele (secțiunile de
+        // deasupra lor) — după ambele, poziția e definitivă și intenția s-a consumat.
+        if (props.subjects !== undefined && props.absencesBySubject !== undefined) {
+            pendingSection.current = null;
+        }
+
+        // După paint — altfel ținta încă nu are layout-ul nou. Fără `smooth`: re-ajustările
+        // succesive ar întrerupe animația și ar lăsa viewportul între secțiuni.
+        const frame = requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+
+        return () => cancelAnimationFrame(frame);
+    }, [activeTab, props.subjects, props.absencesBySubject]);
+
     function changeTab(next: string) {
         const tab = (VALID_TABS as readonly string[]).includes(next) ? (next as TabValue) : 'overview';
         setActiveTab(tab);
         const url = new URL(window.location.href);
         url.searchParams.set('tab', tab);
+        // Intenția de secțiune era doar pentru aterizare — la navigarea manuală dispare din URL.
+        url.searchParams.delete('sectiune');
         // replaceState: nu poluează istoria browserului cu fiecare click pe tab.
         window.history.replaceState({}, '', url);
     }

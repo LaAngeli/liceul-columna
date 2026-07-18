@@ -55,7 +55,9 @@ export function SituationTab({
     return (
         <div className="flex flex-col gap-6">
             {/* === NOTE === */}
-            <section>
+            {/* Ancorele `sectiune-*`: țintele deep-link-urilor din tile-urile cockpitului
+                (?tab=situation&sectiune=…); scroll-mt lasă loc sub marginea viewportului. */}
+            <section id="sectiune-note" className="scroll-mt-20">
                 <SectionHeading title={t('cabinet.grades_by_subject')} />
                 <details className="mb-3 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
                     <summary className="cursor-pointer font-medium text-muted-foreground">
@@ -141,7 +143,7 @@ export function SituationTab({
             </section>
 
             {/* === ABSENȚE === */}
-            <section>
+            <section id="sectiune-absente" className="scroll-mt-20">
                 <SectionHeading
                     title={t('cabinet.absences_by_subject')}
                     actions={
@@ -180,7 +182,7 @@ export function SituationTab({
 
             {/* === MOTIVĂRI === */}
             {(canRequestMotivation || (motivations && motivations.length > 0)) && (
-                <section>
+                <section id="sectiune-motivari" className="scroll-mt-20">
                     <SectionHeading title={t('cabinet.motivations_title')} />
                     <div className="grid gap-4 lg:grid-cols-2">
                         {canRequestMotivation && <MotivationForm studentId={studentId} />}
