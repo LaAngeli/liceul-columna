@@ -28,6 +28,40 @@ interface Sibling {
     name: string;
 }
 
+/** Statistică din antet — cu `onPress` devine buton (salt la secțiunea din Situație), altfel simplu text. */
+function HeaderStat({
+    value,
+    label,
+    valueClassName = '',
+    onPress,
+}: {
+    value: string | number;
+    label: string;
+    valueClassName?: string;
+    onPress?: () => void;
+}) {
+    const content = (
+        <>
+            <div className={`text-2xl font-semibold ${valueClassName}`}>{value}</div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+        </>
+    );
+
+    if (onPress) {
+        return (
+            <button
+                type="button"
+                onClick={onPress}
+                className="rounded-lg px-2.5 py-1.5 text-center transition-[background-color,box-shadow] duration-150 hover:bg-muted hover:ring-1 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            >
+                {content}
+            </button>
+        );
+    }
+
+    return <div className="px-2.5 py-1.5">{content}</div>;
+}
+
 /**
  * Header persistent al profilului elev — vizibil deasupra TabBar-ului, NU se schimbă la swap de tab.
  * Conține identitate (avatar+nume+clasă), badge status, badge „oficial", switcher copil (părinte cu mai
@@ -39,6 +73,7 @@ export function ProfileHeader({
     totals,
     siblings = [],
     isFamily = true,
+    onOpenSection,
 }: {
     student: StudentSummary;
     status: StudentStatus;
@@ -49,6 +84,8 @@ export function ProfileHeader({
     };
     siblings?: Sibling[];
     isFamily?: boolean;
+    /** Statisticile antetului devin apăsabile: salt la secțiunea indicată din tabul Situație. */
+    onOpenSection?: (section: 'note' | 'absente') => void;
 }) {
     const t = useTranslations();
     const getInitials = useInitials();
@@ -105,15 +142,20 @@ export function ProfileHeader({
                 </p>
             </div>
 
-            <div className="ml-auto flex items-center gap-4 text-center">
-                <div>
-                    <div className="text-2xl font-semibold text-primary">{student.average ?? '—'}</div>
-                    <p className="text-xs text-muted-foreground">{t('cabinet.average_general')}</p>
-                </div>
-                <div>
-                    <div className="text-2xl font-semibold">{totals.absencesTotal}</div>
-                    <p className="text-xs text-muted-foreground">{t('cabinet.absences')}</p>
-                </div>
+            {/* Statisticile duc la secțiunea lor din „Situație" (media → note, absențele → tabelul
+                de absențe) — butoane cu salt în pagină, vizibile din ORICE tab (antetul persistă). */}
+            <div className="ml-auto flex items-center gap-2 text-center">
+                <HeaderStat
+                    value={student.average ?? '—'}
+                    label={t('cabinet.average_general')}
+                    valueClassName="text-primary"
+                    onPress={onOpenSection ? () => onOpenSection('note') : undefined}
+                />
+                <HeaderStat
+                    value={totals.absencesTotal}
+                    label={t('cabinet.absences')}
+                    onPress={onOpenSection ? () => onOpenSection('absente') : undefined}
+                />
             </div>
 
             {/* Acțiuni rapide — DOAR pentru familie: sunt scurtături spre cabinetul personal

@@ -236,9 +236,16 @@ export default function StudentProfile(props: Props) {
         changeTab('requests');
     }
 
-    /** Salt în pagină din tile-urile Prezentării: tabul Situație + scroll la secțiunea-țintă
-        (refolosește intenția `pendingSection` — efectul de derulare rulează la schimbarea tabului). */
+    /** Salt în pagină din tile-urile Prezentării/antetului: tabul Situație + scroll la secțiunea-
+        țintă (refolosește intenția `pendingSection` — efectul de derulare rulează la schimbarea
+        tabului). Deja în Situație? Derulăm direct — starea nu se schimbă, efectul n-ar re-rula. */
     function openSituationSection(section: (typeof VALID_SECTIONS)[number]) {
+        if (activeTab === 'situation') {
+            document.getElementById(`sectiune-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            return;
+        }
+
         pendingSection.current = section;
         changeTab('situation');
     }
@@ -270,6 +277,7 @@ export default function StudentProfile(props: Props) {
                     }}
                     siblings={props.siblings}
                     isFamily={props.canRequestMotivation}
+                    onOpenSection={openSituationSection}
                 />
 
                 <TabBar items={tabs} active={activeTab} onChange={changeTab} ariaLabel={props.student.name} />
