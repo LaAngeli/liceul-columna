@@ -1,12 +1,15 @@
 <?php
 
 /**
- * Subject names EN (the `subjects` table + `homework.subject_name`). Flat map
- * `['<exact RO>' => '<EN>']`; missing keys fall back to RO (App\Support\ContentTranslator::subject).
+ * Subject names EN (the `subjects` table + `homework.subject_name` + names used in the cells
+ * of published timetables — prefix-matched by ContentTranslator::scheduleCell). Flat map
+ * `['<exact RO>' => '<EN>']`; missing keys fall back to RO (ContentTranslator::subject).
  */
 return [
     'Biologie' => 'Biology',
     'Chimie' => 'Chemistry',
+    'Consultații pentru examen:' => 'Exam consultations:',
+    'Consultații' => 'Consultations',
     'Dezvoltare personală' => 'Personal Development',
     'Educație digitală' => 'Digital Education',
     'Educație ecologică' => 'Environmental Education',
@@ -25,12 +28,25 @@ return [
     'Informatică' => 'Computer Science',
     'Istoria românilor și universală' => 'History of Romanians and World History',
     'Limba engleză (opț)' => 'English (optional)',
+    'Limba engleză' => 'English',
+    'Limba franceză' => 'French',
+    'Limba germană' => 'German',
+    'Limba română' => 'Romanian',
     'Limba rusă' => 'Russian Language',
     'Limba și literatura română' => 'Romanian Language and Literature',
     'Limba străină 1 (engleza)' => 'Foreign Language 1 (English)',
     'Limba străină 2' => 'Foreign Language 2',
+    'Limba străină' => 'Foreign Language',
+    'Matematica' => 'Mathematics',
+    'Disciplina la solicitare' => 'Subject on request',
     'Literatura universală' => 'World Literature',
+    'Managementul clasei' => 'Classroom Management',
     'Matematică' => 'Mathematics',
+    'Pauză, Dejun' => 'Break, breakfast',
+    'Pauză, Prânz' => 'Break, lunch',
+    'Pauză' => 'Break',
+    'Plimbări, jocuri' => 'Walks and games',
+    'Pregătire pentru BAC' => 'Baccalaureate preparation',
     'Științe' => 'Sciences',
     'Tainele comunicării' => 'The Secrets of Communication',
 ];

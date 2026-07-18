@@ -1,12 +1,15 @@
 <?php
 
 /**
- * Nume de discipline RU (tabelul `subjects` + `homework.subject_name`). Hartă plată
- * `['<RO exact>' => '<RU>']`; cheile lipsă cad pe RO (App\Support\ContentTranslator::subject).
+ * Nume de discipline RU (tabelul `subjects` + `homework.subject_name` + denumirile din
+ * celulele orarelor publicate — potrivite pe prefix de ContentTranslator::scheduleCell).
+ * Hartă plată `['<RO exact>' => '<RU>']`; cheile lipsă cad pe RO (ContentTranslator::subject).
  */
 return [
     'Biologie' => 'Биология',
     'Chimie' => 'Химия',
+    'Consultații pentru examen:' => 'Консультации к экзамену:',
+    'Consultații' => 'Консультации',
     'Dezvoltare personală' => 'Личностное развитие',
     'Educație digitală' => 'Цифровое образование',
     'Educație ecologică' => 'Экологическое воспитание',
@@ -25,12 +28,25 @@ return [
     'Informatică' => 'Информатика',
     'Istoria românilor și universală' => 'История румын и всеобщая история',
     'Limba engleză (opț)' => 'Английский язык (факульт.)',
+    'Limba engleză' => 'Английский язык',
+    'Limba franceză' => 'Французский язык',
+    'Limba germană' => 'Немецкий язык',
+    'Limba română' => 'Румынский язык',
     'Limba rusă' => 'Русский язык',
     'Limba și literatura română' => 'Румынский язык и литература',
     'Limba străină 1 (engleza)' => 'Иностранный язык 1 (английский)',
     'Limba străină 2' => 'Иностранный язык 2',
+    'Limba străină' => 'Иностранный язык',
+    'Matematica' => 'Математика',
+    'Disciplina la solicitare' => 'Дисциплина по запросу',
     'Literatura universală' => 'Всемирная литература',
+    'Managementul clasei' => 'Менеджмент класса',
     'Matematică' => 'Математика',
+    'Pauză, Dejun' => 'Перемена, завтрак',
+    'Pauză, Prânz' => 'Перемена, обед',
+    'Pauză' => 'Перемена',
+    'Plimbări, jocuri' => 'Прогулки, игры',
+    'Pregătire pentru BAC' => 'Подготовка к БАК',
     'Științe' => 'Естествознание',
     'Tainele comunicării' => 'Тайны общения',
 ];

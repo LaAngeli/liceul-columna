@@ -106,7 +106,22 @@ final class ContentTranslator
             }
         }
 
-        return $cell;
+        // Zilele săptămânii ORIUNDE în celulă (orarele de examene: „Luni 04.05.2026",
+        // „Marți, Joi") — cuvinte unice, fără risc de substring fals; traducerile vin
+        // din dicționarul content (aceleași chei ca headerele).
+        $days = [];
+
+        foreach (['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'] as $day) {
+            $translation = self::map($locale)[$day] ?? null;
+
+            if ($translation !== null) {
+                $days[$day] = $translation;
+            }
+        }
+
+        $withDays = strtr($normalized, $days);
+
+        return $withDays !== $normalized ? $withDays : $cell;
     }
 
     /**

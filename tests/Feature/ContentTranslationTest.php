@@ -53,8 +53,10 @@ it('scheduleCell traduce celulele compuse ale orarului pe prefix, cu fallback RO
         ->and(ContentTranslator::scheduleCell('Luni', 'ru'))->toBe('Понедельник')
         // Diacriticele LEGACY cu sedilă (ş/ţ) din datele migrate se potrivesc cu cheile standard.
         ->and(ContentTranslator::scheduleCell("Educa\u{0163}ie fizic\u{0103} Ciobanu A.", 'ru'))->toBe('Физкультура Ciobanu A.')
+        // Zilele săptămânii ORIUNDE în celulă (orarele de examene).
+        ->and(ContentTranslator::scheduleCell('Luni 04.05.2026', 'ru'))->toBe('Понедельник 04.05.2026')
         // Fără potrivire → RO neatins; RO → identitate.
-        ->and(ContentTranslator::scheduleCell('Consultații generale, cab. 5', 'ru'))->toBe('Consultații generale, cab. 5')
+        ->and(ContentTranslator::scheduleCell('Ședință administrativă, cab. 5', 'ru'))->toBe('Ședință administrativă, cab. 5')
         ->and(ContentTranslator::scheduleCell('Matematică Damian Iu.', 'ro'))->toBe('Matematică Damian Iu.');
 });
 
