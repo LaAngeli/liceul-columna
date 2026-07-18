@@ -177,3 +177,39 @@ it('o disciplină fără traducere EN nu primește dublură (subject_en = null)'
     $row = collect($data['levels'][0]['subjects'])->firstWhere('subject_ro', 'Disciplină Fără Traducere');
     expect($row['subject_en'])->toBeNull();
 });
+
+// ─── Dosarul elevului — PDF combinat (Faza 5) ────────────────────────────────────────────
+
+it('dosarul elevului combină situația semestrului cu evoluția pe ani și se generează pentru familie', function () {
+    $student = Student::factory()->create();
+    AcademicRecord::factory()->create([
+        'student_id' => $student->id,
+        'subject_id' => Subject::factory()->create(['name' => 'Matematică'])->id,
+        'grade_level' => 6,
+        'period' => AcademicRecordPeriod::Annual,
+        'value' => 8,
+    ]);
+
+    // Datele documentului: cheile situației semestriale + dinamica multi-anuală, împreună.
+    $method = new ReflectionMethod(CabinetController::class, 'generatedDocumentData');
+    $data = $method->invoke(app(CabinetController::class), GeneratedDocumentType::StudentFile, $student);
+
+    expect($data)->toHaveKeys(['termLabel', 'subjects', 'absences', 'average', 'dynamics'])
+        ->and($data['dynamics']['general'][0])->toBe(['level' => 6, 'average' => 8.0]);
+
+    $html = view(GeneratedDocumentType::StudentFile->blade(), $data)->render();
+    expect($html)
+        ->toContain('Dosarul elevului')
+        ->toContain('Evoluția mediei generale pe ani')
+        ->toContain('Clasa a 6-a');
+
+    // Fluxul complet: familia descarcă PDF-ul; gardul serverului rămâne cel comun (403 la străin).
+    $parent = User::factory()->create(['email_verified_at' => now()]);
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+
+    actingAs($parent)
+        ->get(route('cabinet.document.generate', ['student' => $student->id, 'type' => 'student_file']))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});

@@ -880,12 +880,30 @@ class CabinetController extends Controller
             ];
         }
 
-        // Situația școlară — SEMESTRUL CURENT: titlul promite un semestru, deci notele și
-        // absențele se SCOPEAZĂ pe el (audit Documente: documentul oficial agrega toate
-        // semestrele/anii, deși media și statusul de mai jos erau deja pe semestrul curent).
-        // Relațiile se încarcă CONSTRÂNS — helper-ele (gradesBySubject/absencesBySubject)
-        // iterează exact ce e încărcat. Fără semestru curent (vacanță), secțiunile ies goale —
-        // onest și consecvent cu media/statusul.
+        // Dosarul elevului (Faza 5) = situația semestrului curent + evoluția multi-anuală
+        // (ComputeStudentDynamics — aceeași sursă ca dinamica din cabinet) într-un singur document.
+        if ($type === GeneratedDocumentType::StudentFile) {
+            return [
+                ...$this->termSituationData($student, $className),
+                'dynamics' => app(ComputeStudentDynamics::class)->for($student),
+            ];
+        }
+
+        return $this->termSituationData($student, $className);
+    }
+
+    /**
+     * Datele „Situației școlare" — SEMESTRUL CURENT: titlul promite un semestru, deci notele și
+     * absențele se SCOPEAZĂ pe el (audit Documente: documentul oficial agrega toate
+     * semestrele/anii, deși media și statusul de mai jos erau deja pe semestrul curent).
+     * Relațiile se încarcă CONSTRÂNS — helper-ele (gradesBySubject/absencesBySubject)
+     * iterează exact ce e încărcat. Fără semestru curent (vacanță), secțiunile ies goale —
+     * onest și consecvent cu media/statusul. Refolosite și de „Dosarul elevului".
+     *
+     * @return array<string, mixed>
+     */
+    private function termSituationData(Student $student, ?string $className): array
+    {
         $currentTerm = Term::query()->where('is_current', true)->first(['id', 'number']);
         $currentTermId = $currentTerm === null ? 0 : (int) $currentTerm->id;
 

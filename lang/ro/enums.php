@@ -158,6 +158,10 @@ return [
             'label' => 'Situația școlară',
             'description' => 'Mediile pe discipline și absențele din semestrul curent.',
         ],
+        'student_file' => [
+            'label' => 'Dosarul elevului',
+            'description' => 'Document combinat: situația semestrului curent și evoluția mediilor pe ani.',
+        ],
     ],
     'staff_report_type' => [
         'class_roster' => [

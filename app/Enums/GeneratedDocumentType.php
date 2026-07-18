@@ -12,8 +12,9 @@ use Filament\Support\Contracts\HasLabel;
  */
 enum GeneratedDocumentType: string implements HasLabel
 {
-    case Transcript = 'transcript';        // Foaia matricolă (istoricul pe trepte)
+    case Transcript = 'transcript';        // Foaia matricolă (istoricul pe trepte, bilingvă RO/EN)
     case TermSituation = 'term_situation'; // Situația școlară — semestrul curent
+    case StudentFile = 'student_file';     // Dosarul elevului (situația curentă + evoluția pe ani)
 
     public function getLabel(): string
     {
@@ -36,6 +37,7 @@ enum GeneratedDocumentType: string implements HasLabel
         return match ($this) {
             self::Transcript => 'heroicon-o-rectangle-stack',
             self::TermSituation => 'heroicon-o-document-chart-bar',
+            self::StudentFile => 'heroicon-o-folder-open',
         };
     }
 
@@ -45,6 +47,7 @@ enum GeneratedDocumentType: string implements HasLabel
         return match ($this) {
             self::Transcript => 'pdf.documents.transcript',
             self::TermSituation => 'pdf.documents.term-situation',
+            self::StudentFile => 'pdf.documents.student-file',
         };
     }
 
@@ -54,6 +57,7 @@ enum GeneratedDocumentType: string implements HasLabel
         return match ($this) {
             self::Transcript => 'foaia-matricola',
             self::TermSituation => 'situatia-scolara',
+            self::StudentFile => 'dosarul-elevului',
         };
     }
 }
