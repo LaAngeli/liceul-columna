@@ -571,6 +571,7 @@ return [
             'coverage_value' => ':subjects subjects · :classes classes',
         ],
         'students' => [
+            'generated_documents' => 'Student documents',
             'corigenti_filter' => 'Make-up exam',
             'corigenti_only' => 'Only students in make-up',
             'corigenti_none' => 'Excluding make-up',

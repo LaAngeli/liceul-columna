@@ -584,6 +584,7 @@ return [
             'coverage_value' => ':subjects discipline · :classes clase',
         ],
         'students' => [
+            'generated_documents' => 'Documentele elevului',
             'corigenti_filter' => 'Corigenți',
             'corigenti_only' => 'Doar corigenți',
             'corigenti_none' => 'Fără corigenți',

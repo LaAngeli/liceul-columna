@@ -11,12 +11,18 @@ use App\Enums\GeneratedDocumentType;
 use App\Enums\UserRole;
 use App\Filament\Resources\Documents\Pages\EditDocument;
 use App\Filament\Resources\Documents\RelationManagers\VersionsRelationManager;
+use App\Filament\Resources\Students\Pages\ViewStudent;
 use App\Http\Controllers\CabinetController;
 use App\Models\AcademicRecord;
+use App\Models\AcademicYear;
 use App\Models\Document;
 use App\Models\DocumentVersion;
+use App\Models\Enrollment;
+use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
+use App\Models\Teacher;
+use App\Models\TeachingAssignment;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -176,6 +182,42 @@ it('o disciplină fără traducere EN nu primește dublură (subject_en = null)'
 
     $row = collect($data['levels'][0]['subjects'])->firstWhere('subject_ro', 'Disciplină Fără Traducere');
     expect($row['subject_en'])->toBeNull();
+});
+
+// ─── Documentele generate pe fișa elevului din panou ─────────────────────────────────────
+
+it('acțiunile de documente ale elevului: administrația și dirigintele DA, profesorul de disciplină NU', function () {
+    $year = AcademicYear::factory()->create();
+    $class = SchoolClass::factory()->for($year)->create();
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($year)->create();
+
+    $subject = Subject::factory()->create();
+
+    // Profesor de disciplină în clasa elevului (vede fișa prin scoping, dar NU generează documente).
+    $teacherUser = versioningUser(UserRole::Profesor->value);
+    $teacher = Teacher::factory()->create(['user_id' => $teacherUser->id]);
+    TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id, 'school_class_id' => $class->id, 'subject_id' => $subject->id,
+    ]);
+
+    // Diriginte al clasei elevului.
+    $homeroomUser = versioningUser(UserRole::Diriginte->value);
+    $homeroomTeacher = Teacher::factory()->create(['user_id' => $homeroomUser->id]);
+    $class->update(['homeroom_teacher_id' => $homeroomTeacher->id]);
+
+    actingAs(versioningUser(UserRole::Director->value));
+    Livewire::test(ViewStudent::class, ['record' => $student->id])
+        ->assertActionVisible('doc-transcript')
+        ->assertActionVisible('doc-student_file');
+
+    actingAs($homeroomUser);
+    Livewire::test(ViewStudent::class, ['record' => $student->id])
+        ->assertActionVisible('doc-transcript');
+
+    actingAs($teacherUser);
+    Livewire::test(ViewStudent::class, ['record' => $student->id])
+        ->assertActionHidden('doc-transcript');
 });
 
 // ─── Dosarul elevului — PDF combinat (Faza 5) ────────────────────────────────────────────

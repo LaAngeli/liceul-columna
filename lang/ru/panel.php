@@ -569,6 +569,7 @@ return [
             'coverage_value' => 'предметов: :subjects · классов: :classes',
         ],
         'students' => [
+            'generated_documents' => 'Документы ученика',
             'corigenti_filter' => 'На переэкзаменовке',
             'corigenti_only' => 'Только на переэкзаменовке',
             'corigenti_none' => 'Без переэкзаменовки',
