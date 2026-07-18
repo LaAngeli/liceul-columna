@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 use OwenIt\Auditing\Auditable as AuditableTrait;
@@ -72,10 +73,12 @@ class Document extends Model implements Auditable
     }
 
     /**
-     * Invariantul de igienă „rând șters ⇒ fișier șters" (L133 — un fișier fără rând-mamă nu mai
-     * poate fi găsit la o cerere de ștergere a persoanei vizate): la ÎNLOCUIREA fișierului se
-     * șterge versiunea veche de pe disk, iar la ștergerea PERMANENTĂ a rândului dispare și
-     * fișierul. Soft delete-ul păstrează fișierul (rândul e restaurabil).
+     * Versionare + igienă (Faza 4 peste invariantul „rând șters ⇒ fișier șters", L133):
+     * la ÎNLOCUIREA fișierului, versiunea veche NU se mai pierde — fișierul rămâne pe disc, iar
+     * metadatele lui (cine l-a urcat, eticheta de versiune de atunci) se ARHIVEAZĂ ca
+     * {@see DocumentVersion}. La ștergerea PERMANENTĂ a rândului dispar și fișierul curent, și
+     * fișierele + rândurile tuturor versiunilor (un fișier fără rând-mamă nu mai poate fi găsit
+     * la o cerere de ștergere a persoanei vizate). Soft delete-ul păstrează tot (restaurabil).
      */
     protected static function booted(): void
     {
@@ -87,8 +90,25 @@ class Document extends Model implements Auditable
             $old = $document->getOriginal('file_path');
 
             if (is_string($old) && $old !== '' && $old !== $document->file_path) {
-                Storage::disk('local')->delete($old);
+                // În evenimentul `updated`, getOriginal() încă vede valorile de dinaintea salvării
+                // (syncOriginal rulează după events) — snapshot-ul e al versiunii înlocuite.
+                $document->versions()->create([
+                    'file_path' => $old,
+                    'file_name' => $document->getOriginal('file_name'),
+                    'file_size' => $document->getOriginal('file_size'),
+                    'mime_type' => $document->getOriginal('mime_type'),
+                    'version_label' => $document->getOriginal('version'),
+                    'uploaded_by_user_id' => $document->getOriginal('uploaded_by_user_id'),
+                ]);
             }
+        });
+
+        static::forceDeleting(static function (Document $document): void {
+            foreach ($document->versions()->get() as $version) {
+                Storage::disk('local')->delete($version->file_path);
+            }
+
+            $document->versions()->delete();
         });
 
         static::forceDeleted(static function (Document $document): void {
@@ -104,6 +124,18 @@ class Document extends Model implements Auditable
     public function uploadedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by_user_id');
+    }
+
+    /**
+     * Istoricul versiunilor arhivate — vezi {@see DocumentVersion}. Sortarea (cea mai recentă
+     * întâi) se aplică la consum, NU aici: un ORDER BY moștenit în DELETE-ul din `forceDeleting`
+     * ar pica pe SQLite.
+     *
+     * @return HasMany<DocumentVersion, $this>
+     */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(DocumentVersion::class);
     }
 
     /**

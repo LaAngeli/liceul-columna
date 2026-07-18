@@ -19,6 +19,15 @@ return [
     ],
     'resources' => [
         'documents' => ['label' => 'Документы', 'plural' => 'Документы', 'single' => 'документ'],
+        'document_versions' => [
+            'plural' => 'Предыдущие версии',
+            'archived_at' => 'Архивирована',
+            'file' => 'Файл',
+            'uploaded_by' => 'Загрузил(а)',
+            'download' => 'Скачать',
+            'empty_heading' => 'Нет предыдущих версий',
+            'empty_description' => 'При замене файла старая версия автоматически архивируется здесь.',
+        ],
         'students' => ['label' => 'Ученики', 'plural' => 'Ученики', 'single' => 'ученик'],
         'teachers' => ['label' => 'Преподаватели', 'plural' => 'Преподаватели', 'single' => 'преподаватель'],
         'subjects' => ['label' => 'Предметы', 'plural' => 'Предметы', 'single' => 'предмет'],
@@ -263,6 +272,7 @@ return [
     ],
 
     'fields' => [
+        'version' => 'Версия',
         'student' => 'Ученик',
         'username' => 'Имя пользователя',
         'students' => 'Ученики',

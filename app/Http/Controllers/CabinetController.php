@@ -858,10 +858,24 @@ class CabinetController extends Controller
         if ($type === GeneratedDocumentType::Transcript) {
             $student->loadMissing('academicRecords.subject');
 
+            // Foaia matricolă e documentul de circulație internațională → BILINGV RO/EN (Faza 4):
+            // fiecare disciplină primește și numele englezesc (dicționarul `subjects`, fallback RO);
+            // șablonul îl afișează sub numele RO doar când traducerea există și diferă.
+            $levels = $this->transcript($student);
+
+            foreach ($levels as &$level) {
+                foreach ($level['subjects'] as &$subject) {
+                    $en = ContentTranslator::subject((string) $subject['subject_ro'], 'en');
+                    $subject['subject_en'] = $en !== $subject['subject_ro'] ? $en : null;
+                }
+                unset($subject);
+            }
+            unset($level);
+
             return [
                 'studentName' => $student->full_name,
                 'className' => $className,
-                'levels' => $this->transcript($student),
+                'levels' => $levels,
                 'date' => now()->format('d.m.Y'),
             ];
         }
@@ -1261,6 +1275,8 @@ class CabinetController extends Controller
                 }
                 $subjects[] = [
                     'subject' => ContentTranslator::subject((string) $items->first()->subject->name),
+                    // Numele RO canonic (netradus) — cheia dicționarelor; PDF-ul bilingv derivă EN din el.
+                    'subject_ro' => (string) $items->first()->subject->name,
                     'sem1' => $byPeriod[AcademicRecordPeriod::SemesterI->value] ?? null,
                     'sem2' => $byPeriod[AcademicRecordPeriod::SemesterII->value] ?? null,
                     'annual' => $byPeriod[AcademicRecordPeriod::Annual->value] ?? null,

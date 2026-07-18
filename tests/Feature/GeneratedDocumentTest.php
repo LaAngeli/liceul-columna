@@ -8,6 +8,7 @@ use App\Models\Absence;
 use App\Models\AcademicYear;
 use App\Models\Document;
 use App\Models\DocumentRequest;
+use App\Models\DocumentVersion;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\SchoolClass;
@@ -187,28 +188,34 @@ it('cererile din pagina Documente poartă răspunsul secretariatului (coerent cu
         );
 });
 
-// ─── Igiena fișierelor bibliotecii (audit Documente, #35) ─────────────────────────────────
+// ─── Igiena fișierelor bibliotecii (audit Documente #35, versionare Faza 4) ───────────────
 
-it('înlocuirea fișierului șterge versiunea veche; forceDelete șterge fișierul; soft delete nu', function () {
+it('înlocuirea fișierului ARHIVEAZĂ versiunea veche; forceDelete curăță tot; soft delete nu', function () {
     Storage::fake('local');
     $disk = Storage::disk('local');
 
     $disk->put('documents/v1.pdf', 'v1');
     $document = Document::factory()->create(['file_path' => 'documents/v1.pdf']);
 
-    // Înlocuire: fișierul vechi nu rămâne orfan pe disk.
+    // Înlocuire (Faza 4): fișierul vechi RĂMÂNE pe disk, arhivat ca versiune — nu se mai pierde.
     $disk->put('documents/v2.pdf', 'v2');
     $document->update(['file_path' => 'documents/v2.pdf']);
-    $disk->assertMissing('documents/v1.pdf');
+    $disk->assertExists('documents/v1.pdf');
     $disk->assertExists('documents/v2.pdf');
+    expect($document->versions()->count())->toBe(1)
+        ->and($document->versions()->first()->file_path)->toBe('documents/v1.pdf');
 
-    // Soft delete: restaurabil → fișierul rămâne.
+    // Soft delete: restaurabil → fișierele și istoricul rămân.
     $document->delete();
     $disk->assertExists('documents/v2.pdf');
+    expect($document->versions()->count())->toBe(1);
 
-    // Force delete: rând dispărut definitiv → fișierul dispare.
+    // Force delete: rând dispărut definitiv → dispar fișierul curent, fișierele versiunilor
+    // și rândurile de istoric (un fișier fără rând-mamă n-ar mai putea fi găsit la ștergere L133).
     $document->forceDelete();
     $disk->assertMissing('documents/v2.pdf');
+    $disk->assertMissing('documents/v1.pdf');
+    expect(DocumentVersion::query()->count())->toBe(0);
 });
 
 it('personalul e redirecționat de la pagina Documente a cabinetului (doar familie)', function () {

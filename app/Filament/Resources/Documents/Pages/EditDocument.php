@@ -33,7 +33,7 @@ class EditDocument extends EditRecord
     {
         // La ÎNLOCUIREA fișierului, evidența „cine a urcat" trece pe cel care l-a înlocuit —
         // altfel coloana afișată rămânea pe primul uploader (răspunderea aparentă greșită);
-        // fișierul VECHI se șterge de pe disk în Document::booted (updated).
+        // versiunea VECHE (fișier + metadate) se arhivează în Document::booted (updated) — Faza 4.
         $record = $this->getRecord();
 
         if (($data['file_path'] ?? null) !== $record->getAttribute('file_path')) {

@@ -31,6 +31,15 @@ return [
     ],
     'resources' => [
         'documents' => ['label' => 'Documente', 'plural' => 'Documente', 'single' => 'document'],
+        'document_versions' => [
+            'plural' => 'Versiuni anterioare',
+            'archived_at' => 'Arhivată la',
+            'file' => 'Fișier',
+            'uploaded_by' => 'Încărcată de',
+            'download' => 'Descarcă',
+            'empty_heading' => 'Nicio versiune anterioară',
+            'empty_description' => 'La înlocuirea fișierului, versiunea veche se arhivează automat aici.',
+        ],
         'students' => ['label' => 'Elevi', 'plural' => 'Elevi', 'single' => 'elev'],
         'teachers' => ['label' => 'Profesori', 'plural' => 'Profesori', 'single' => 'profesor'],
         'subjects' => ['label' => 'Discipline', 'plural' => 'Discipline', 'single' => 'disciplină'],
@@ -276,6 +285,7 @@ return [
 
     // Câmpuri/coloane COMUNE — reutilizate în 5+ resurse. Cele specifice rămân în panel.{tables,forms}.*.
     'fields' => [
+        'version' => 'Versiune',
         'student' => 'Elev',
         'username' => 'Utilizator',
         'students' => 'Elevi',

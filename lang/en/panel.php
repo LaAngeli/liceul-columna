@@ -21,6 +21,15 @@ return [
     ],
     'resources' => [
         'documents' => ['label' => 'Documents', 'plural' => 'Documents', 'single' => 'document'],
+        'document_versions' => [
+            'plural' => 'Previous versions',
+            'archived_at' => 'Archived at',
+            'file' => 'File',
+            'uploaded_by' => 'Uploaded by',
+            'download' => 'Download',
+            'empty_heading' => 'No previous versions',
+            'empty_description' => 'When the file is replaced, the old version is archived here automatically.',
+        ],
         'students' => ['label' => 'Students', 'plural' => 'Students', 'single' => 'student'],
         'teachers' => ['label' => 'Teachers', 'plural' => 'Teachers', 'single' => 'teacher'],
         'subjects' => ['label' => 'Subjects', 'plural' => 'Subjects', 'single' => 'subject'],
@@ -265,6 +274,7 @@ return [
     ],
 
     'fields' => [
+        'version' => 'Version',
         'student' => 'Student',
         'username' => 'Username',
         'students' => 'Students',

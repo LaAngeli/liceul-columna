@@ -149,8 +149,9 @@ class PurgeDemoData extends Command
     }
 
     /**
-     * Documentele demo. `forceDelete()` pe MODEL declanșează hook-ul `forceDeleted` din
-     * {@see Document}, care șterge și fișierul de pe disc — de aceea NU se șterge prin query builder.
+     * Documentele demo. `forceDelete()` pe MODEL declanșează hook-urile din {@see Document}
+     * (`forceDeleting`/`forceDeleted`), care șterg de pe disc și fișierul curent, și fișierele
+     * versiunilor arhivate — de aceea NU se șterge prin query builder.
      *
      * @param  Collection<int, int>  $demoIds
      */
