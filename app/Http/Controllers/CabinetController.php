@@ -1031,11 +1031,20 @@ class CabinetController extends Controller
             return null;
         }
 
+        // Tradus ca pe site-ul public (ContentTranslator, fallback RO): eticheta și zilele
+        // săptămânii au chei în dicționare; celulele compuse (disciplină+profesor+sală) rămân
+        // RO până primesc cheie — consecvent cu paginile publice de orar.
         return [
-            'label' => $schedule->label,
-            'headers' => array_values($schedule->headers),
+            'label' => ContentTranslator::string($schedule->label),
+            'headers' => array_map(
+                static fn (string $header): string => ContentTranslator::string($header),
+                array_values($schedule->headers),
+            ),
             'rows' => array_values(array_map(
-                static fn (array $row): array => array_values($row),
+                static fn (array $row): array => array_map(
+                    static fn (string $cell): string => ContentTranslator::string($cell),
+                    array_values($row),
+                ),
                 $schedule->rows,
             )),
         ];
