@@ -394,7 +394,17 @@ final class PublicPageContent
                 'type' => 'table',
                 'label' => $table['label'],
                 'headers' => $table['headers'],
-                'rows' => $table['rows'],
+                // Celulele compuse („Matematică Damian Iu.", „Lecția 1 08.15…") se traduc pe
+                // prefix AICI (per request, locale-ul e deja setat) — pipeline-ul generic
+                // ContentTranslator::sections() traduce doar chei exacte, iar textul deja
+                // tradus nu mai are cheie → rămâne neatins la servire.
+                'rows' => array_map(
+                    static fn (array $row): array => array_map(
+                        static fn (string $cell): string => ContentTranslator::scheduleCell($cell),
+                        $row,
+                    ),
+                    $table['rows'],
+                ),
             ];
         }
 

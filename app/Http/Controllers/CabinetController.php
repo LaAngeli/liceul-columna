@@ -1032,8 +1032,8 @@ class CabinetController extends Controller
         }
 
         // Tradus ca pe site-ul public (ContentTranslator, fallback RO): eticheta și zilele
-        // săptămânii au chei în dicționare; celulele compuse (disciplină+profesor+sală) rămân
-        // RO până primesc cheie — consecvent cu paginile publice de orar.
+        // săptămânii prin chei exacte; celulele compuse prin {@see ContentTranslator::scheduleCell}
+        // (prefix-disciplină + eticheta „Lecția") — profesorul/sala rămân textul original.
         return [
             'label' => ContentTranslator::string($schedule->label),
             'headers' => array_map(
@@ -1042,7 +1042,7 @@ class CabinetController extends Controller
             ),
             'rows' => array_values(array_map(
                 static fn (array $row): array => array_map(
-                    static fn (string $cell): string => ContentTranslator::string($cell),
+                    static fn (string $cell): string => ContentTranslator::scheduleCell($cell),
                     array_values($row),
                 ),
                 $schedule->rows,

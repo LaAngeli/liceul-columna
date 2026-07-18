@@ -130,6 +130,7 @@ return [
     'Limba străină' => 'Иностранный язык',
     'Limba și literatura română' => 'Румынский язык и литература',
     'Lista activităților extrașcolare practicate în Liceu (la solicitare);' => 'Перечень внеклассных мероприятий, проводимых в Лицее (по запросу);',
+    'Lecția' => 'Урок',
     'Literatura Română' => 'Румынская литература',
     'Literatura universală' => 'Всемирная литература',
     'Luni' => 'Понедельник',

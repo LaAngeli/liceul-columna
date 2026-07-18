@@ -58,6 +58,58 @@ final class ContentTranslator
     }
 
     /**
+     * Traduce o CELULĂ de orar publicat (text liber compus: „Matematică Damian Iu. (s. 20)",
+     * „Lecția 1 08.15 – 09.00") — folosită de cabinet și de paginile publice de orar:
+     *   1. cheia exactă din `content` (celulele simple, ex. zilele săptămânii);
+     *   2. cel mai LUNG prefix care e un nume de disciplină din `subjects` → tradus, restul
+     *      (profesor, sală, grupe) rămâne neatins;
+     *   3. prefixul „Lecția" (eticheta primei coloane) → tradus prin `content`.
+     * Fără potrivire → textul RO (fallback-ul obișnuit, parțial și onest).
+     */
+    public static function scheduleCell(string $cell, ?string $locale = null): string
+    {
+        $locale ??= app()->getLocale();
+
+        if ($locale === 'ro' || trim($cell) === '') {
+            return $cell;
+        }
+
+        // Orarele migrate din site-ul vechi poartă diacritice LEGACY cu sedilă (ş/ţ, U+015F/U+0163);
+        // dicționarele folosesc virgula standard (ș/ț, U+0219/U+021B). Potrivim pe forma normalizată —
+        // ambele forme au aceeași lungime în octeți, deci offseturile substr pe original rămân valabile.
+        $normalized = strtr($cell, ['ş' => 'ș', 'ţ' => 'ț', 'Ş' => 'Ș', 'Ţ' => 'Ț']);
+
+        $direct = self::map($locale)[$normalized] ?? null;
+
+        if ($direct !== null) {
+            return $direct;
+        }
+
+        $subjects = self::map($locale, 'subjects');
+        $best = null;
+
+        foreach ($subjects as $ro => $translated) {
+            if (str_starts_with($normalized, $ro) && ($best === null || strlen($ro) > strlen($best))) {
+                $best = $ro;
+            }
+        }
+
+        if ($best !== null) {
+            return $subjects[$best].substr($cell, strlen($best));
+        }
+
+        if (str_starts_with($normalized, 'Lecția')) {
+            $lesson = self::map($locale)['Lecția'] ?? null;
+
+            if ($lesson !== null) {
+                return $lesson.substr($cell, strlen('Lecția'));
+            }
+        }
+
+        return $cell;
+    }
+
+    /**
      * Traduce recursiv un arbore de secțiuni (vezi PublicPageContent).
      *
      * @param  list<array<string, mixed>>  $sections
