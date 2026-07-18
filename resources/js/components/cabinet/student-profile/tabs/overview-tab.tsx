@@ -60,6 +60,7 @@ export function OverviewTab({
     deferralRisk,
     dynamics,
     onShowDetails,
+    onOpenSection,
 }: {
     studentId: number;
     studentAverage: number | null;
@@ -72,6 +73,8 @@ export function OverviewTab({
     dynamics?: Dynamics;
     /** Comută la tabul „Situație" (unde se află notele/mediile), ca părintele să vadă ÎNAINTE de confirmare. */
     onShowDetails: () => void;
+    /** Deschide tabul „Situație" derulat la secțiunea indicată — tile-urile snapshotului sunt apăsabile. */
+    onOpenSection?: (section: 'note' | 'absente' | 'motivari') => void;
 }) {
     const t = useTranslations();
     const tr = dynamics ? trendSymbol(dynamics.current.trend) : null;
@@ -202,6 +205,9 @@ export function OverviewTab({
             {/* === SNAPSHOT === */}
             <section aria-labelledby="overview-snapshot">
                 <SectionHeading title={t('cabinet.dynamics_title')} description={t('cabinet.tab_overview_intro')} />
+                {/* Tile-urile duc la secțiunea indicată din „Situație": media → note; toate cele
+                    trei numărători de absențe → tabelul de absențe (acolo trăiește defalcarea
+                    motivate/nemotivate; cererile de motivare au tile-ul lor în cockpit). */}
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard
                         icon={BellRing}
@@ -209,10 +215,23 @@ export function OverviewTab({
                         value={dynamics?.current.average ?? studentAverage ?? '—'}
                         trend={dynamics?.current.trend ?? null}
                         trendLabel={tr ? t(`cabinet.dynamics_trend_${dynamics?.current.trend}`) : undefined}
+                        onPress={onOpenSection ? () => onOpenSection('note') : undefined}
                     />
-                    <StatCard label={t('cabinet.absences')} value={absencesTotal} />
-                    <StatCard label={t('cabinet.motivated')} value={absencesMotivated} />
-                    <StatCard label={t('cabinet.unmotivated')} value={absencesUnmotivated} />
+                    <StatCard
+                        label={t('cabinet.absences')}
+                        value={absencesTotal}
+                        onPress={onOpenSection ? () => onOpenSection('absente') : undefined}
+                    />
+                    <StatCard
+                        label={t('cabinet.motivated')}
+                        value={absencesMotivated}
+                        onPress={onOpenSection ? () => onOpenSection('absente') : undefined}
+                    />
+                    <StatCard
+                        label={t('cabinet.unmotivated')}
+                        value={absencesUnmotivated}
+                        onPress={onOpenSection ? () => onOpenSection('absente') : undefined}
+                    />
                 </div>
 
                 {/* Comparație sem. curent vs anul trecut (spec §2.3) — apare doar dacă există date

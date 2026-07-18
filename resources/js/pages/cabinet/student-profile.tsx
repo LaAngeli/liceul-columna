@@ -236,6 +236,13 @@ export default function StudentProfile(props: Props) {
         changeTab('requests');
     }
 
+    /** Salt în pagină din tile-urile Prezentării: tabul Situație + scroll la secțiunea-țintă
+        (refolosește intenția `pendingSection` — efectul de derulare rulează la schimbarea tabului). */
+    function openSituationSection(section: (typeof VALID_SECTIONS)[number]) {
+        pendingSection.current = section;
+        changeTab('situation');
+    }
+
     const tabs: TabItem[] = [
         { value: 'overview', label: t('cabinet.tab_overview'), icon: LayoutDashboard },
         { value: 'situation', label: t('cabinet.tab_situation'), icon: ClipboardList },
@@ -278,7 +285,9 @@ export default function StudentProfile(props: Props) {
                         statusAck={props.statusAck}
                         deferralRisk={props.deferralRisk}
                         dynamics={props.dynamics}
-                        onShowDetails={() => changeTab('situation')}
+                        // „Revizuiește notele" din confirmarea de statut aterizează fix pe note.
+                        onShowDetails={() => openSituationSection('note')}
+                        onOpenSection={openSituationSection}
                     />
                 </TabPanel>
 

@@ -7,7 +7,9 @@ export type StatTrend = 'up' | 'down' | 'stable' | null;
  * Card de statistică pentru snapshot (medie, absențe, note totale) + opțional o săgeată de tendință.
  * Folosit în cockpit (carduri-copil) și în profilul student (tab Prezentare → snapshot).
  *
- * Caller-ul pasează valorile finale + label-ul deja tradus.
+ * Caller-ul pasează valorile finale + label-ul deja tradus. Cu `onPress`, cardul devine BUTON
+ * (cerința beneficiarului: tile-urile duc la secțiunea indicată) — acțiune în pagină (comutare
+ * de tab + scroll), nu navigare; primește afordanțele de interacțiune (hover, focus ring).
  */
 export function StatCard({
     icon: Icon,
@@ -17,6 +19,7 @@ export function StatCard({
     trend,
     trendLabel,
     className,
+    onPress,
 }: {
     icon?: LucideIcon;
     label: string;
@@ -25,9 +28,10 @@ export function StatCard({
     trend?: StatTrend;
     trendLabel?: string;
     className?: string;
+    onPress?: () => void;
 }) {
-    return (
-        <div className={cn('flex flex-col gap-1 rounded-lg bg-muted/50 p-3', className)}>
+    const content = (
+        <>
             <div className="flex items-baseline gap-1.5">
                 {Icon && <Icon className="size-4 self-center text-muted-foreground" aria-hidden="true" />}
                 <span className="text-lg font-semibold leading-none">{value}</span>
@@ -48,6 +52,27 @@ export function StatCard({
             </div>
             <p className="text-xs text-muted-foreground">{label}</p>
             {sublabel && <p className="text-xs text-muted-foreground/80">{sublabel}</p>}
-        </div>
+        </>
     );
+
+    if (onPress) {
+        return (
+            <button
+                type="button"
+                onClick={onPress}
+                className={cn(
+                    'flex flex-col gap-1 rounded-lg bg-muted/50 p-3 text-left',
+                    'transition-[background-color,box-shadow] duration-150',
+                    'hover:bg-muted hover:ring-1 hover:ring-primary/40',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'motion-reduce:transition-none',
+                    className,
+                )}
+            >
+                {content}
+            </button>
+        );
+    }
+
+    return <div className={cn('flex flex-col gap-1 rounded-lg bg-muted/50 p-3', className)}>{content}</div>;
 }
