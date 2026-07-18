@@ -130,6 +130,8 @@ interface Props {
         grade?: string | null;
         canWithdraw?: boolean;
     }[];
+    // Totalul real al cererilor — lista de mai sus e plafonată la 15 (indicator de trunchiere).
+    documentRequestsTotal?: number;
     // Notele contestabile (doar familia) — alimentează selectul obligatoriu al contestației.
     contestableGrades?: { id: number; label: string }[];
 }
@@ -252,6 +254,7 @@ export default function StudentProfile(props: Props) {
                     <RequestsTab
                         studentId={props.student.id}
                         documentRequests={props.documentRequests}
+                        documentRequestsTotal={props.documentRequestsTotal}
                         corigentaExams={props.corigentaExams}
                         requestTypes={props.requestTypes}
                         canRequestMotivation={props.canRequestMotivation}

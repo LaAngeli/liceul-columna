@@ -59,6 +59,27 @@ it('familia depune o cerere tipică și se generează un PDF privat', function (
     Storage::disk('local')->assertExists($request->pdf_path);
 });
 
+it('profilul trimite totalul REAL al cererilor lângă lista plafonată la 15 (indicator de trunchiere)', function () {
+    $student = Student::factory()->create();
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+
+    DocumentRequest::factory()->count(17)->create([
+        'student_id' => $student->id,
+        'requested_by_user_id' => $parent->id,
+    ]);
+
+    $this->actingAs($parent)
+        ->get(
+            "/cabinet/elev/{$student->id}",
+            inertiaPartialHeaders('cabinet/student-profile', 'documentRequests,documentRequestsTotal'),
+        )
+        ->assertOk()
+        ->assertJsonCount(15, 'props.documentRequests')
+        ->assertJsonPath('props.documentRequestsTotal', 17);
+});
+
 it('personalul NU poate depune cereri pentru un elev (403)', function () {
     $student = Student::factory()->create();
     $staff = User::factory()->create();

@@ -42,6 +42,7 @@ interface CorigentaExamItem {
 export function RequestsTab({
     studentId,
     documentRequests,
+    documentRequestsTotal,
     corigentaExams,
     requestTypes,
     canRequestMotivation,
@@ -50,6 +51,8 @@ export function RequestsTab({
 }: {
     studentId: number;
     documentRequests?: DocumentRequestItem[];
+    /** Totalul real — lista e plafonată la cele mai recente 15 (indicator de trunchiere). */
+    documentRequestsTotal?: number;
     corigentaExams?: CorigentaExamItem[];
     requestTypes: Record<string, string>;
     canRequestMotivation: boolean;
@@ -354,6 +357,17 @@ export function RequestsTab({
                                     ))}
                                 </ul>
                             )}
+                            {/* Lista e plafonată la cele mai recente 15 — anunțăm dacă sunt mai
+                                multe (paritate cu pagina Documente; deferred #37 închis). */}
+                            {documentRequests !== undefined &&
+                                documentRequestsTotal !== undefined &&
+                                documentRequestsTotal > documentRequests.length && (
+                                    <p className="border-t px-4 py-2 text-xs text-muted-foreground">
+                                        {t('cabinet.documents_requests_truncated')
+                                            .replace('{shown}', String(documentRequests.length))
+                                            .replace('{total}', String(documentRequestsTotal))}
+                                    </p>
+                                )}
                         </div>
                     </div>
                 </section>

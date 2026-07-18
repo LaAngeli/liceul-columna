@@ -7,32 +7,38 @@
 @section('title', 'Dosarul elevului')
 @section('subtitle', $termLabel.' · Situația curentă și evoluția pe ani')
 
+@section('doc-styles')
+    table.bars { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    table.bars td { border: none; padding: 3px 6px 3px 0; font-size: 9.2pt; }
+    td.bar-label { width: 30%; color: #1d1d1c; }
+    td.bar-track { width: 56%; }
+    td.bar-value { width: 14%; text-align: right; color: #0f4d77; font-weight: bold; }
+@endsection
+
 @section('body')
     @include('pdf.documents._term-tables')
 
     <div class="section-h">Evoluția mediei generale pe ani</div>
     @if (count($dynamics['general']) > 0)
-        <table class="data">
-            <thead>
-                <tr>
-                    <th style="width:70%">Treapta de studiu</th>
-                    <th class="num" style="width:30%">Media generală anuală</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($dynamics['general'] as $point)
-                    <tr class="{{ $loop->even ? 'alt' : '' }}">
-                        <td>Clasa a {{ $point['level'] }}-a</td>
-                        <td class="num"><b>{{ number_format($point['average'], 2, ',', '') }}</b></td>
-                    </tr>
-                @endforeach
-                @if ($dynamics['current']['average'] !== null)
-                    <tr>
-                        <td>{{ $termLabel }} (în curs)</td>
-                        <td class="num"><b>{{ number_format($dynamics['current']['average'], 2, ',', '') }}</b></td>
-                    </tr>
-                @endif
-            </tbody>
+        {{-- Grafic cu bare (scala 1–10 → procent din lățime): anii istorici navy, semestrul în
+             curs verde, media sub 5 roșie — aceeași tehnică mpdf ca în rapoartele staff. --}}
+        <table class="bars">
+            @foreach ($dynamics['general'] as $point)
+                @include('pdf.reports._bar', [
+                    'label' => 'Clasa a '.$point['level'].'-a',
+                    'valueLabel' => number_format($point['average'], 2, ',', ''),
+                    'percent' => (int) round($point['average'] * 10),
+                    'color' => $point['average'] < 5 ? 'red' : null,
+                ])
+            @endforeach
+            @if ($dynamics['current']['average'] !== null)
+                @include('pdf.reports._bar', [
+                    'label' => $termLabel.' (în curs)',
+                    'valueLabel' => number_format($dynamics['current']['average'], 2, ',', ''),
+                    'percent' => (int) round($dynamics['current']['average'] * 10),
+                    'color' => $dynamics['current']['average'] < 5 ? 'red' : 'green',
+                ])
+            @endif
         </table>
 
         @php

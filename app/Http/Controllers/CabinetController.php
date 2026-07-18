@@ -433,6 +433,12 @@ class CabinetController extends Controller
                 && ($this->isFamilyOf($viewer, $student) || $viewer->isAdministrator()))
                 ? $this->documentRequests($student, $this->isFamilyOf($viewer, $student))
                 : []),
+            // Totalul REAL al cererilor — lista de mai sus e plafonată la 15, deci indicatorul de
+            // trunchiere nu se poate calcula din ea (paritate cu pagina Documente, deferred #37).
+            'documentRequestsTotal' => Inertia::defer(fn (): int => ($viewer instanceof User
+                && ($this->isFamilyOf($viewer, $student) || $viewer->isAdministrator()))
+                ? DocumentRequest::query()->where('student_id', $student->id)->count()
+                : 0),
             // Notele contestabile pentru formularul de contestație (doar familia depune) — cererea
             // se depune CU nota vizată, nu cu o descriere liberă din care secretariatul ghicește.
             'contestableGrades' => Inertia::defer(fn (): array => $canRequestMotivation
