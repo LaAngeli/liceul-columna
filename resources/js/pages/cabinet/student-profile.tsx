@@ -83,6 +83,10 @@ interface Props {
     homework?: {
         id: number;
         date: string;
+        due: string | null;
+        effectiveDate: string;
+        dayLabel: string;
+        status: 'today' | 'upcoming' | 'past';
         subject: string;
         topic: string | null;
         required: string | null;
@@ -95,8 +99,11 @@ interface Props {
         maxLesson: number;
         grid: Record<string, { subject: string; teacher: string | null; room: string | null }>;
     } | null;
+    // Orarul PUBLICAT al clasei — tabel generic, forma serverului (label + headers + rânduri).
     lessonsSchedule?: {
-        rows: { lesson: number; start: string | null; end: string | null }[];
+        label: string;
+        headers: string[];
+        rows: string[][];
     } | null;
     deferralRisk?: { subject: string; absences: number; scheduled: number }[];
     motivations?: {

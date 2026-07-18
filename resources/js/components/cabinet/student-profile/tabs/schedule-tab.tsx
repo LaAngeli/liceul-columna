@@ -17,14 +17,16 @@ interface TimetableData {
     grid: Record<string, TimetableCell>;
 }
 
-interface LessonsScheduleRow {
-    lesson: number;
-    start: string | null;
-    end: string | null;
-}
-
+/**
+ * Orarul PUBLICAT al clasei (Schedule tip „orarul-lecțiilor") — tabel generic, exact forma
+ * serverului: headers = ['', Luni…Vineri], rows[i][0] = eticheta lecției („Lecția 1 08.00 – 08.30"),
+ * rows[i][zi] = disciplina. (Vechiul tip {lesson,start,end} nu corespundea serverului — tabelul
+ * se randa ca o fantomă de „—".)
+ */
 interface LessonsSchedule {
-    rows: LessonsScheduleRow[];
+    label: string;
+    headers: string[];
+    rows: string[][];
 }
 
 interface HomeworkItem {
@@ -62,11 +64,13 @@ export function ScheduleTab({
     return (
         <div className="flex flex-col gap-6">
             {/* === ZIUA MEA — lecțiile + temele „pentru ziua" aleasă, într-o singură vedere === */}
-            {(timetable || (homework && homework.length > 0)) && (
+            {(timetable || (lessonsSchedule && lessonsSchedule.rows.length > 0) || (homework && homework.length > 0)) && (
                 <MyDay timetable={timetable ?? null} lessonsSchedule={lessonsSchedule ?? null} homework={homework ?? []} />
             )}
 
-            {/* === ORAR STRUCTURAT === */}
+            {/* === ORAR STRUCTURAT === Secțiunea dispare COMPLET când lipsește dar orarul
+                 PUBLICAT al clasei există mai jos — „indisponibil" ar contrazice tabelul real. */}
+            {!(timetable === null && lessonsSchedule && lessonsSchedule.rows.length > 0) && (
             <section>
                 <SectionHeading title={t('cabinet.timetable_title')} />
                 {timetable === undefined ? (
@@ -119,26 +123,40 @@ export function ScheduleTab({
                     </div>
                 )}
             </section>
+            )}
 
-            {/* === ORARUL LECȚIILOR (interval orar) === */}
+            {/* === ORARUL PUBLICAT AL CLASEI === tabel generic, exact cum l-a publicat școala
+                 (prima coloană = lecția + intervalul orar, apoi Luni–Vineri cu disciplinele). */}
             {lessonsSchedule && lessonsSchedule.rows.length > 0 && (
                 <section>
-                    <SectionHeading title={t('cabinet.timetable_lesson')} description={t('cabinet.timetable_room')} />
-                    <div className="overflow-hidden rounded-xl border">
+                    <SectionHeading title={lessonsSchedule.label || t('cabinet.timetable_title')} />
+                    <div className="overflow-x-auto rounded-xl border">
                         <table className="w-full text-sm">
-                            <thead className="bg-muted/50 text-left text-muted-foreground">
-                                <tr>
-                                    <th scope="col" className="px-3 py-2 font-medium">{t('cabinet.timetable_lesson')}</th>
-                                    <th scope="col" className="px-3 py-2 font-medium">{t('cabinet.motivation_from')}</th>
-                                    <th scope="col" className="px-3 py-2 font-medium">{t('cabinet.motivation_to')}</th>
-                                </tr>
-                            </thead>
+                            {lessonsSchedule.headers.length > 0 && (
+                                <thead className="bg-muted/50 text-left text-muted-foreground">
+                                    <tr>
+                                        {lessonsSchedule.headers.map((h, i) => (
+                                            <th key={i} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
+                                                {h}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                            )}
                             <tbody>
-                                {lessonsSchedule.rows.map((r) => (
-                                    <tr key={r.lesson} className="border-t">
-                                        <th scope="row" className="px-3 py-2 text-left font-semibold">{r.lesson}</th>
-                                        <td className="px-3 py-2">{r.start ?? '—'}</td>
-                                        <td className="px-3 py-2">{r.end ?? '—'}</td>
+                                {lessonsSchedule.rows.map((r, i) => (
+                                    <tr key={i} className="border-t align-top">
+                                        {r.map((cell, j) =>
+                                            j === 0 ? (
+                                                <th key={j} scope="row" className="px-3 py-2 text-left text-xs font-semibold whitespace-nowrap text-muted-foreground">
+                                                    {cell}
+                                                </th>
+                                            ) : (
+                                                <td key={j} className="px-3 py-2">
+                                                    {cell || <span className="text-muted-foreground/40">—</span>}
+                                                </td>
+                                            ),
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>
@@ -200,15 +218,34 @@ function MyDay({
     const lang = document.documentElement.lang || 'ro';
     const dayLabel = new Intl.DateTimeFormat(lang, { weekday: 'long', day: 'numeric', month: 'long' }).format(selected);
 
-    const lessons = timetable
-        ? Array.from({ length: timetable.maxLesson }, (_, i) => i + 1)
-              .map((num) => ({
-                  num,
-                  cell: timetable.grid[`${weekday}-${num}`],
-                  time: lessonsSchedule?.rows.find((r) => r.lesson === num),
-              }))
-              .filter((l) => l.cell)
-        : [];
+    // Lecțiile zilei — două surse, în ordinea preciziei: (1) orarul STRUCTURAT (per lecție, cu
+    // profesor/sală); (2) orarul PUBLICAT al clasei (tabel Luni–Vineri) — cazul claselor reale,
+    // care încă nu au orar structurat: coloana zilei alese + eticheta lecției din prima coloană.
+    type DayLesson = { key: string; time: string; subject: string; room: string | null };
+
+    let lessons: DayLesson[] = [];
+
+    if (timetable) {
+        lessons = Array.from({ length: timetable.maxLesson }, (_, i) => i + 1)
+            .map((num) => ({ num, cell: timetable.grid[`${weekday}-${num}`] }))
+            .filter((l) => l.cell)
+            .map((l) => ({ key: `s-${l.num}`, time: `${l.num}.`, subject: l.cell!.subject, room: l.cell!.room }));
+    } else if (lessonsSchedule && weekday >= 1 && weekday < lessonsSchedule.headers.length) {
+        lessons = lessonsSchedule.rows
+            .map((row, i) => {
+                const subject = (row[weekday] ?? '').trim();
+                // „Lecția 1 08.00 – 08.30" → doar intervalul orar; fallback pe eticheta întreagă.
+                const interval = /(\d{1,2}[.:]\d{2})\s*[–—-]\s*(\d{1,2}[.:]\d{2})/.exec(row[0] ?? '');
+
+                return {
+                    key: `p-${i}`,
+                    time: interval ? `${interval[1]}–${interval[2]}` : row[0] || `${i + 1}.`,
+                    subject,
+                    room: null,
+                };
+            })
+            .filter((l) => l.subject !== '');
+    }
 
     const dueToday = homework.filter((h) => h.effectiveDate === selectedIso);
 
@@ -266,14 +303,14 @@ function MyDay({
                     ) : (
                         <ul className="divide-y rounded-lg border">
                             {lessons.map((l) => (
-                                <li key={l.num} className="flex items-center gap-3 px-3 py-2 text-sm">
-                                    <span className="w-16 shrink-0 text-xs text-muted-foreground">
-                                        {l.time?.start ? `${l.time.start}–${l.time.end ?? ''}` : `${l.num}.`}
+                                <li key={l.key} className="flex items-center gap-3 px-3 py-2 text-sm">
+                                    <span className="w-20 shrink-0 text-xs text-muted-foreground">{l.time}</span>
+                                    <span className="min-w-0 flex-1 truncate font-medium" title={l.subject}>
+                                        {l.subject}
                                     </span>
-                                    <span className="min-w-0 flex-1 truncate font-medium">{l.cell!.subject}</span>
-                                    {l.cell!.room && (
+                                    {l.room && (
                                         <span className="shrink-0 text-xs text-muted-foreground">
-                                            {t('cabinet.timetable_room')} {l.cell!.room}
+                                            {t('cabinet.timetable_room')} {l.room}
                                         </span>
                                     )}
                                 </li>
