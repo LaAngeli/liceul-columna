@@ -15,6 +15,8 @@ return [
     'Educație ecologică' => 'Экологическое воспитание',
     'Educație fizică' => 'Физкультура',
     'Educație moral-spirituală' => 'Духовно-нравственное воспитание',
+    'Educația moral-spirituală' => 'Духовно-нравственное воспитание',
+    'Educația muzicală' => 'Музыка',
     'Educație muzicală' => 'Музыка',
     'Educație pentru sănătate' => 'Воспитание для здоровья',
     'Educație pentru societate' => 'Обществоведение',
