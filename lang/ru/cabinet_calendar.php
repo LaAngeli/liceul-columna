@@ -39,4 +39,5 @@ return [
     'auto_corigenta_session' => 'Сессия ликвидации задолженности',
     'auto_term_start' => 'Начало семестра',
     'auto_term_end' => 'Конец семестра',
+    'auto_admission_visit' => 'Визит (приём) · :parent',
 ];

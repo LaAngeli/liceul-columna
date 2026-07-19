@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Enums\AdmissionStatus;
 use App\Models\AdmissionRequest;
 use App\Models\User;
+use Carbon\CarbonInterface;
 
 /**
  * Procesarea unei cereri de înscriere (spec: intake-ul admiterii) — fiecare tranziție lasă
@@ -19,6 +20,21 @@ class ProcessAdmissionRequest
         $request->forceFill([
             'status' => AdmissionStatus::Contactat,
             'contacted_at' => $request->contacted_at ?? now(),
+            'processed_by_id' => $actor->getKey(),
+        ])->save();
+    }
+
+    /**
+     * Programează vizita (dată + oră) stabilită cu familia la contactare — calendar v3: vizita
+     * apare în calendarul instituțional al staff-ului. Programarea presupune contact, deci o
+     * cerere „Nouă" trece automat în „Contactat". Re-apelarea RE-programează (data se înlocuiește).
+     */
+    public function scheduleVisit(AdmissionRequest $request, User $actor, CarbonInterface $visitAt): void
+    {
+        $request->forceFill([
+            'status' => $request->status === AdmissionStatus::Nou ? AdmissionStatus::Contactat : $request->status,
+            'contacted_at' => $request->contacted_at ?? now(),
+            'scheduled_visit_at' => $visitAt,
             'processed_by_id' => $actor->getKey(),
         ])->save();
     }

@@ -29,6 +29,7 @@ use OwenIt\Auditing\Contracts\Auditable;
  * @property int|null $child_age
  * @property string|null $desired_class
  * @property string|null $preferred_time
+ * @property Carbon|null $scheduled_visit_at
  * @property AdmissionStatus $status
  * @property Carbon|null $contacted_at
  * @property Carbon|null $processed_at
@@ -57,6 +58,7 @@ class AdmissionRequest extends Model implements Auditable
         'child_age',
         'desired_class',
         'preferred_time',
+        'scheduled_visit_at',
         'status',
         'contacted_at',
         'processed_at',
@@ -69,6 +71,7 @@ class AdmissionRequest extends Model implements Auditable
         return [
             'type' => AdmissionRequestType::class,
             'status' => AdmissionStatus::class,
+            'scheduled_visit_at' => 'datetime',
             'contacted_at' => 'datetime',
             'processed_at' => 'datetime',
         ];

@@ -39,4 +39,5 @@ return [
     'auto_corigenta_session' => 'Remedial exam session',
     'auto_term_start' => 'Term start',
     'auto_term_end' => 'Term end',
+    'auto_admission_visit' => 'Admission visit · :parent',
 ];

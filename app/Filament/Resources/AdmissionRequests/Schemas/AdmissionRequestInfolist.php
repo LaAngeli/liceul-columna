@@ -61,6 +61,15 @@ class AdmissionRequestInfolist
                             ->placeholder(__('panel.common.dash'))
                             ->formatStateUsing(fn (?string $state): string => self::formatVisitDate($state))
                             ->visible(fn (AdmissionRequest $record): bool => $record->type === AdmissionRequestType::Visit),
+                        // Vizita PROGRAMATĂ de secretariat (calendar v3) — distinctă de preferința
+                        // liberă a familiei de mai sus; apare în calendarul instituțional.
+                        TextEntry::make('scheduled_visit_at')
+                            ->label(__('panel.forms.admission.scheduled_visit_at'))
+                            ->dateTime('d.m.Y H:i')
+                            ->badge()
+                            ->color('info')
+                            ->placeholder(__('panel.forms.admission.scheduled_visit_none'))
+                            ->visible(fn (AdmissionRequest $record): bool => $record->type === AdmissionRequestType::Visit),
                     ]),
 
                 Section::make(__('panel.admission_nav.section_processing'))

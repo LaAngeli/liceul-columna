@@ -39,4 +39,5 @@ return [
     'auto_corigenta_session' => 'Sesiune de corigență',
     'auto_term_start' => 'Început de semestru',
     'auto_term_end' => 'Sfârșit de semestru',
+    'auto_admission_visit' => 'Vizită admitere · :parent',
 ];

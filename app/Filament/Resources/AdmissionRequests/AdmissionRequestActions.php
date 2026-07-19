@@ -3,14 +3,17 @@
 namespace App\Filament\Resources\AdmissionRequests;
 
 use App\Actions\ProcessAdmissionRequest;
+use App\Enums\AdmissionRequestType;
 use App\Enums\AdmissionStatus;
 use App\Enums\UserRole;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\AdmissionRequest;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Carbon;
 
 /**
  * Acțiunile de procesare ale unei cereri de înscriere — O SINGURĂ definiție, montată și pe
@@ -34,6 +37,45 @@ class AdmissionRequestActions
                 Notification::make()
                     ->success()
                     ->title(__('panel.actions.admission.contacted_done'))
+                    ->send();
+            });
+    }
+
+    /**
+     * Programează vizita (calendar v3): data + ora stabilite cu familia. Disponibilă pe cererile
+     * de tip VIZITĂ încă în lucru; re-apelarea RE-programează. O cerere „Nouă" trece automat în
+     * „Contactat" (programarea presupune contact). Vizita apare în calendarul instituțional.
+     */
+    public static function scheduleVisit(): Action
+    {
+        return Action::make('scheduleVisit')
+            ->label(__('panel.actions.admission.schedule_visit'))
+            ->icon('heroicon-o-calendar-days')
+            ->color('info')
+            ->visible(fn (AdmissionRequest $record): bool => $record->type === AdmissionRequestType::Visit
+                && ! $record->status->isFinal())
+            ->schema([
+                DateTimePicker::make('scheduled_visit_at')
+                    ->label(__('panel.forms.admission.scheduled_visit_at'))
+                    ->helperText(__('panel.forms.admission.scheduled_visit_hint'))
+                    ->default(fn (AdmissionRequest $record) => $record->scheduled_visit_at)
+                    ->seconds(false)
+                    ->required(),
+            ])
+            ->modalHeading(__('panel.actions.admission.schedule_visit_heading'))
+            ->modalDescription(fn (AdmissionRequest $record): string => __('panel.actions.admission.schedule_visit_description', ['parent' => $record->parent_name]))
+            ->modalSubmitActionLabel(__('panel.actions.admission.schedule_visit'))
+            ->action(function (AdmissionRequest $record, array $data): void {
+                app(ProcessAdmissionRequest::class)->scheduleVisit(
+                    $record,
+                    self::actor(),
+                    Carbon::parse((string) $data['scheduled_visit_at']),
+                );
+
+                Notification::make()
+                    ->success()
+                    ->title(__('panel.actions.admission.visit_scheduled_done'))
+                    ->body($record->refresh()->scheduled_visit_at?->translatedFormat('l, j F Y · H:i') ?? '')
                     ->send();
             });
     }

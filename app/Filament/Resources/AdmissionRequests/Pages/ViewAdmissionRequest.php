@@ -23,6 +23,7 @@ class ViewAdmissionRequest extends ViewRecord
     {
         return [
             AdmissionRequestActions::markContacted(),
+            AdmissionRequestActions::scheduleVisit(),
             AdmissionRequestActions::enroll(),
             AdmissionRequestActions::refuse(),
             AdmissionRequestActions::reopen(),

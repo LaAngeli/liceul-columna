@@ -108,6 +108,7 @@ class AdmissionRequestsTable
                 ViewAction::make(),
                 ActionGroup::make([
                     AdmissionRequestActions::markContacted(),
+                    AdmissionRequestActions::scheduleVisit(),
                     AdmissionRequestActions::enroll(),
                     AdmissionRequestActions::refuse(),
                     AdmissionRequestActions::reopen(),
