@@ -1433,7 +1433,7 @@ return [
         'records' => '{1}:count record|[2,*]:count records',
         'homework_records' => '{1}:count assignment|[2,*]:count assignments',
         'teachers_dimension_hint' => 'This dimension lists the AUTHORS of entries recorded on the platform. Historical grades imported from the old system have no recorded author (the source did not keep one) — find those under Classes, Subjects or Periods.',
-        'students_hint' => 'Pick a class to see its students. Global search (Ctrl+K) finds any student within your scope.',
+        'students_hint' => 'Pick a class to see its students.',
         'students_archive' => 'Archive (all students)',
         'subjects_hint' => 'The subjects you teach. Pick one to see your classes for it.',
         'subject_classes_hint' => 'The classes where you teach this subject — with direct jumps into the catalog.',
