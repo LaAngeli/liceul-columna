@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { ArrowRight, BookOpen, Award, GraduationCap, DoorOpen, Heart, LayoutDashboard, Mail, MapPin, Newspaper, Phone, ShieldCheck, Wallet } from 'lucide-react';
+import { ArrowRight, BookOpen, Award, GraduationCap, DoorOpen, Heart, Mail, MapPin, Newspaper, Phone, ShieldCheck, Wallet } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { LocaleLink } from '@/components/locale-link';
 import { Band, BrandButton, Container, Display, FourStar, Reveal, Rhombus, SectionHeader, StatRibbon, ValueChips  } from '@/components/public/brand';
@@ -218,33 +218,28 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                     <div aria-hidden="true" className="absolute inset-y-0 left-0 hidden w-40 bg-gradient-to-r from-[color:var(--surface-navy)] to-transparent lg:block" />
                     {/* scrim de jos desktop — lizibilitatea riglei peste foto */}
                     <div aria-hidden="true" className="absolute inset-x-0 bottom-0 hidden h-40 bg-gradient-to-t from-[color:var(--surface-navy)]/85 to-transparent lg:block" />
-                    {/* mobil: UN singur card compact peste foto (catalogul online = serviciul-diferențiator);
-                        static (fără float) — pe ecran mic plutirea ar părea gimmick. Sus-dreapta, NU jos:
-                        panoul de text urcă peste foto cu -mt-10 și jos s-ar ciocni cu eyebrow-ul. */}
-                    <div className="hero-stage absolute top-3 right-3 z-10 flex items-center gap-2.5 rounded-[12px] border border-white/25 bg-[color:var(--surface-navy)]/70 px-3 py-2 supports-[backdrop-filter]:backdrop-blur-md lg:hidden [--stage:4]">
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-brand-green/20 text-brand-green">
-                            <LayoutDashboard className="size-4" />
-                        </span>
-                        <span className="min-w-0">
-                            <span className="block text-sm leading-tight font-semibold">{t('home.hero_card_catalog', 'Catalog online')}</span>
-                            <span className="block text-xs leading-tight text-white/70">{t('home.hero_card_catalog_sub', 'Note și absențe, în timp real')}</span>
-                        </span>
-                    </div>
                 </div>
                 {/* Textură navy hero — puncte în tonul opus, CONFINATE la zona navy (nu ating foto la
                     niciun ecran). Desktop: panoul de text stânga, până la 46% = muchia fotografiei.
                     Mobil: zona navy de sub blocul foto (începe exact la finalul lui: min(38vh,290px)). */}
                 <div aria-hidden="true" className="tx-hero-dots-desktop pointer-events-none absolute inset-y-0 left-0 hidden w-[46%] lg:block" />
                 <div aria-hidden="true" className="tx-hero-dots-mobile pointer-events-none absolute inset-x-0 bottom-0 lg:hidden" style={{ top: 'min(38vh, 290px)' }} />
-                {/* Strat heraldic + accent luminos (doar desktop) — panoul navy nu mai e „gol":
-                    crestul alb ca filigran instituțional în spatele textului + un glow verde
-                    difuz sub titlu. Ambele decorative, sub conținut (z-10 al Container-ului). */}
-                <img
-                    src="/images/logo/columna-crest-white.png"
-                    alt=""
+                {/* Crest heraldic ca filigran instituțional — CENTRAT în zona navy și INTEGRAL vizibil
+                    (înainte era ancorat `-left-20`, deci tăiat de marginea ecranului). Wrapper-ele
+                    oglindesc exact geometria texturii de puncte, deci sigla nu atinge niciodată
+                    fotografia: desktop = panoul de text (0→46% = muchia foto), mobil = banda navy de
+                    sub blocul foto. Dimensiunea e PROCENTUALĂ din wrapper (+ plafon în rem, `max-h` și
+                    `object-contain`) → se adaptează singură oricărui ecran, păstrându-și centrul. */}
+                <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 hidden w-[46%] items-center justify-center lg:flex">
+                    <img src="/images/logo/columna-crest-white.png" alt="" className="max-h-[72%] w-[68%] max-w-[27rem] object-contain opacity-[0.06] select-none" />
+                </div>
+                <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute top-1/2 -left-20 hidden w-[28rem] max-w-none -translate-y-1/2 opacity-[0.045] select-none lg:block"
-                />
+                    className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center lg:hidden"
+                    style={{ top: 'min(38vh, 290px)' }}
+                >
+                    <img src="/images/logo/columna-crest-white.png" alt="" className="max-h-[62%] w-[58%] max-w-[17rem] object-contain opacity-[0.06] select-none" />
+                </div>
                 <div aria-hidden="true" className="hero-glow pointer-events-none absolute top-[10%] -left-[4%] hidden size-[32rem] lg:block" />
                 {/* Panoul de text absoarbe spațiul rămas (`flex-1`) și își centrează conținutul vertical
                     — înălțimea hero-ului e dictată de viewport (`.hero-viewport`), nu de un clamp fix.
@@ -283,31 +278,6 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                         </div>
                     </div>
                 </Container>
-                {/* Carduri flotante (doar desktop) — puntea dintre panou și fotografie: catalogul online
-                    (serviciul-diferențiator, călare pe cusătura 46%) + centrul Cambridge (încredere).
-                    Floatul stă pe wrapper-ul interior; intrarea în trepte pe cel exterior. */}
-                <div className="hero-stage absolute top-[16%] left-[47.5%] z-10 hidden lg:block [--stage:5]">
-                    <div className="hero-float flex items-center gap-3 rounded-[14px] border border-white/25 bg-[color:var(--surface-navy)]/65 px-4 py-3 shadow-[0_18px_44px_-18px_rgba(0,0,0,0.55)] supports-[backdrop-filter]:backdrop-blur-md">
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-brand-green/20 text-brand-green">
-                            <LayoutDashboard className="size-5" />
-                        </span>
-                        <span>
-                            <span className="block leading-tight font-semibold">{t('home.hero_card_catalog', 'Catalog online')}</span>
-                            <span className="block text-xs text-white/70">{t('home.hero_card_catalog_sub', 'Note și absențe, în timp real')}</span>
-                        </span>
-                    </div>
-                </div>
-                <div className="hero-stage absolute top-[56%] right-[5%] z-10 hidden lg:block [--stage:6]">
-                    <div className="hero-float flex items-center gap-3 rounded-[14px] border border-white/25 bg-[color:var(--surface-navy)]/65 px-4 py-3 shadow-[0_18px_44px_-18px_rgba(0,0,0,0.55)] supports-[backdrop-filter]:backdrop-blur-md [--float-delay:1.6s]">
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-brand-green/20 text-brand-green">
-                            <Award className="size-5" />
-                        </span>
-                        <span>
-                            <span className="block leading-tight font-semibold">{t('home.hero_card_cambridge', 'Cambridge English')}</span>
-                            <span className="block text-xs text-white/70">{t('home.hero_card_cambridge_sub', 'Centru autorizat din 2019')}</span>
-                        </span>
-                    </div>
-                </div>
                 {/* Chip de proveniență — decorativ (alt-ul imaginii poartă textul pentru SR) */}
                 <div
                     aria-hidden="true"
