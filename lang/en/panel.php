@@ -1199,11 +1199,26 @@ return [
         ],
         'function' => 'Function',
         'function_teacher' => 'Teacher',
+        'function_homeroom' => 'Homeroom teacher',
         'homeroom_of_value' => 'Homeroom · :class',
         'no_account' => 'No account',
+        'no_account_hint' => 'No platform account — create one via "Add teacher" or Users.',
         'no_assignments' => 'No assignments',
+        'no_assignments_hint' => 'No subject–class assignments. Assignments are managed on the profile edit page.',
         'coverage_more' => '+:count subjects',
         'catalog_links' => 'Open in the register (platform activity)',
+        'empty_description' => 'No profiles in this view or for the current search.',
+        'identity' => 'Identity',
+        'edit_profile' => 'Edit profile',
+        'assignments_hint' => 'Subjects taught, each with its classes — clicking a class opens the register in that (class, subject) context.',
+    ],
+
+    'subjects_registry' => [
+        'hint' => 'The subject nomenclature. Pick a subject to see who teaches it, in which classes, with direct jumps into the register.',
+        'grades_label' => 'grades :span',
+        'edit_subject' => 'Edit subject',
+        'teachers_hint' => 'Teachers of this subject — each with their classes; the name opens the profile in the "Teachers" registry.',
+        'no_teachers' => 'No assignments yet: this subject is not taught in any class.',
     ],
 
     'credentials_mail' => [

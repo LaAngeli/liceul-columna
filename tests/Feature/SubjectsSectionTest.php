@@ -90,7 +90,7 @@ it('o disciplină pe care N-O predau, venită prin URL, nu deschide context', fu
     expect($component->instance()->activeSubject())->toBeNull();
 });
 
-it('administrația păstrează TABELUL cu tot nomenclatorul', function () {
+it('administrația primește CARDURILE nomenclatorului complet, cu acoperirea instituțională', function () {
     $admin = User::factory()->create();
     $admin->assignRole(UserRole::Director->value);
     actingAs($admin);
@@ -99,7 +99,36 @@ it('administrația păstrează TABELUL cu tot nomenclatorul', function () {
 
     expect($component->instance()->isTeacherView())->toBeFalse();
 
-    $component->assertCanSeeTableRecords([$this->chemistry, $this->unrelated]);
+    $cards = collect($component->instance()->adminSubjectCards());
+    expect($cards->pluck('id')->all())->toContain($this->chemistry->id, $this->unrelated->id)
+        // Chimia: 2 clase, 2 profesori (al meu + colegul chimist).
+        ->and($cards->firstWhere('id', $this->chemistry->id)['coverage'])->toContain('2');
+});
+
+it('contextul disciplinei (admin): TOȚI profesorii care o predau, fiecare cu clasele lui + punți', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole(UserRole::Director->value);
+    actingAs($admin);
+
+    $component = Livewire::test(ListSubjects::class)->call('openSubject', $this->chemistry->id);
+    $context = $component->instance()->adminSubjectContext();
+
+    expect($context)->not->toBeNull()
+        ->and(collect($context['teachers'])->pluck('name')->all())->toHaveCount(2);
+
+    // Fiecare profesor doar cu clasele LUI la disciplină; chip-ul clasei duce în catalog pe context.
+    $mine = collect($context['teachers'])->firstWhere('name', trim($this->teacher->last_name.' '.$this->teacher->first_name));
+    expect(collect($mine['classes'])->pluck('label')->all())->toBe(['VII A'])
+        ->and($mine['classes'][0]['url'])->toContain('clasa='.$this->classA->id)
+        ->and($mine['url'])->toContain('profesor='.$this->teacher->id);
+
+    foreach ($context['links'] as $url) {
+        expect($url)->toContain('disciplina='.$this->chemistry->id);
+    }
+
+    // Id inexistent prin URL → fără context (cad pe carduri).
+    $stray = Livewire::withQueryParams(['disciplina' => '999999'])->test(ListSubjects::class);
+    expect($stray->instance()->adminSubjectContext())->toBeNull();
 });
 
 it('scoping-ul resursei = strict disciplinele predate (interogarea, nu doar afișarea)', function () {

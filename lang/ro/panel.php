@@ -1215,11 +1215,26 @@ return [
         ],
         'function' => 'Funcția',
         'function_teacher' => 'Profesor',
+        'function_homeroom' => 'Diriginte',
         'homeroom_of_value' => 'Diriginte · :class',
         'no_account' => 'Fără cont',
+        'no_account_hint' => 'Fără cont de acces — se creează din „Adaugă profesor" sau din Utilizatori.',
         'no_assignments' => 'Fără alocări',
+        'no_assignments_hint' => 'Nicio alocare disciplină–clasă. Alocările se administrează din pagina de editare a fișei.',
         'coverage_more' => '+:count discipline',
         'catalog_links' => 'Deschide în catalog (activitatea din platformă)',
+        'empty_description' => 'Nicio fișă în această vedere sau pentru căutarea curentă.',
+        'identity' => 'Identitate',
+        'edit_profile' => 'Editează fișa',
+        'assignments_hint' => 'Disciplinele predate, fiecare cu clasele ei — un click pe clasă deschide catalogul pe contextul (clasă, disciplină).',
+    ],
+
+    'subjects_registry' => [
+        'hint' => 'Nomenclatorul disciplinelor. Alege o disciplină ca să vezi cine o predă, în ce clase, cu punți directe în catalog.',
+        'grades_label' => 'clasele :span',
+        'edit_subject' => 'Editează disciplina',
+        'teachers_hint' => 'Profesorii care predau disciplina — fiecare cu clasele lui; numele deschide fișa din registrul „Profesori".',
+        'no_teachers' => 'Nicio alocare încă: disciplina nu e predată în nicio clasă.',
     ],
 
     'credentials_mail' => [
