@@ -27,14 +27,19 @@ class ImportLegacyUsers
             Role::findOrCreate($role->value, 'web');
         }
 
-        // Hărți nume normalizat → id (prima potrivire câștigă la nume duplicate).
+        // Hărți nume normalizat → COADĂ de id-uri: la omonimi (doi „Munteanu Cristian"), fiecare
+        // cont consumă URMĂTOAREA fișă nelegată. Vechea hartă „prima potrivire câștigă" lega ambele
+        // conturi de aceeași fișă (a doua legare o suprascria pe prima) → un cont orfan + o fișă
+        // fără cont (audit fidelitate legacy, 2026-07-19). Perechea exactă cont↔fișă la omonimi
+        // rămâne convențională (sursa nu leagă conturile de fișe decât prin nume) — secretariatul o
+        // poate inversa din panou dacă realitatea e alta.
         $studentByName = [];
-        foreach (Student::query()->get() as $student) {
-            $studentByName[$this->normalize($student->last_name.' '.$student->first_name)] ??= $student->id;
+        foreach (Student::query()->orderBy('id')->get() as $student) {
+            $studentByName[$this->normalize($student->last_name.' '.$student->first_name)][] = $student->id;
         }
         $teacherByName = [];
-        foreach (Teacher::query()->get() as $teacher) {
-            $teacherByName[$this->normalize($teacher->last_name.' '.$teacher->first_name)] ??= $teacher->id;
+        foreach (Teacher::query()->orderBy('id')->get() as $teacher) {
+            $teacherByName[$this->normalize($teacher->last_name.' '.$teacher->first_name)][] = $teacher->id;
         }
 
         $now = Carbon::now();
@@ -61,10 +66,14 @@ class ImportLegacyUsers
             }
 
             $key = $this->normalize(((string) $row->name_1).' '.((string) $row->name_2));
-            $studentId = $role === UserRole::Elev ? ($studentByName[$key] ?? null) : null;
-            $teacherId = in_array($role, [UserRole::Profesor, UserRole::Diriginte, UserRole::Director], true)
-                ? ($teacherByName[$key] ?? null)
-                : null;
+            $studentId = null;
+            $teacherId = null;
+            if ($role === UserRole::Elev && ! empty($studentByName[$key])) {
+                $studentId = array_shift($studentByName[$key]);
+            }
+            if (in_array($role, [UserRole::Profesor, UserRole::Diriginte, UserRole::Director], true) && ! empty($teacherByName[$key])) {
+                $teacherId = array_shift($teacherByName[$key]);
+            }
 
             // Elevii/profesorii fără fișă potrivită (ex. absolvenți) nu se creează.
             if ($role === UserRole::Elev && $studentId === null) {

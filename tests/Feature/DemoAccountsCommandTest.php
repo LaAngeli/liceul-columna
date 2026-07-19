@@ -38,6 +38,26 @@ it('--remove șterge conturile demo dar păstrează fișele de elev/profesor (de
         ->and($teacher->fresh()->user_id)->toBeNull();
 });
 
+it('--remove re-leagă fișa eliberată la contul REAL al persoanei; ambiguitățile rămân manuale', function () {
+    // Fișa reală a persoanei e „împrumutată" contului demo; persoana are contul ei, rămas orfan.
+    $student = Student::factory()->create(['last_name' => 'Radu', 'first_name' => 'Eva']);
+    $demo = User::factory()->create(['name' => DemoAccounts::MARKER.' Elev', 'email' => 'elev@x.test']);
+    $student->update(['user_id' => $demo->id]);
+    $realOwner = User::factory()->create(['name' => 'Radu Eva', 'email' => 'eva@x.test']);
+
+    // Caz ambiguu: fișă demo-legată al cărei nume are DOUĂ conturi reale candidate.
+    $ambiguous = Teacher::factory()->create(['last_name' => 'Pop', 'first_name' => 'Ana']);
+    $demoProf = User::factory()->create(['name' => DemoAccounts::MARKER.' Prof', 'email' => 'prof@x.test']);
+    $ambiguous->update(['user_id' => $demoProf->id]);
+    User::factory()->create(['name' => 'Pop Ana', 'email' => 'ana1@x.test']);
+    User::factory()->create(['name' => 'Pop Ana', 'email' => 'ana2@x.test']);
+
+    $this->artisan('app:demo-accounts --remove')->assertSuccessful();
+
+    expect($student->fresh()->user_id)->toBe($realOwner->id)
+        ->and($ambiguous->fresh()->user_id)->toBeNull();
+});
+
 it('marchează conturile demo distinct de cele reale', function () {
     $demo = User::factory()->create(['name' => DemoAccounts::MARKER.' Cineva']);
     $real = User::factory()->create(['name' => 'Cineva Real']);
