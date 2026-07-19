@@ -68,9 +68,10 @@ export function ScheduleTab({
                 <MyDay timetable={timetable ?? null} lessonsSchedule={lessonsSchedule ?? null} homework={homework ?? []} />
             )}
 
-            {/* === ORAR STRUCTURAT === Secțiunea dispare COMPLET când lipsește dar orarul
-                 PUBLICAT al clasei există mai jos — „indisponibil" ar contrazice tabelul real. */}
-            {!(timetable === null && lessonsSchedule && lessonsSchedule.rows.length > 0) && (
+            {/* === ORAR STRUCTURAT === Se afișează DOAR când orarul PUBLICAT lipsește: publicatul
+                 e sursa mai bogată (ore + grupe + profesori) și le-ar dubla; structuratul rămâne
+                 motorul de CALCUL (riscul de amânare) + fallback de afișare. */}
+            {!(lessonsSchedule && lessonsSchedule.rows.length > 0) && (
             <section>
                 <SectionHeading title={t('cabinet.timetable_title')} />
                 {timetable === undefined ? (
@@ -218,19 +219,14 @@ function MyDay({
     const lang = document.documentElement.lang || 'ro';
     const dayLabel = new Intl.DateTimeFormat(lang, { weekday: 'long', day: 'numeric', month: 'long' }).format(selected);
 
-    // Lecțiile zilei — două surse, în ordinea preciziei: (1) orarul STRUCTURAT (per lecție, cu
-    // profesor/sală); (2) orarul PUBLICAT al clasei (tabel Luni–Vineri) — cazul claselor reale,
-    // care încă nu au orar structurat: coloana zilei alese + eticheta lecției din prima coloană.
+    // Lecțiile zilei — două surse, în ordinea BOGĂȚIEI: (1) orarul PUBLICAT al clasei (tabel
+    // Luni–Vineri, cu intervalele orare în eticheta lecției); (2) orarul STRUCTURAT (per lecție,
+    // cu sală, dar fără ore) — fallback când clasa nu are orar publicat.
     type DayLesson = { key: string; time: string; subject: string; room: string | null };
 
     let lessons: DayLesson[] = [];
 
-    if (timetable) {
-        lessons = Array.from({ length: timetable.maxLesson }, (_, i) => i + 1)
-            .map((num) => ({ num, cell: timetable.grid[`${weekday}-${num}`] }))
-            .filter((l) => l.cell)
-            .map((l) => ({ key: `s-${l.num}`, time: `${l.num}.`, subject: l.cell!.subject, room: l.cell!.room }));
-    } else if (lessonsSchedule && weekday >= 1 && weekday < lessonsSchedule.headers.length) {
+    if (lessonsSchedule && lessonsSchedule.rows.length > 0 && weekday >= 1 && weekday < lessonsSchedule.headers.length) {
         lessons = lessonsSchedule.rows
             .map((row, i) => {
                 const subject = (row[weekday] ?? '').trim();
@@ -245,6 +241,11 @@ function MyDay({
                 };
             })
             .filter((l) => l.subject !== '');
+    } else if (timetable) {
+        lessons = Array.from({ length: timetable.maxLesson }, (_, i) => i + 1)
+            .map((num) => ({ num, cell: timetable.grid[`${weekday}-${num}`] }))
+            .filter((l) => l.cell)
+            .map((l) => ({ key: `s-${l.num}`, time: `${l.num}.`, subject: l.cell!.subject, room: l.cell!.room }));
     }
 
     const dueToday = homework.filter((h) => h.effectiveDate === selectedIso);
