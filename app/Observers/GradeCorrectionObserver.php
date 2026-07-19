@@ -63,6 +63,8 @@ class GradeCorrectionObserver
                     'teacher' => $correction->requestedBy->name,
                     'student' => $correction->grade->student->full_name,
                 ],
+                // Clopoțelul panoului duce direct în coada de aprobat (un click = pe cerere).
+                '/admin/grade-corrections',
             ),
         );
     }

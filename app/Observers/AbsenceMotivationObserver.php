@@ -36,6 +36,8 @@ class AbsenceMotivationObserver
         $notification = new CatalogNotification(
             NotificationType::AbsenceMotivationSubmitted,
             ['student' => $student->full_name],
+            // Clopoțelul panoului duce direct în coada de validare (un click = pe cerere).
+            '/admin/absence-motivations',
         );
 
         if ($motivation->is_exception) {

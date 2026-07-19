@@ -218,6 +218,12 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
         ->name('cabinet.notifications');
     Route::post('cabinet/notificari/citeste-tot', [NotificationsController::class, 'markAllRead'])->name('cabinet.notifications.read-all');
     Route::post('cabinet/notificari/{notification}/citit', [NotificationsController::class, 'markRead'])->name('cabinet.notifications.read');
+    // Deschiderea unei notificări = marcare citită + redirecție spre țintă, ATOMIC pe server (un
+    // singur click). Clientul nu mai jonglează două vizite Inertia concurente (POST-ul de mark-read
+    // anula GET-ul de navigare → utilizatorul era obligat să dea două click-uri).
+    Route::get('cabinet/notificari/{notification}/deschide', [NotificationsController::class, 'open'])
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.notifications.open');
     Route::get('cabinet/notificari/setari', [NotificationsController::class, 'settings'])
         ->middleware(EnsureFamilyCabinet::class)
         ->name('cabinet.notifications.settings');

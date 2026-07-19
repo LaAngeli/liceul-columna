@@ -27,6 +27,8 @@ class AdmissionRequestObserver
             new CatalogNotification(
                 NotificationType::AdmissionRequestSubmitted,
                 ['child' => $request->child_name],
+                // Clopoțelul panoului duce direct în cozile de admitere (un click = pe cerere).
+                '/admin/admission-requests',
             ),
         );
     }

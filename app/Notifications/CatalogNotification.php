@@ -7,6 +7,7 @@ use App\Enums\NotificationType;
 use App\Models\User;
 use App\Notifications\Channels\TelegramChannel;
 use App\Notifications\Channels\ViberChannel;
+use Filament\Actions\Action as FilamentAction;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -108,8 +109,11 @@ class CatalogNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * Canalul „database": inboxul din cabinet (familie) ȘI clopoțelul Filament (personal). Filament
-     * citește title/body/icon; cabinetul citește type/title/body/url — formatul le acoperă pe ambele.
+     * Canalul „database": inboxul din cabinet (familie) ȘI clopoțelul Filament (personal).
+     * Cabinetul citește type/title/body/url. Filament are nevoie de `format: filament` (fără el,
+     * clopoțelul FILTREAZĂ notificarea — `where('data->format', 'filament')` — și nu o afișează
+     * deloc) + de o acțiune serializată ca ținta să fie clickabilă: „Deschide" navighează și
+     * marchează citit într-un singur click.
      *
      * @return array<string, mixed>
      */
@@ -117,12 +121,24 @@ class CatalogNotification extends Notification implements ShouldQueue
     {
         $rendered = $this->rendered($notifiable);
 
+        $actions = [];
+        if ($this->url !== null) {
+            $actions[] = FilamentAction::make('open')
+                ->label((string) trans('notifications.open', [], $notifiable->notificationLocale()))
+                ->url($this->url)
+                ->markAsRead()
+                ->toArray();
+        }
+
         return array_merge([
             'type' => $this->type->value,
             'title' => $rendered['title'],
             'body' => $rendered['body'],
             'url' => $this->url,
             'icon' => $this->type->icon(),
+            'format' => 'filament',
+            'duration' => 'persistent',
+            'actions' => $actions,
         ], $this->meta);
     }
 

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
-import { read, readAll, settings as notificationSettings } from '@/routes/cabinet/notifications';
+import { open, read, readAll, settings as notificationSettings } from '@/routes/cabinet/notifications';
 
 interface NotificationItem {
     id: string;
@@ -117,9 +117,11 @@ export default function NotificationsPage({ notifications, unreadTotal }: Props)
  * Card-link pattern accesibil: cardul ÎNTREG e ținta interactivă, niciodată un `<li onClick>` sau
  * link imbricat. Pe tastatură: Tab focalizează, Enter/Space activează. Fără suprapunere de event-uri.
  *
- *   - URL + neread     → `<Link>` (la click marchează citit ȘI navighează)
- *   - fără URL + neread → `<button>` (marchează citit, fără navigare)
- *   - read              → `<div>` static (nu mai e nimic de făcut pe el)
+ *   - cu URL            → `<Link>` spre ruta „deschide" (serverul marchează citit + redirecționează
+ *                          atomic — un singur click; fără al doilea request Inertia concurent, care
+ *                          anula navigarea)
+ *   - fără URL + neread → `<button>` (marchează citit — aici chiar asta e acțiunea completă)
+ *   - fără URL + read   → `<div>` static (nu mai e nimic de făcut pe el)
  */
 function NotificationCard({
     notification: n,
@@ -165,12 +167,7 @@ function NotificationCard({
 
         return (
             <li>
-                <Link
-                    href={n.url}
-                    onClick={() => !n.read && onMarkRead(n.id)}
-                    className={baseClass}
-                    aria-label={ariaLabel}
-                >
+                <Link href={open(n.id).url} className={baseClass} aria-label={ariaLabel}>
                     {inner}
                 </Link>
             </li>

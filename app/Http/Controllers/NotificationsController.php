@@ -100,6 +100,39 @@ class NotificationsController extends Controller
         return back();
     }
 
+    /**
+     * Deschide o notificare: marcarea „citit" e EFECT SECUNDAR al accesării (idempotent), iar
+     * răspunsul e redirecția către țintă — un singur click face ambele. Țintele moarte primesc
+     * aceeași neutralizare ca în index (elev arhivat / fără URL → rămâi pe inbox).
+     */
+    public function open(Request $request, string $notification): RedirectResponse
+    {
+        $record = $request->user('web')->notifications()->whereKey($notification)->first();
+
+        // Id inexistent sau al altui utilizator → înapoi la inbox, fără efecte și fără a divulga
+        // dacă id-ul există (scoping-ul pe relația userului face oricum imposibilă citirea străină).
+        if ($record === null) {
+            return redirect()->route('cabinet.notifications');
+        }
+
+        $record->markAsRead();
+
+        $url = $record->data['url'] ?? null;
+
+        // Doar ținte RELATIVE (așa generăm toate URL-urile de notificare) — o valoare absolută
+        // strecurată vreodată în payload nu poate transforma ruta într-un open-redirect.
+        if (! is_string($url) || ! str_starts_with($url, '/') || str_starts_with($url, '//')) {
+            return redirect()->route('cabinet.notifications');
+        }
+
+        $studentId = self::studentIdFromUrl($url);
+        if ($studentId !== null && ! Student::query()->whereKey($studentId)->exists()) {
+            return redirect()->route('cabinet.notifications');
+        }
+
+        return redirect($url);
+    }
+
     public function markAllRead(Request $request): RedirectResponse
     {
         $request->user('web')->unreadNotifications->markAsRead();

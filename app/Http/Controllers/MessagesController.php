@@ -48,6 +48,10 @@ class MessagesController extends Controller
         // evadeze din scoping-ul pe participant.
         $search = trim((string) $request->query('q', ''));
 
+        // Rezolvat ÎNAINTE de listă: marcarea „citit" a firului deep-linkat trebuie să se vadă și în
+        // rândul lui din listă + în contoarele folderelor, din primul render.
+        $openThread = $this->resolveDeepLinkedThread($request, $mailbox, $presenter, $uid);
+
         $threads = $mailbox->folder($folder)
             ->when($search !== '', fn ($query) => $query->where(function ($inner) use ($search): void {
                 $inner->where('subject', 'like', "%{$search}%")
@@ -72,7 +76,49 @@ class MessagesController extends Controller
             'threads' => $threads,
             'counts' => $mailbox->counts(MessageMailbox::FOLDERS),
             'compose' => $this->composeContext($user),
+            // Deep-link `?fir=` (notificări „mesaj nou" / audiență programată): firul cerut, deschis
+            // direct — indiferent de folderul în care trăiește. Marcarea „citit" e efect al accesării.
+            'openThread' => $openThread,
         ]);
+    }
+
+    /**
+     * Rezolvă firul din `?fir=` (acceptă și id-ul unui răspuns → urcă la rădăcină), cu aceleași
+     * garanții ca poșta personalului: 403 pentru ne-participanți, id inexistent ignorat silențios.
+     * Firul e marcat CITIT aici (accesarea lui e chiar scopul deep-link-ului).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function resolveDeepLinkedThread(Request $request, MessageMailbox $mailbox, ThreadPresenter $presenter, int $uid): ?array
+    {
+        $fir = $request->query('fir');
+        if (! is_string($fir) || ! ctype_digit($fir)) {
+            return null;
+        }
+
+        $message = Message::query()->find((int) $fir);
+        if ($message === null) {
+            return null;
+        }
+
+        $root = $message->parent_id === null
+            ? $message
+            : Message::query()->findOrFail($mailbox->rootId($message));
+
+        abort_unless($mailbox->participatesIn($root), 403, 'Nu faci parte din această conversație.');
+
+        // markThreadRead scrie read_at prin UPDATE direct — reîmprospătăm instanța, altfel
+        // presenterul ar număra firul tot ca necitit din atributele stale.
+        $mailbox->markThreadRead($root);
+        $root->refresh();
+
+        $root->load([
+            'sender', 'recipient', 'student', 'attachments',
+            'states' => fn ($q) => $q->where('user_id', $uid),
+            'replies' => fn ($q) => $q->with(['sender', 'attachments'])->oldest(),
+        ]);
+
+        return $presenter->present($root, $uid);
     }
 
     public function send(Request $request): RedirectResponse

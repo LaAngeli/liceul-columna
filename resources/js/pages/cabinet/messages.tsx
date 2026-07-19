@@ -115,6 +115,8 @@ interface Props {
         audienceDomains: string[];
         attachments: { maxFiles: number; maxFileMb: number; extensions: string[] };
     };
+    /** Firul din `?fir=` (deep-link din notificări), deja marcat citit pe server. */
+    openThread: Thread | null;
 }
 
 /** Contor de caractere gradat (neutru → amber → destructive) cu aria-live. */
@@ -156,12 +158,22 @@ function Avatar({ name, variant, size = 'md' }: { name: string; variant: 'dirigi
     );
 }
 
-export default function MessagesPage({ folder, q, threads, counts, compose }: Props) {
+export default function MessagesPage({ folder, q, threads, counts, compose, openThread: deepLinkedThread }: Props) {
     const t = useTranslations();
-    const [selectedId, setSelectedId] = useState<number | null>(null);
+    // Deep-link `?fir=` → firul e deschis din primul render (serverul l-a marcat deja citit).
+    const [selectedId, setSelectedId] = useState<number | null>(deepLinkedThread?.id ?? null);
     const [search, setSearch] = useState(q);
     const [lightbox, setLightbox] = useState<string | null>(null);
     const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // O navigare NOUĂ spre pagină cu alt `?fir` nu remontează componenta (Inertia păstrează
+    // instanța) — sincronizăm selecția când se schimbă firul deep-linkat.
+    const deepLinkedThreadId = deepLinkedThread?.id ?? null;
+    useEffect(() => {
+        if (deepLinkedThreadId !== null) {
+            setSelectedId(deepLinkedThreadId);
+        }
+    }, [deepLinkedThreadId]);
 
     const [composeState, setComposeState] = useState<{ open: boolean; studentId: number | ''; recipientId: number | ''; audience: boolean }>({
         open: false,
@@ -170,7 +182,9 @@ export default function MessagesPage({ folder, q, threads, counts, compose }: Pr
         audience: false,
     });
 
-    const selected = threads.find((th) => th.id === selectedId) ?? null;
+    // Firul selectat vine de regulă din lista folderului; firul deep-linkat poate trăi în ALT folder
+    // decât cel afișat (ex. „Trimise" pentru o audiență proprie) — îl afișăm oricum.
+    const selected = threads.find((th) => th.id === selectedId) ?? (deepLinkedThread && deepLinkedThread.id === selectedId ? deepLinkedThread : null);
 
     // Căutarea rulează pe SERVER (subiect + corp + corespondent), cu debounce — aceeași
     // semantică precum în poșta personalului.
