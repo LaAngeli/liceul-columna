@@ -111,12 +111,12 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                 01→03 și se termină în steluța-terminus — semnătura persistentă a paginii. */}
             <section
                 data-hero-intro={shutter ? '' : undefined}
-                className="on-navy relative isolate overflow-hidden bg-surface-navy text-[color:var(--brand-navy-foreground)]"
+                className="on-navy hero-viewport relative isolate flex flex-col overflow-hidden bg-surface-navy text-[color:var(--brand-navy-foreground)]"
             >
                 {/* Foto-eroină: mobil = bloc în flux sus (100vw); desktop = panou pe dreapta
                     (~54vw) unde imaginea de 900px e afișată aproape la mărimea nativă = clară,
                     nu întinsă full-bleed la 2× (unde s-ar înmuia). Textul stă pe navy solid. */}
-                <div className="hero-photo relative h-[min(38vh,290px)] w-full overflow-hidden lg:absolute lg:inset-y-0 lg:right-0 lg:left-[46%] lg:h-full lg:w-auto">
+                <div className="hero-photo relative h-[min(38vh,290px)] w-full shrink-0 overflow-hidden lg:absolute lg:inset-y-0 lg:right-0 lg:left-[46%] lg:h-full lg:w-auto">
                     <img
                         src="/images/hero/g15-hero-1440.webp"
                         srcSet="/images/hero/g15-hero-900.webp 900w, /images/hero/g15-hero-1440.webp 1440w, /images/hero/g15-hero-1800.webp 1800w"
@@ -139,7 +139,11 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                     Mobil: zona navy de sub blocul foto (începe exact la finalul lui: min(38vh,290px)). */}
                 <div aria-hidden="true" className="tx-hero-dots-desktop pointer-events-none absolute inset-y-0 left-0 hidden w-[46%] lg:block" />
                 <div aria-hidden="true" className="tx-hero-dots-mobile pointer-events-none absolute inset-x-0 bottom-0 lg:hidden" style={{ top: 'min(38vh, 290px)' }} />
-                <Container className="relative z-10 -mt-10 lg:mt-0 lg:flex lg:min-h-[clamp(560px,76vh,800px)] lg:items-center">
+                {/* Panoul de text absoarbe spațiul rămas (`flex-1`) și își centrează conținutul vertical
+                    — înălțimea hero-ului e dictată de viewport (`.hero-viewport`), nu de un clamp fix.
+                    Înainte era `lg:min-h-[clamp(560px,76vh,800px)]`: la 76vh rămânea o fâșie din
+                    secțiunea următoare vizibilă sub fold. */}
+                <Container className="relative z-10 -mt-10 flex flex-1 flex-col justify-center lg:mt-0">
                     <div className="flex flex-col gap-5 pb-10 lg:max-w-[42%] lg:gap-6 lg:pb-44">
                         <span className="hero-stage eyebrow text-white/70 [--stage:0]">{t('home.hero_eyebrow', 'Liceu privat · Chișinău · din 1998')}</span>
                         <Display as="h1" className="hero-stage max-w-[14ch] text-[clamp(2.125rem,6.4vw,4rem)] leading-[0.98] text-[color:var(--brand-navy-foreground)] [--stage:1]">
@@ -170,7 +174,7 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                 {/* Rigla de destinații-cheie + drumul verde care se termină în steluța „De ce Columna?" */}
                 <nav
                     aria-label={t('home.hero_links_label', 'Pagini importante')}
-                    className="hero-ruler relative z-10 border-t border-white/15 bg-[color:var(--surface-navy)]/70 supports-[backdrop-filter]:bg-[color:var(--surface-navy)]/55 supports-[backdrop-filter]:backdrop-blur-sm lg:absolute lg:inset-x-0 lg:bottom-0"
+                    className="hero-ruler relative z-10 shrink-0 border-t border-white/15 bg-[color:var(--surface-navy)]/70 supports-[backdrop-filter]:bg-[color:var(--surface-navy)]/55 supports-[backdrop-filter]:backdrop-blur-sm lg:absolute lg:inset-x-0 lg:bottom-0"
                 >
                     <span aria-hidden="true" className="hero-path absolute inset-x-0 -top-px h-[2px] origin-left bg-brand-green" />
                     <Container>

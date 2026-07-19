@@ -1,6 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import { CalendarDays, ChevronDown, LayoutDashboard, Menu, X } from 'lucide-react';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { LocaleLink } from '@/components/locale-link';
 import { BrandButton, Container, FourStar } from '@/components/public/brand';
 import { LanguageSwitcher } from '@/components/public/language-switcher';
@@ -69,13 +69,39 @@ export function SiteHeader() {
         };
     }, [mobileOpen]);
 
+    /* Publică înălțimea REALĂ a header-ului în `--site-header-h`, ca hero-ul să poată umple exact
+       restul viewport-ului (`.hero-viewport`). Măsurat, nu hardcodat: bara utilitară e dimensionată
+       de conținut și diferă între RO/RU/EN și la schimbarea fontului. ResizeObserver prinde inclusiv
+       trecerea peste breakpoint-uri (bara utilitară apare abia pe `lg`). */
+    const headerRef = useRef<HTMLElement>(null);
+
+    useEffect(() => {
+        const el = headerRef.current;
+
+        if (!el) {
+            return;
+        }
+
+        const publish = () => {
+            document.documentElement.style.setProperty('--site-header-h', `${el.getBoundingClientRect().height}px`);
+        };
+
+        publish();
+
+        const observer = new ResizeObserver(publish);
+
+        observer.observe(el);
+
+        return () => observer.disconnect();
+    }, []);
+
     const cabinetHref = auth?.user ? (auth.canAccessAdmin ? '/admin' : dashboard().url) : login().url;
     // CTA principal mereu-vizibil = programare vizită (acțiune cu angajament mic, sensibilă oricând).
     // Înscrierea propriu-zisă stă în meniul Admitere (acțiune cu angajament mare).
     const visitHref = '/programeaza-vizita';
 
     return (
-        <header className="sticky top-0 z-40 w-full">
+        <header ref={headerRef} className="sticky top-0 z-40 w-full">
             {/* Bara utilitară (navy) */}
             <div className="on-navy hidden border-b keyline bg-surface-navy text-[color:var(--brand-navy-foreground)] lg:block">
                 <Container className="flex items-center justify-between gap-6 py-1.5 text-[0.78rem]">

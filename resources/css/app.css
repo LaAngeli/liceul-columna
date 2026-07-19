@@ -581,6 +581,27 @@
     background-image: radial-gradient(122% 116% at 0% 0%, color-mix(in oklch, var(--brand-navy) 86%, transparent) 0%, transparent 52%);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Înălțimea REALĂ a header-ului sticky, publicată ca variabilă de `SiteHeader`
+   (ResizeObserver). Valorile de aici sunt DOAR fallback pentru SSR/primul paint,
+   aliniate cu breakpoint-urile barei: 64px/sm:76px + 1px bordură, iar pe `lg` se
+   adaugă bara utilitară (~32px, dimensionată de conținut → de asta o măsurăm).
+   ───────────────────────────────────────────────────────────────────────────── */
+:root { --site-header-h: 65px; }
+@media (min-width: 640px) { :root { --site-header-h: 77px; } }
+@media (min-width: 1024px) { :root { --site-header-h: 109px; } }
+
+/* Hero full-viewport: umple EXACT ce rămâne sub header-ul sticky (care stă pinned,
+   deci ocupă permanent partea de sus a ecranului) → secțiunea următoare nu se vede
+   deloc înainte de scroll, fără gol și fără suprapunere peste navbar.
+   `min-height` (nu `height`): pe ecrane scunde conținutul poate depăși natural, în loc
+   să fie tăiat. `dvh` = viewport DINAMIC (barele de navigare mobile care apar/dispar);
+   declarația `vh` rămâne dedesubt ca fallback pentru browserele fără `dvh`. */
+.hero-viewport {
+    min-height: calc(100vh - var(--site-header-h));
+    min-height: calc(100dvh - var(--site-header-h));
+}
+
 /* Hero — micro-puncte în tonul opus, pe zona NAVY, CONFINATE prin geometria div-ului ca să nu
    atingă fotografia la niciun ecran (desktop: panoul de text stânga, până la 46% = muchia foto;
    mobil: zona navy de sub blocul foto). Mască de fade din colțul de jos-stânga = adâncime, nu folie. */
