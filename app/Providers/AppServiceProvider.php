@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Calendar\CalendarAggregator;
 use App\Calendar\Projectors\AbsenceProjector;
 use App\Calendar\Projectors\AdmissionVisitProjector;
+use App\Calendar\Projectors\AudienceProjector;
 use App\Calendar\Projectors\CorigentaProjector;
 use App\Calendar\Projectors\DeadlineProjector;
 use App\Calendar\Projectors\HomeworkProjector;
@@ -50,6 +51,7 @@ class AppServiceProvider extends ServiceProvider
             $app->make(CorigentaProjector::class),
             $app->make(ManualEventProjector::class),
             $app->make(AdmissionVisitProjector::class),
+            $app->make(AudienceProjector::class),
         ]));
     }
 

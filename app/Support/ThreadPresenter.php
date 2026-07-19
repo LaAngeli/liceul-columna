@@ -36,6 +36,12 @@ final class ThreadPresenter
             'withId' => $mineRoot ? (int) $root->recipient_user_id : (int) $root->sender_user_id,
             'with' => $mineRoot ? $root->recipient->name : $root->sender->name,
             'direction' => $mineRoot ? 'sent' : 'received',
+            // Audiența PROGRAMATĂ (calendar v3): data fixată de conducere; programarea o poate
+            // face DOAR destinatarul rădăcinii (gardul real e în SendMessage::scheduleAudience).
+            'scheduledAt' => $root->scheduled_at?->format('d.m.Y H:i'),
+            'canSchedule' => $root->type->value === 'audience'
+                && $root->parent_id === null
+                && (int) $root->recipient_user_id === $userId,
             'starred' => $root->states->first()?->starred_at !== null,
             'archived' => $root->states->first()?->archived_at !== null,
             'trashed' => $root->states->first()?->trashed_at !== null,

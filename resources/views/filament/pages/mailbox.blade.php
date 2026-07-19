@@ -166,10 +166,38 @@
                             <span class="cx-thread__student">{{ __('panel.fields.student') }}: {{ $data['student'] }}</span>
                         @endif
                     </div>
-                    <x-filament::badge :color="$data['type'] === 'audience' ? 'warning' : 'primary'">
-                        {{ $data['type'] === 'audience' ? __('panel.mailbox.folders.audience') : __('panel.mailbox.body') }}
-                    </x-filament::badge>
+                    <span class="cx-thread__badges">
+                        @if ($data['scheduledAt'])
+                            <x-filament::badge color="success" icon="heroicon-o-calendar-days">
+                                {{ __('panel.mailbox.audience_scheduled_at', ['at' => $data['scheduledAt']]) }}
+                            </x-filament::badge>
+                        @endif
+                        <x-filament::badge :color="$data['type'] === 'audience' ? 'warning' : 'primary'">
+                            {{ $data['type'] === 'audience' ? __('panel.mailbox.folders.audience') : __('panel.mailbox.body') }}
+                        </x-filament::badge>
+                        @if ($data['canSchedule'] && ! $data['trashed'])
+                            <button type="button" class="cx-schedule-btn" wire:click="toggleSchedule">
+                                <x-filament::icon icon="heroicon-o-calendar-days" class="cx-schedule-btn__icon" />
+                                {{ $data['scheduledAt'] ? __('panel.mailbox.audience_reschedule') : __('panel.mailbox.audience_schedule') }}
+                            </button>
+                        @endif
+                    </span>
                 </div>
+
+                {{-- Programarea audienței (calendar v3) — inline, doar pentru destinatarul-conducere. --}}
+                @if ($this->scheduleOpen && $data['canSchedule'] && ! $data['trashed'])
+                    <form wire:submit="saveAudienceSchedule" class="cx-schedule">
+                        <label class="cx-schedule__label" for="cx-schedule-at">{{ __('panel.mailbox.audience_schedule_label') }}</label>
+                        <input id="cx-schedule-at" type="datetime-local" wire:model="scheduleAt" class="cx-schedule__input" required>
+                        <x-filament::button type="submit" size="sm">
+                            {{ __('panel.mailbox.audience_schedule_save') }}
+                        </x-filament::button>
+                        <x-filament::button type="button" size="sm" color="gray" wire:click="toggleSchedule">
+                            {{ __('filament-actions::modal.actions.cancel.label') }}
+                        </x-filament::button>
+                        @error('scheduleAt') <span class="cx-schedule__error">{{ $message }}</span> @enderror
+                    </form>
+                @endif
 
                 <div class="cx-thread__stream">
                     @foreach ($data['messages'] as $message)

@@ -58,6 +58,11 @@ class Mailbox extends Page
 
     public bool $composeOpen = false;
 
+    /** Formularul inline „Programează audiența" (doar pe firele de audiență primite). */
+    public bool $scheduleOpen = false;
+
+    public ?string $scheduleAt = null;
+
     /**
      * Cheile de versiune ale compozitoarelor: FileUpload poartă `wire:ignore`, deci singura cale
      * DETERMINISTĂ de a-l goli după expediere e recrearea subarborelui (părintele cu wire:key).
@@ -331,6 +336,41 @@ class Mailbox extends Page
         if ($this->thread === $id) {
             $this->thread = null;
         }
+    }
+
+    /** Deschide/închide formularul inline de programare a audienței (pre-completat cu programarea existentă). */
+    public function toggleSchedule(): void
+    {
+        $this->scheduleOpen = ! $this->scheduleOpen;
+
+        if ($this->scheduleOpen && $this->thread !== null) {
+            $current = Message::query()->find($this->thread)?->scheduled_at;
+            $this->scheduleAt = $current?->format('Y-m-d\TH:i');
+        }
+    }
+
+    /** Programează audiența firului deschis — gardul real e în {@see SendMessage::scheduleAudience}. */
+    public function saveAudienceSchedule(): void
+    {
+        abort_if($this->thread === null, 422);
+
+        $this->validate(
+            ['scheduleAt' => ['required', 'date']],
+            [],
+            ['scheduleAt' => __('panel.mailbox.audience_schedule_label')],
+        );
+
+        $root = Message::query()->findOrFail($this->thread);
+
+        app(SendMessage::class)->scheduleAudience($this->currentUser(), $root, Carbon::parse((string) $this->scheduleAt));
+
+        $this->scheduleOpen = false;
+        $this->scheduleAt = null;
+
+        Notification::make()->success()
+            ->title(__('panel.mailbox.audience_scheduled'))
+            ->body($root->refresh()->scheduled_at?->translatedFormat('l, j F Y · H:i') ?? '')
+            ->send();
     }
 
     public function openCompose(): void

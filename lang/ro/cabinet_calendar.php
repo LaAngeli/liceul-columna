@@ -40,4 +40,6 @@ return [
     'auto_term_start' => 'Început de semestru',
     'auto_term_end' => 'Sfârșit de semestru',
     'auto_admission_visit' => 'Vizită admitere · :parent',
+    'auto_audience' => 'Audiență · :parent',
+    'auto_audience_own' => 'Audiență programată',
 ];

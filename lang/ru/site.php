@@ -806,6 +806,7 @@ return [
         'mailbox_pick_recipient' => 'Кому?',
         'mailbox_audience_channel' => 'Запросить приём у руководства',
         'mailbox_audience_routing' => 'Запрос попадёт к руководству (завуч/директор).',
+        'mailbox_audience_scheduled' => 'Приём назначен на {at}.',
         'role_profesor' => 'учитель',
         'role_diriginte' => 'классный руководитель',
         'requests_title' => 'Типовые заявления',

@@ -3,6 +3,7 @@ import {
     Archive,
     ArchiveX,
     Building2,
+    CalendarDays,
     ChevronLeft,
     Download,
     FileText,
@@ -80,12 +81,14 @@ interface ThreadMessage {
 interface Thread {
     id: number;
     subject: string;
-    type: 'direct' | 'audience';
+    type: 'direct' | 'audience' | 'behavioral';
     student: string | null;
     studentId: number | null;
     withId: number;
     with: string;
     direction: 'sent' | 'received';
+    /** Audiența programată de conducere (d.m.Y H:i) — calendar v3. */
+    scheduledAt: string | null;
     starred: boolean;
     archived: boolean;
     trashed: boolean;
@@ -709,6 +712,14 @@ function ThreadDetail({
                     <span>
                         {t('cabinet.mailbox_audiences')} · {t('cabinet.mailbox_audience_routing')}
                     </span>
+                </div>
+            )}
+
+            {/* Audiența PROGRAMATĂ de conducere (calendar v3) — familia vede data fixată. */}
+            {thread.scheduledAt && (
+                <div className="flex items-center gap-2 border-b bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                    <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
+                    <span>{t('cabinet.mailbox_audience_scheduled').replace('{at}', thread.scheduledAt)}</span>
                 </div>
             )}
 

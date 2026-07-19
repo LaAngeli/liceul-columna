@@ -4,12 +4,15 @@ namespace App\Actions;
 
 use App\Enums\AudienceDomain;
 use App\Enums\MessageType;
+use App\Enums\NotificationType;
 use App\Enums\UserRole;
 use App\Models\Enrollment;
 use App\Models\Message;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\User;
+use App\Notifications\CatalogNotification;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -158,6 +161,30 @@ class SendMessage
         }
 
         return null;
+    }
+
+    /**
+     * PROGRAMEAZĂ audiența (calendar v3): destinatarul-conducere al solicitării fixează data +
+     * ora întâlnirii pe mesajul-RĂDĂCINĂ; re-apelarea RE-programează. Solicitantul (familia) e
+     * notificat, iar programarea se proiectează în calendarul staff + calendarul familiei.
+     */
+    public function scheduleAudience(User $actor, Message $root, CarbonInterface $at): Message
+    {
+        abort_unless($root->type === MessageType::Audience && $root->parent_id === null, 422, 'Doar o solicitare de audiență se poate programa.');
+        abort_unless((int) $root->recipient_user_id === (int) $actor->id, 403, 'Doar destinatarul solicitării programează audiența.');
+
+        $root->forceFill(['scheduled_at' => $at])->save();
+
+        $root->sender?->notify(new CatalogNotification(
+            NotificationType::NewMessage,
+            url: '/cabinet/mesaje?fir='.$root->id,
+            customTitle: (string) __('panel.mailbox.audience_scheduled_notify_title'),
+            customBody: (string) __('panel.mailbox.audience_scheduled_notify_body', [
+                'at' => $at->translatedFormat('l, j F Y · H:i'),
+            ]),
+        ));
+
+        return $root->refresh();
     }
 
     /**

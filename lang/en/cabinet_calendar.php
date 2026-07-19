@@ -40,4 +40,6 @@ return [
     'auto_term_start' => 'Term start',
     'auto_term_end' => 'Term end',
     'auto_admission_visit' => 'Admission visit · :parent',
+    'auto_audience' => 'Audience · :parent',
+    'auto_audience_own' => 'Scheduled audience',
 ];

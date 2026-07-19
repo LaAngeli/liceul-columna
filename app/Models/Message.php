@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  *
  * @property MessageType $type
  * @property AudienceDomain|null $audience_domain
+ * @property Carbon|null $scheduled_at
  * @property Carbon|null $read_at
  */
 #[ObservedBy(MessageObserver::class)]
@@ -47,6 +48,7 @@ class Message extends Model
         return [
             'type' => MessageType::class,
             'audience_domain' => AudienceDomain::class,
+            'scheduled_at' => 'datetime',
             'read_at' => 'datetime',
         ];
     }

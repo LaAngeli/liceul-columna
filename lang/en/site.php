@@ -806,6 +806,7 @@ return [
         'mailbox_pick_recipient' => 'To whom?',
         'mailbox_audience_channel' => 'Request a meeting with leadership',
         'mailbox_audience_routing' => 'The request goes to leadership (deputy head/head).',
+        'mailbox_audience_scheduled' => 'The audience has been scheduled for {at}.',
         'role_profesor' => 'teacher',
         'role_diriginte' => 'homeroom teacher',
         'requests_title' => 'Standard requests',

@@ -726,6 +726,31 @@ html:root.dark {
 .dark .cx-thread__meta { border-color: rgb(63 63 70 / 0.6); }
 .cx-thread__with { font-weight: 600; font-size: .95rem; }
 .cx-thread__student { display: block; font-size: .8rem; opacity: .7; margin-top: .125rem; }
+.cx-thread__badges { display: inline-flex; align-items: center; gap: .5rem; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Programarea audienței (calendar v3) — buton discret + formular inline sub meta. */
+.cx-schedule-btn {
+    display: inline-flex; align-items: center; gap: .375rem;
+    font-size: .8rem; font-weight: 600; color: var(--brand-navy);
+    border: 1px solid rgb(228 228 231); border-radius: 9999px; padding: .25rem .75rem;
+    min-height: 1.75rem; background: transparent;
+}
+.cx-schedule-btn:hover { background: color-mix(in srgb, var(--brand-navy) 6%, transparent); }
+.dark .cx-schedule-btn { color: rgb(191 219 254); border-color: rgb(63 63 70); }
+.cx-schedule-btn__icon { width: 1rem; height: 1rem; }
+.cx-schedule {
+    display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    padding: .625rem .75rem; margin-top: .5rem; border-radius: .75rem;
+    background: color-mix(in srgb, var(--brand-navy) 5%, transparent);
+}
+.dark .cx-schedule { background: rgb(63 63 70 / .35); }
+.cx-schedule__label { font-size: .8rem; font-weight: 600; }
+.cx-schedule__input {
+    font-size: .85rem; border: 1px solid rgb(228 228 231); border-radius: .5rem;
+    padding: .3rem .5rem; background: transparent; min-height: 2rem;
+}
+.dark .cx-schedule__input { border-color: rgb(63 63 70); color-scheme: dark; }
+.cx-schedule__error { font-size: .75rem; color: rgb(179 38 30); flex-basis: 100%; }
 
 .cx-thread__stream { display: flex; flex-direction: column; gap: .75rem; }
 

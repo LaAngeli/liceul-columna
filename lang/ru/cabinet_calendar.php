@@ -40,4 +40,6 @@ return [
     'auto_term_start' => 'Начало семестра',
     'auto_term_end' => 'Конец семестра',
     'auto_admission_visit' => 'Визит (приём) · :parent',
+    'auto_audience' => 'Приём · :parent',
+    'auto_audience_own' => 'Назначенный приём',
 ];

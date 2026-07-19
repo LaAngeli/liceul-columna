@@ -806,6 +806,7 @@ return [
         'mailbox_pick_recipient' => 'Către cine?',
         'mailbox_audience_channel' => 'Solicită audiență la conducere',
         'mailbox_audience_routing' => 'Solicitarea ajunge la conducere (vicedirector/director).',
+        'mailbox_audience_scheduled' => 'Audiența a fost programată pentru {at}.',
         'role_profesor' => 'profesor',
         'role_diriginte' => 'diriginte',
         'requests_title' => 'Cereri tipice',
