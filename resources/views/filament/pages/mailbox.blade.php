@@ -62,7 +62,7 @@
                     >
                 </div>
 
-                <ul class="cx-list" role="list">
+                <ul @class(['cx-list', 'cx-list--trash' => $folder === 'trash']) role="list">
                     @forelse ($this->threads as $row)
                         <li wire:key="row-{{ $row['id'] }}" @class(['cx-row', 'cx-row--unread' => $row['unread']])>
                             <button

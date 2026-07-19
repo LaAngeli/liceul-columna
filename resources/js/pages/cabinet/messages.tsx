@@ -397,7 +397,19 @@ function MailRow({
                 <Star className={cn('size-4', thread.starred && 'fill-amber-400 text-amber-500')} aria-hidden="true" />
             </button>
 
-            <button type="button" onClick={onOpen} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 py-3 pr-3 pl-1 text-left">
+            {/* Acțiunile de mai jos sunt absolute (în afara fluxului), deci la hover/focus le
+                rezervăm explicit lățimea aici — altfel subiectul/fragmentul nu se trunchiază și
+                curge pe sub iconițe. Ora (`meta`) e prea îngustă ca s-o ascundem doar pe ea. */}
+            <button
+                type="button"
+                onClick={onOpen}
+                className={cn(
+                    'flex min-h-12 min-w-0 flex-1 items-center gap-3 py-3 pr-3 pl-1 text-left',
+                    folder === 'trash'
+                        ? 'group-focus-within:pr-12 lg:group-hover:pr-12' /* un singur buton (Restaurează) */
+                        : 'group-focus-within:pr-[7.75rem] lg:group-hover:pr-[7.75rem]' /* 3 × size-9 + gap-uri + right-2 */,
+                )}
+            >
                 <span className={cn('w-32 shrink-0 truncate text-sm sm:w-40', unread ? 'font-bold' : 'text-foreground/85')}>
                     {thread.with}
                 </span>
@@ -410,14 +422,14 @@ function MailRow({
                     )}
                     <span className="hidden text-muted-foreground sm:inline"> — {thread.snippet}</span>
                 </span>
-                <span className="ml-auto flex shrink-0 items-center gap-2 group-focus-within:invisible lg:group-hover:invisible">
+                <span className="ml-auto flex shrink-0 items-center gap-2 group-focus-within:hidden lg:group-hover:hidden">
                     {thread.attachmentCount > 0 && <Paperclip className="size-3.5 text-muted-foreground" aria-hidden="true" />}
                     <time className="text-xs tabular-nums text-muted-foreground">{thread.lastAt}</time>
                 </span>
             </button>
 
             {/* Acțiuni la hover (desktop) / mereu accesibile prin focus (tastatură) */}
-            <span className="pointer-events-none absolute right-2 hidden items-center gap-0.5 rounded-full bg-card group-focus-within:pointer-events-auto group-focus-within:flex lg:group-hover:pointer-events-auto lg:group-hover:flex">
+            <span className="pointer-events-none absolute right-2 hidden items-center gap-0.5 group-focus-within:pointer-events-auto group-focus-within:flex lg:group-hover:pointer-events-auto lg:group-hover:flex">
                 {folder === 'trash' ? (
                     <RowIcon label={t('cabinet.mailbox_restore')} onClick={onRestore}>
                         <RotateCcw className="size-4" aria-hidden="true" />

@@ -1,6 +1,18 @@
 {
   "version": 1,
   "skills": {
+    "email-best-practices": {
+      "source": "resend/email-best-practices",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "04fbc95d7e38a4f778a055cbca06255d81b1b91ec8f627feac51cb400d129ab6"
+    },
+    "emails": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/emails/SKILL.md",
+      "computedHash": "24be312d773945dda1d21b52fa172a523e9cb005cb3b700fe81f787980d5381c"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",

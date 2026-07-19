@@ -864,13 +864,21 @@ html:root.dark {
 }
 .cx-chip--audience { background: rgb(217 119 6 / .15); color: rgb(180 83 9); }
 
-/* Acțiunile pe rând — la hover pe desktop; mereu vizibile pe touch */
+/* Acțiunile pe rând — la hover pe desktop; mereu vizibile pe touch.
+   Fiind scoase din flux (absolute), la hover trebuie să le REZERVĂM explicit lățimea în
+   `.cx-row__main`; altfel subiectul/fragmentul nu se trunchiază și curge pe sub iconițe.
+   Ascunderea `.cx-row__meta` (ora) nu ajunge — e mult mai îngustă decât cele 3 butoane. */
+.cx-list { --cx-actions-w: 7.75rem; } /* 3 × 2.25rem buton + 2 × .125rem gap + .5rem margine + aer */
+.cx-list--trash { --cx-actions-w: 3rem; } /* coșul are un singur buton (Restaurează) */
 .cx-row__actions {
     position: absolute; right: .5rem; top: 50%; transform: translateY(-50%);
     display: none; gap: .125rem;
 }
 .cx-row:hover .cx-row__actions, .cx-row:focus-within .cx-row__actions { display: inline-flex; }
-.cx-row:hover .cx-row__meta { visibility: hidden; }
+@media (hover: hover) {
+    .cx-row:hover .cx-row__main, .cx-row:focus-within .cx-row__main { padding-right: var(--cx-actions-w); }
+    .cx-row:hover .cx-row__meta, .cx-row:focus-within .cx-row__meta { display: none; }
+}
 @media (hover: none) {
     .cx-row__actions { display: inline-flex; position: static; transform: none; }
     .cx-row__meta { display: none; }

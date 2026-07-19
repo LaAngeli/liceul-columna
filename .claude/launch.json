@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vite",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "queue",
+      "runtimeExecutable": "C:/laragon/bin/php/php-8.3.30-Win32-vs16-x64/php.exe",
+      "runtimeArgs": ["artisan", "queue:listen", "--tries=1"]
+    }
+  ]
+}
