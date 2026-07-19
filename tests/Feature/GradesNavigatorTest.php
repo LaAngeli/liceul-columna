@@ -255,6 +255,11 @@ it('cardurile de profesori agregă notele pe autor, iar contextul restrânge tab
 
     expect(collect($component->instance()->catalogEntityCards())->pluck('id')->all())->toBe([$teacher->id]);
 
+    // Dimensiunea „Profesori" = doar AUTORII din platformă (importul istoric nu are autor) —
+    // hint-ul explică semantica, altfel tab-ul pare gol/stricat (întrebarea beneficiarului).
+    expect($component->instance()->catalogHint())
+        ->toBe((string) __('panel.catalog_nav.teachers_dimension_hint'));
+
     $component->call('openCatalogEntity', $teacher->id)
         ->assertCanSeeTableRecords([$byTeacher])
         ->assertCanNotSeeTableRecords([$byNobody]);

@@ -109,6 +109,14 @@ trait HasCatalogNavigator
     /** Textul-ghid de sub meniul navigatorului — suprascriptibil per catalog. */
     public function catalogHint(): string
     {
+        // Dimensiunea „Profesori" = AUTORII înregistrărilor din platformă. Evaluările istorice
+        // importate din sistemul vechi nu au autor (sursa nu-l ținea) → aici apar doar cadrele
+        // care au introdus ceva DUPĂ migrare. Fără explicație, tab-ul părea „gol/stricat"
+        // (întrebarea beneficiarului, 2026-07-20) — restul datelor trăiesc pe celelalte dimensiuni.
+        if ($this->catalogActiveDimension() === 'profesori') {
+            return (string) __('panel.catalog_nav.teachers_dimension_hint');
+        }
+
         return (string) __('panel.catalog_nav.hint');
     }
 

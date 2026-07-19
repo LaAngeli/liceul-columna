@@ -1447,6 +1447,7 @@ return [
         'subjects' => '{1}:count disciplină|[2,19]:count discipline|[20,*]:count de discipline',
         'records' => '{1}:count înregistrare|[2,19]:count înregistrări|[20,*]:count de înregistrări',
         'homework_records' => '{1}:count temă|[2,19]:count teme|[20,*]:count de teme',
+        'teachers_dimension_hint' => 'Aici apar AUTORII înregistrărilor introduse în platformă. Evaluările istorice, importate din vechiul sistem, nu au autor înregistrat (sursa nu-l păstra) — pe acelea le găsești pe dimensiunile Clase, Discipline sau Perioade.',
         'students_hint' => 'Alege o clasă ca să-i vezi elevii. Căutarea globală (Ctrl+K) găsește orice elev din perimetrul tău.',
         'students_archive' => 'Arhivă (toți elevii)',
         'subjects_hint' => 'Disciplinele pe care le predai. Alege una ca să vezi clasele tale pentru ea.',
