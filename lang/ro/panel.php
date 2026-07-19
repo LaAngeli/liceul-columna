@@ -639,7 +639,7 @@ return [
             'version_placeholder' => 'ex. ed. 2026',
             'access_level' => 'Nivel de acces',
             'visible_roles' => 'Roluri cu acces',
-            'visible_roles_hint' => 'Documentul e vizibil DOAR rolurilor selectate.',
+            'visible_roles_hint' => 'Documentul e vizibil DOAR rolurilor selectate. Elevii și părinții formează o singură audiență (familia): un document pentru unul e vizibil ambilor.',
             'is_published' => 'Publicat',
             'is_published_hint' => 'Nepublicat = vizibil doar administrației care gestionează biblioteca.',
             'file' => 'Fișier',

@@ -626,7 +626,7 @@ return [
             'version_placeholder' => 'e.g. ed. 2026',
             'access_level' => 'Access level',
             'visible_roles' => 'Roles with access',
-            'visible_roles_hint' => 'The document is visible ONLY to the selected roles.',
+            'visible_roles_hint' => 'The document is visible ONLY to the selected roles. Students and parents form a single audience (the family): a document for one is visible to both.',
             'is_published' => 'Published',
             'is_published_hint' => 'Unpublished = visible only to the administration managing the library.',
             'file' => 'File',

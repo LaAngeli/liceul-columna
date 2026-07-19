@@ -43,6 +43,23 @@ it('documentul rol-specific e vizibil DOAR rolurilor țintă', function () {
         ->and($doc->isVisibleTo(docUser(UserRole::Profesor->value)))->toBeFalse();
 });
 
+it('elevii și părinții sunt o singură audiență: documentul „pentru elevi" e vizibil și părinților, și invers', function () {
+    $forStudents = Document::factory()->forRoles(UserRole::Elev->value)->create(['is_published' => true]);
+    $forParents = Document::factory()->forRoles(UserRole::Parinte->value)->create(['is_published' => true]);
+
+    $student = docUser(UserRole::Elev->value);
+    $parent = docUser(UserRole::Parinte->value);
+    $teacher = docUser(UserRole::Profesor->value);
+
+    // Ambele direcții, pe rând (isVisibleTo) și pe query (scope) — profesorul rămâne exclus.
+    expect($forStudents->isVisibleTo($parent))->toBeTrue()
+        ->and($forParents->isVisibleTo($student))->toBeTrue()
+        ->and($forStudents->isVisibleTo($teacher))->toBeFalse()
+        ->and(Document::query()->visibleTo($parent)->count())->toBe(2)
+        ->and(Document::query()->visibleTo($student)->count())->toBe(2)
+        ->and(Document::query()->visibleTo($teacher)->count())->toBe(0);
+});
+
 it('documentul nepublicat e ascuns nemanagerilor, vizibil administrației care gestionează', function () {
     $doc = Document::factory()->draft()->create(['access_level' => DocumentAccessLevel::Public]);
 

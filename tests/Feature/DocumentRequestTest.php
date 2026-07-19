@@ -59,6 +59,35 @@ it('familia depune o cerere tipică și se generează un PDF privat', function (
     Storage::disk('local')->assertExists($request->pdf_path);
 });
 
+it('istoricul rămâne al familiei: părintele descarcă PDF-ul + justificativul cererii și după ARHIVAREA elevului', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('cereri/istoric.pdf', '%PDF-1.4 istoric');
+    Storage::disk('local')->put('cereri/justificative/istoric.pdf', '%PDF-1.4 justificativ');
+
+    $student = Student::factory()->create();
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+
+    $request = DocumentRequest::factory()->create([
+        'student_id' => $student->id,
+        'requested_by_user_id' => $parent->id,
+        'pdf_path' => 'cereri/istoric.pdf',
+        'attachment_path' => 'cereri/justificative/istoric.pdf',
+    ]);
+
+    // Elevul pleacă din liceu (fișa se arhivează) — relația tutore→elev trece prin soft delete.
+    $student->delete();
+
+    $this->actingAs($parent)->get(route('cabinet.requests.pdf', $request))->assertOk();
+    $this->actingAs($parent)->get(route('cabinet.requests.attachment', $request))->assertOk();
+
+    // Un părinte STRĂIN rămâne exclus — extinderea e doar pentru familia reală.
+    $stranger = User::factory()->create();
+    $stranger->assignRole(UserRole::Parinte->value);
+    $this->actingAs($stranger)->get(route('cabinet.requests.pdf', $request))->assertForbidden();
+});
+
 it('profilul trimite totalul REAL al cererilor lângă lista plafonată la 15 (indicator de trunchiere)', function () {
     $student = Student::factory()->create();
     $parent = User::factory()->create();
@@ -140,9 +169,9 @@ it('cererea elevului ARHIVAT rămâne descărcabilă de administrație (nu mai c
     $director->assignRole(UserRole::Director->value);
     $this->actingAs($director)->get("/cabinet/cereri/{$request->id}/pdf")->assertOk();
 
-    // Familia: accesul la cabinet se pierde odată cu arhivarea copilului (isFamilyOf pe relația
-    // activă — coerent cu restul cabinetului). Important: 403 curat, NU 500 ca înainte.
-    $this->actingAs($parent)->get("/cabinet/cereri/{$request->id}/pdf")->assertForbidden();
+    // Familia păstrează accesul la ISTORIC și după arhivare (decizie de produs 2026-07-18 —
+    // isFamilyOfIncludingArchived pe descărcări); înainte primea 403, iar mai demult 500.
+    $this->actingAs($parent)->get("/cabinet/cereri/{$request->id}/pdf")->assertOk();
 });
 
 it('învoirea CERE perioada (fără ea, secretariatul nu știe CÂND) — adeverința nu', function () {

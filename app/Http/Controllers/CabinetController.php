@@ -706,11 +706,12 @@ class CabinetController extends Controller
         $user = $request->user('web');
         // Administrația ÎNTÂI (scurt-circuit) + gardă de null pe elev: fără ele, cererea unui elev
         // arhivat crăpa cu TypeError (isFamilyOf cere Student ne-nullable) pentru ORICINE — exact pe
-        // cazul în care administrația trebuie să poată închide cererea unui elev plecat.
+        // cazul în care administrația trebuie să poată închide cererea unui elev plecat. Familia se
+        // verifică INCLUSIV pe elevul arhivat — istoricul rămâne descărcabil după plecare.
         $student = $documentRequest->student;
         abort_unless(
             $user instanceof User
-                && ($user->isAdministrator() || ($student !== null && $this->isFamilyOf($user, $student))),
+                && ($user->isAdministrator() || ($student !== null && $this->isFamilyOfIncludingArchived($user, $student))),
             403,
         );
         abort_unless(
@@ -739,7 +740,7 @@ class CabinetController extends Controller
         $student = $documentRequest->student;
         abort_unless(
             $user instanceof User
-                && ($user->isAdministrator() || ($student !== null && $this->isFamilyOf($user, $student))),
+                && ($user->isAdministrator() || ($student !== null && $this->isFamilyOfIncludingArchived($user, $student))),
             403,
         );
         abort_unless(
@@ -793,10 +794,11 @@ class CabinetController extends Controller
         abort_unless($user instanceof User, 403);
 
         // Administrația întâi + gardă de null (elev hard-deleted) — aceeași apărare ca la cereri.
+        // Familia inclusiv pe elevul arhivat: justificativele vechi rămân ale familiei.
         $student = $absenceMotivation->student;
         abort_unless(
             $user->isAdministrator()
-                || ($student !== null && ($this->isFamilyOf($user, $student)
+                || ($student !== null && ($this->isFamilyOfIncludingArchived($user, $student)
                     || ($student->homeroomUser()?->is($user) ?? false))),
             403,
         );
@@ -1014,6 +1016,20 @@ class CabinetController extends Controller
     private function isFamilyOf(User $user, Student $student): bool
     {
         return $user->students()->whereKey($student->id)->exists() || $student->user_id === $user->id;
+    }
+
+    /**
+     * Familia, INCLUSIV pentru un elev ARHIVAT (plecat din liceu) — folosită DOAR la descărcarea
+     * documentelor ISTORICE (PDF cerere, justificative): istoricul familiei rămâne al familiei și
+     * după plecare. Relația tutore→elev trece prin global scope-ul SoftDeletes al elevului, deci
+     * fără `withTrashed` părintele primea 403 pe actele vechi, în timp ce CONTUL elevului (legat
+     * direct prin user_id) le putea descărca — asimetrie fără sens (decizie de produs 2026-07-18).
+     * Depunerile/acțiunile active rămân pe {@see isFamilyOf} (doar elevi activi).
+     */
+    private function isFamilyOfIncludingArchived(User $user, Student $student): bool
+    {
+        return $user->students()->withTrashed()->whereKey($student->id)->exists()
+            || $student->user_id === $user->id;
     }
 
     /**

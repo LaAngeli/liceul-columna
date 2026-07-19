@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\DocumentAccessLevel;
 use App\Enums\DocumentCategory;
 use App\Enums\DocumentSource;
+use App\Enums\UserRole;
 use Database\Factories\DocumentFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -156,13 +157,36 @@ class Document extends Model implements Auditable
         return match ($this->access_level) {
             DocumentAccessLevel::Public => true,
             DocumentAccessLevel::RoleSpecific => array_intersect(
-                $user->getRoleNames()->all(),
+                self::familyExpandedRoles($user->getRoleNames()->all()),
                 $this->visible_roles ?? [],
             ) !== [],
             // Documentele individuale sunt GENERATE per-copil (foaie matricolă, dosar) și trec prin
             // gardurile lor proprii — nu se distribuie din biblioteca statică.
             DocumentAccessLevel::Individual => false,
         };
+    }
+
+    /**
+     * FAMILIA e o singură audiență (decizie de produs 2026-07-18, coerent cu tot cabinetul):
+     * un document adresat „elevilor" e vizibil și părinților lor, și invers — altfel operatorul
+     * trebuia să bifeze mereu ambele roluri, iar omisiunea lăsa jumătate de familie fără document.
+     * Se EXPANDEAZĂ rolurile utilizatorului la verificare (elev ⇄ părinte), nu audiența salvată.
+     *
+     * @param  array<mixed>  $roles
+     * @return list<string>
+     */
+    public static function familyExpandedRoles(array $roles): array
+    {
+        // getRoleNames() vine fără generice din spatie → normalizăm defensiv la string-uri.
+        $roles = array_values(array_filter($roles, 'is_string'));
+
+        $family = [UserRole::Elev->value, UserRole::Parinte->value];
+
+        if (array_intersect($roles, $family) === []) {
+            return $roles;
+        }
+
+        return array_values(array_unique([...$roles, ...$family]));
     }
 
     /**
@@ -193,7 +217,8 @@ class Document extends Model implements Auditable
             return $query;
         }
 
-        $roles = $user->getRoleNames()->all();
+        // Elev ⇄ părinte = aceeași audiență (familia) — vezi {@see familyExpandedRoles}.
+        $roles = self::familyExpandedRoles($user->getRoleNames()->all());
 
         return $query
             ->where('is_published', true)

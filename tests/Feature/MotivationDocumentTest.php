@@ -45,4 +45,10 @@ it('justificativul atașat se stochează privat și e descărcabil de familie, n
     $stranger = User::factory()->create();
     $stranger->assignRole(UserRole::Profesor->value);
     $this->actingAs($stranger)->get(route('cabinet.motivation.document', $motivation))->assertForbidden();
+
+    // Istoricul rămâne al familiei: după ARHIVAREA elevului (plecare), părintele descarcă în
+    // continuare justificativul depus (decizie de produs 2026-07-18); străinul rămâne exclus.
+    $student->delete();
+    $this->actingAs($parent)->get(route('cabinet.motivation.document', $motivation))->assertOk();
+    $this->actingAs($stranger)->get(route('cabinet.motivation.document', $motivation))->assertForbidden();
 });
