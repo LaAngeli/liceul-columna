@@ -37,8 +37,18 @@ class Audit extends BaseAudit
      */
     public function eventLabel(): string
     {
-        $key = 'panel.tables.audits.event_'.$this->event;
+        return self::eventLabelFor($this->event);
+    }
 
-        return Lang::has($key) ? (string) trans($key) : $this->event;
+    /**
+     * Aceeași etichetă, pentru un eveniment dat — varianta STATICĂ, folosită acolo unde avem doar
+     * valoarea coloanei (`formatStateUsing`), nu instanța: nu depinde de clasa hidratată, deci nu
+     * se rupe dacă relația întoarce modelul pachetului în loc de al nostru.
+     */
+    public static function eventLabelFor(string $event): string
+    {
+        $key = 'panel.tables.audits.event_'.$event;
+
+        return Lang::has($key) ? (string) trans($key) : $event;
     }
 }

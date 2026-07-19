@@ -1,5 +1,11 @@
 <?php
 
+use App\Models\Audit;
+use OwenIt\Auditing\Resolvers\IpAddressResolver;
+use OwenIt\Auditing\Resolvers\UrlResolver;
+use OwenIt\Auditing\Resolvers\UserAgentResolver;
+use OwenIt\Auditing\Resolvers\UserResolver;
+
 return [
 
     'enabled' => env('AUDITING_ENABLED', true),
@@ -11,9 +17,15 @@ return [
     |
     | Define which Audit model implementation should be used.
     |
+    | Modelul NOSTRU (extinde strict modelul pachetului, aceeași tabelă `audits`, doar cu etichete
+    | traduse pentru viewer). Trebuie declarat AICI, nu doar folosit în resursele Filament: relația
+    | morfică `audits()` din trait-ul Auditable hidratează clasa din acest config — cu valoarea
+    | implicită a pachetului, jurnalul contextual de pe fișa unui elev primea modelul vendor și
+    | crăpa la orice cod care se bazează pe ajutoarele noastre (bug 2026-07-20).
+    |
     */
 
-    'implementation' => OwenIt\Auditing\Models\Audit::class,
+    'implementation' => Audit::class,
 
     /*
     |--------------------------------------------------------------------------
@@ -30,7 +42,7 @@ return [
             'web',
             'api',
         ],
-        'resolver' => OwenIt\Auditing\Resolvers\UserResolver::class,
+        'resolver' => UserResolver::class,
     ],
 
     /*
@@ -42,9 +54,9 @@ return [
     |
     */
     'resolvers' => [
-        'ip_address' => OwenIt\Auditing\Resolvers\IpAddressResolver::class,
-        'user_agent' => OwenIt\Auditing\Resolvers\UserAgentResolver::class,
-        'url' => OwenIt\Auditing\Resolvers\UrlResolver::class,
+        'ip_address' => IpAddressResolver::class,
+        'user_agent' => UserAgentResolver::class,
+        'url' => UrlResolver::class,
     ],
 
     /*

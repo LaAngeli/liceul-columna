@@ -1,7 +1,9 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Filament\RelationManagers\AuditsRelationManager;
 use App\Filament\Resources\Audits\AuditResource;
+use App\Filament\Resources\Students\Pages\ViewStudent;
 use App\Models\AcademicYear;
 use App\Models\Audit;
 use App\Models\Enrollment;
@@ -11,6 +13,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\User;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
@@ -82,6 +85,29 @@ it('familia care-și vede propriul copil NU intră în jurnalul de acces', funct
     $this->actingAs($parent)->get("/cabinet/elev/{$student->id}")->assertOk();
 
     expect(Audit::query()->where('event', 'viewed')->count())->toBe(0);
+});
+
+it('relația audits() hidratează modelul APLICAȚIEI, iar jurnalul contextual de pe fișă se randează', function () {
+    // Regresie 2026-07-20: `config('audit.implementation')` rămăsese pe modelul PACHETULUI, deci
+    // relația morfică întorcea OwenIt\...\Audit, iar jurnalul de pe fișa elevului dădea 500
+    // („Argument #1 ($record) must be of type App\Models\Audit").
+    config(['audit.console' => true]);
+
+    $student = Student::factory()->create();
+
+    expect($student->audits()->first())->toBeInstanceOf(Audit::class)
+        ->and($student->audits()->first()->eventLabel())->not->toBeEmpty();
+
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+
+    Livewire::actingAs($director)
+        ->test(AuditsRelationManager::class, [
+            'ownerRecord' => $student,
+            'pageClass' => ViewStudent::class,
+        ])
+        ->assertOk()
+        ->assertCanSeeTableRecords($student->audits()->get());
 });
 
 it('administratorul tehnic NU vede auditul datelor academice (scoping ◐); directorul vede tot', function () {

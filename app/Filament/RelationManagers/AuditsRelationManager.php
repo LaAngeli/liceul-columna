@@ -58,7 +58,10 @@ class AuditsRelationManager extends RelationManager
             TextEntry::make('event')
                 ->label(__('panel.tables.audits.action'))
                 ->badge()
-                ->formatStateUsing(fn (Audit $record): string => $record->eventLabel()),
+                // Etichetare pe VALOAREA coloanei, nu pe instanță: relația morfică hidratează clasa
+                // din `config('audit.implementation')`, deci un type-hint pe modelul nostru ar lega
+                // afișarea de acel config (exact cum a crăpat în 2026-07-20).
+                ->formatStateUsing(fn (string $state): string => Audit::eventLabelFor($state)),
             TextEntry::make('url')
                 ->label(__('panel.tables.audits.url'))
                 ->placeholder(__('panel.common.dash')),
@@ -89,7 +92,7 @@ class AuditsRelationManager extends RelationManager
                 TextColumn::make('event')
                     ->label(__('panel.tables.audits.action'))
                     ->badge()
-                    ->formatStateUsing(fn (Audit $record): string => $record->eventLabel())
+                    ->formatStateUsing(fn (string $state): string => Audit::eventLabelFor($state))
                     ->color(fn (string $state): string => match ($state) {
                         'created' => 'success',
                         'updated' => 'warning',
