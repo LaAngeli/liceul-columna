@@ -223,6 +223,7 @@ class AbsencesTable
                     // Ștergerea PERMANENTĂ / restaurarea = doar autoritatea academică; profesorul nu
                     // șterge definitiv date de catalog, nici măcar ale lui (audit Î-4/#06).
                     ForceDeleteBulkAction::make()
+                        ->authorizeIndividualRecords('forceDelete')
                         ->visible(fn (): bool => auth('web')->user()?->canAdministerCatalog() ?? false),
                     RestoreBulkAction::make()
                         ->visible(fn (): bool => auth('web')->user()?->canAdministerCatalog() ?? false),

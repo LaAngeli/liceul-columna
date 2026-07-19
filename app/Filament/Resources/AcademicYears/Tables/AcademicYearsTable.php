@@ -54,7 +54,10 @@ class AcademicYearsTable
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
+                    ForceDeleteBulkAction::make()
+                        // Filament autorizează BULK prin `forceDeleteAny()`; gardul per-rând
+                        // (istoric academic dependent) se aplică doar cu asta.
+                        ->authorizeIndividualRecords('forceDelete'),
                     RestoreBulkAction::make(),
                 ]),
             ]);

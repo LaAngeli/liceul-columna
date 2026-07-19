@@ -218,6 +218,7 @@ class HomeworkAssignmentsTable
                     DeleteBulkAction::make(),
                     // Ștergerea PERMANENTĂ / restaurarea = doar autoritatea academică (audit Î-4/#06).
                     ForceDeleteBulkAction::make()
+                        ->authorizeIndividualRecords('forceDelete')
                         ->visible(fn (): bool => auth('web')->user()?->canAdministerCatalog() ?? false),
                     RestoreBulkAction::make()
                         ->visible(fn (): bool => auth('web')->user()?->canAdministerCatalog() ?? false),
