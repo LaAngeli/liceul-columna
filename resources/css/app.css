@@ -757,6 +757,31 @@
     50% { opacity: 0.4; transform: scale(0.78); }
 }
 
+/* Hero v2 — straturi premium peste „Cadrul & Drumul": accent luminos verde în spatele
+   titlului (umple navy-ul plat fără să concureze cu textul) + plutirea lentă a cardurilor
+   flotante de pe fotografie. Floatul stă pe un wrapper INTERIOR, separat de `.hero-stage`
+   (intrarea în trepte) — două animații pe același element s-ar suprascrie reciproc. */
+.site-shell .hero-glow {
+    background: radial-gradient(closest-side, color-mix(in oklch, var(--brand-green) 20%, transparent), transparent 72%);
+}
+@media (prefers-reduced-motion: no-preference) {
+    .site-shell .hero-float {
+        animation: site-hero-float 6.4s ease-in-out var(--float-delay, 0s) infinite alternate;
+    }
+}
+@keyframes site-hero-float {
+    from { transform: translateY(0); }
+    to { transform: translateY(-8px); }
+}
+
+/* Parallax-ul discret al fotografiei hero e aplicat din JS (rAF-loop în home.tsx, gated pe
+   IntersectionObserver + lg + no-preference). S-a încercat varianta CSS scroll-driven
+   (`animation-timeline: scroll(root)`), dar are două probleme practice: (1) range-start
+   acceptă DOAR lungimi cu unitate explicită (`0`/`0%`/`normal` lasă timeline-ul inactiv →
+   animația nu se aplică deloc), iar minificatorul reduce `0px`→`0`; (2) activarea
+   timeline-ului s-a dovedit nedeterministă la verificare. rAF-loop-ul citește scrollY
+   direct → determinist peste tot. */
+
 /* Pagina de eroare (public/error) — motion editorial cu temă educațională: intrare
    în cascadă + numeralul care „aterizează"; simboluri de învățământ plutesc lent
    (albe, în banda navy). Ilustrația-emblemă are o animație RELEVANTĂ pe cod: busola

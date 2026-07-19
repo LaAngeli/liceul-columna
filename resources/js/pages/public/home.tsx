@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
-import { ArrowRight, BookOpen, Award, GraduationCap, DoorOpen, Heart, Mail, MapPin, Newspaper, Phone, ShieldCheck, Wallet } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowRight, BookOpen, Award, GraduationCap, DoorOpen, Heart, LayoutDashboard, Mail, MapPin, Newspaper, Phone, ShieldCheck, Wallet } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { LocaleLink } from '@/components/locale-link';
 import { Band, BrandButton, Container, Display, FourStar, Reveal, Rhombus, SectionHeader, StatRibbon, ValueChips  } from '@/components/public/brand';
 import type {StatItem} from '@/components/public/brand';
@@ -51,6 +51,88 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
             }
         }
     }, [shutter]);
+
+    /* Parallax discret pe fotografie: rAF-loop care citește scrollY DIRECT (nu listener de
+       `scroll`, nu CSS scroll-timeline — vezi nota din app.css: range-start-ul scroll-driven
+       e capricios și minificatorul strică singura formă acceptată). Rulează DOAR cât hero-ul
+       e în viewport (IntersectionObserver), doar pe lg+ și doar sub `no-preference`; altfel
+       wrapper-ul rămâne netransformat. Transformul stă pe WRAPPER-ul imaginii, nu pe <img> —
+       intrarea `site-hero-settle` țintește imaginea și cele două s-ar suprascrie. Baza
+       scale(1.07) creează exact marja pe care translatarea (max 24px) o consumă. */
+    const photoParallaxRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const el = photoParallaxRef.current;
+
+        if (!el) {
+            return;
+        }
+
+        const motionOk = window.matchMedia('(prefers-reduced-motion: no-preference)');
+        const isDesktop = window.matchMedia('(min-width: 1024px)');
+        let rafId = 0;
+        let lastY = -1;
+        let running = false;
+        let visible = false;
+
+        const tick = () => {
+            if (!running) {
+                return;
+            }
+
+            const y = window.scrollY;
+
+            if (y !== lastY) {
+                lastY = y;
+                el.style.transform = `scale(1.07) translateY(${Math.min(y * 0.06, 24)}px)`;
+            }
+
+            rafId = requestAnimationFrame(tick);
+        };
+
+        const update = () => {
+            const want = visible && motionOk.matches && isDesktop.matches;
+
+            if (want === running) {
+                return;
+            }
+
+            running = want;
+
+            if (running) {
+                lastY = -1;
+                rafId = requestAnimationFrame(tick);
+            } else {
+                cancelAnimationFrame(rafId);
+                el.style.transform = '';
+            }
+        };
+
+        const io = new IntersectionObserver((entries) => {
+            visible = entries[0].isIntersecting;
+            update();
+        });
+
+        io.observe(el);
+        motionOk.addEventListener('change', update);
+        isDesktop.addEventListener('change', update);
+
+        return () => {
+            io.disconnect();
+            running = false;
+            cancelAnimationFrame(rafId);
+            motionOk.removeEventListener('change', update);
+            isDesktop.removeEventListener('change', update);
+        };
+    }, []);
+
+    /* Bara de dovezi din hero — micro-ecou al cifrelor DEJA publicate în secțiunea 01
+       (StatRibbon): vechime, acoperirea treptelor, centrul Cambridge. Nimic inventat. */
+    const heroProof = [
+        { value: String(years), suffix: '+', label: t('home.hero_proof_years', 'ani de tradiție') },
+        { value: 'I–XII', label: t('home.hero_proof_grades', 'toate treptele') },
+        { value: '2019', label: t('home.hero_proof_cambridge', 'centru Cambridge') },
+    ];
 
     const stats: StatItem[] = [
         { value: String(years), suffix: '+', label: t('home.stat_years', 'ani de experiență, din 1998') },
@@ -117,28 +199,53 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                     (~54vw) unde imaginea de 900px e afișată aproape la mărimea nativă = clară,
                     nu întinsă full-bleed la 2× (unde s-ar înmuia). Textul stă pe navy solid. */}
                 <div className="hero-photo relative h-[min(38vh,290px)] w-full shrink-0 overflow-hidden lg:absolute lg:inset-y-0 lg:right-0 lg:left-[46%] lg:h-full lg:w-auto">
-                    <img
-                        src="/images/hero/g15-hero-1440.webp"
-                        srcSet="/images/hero/g15-hero-900.webp 900w, /images/hero/g15-hero-1440.webp 1440w, /images/hero/g15-hero-1800.webp 1800w"
-                        sizes="(min-width: 1024px) 54vw, 100vw"
-                        alt={t('home.hero_photo_caption', 'Campusul liceului, văzut de sus')}
-                        loading="eager"
-                        fetchPriority="high"
-                        decoding="async"
-                        className="h-full w-full object-cover object-[50%_42%]"
-                    />
+                    {/* wrapper-ul parallax (transform din rAF-loop); gradientele rămân SURORI = cusăturile stau pe loc */}
+                    <div ref={photoParallaxRef} className="h-full w-full">
+                        <img
+                            src="/images/hero/g15-hero-1440.webp"
+                            srcSet="/images/hero/g15-hero-900.webp 900w, /images/hero/g15-hero-1440.webp 1440w, /images/hero/g15-hero-1800.webp 1800w"
+                            sizes="(min-width: 1024px) 54vw, 100vw"
+                            alt={t('home.hero_photo_caption', 'Campusul liceului, văzut de sus')}
+                            loading="eager"
+                            fetchPriority="high"
+                            decoding="async"
+                            className="h-full w-full object-cover object-[50%_42%]"
+                        />
+                    </div>
                     {/* fuziune mobilă foto→navy */}
                     <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[color:var(--surface-navy)] to-transparent lg:hidden" />
                     {/* desktop: cusătura stângă se topește în panoul navy (blend, nu tăietură) */}
                     <div aria-hidden="true" className="absolute inset-y-0 left-0 hidden w-40 bg-gradient-to-r from-[color:var(--surface-navy)] to-transparent lg:block" />
                     {/* scrim de jos desktop — lizibilitatea riglei peste foto */}
                     <div aria-hidden="true" className="absolute inset-x-0 bottom-0 hidden h-40 bg-gradient-to-t from-[color:var(--surface-navy)]/85 to-transparent lg:block" />
+                    {/* mobil: UN singur card compact peste foto (catalogul online = serviciul-diferențiator);
+                        static (fără float) — pe ecran mic plutirea ar părea gimmick. Sus-dreapta, NU jos:
+                        panoul de text urcă peste foto cu -mt-10 și jos s-ar ciocni cu eyebrow-ul. */}
+                    <div className="hero-stage absolute top-3 right-3 z-10 flex items-center gap-2.5 rounded-[12px] border border-white/25 bg-[color:var(--surface-navy)]/70 px-3 py-2 supports-[backdrop-filter]:backdrop-blur-md lg:hidden [--stage:4]">
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-brand-green/20 text-brand-green">
+                            <LayoutDashboard className="size-4" />
+                        </span>
+                        <span className="min-w-0">
+                            <span className="block text-sm leading-tight font-semibold">{t('home.hero_card_catalog', 'Catalog online')}</span>
+                            <span className="block text-xs leading-tight text-white/70">{t('home.hero_card_catalog_sub', 'Note și absențe, în timp real')}</span>
+                        </span>
+                    </div>
                 </div>
                 {/* Textură navy hero — puncte în tonul opus, CONFINATE la zona navy (nu ating foto la
                     niciun ecran). Desktop: panoul de text stânga, până la 46% = muchia fotografiei.
                     Mobil: zona navy de sub blocul foto (începe exact la finalul lui: min(38vh,290px)). */}
                 <div aria-hidden="true" className="tx-hero-dots-desktop pointer-events-none absolute inset-y-0 left-0 hidden w-[46%] lg:block" />
                 <div aria-hidden="true" className="tx-hero-dots-mobile pointer-events-none absolute inset-x-0 bottom-0 lg:hidden" style={{ top: 'min(38vh, 290px)' }} />
+                {/* Strat heraldic + accent luminos (doar desktop) — panoul navy nu mai e „gol":
+                    crestul alb ca filigran instituțional în spatele textului + un glow verde
+                    difuz sub titlu. Ambele decorative, sub conținut (z-10 al Container-ului). */}
+                <img
+                    src="/images/logo/columna-crest-white.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-1/2 -left-20 hidden w-[28rem] max-w-none -translate-y-1/2 opacity-[0.045] select-none lg:block"
+                />
+                <div aria-hidden="true" className="hero-glow pointer-events-none absolute top-[10%] -left-[4%] hidden size-[32rem] lg:block" />
                 {/* Panoul de text absoarbe spațiul rămas (`flex-1`) și își centrează conținutul vertical
                     — înălțimea hero-ului e dictată de viewport (`.hero-viewport`), nu de un clamp fix.
                     Înainte era `lg:min-h-[clamp(560px,76vh,800px)]`: la 76vh rămânea o fâșie din
@@ -161,12 +268,50 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                                 {t('home.visit', 'Vizitează liceul')}
                             </BrandButton>
                         </div>
+                        {/* Bara de dovezi — umple zona de sub CTA-uri (fostul „gol" navy) cu încredere
+                            imediată: numerale Cervino + etichete scurte, separate de keyline-uri. */}
+                        <div className="hero-stage mt-1 grid grid-cols-3 overflow-hidden rounded-[12px] border border-white/15 bg-white/[0.04] supports-[backdrop-filter]:backdrop-blur-sm [--stage:4]">
+                            {heroProof.map((p, i) => (
+                                <div key={p.label} className={cn('flex flex-col gap-1 px-3 py-3 sm:px-4', i > 0 && 'border-l border-white/15')}>
+                                    <span className="numeral text-xl leading-none whitespace-nowrap text-[color:var(--brand-navy-foreground)] sm:text-2xl">
+                                        {p.value}
+                                        {p.suffix && <span className="text-brand-green">{p.suffix}</span>}
+                                    </span>
+                                    <span className="text-[0.68rem] leading-tight text-white/65 sm:text-xs">{p.label}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </Container>
+                {/* Carduri flotante (doar desktop) — puntea dintre panou și fotografie: catalogul online
+                    (serviciul-diferențiator, călare pe cusătura 46%) + centrul Cambridge (încredere).
+                    Floatul stă pe wrapper-ul interior; intrarea în trepte pe cel exterior. */}
+                <div className="hero-stage absolute top-[16%] left-[47.5%] z-10 hidden lg:block [--stage:5]">
+                    <div className="hero-float flex items-center gap-3 rounded-[14px] border border-white/25 bg-[color:var(--surface-navy)]/65 px-4 py-3 shadow-[0_18px_44px_-18px_rgba(0,0,0,0.55)] supports-[backdrop-filter]:backdrop-blur-md">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-brand-green/20 text-brand-green">
+                            <LayoutDashboard className="size-5" />
+                        </span>
+                        <span>
+                            <span className="block leading-tight font-semibold">{t('home.hero_card_catalog', 'Catalog online')}</span>
+                            <span className="block text-xs text-white/70">{t('home.hero_card_catalog_sub', 'Note și absențe, în timp real')}</span>
+                        </span>
+                    </div>
+                </div>
+                <div className="hero-stage absolute top-[56%] right-[5%] z-10 hidden lg:block [--stage:6]">
+                    <div className="hero-float flex items-center gap-3 rounded-[14px] border border-white/25 bg-[color:var(--surface-navy)]/65 px-4 py-3 shadow-[0_18px_44px_-18px_rgba(0,0,0,0.55)] supports-[backdrop-filter]:backdrop-blur-md [--float-delay:1.6s]">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-brand-green/20 text-brand-green">
+                            <Award className="size-5" />
+                        </span>
+                        <span>
+                            <span className="block leading-tight font-semibold">{t('home.hero_card_cambridge', 'Cambridge English')}</span>
+                            <span className="block text-xs text-white/70">{t('home.hero_card_cambridge_sub', 'Centru autorizat din 2019')}</span>
+                        </span>
+                    </div>
+                </div>
                 {/* Chip de proveniență — decorativ (alt-ul imaginii poartă textul pentru SR) */}
                 <div
                     aria-hidden="true"
-                    className="hero-stage pointer-events-none absolute right-6 bottom-24 z-10 hidden items-center gap-2 rounded-full border border-white/25 bg-[color:var(--surface-navy)]/60 px-3 py-1.5 text-xs text-white/80 supports-[backdrop-filter]:backdrop-blur-sm lg:inline-flex [--stage:6]"
+                    className="hero-stage pointer-events-none absolute right-6 bottom-24 z-10 hidden items-center gap-2 rounded-full border border-white/25 bg-[color:var(--surface-navy)]/60 px-3 py-1.5 text-xs text-white/80 supports-[backdrop-filter]:backdrop-blur-sm lg:inline-flex [--stage:7]"
                 >
                     <span className="hero-pulse size-2 rounded-full bg-brand-green" />
                     {t('home.hero_photo_caption', 'Campusul liceului, văzut de sus')}
