@@ -1198,6 +1198,30 @@ return [
         ],
     ],
 
+    'teachers_registry' => [
+        'views' => [
+            'toti' => 'Toți',
+            'diriginti' => 'Diriginți',
+            'fara_alocari' => 'Fără alocări',
+            'fara_cont' => 'Fără cont',
+            'arhiva' => 'Arhivă',
+        ],
+        'hints' => [
+            'toti' => 'Tot corpul didactic activ, cu funcția reală și acoperirea pe discipline.',
+            'diriginti' => 'Cadrele cu o clasă în coordonare în anul curent.',
+            'fara_alocari' => 'Fișe fără nicio alocare disciplină–clasă: de completat alocările sau de arhivat.',
+            'fara_cont' => 'Fișe fără cont de acces în platformă — se rezolvă din „Adaugă profesor" sau din Utilizatori.',
+            'arhiva' => 'Fișe arhivate (șterse). Restaurarea se face din pagina de editare.',
+        ],
+        'function' => 'Funcția',
+        'function_teacher' => 'Profesor',
+        'homeroom_of_value' => 'Diriginte · :class',
+        'no_account' => 'Fără cont',
+        'no_assignments' => 'Fără alocări',
+        'coverage_more' => '+:count discipline',
+        'catalog_links' => 'Deschide în catalog (activitatea din platformă)',
+    ],
+
     'credentials_mail' => [
         'subject' => 'Datele tale de autentificare — Liceul Columna',
         'greeting' => 'Salut, :name!',

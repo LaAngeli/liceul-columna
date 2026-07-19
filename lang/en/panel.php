@@ -1182,6 +1182,30 @@ return [
         ],
     ],
 
+    'teachers_registry' => [
+        'views' => [
+            'toti' => 'All',
+            'diriginti' => 'Homeroom teachers',
+            'fara_alocari' => 'No assignments',
+            'fara_cont' => 'No account',
+            'arhiva' => 'Archive',
+        ],
+        'hints' => [
+            'toti' => 'The entire active teaching staff, with the real function and subject coverage.',
+            'diriginti' => 'Teachers coordinating a class in the current school year.',
+            'fara_alocari' => 'Profiles without any subject–class assignment: add assignments or archive them.',
+            'fara_cont' => 'Profiles without a platform account — create one via "Add teacher" or Users.',
+            'arhiva' => 'Archived (deleted) profiles. Restore from the edit page.',
+        ],
+        'function' => 'Function',
+        'function_teacher' => 'Teacher',
+        'homeroom_of_value' => 'Homeroom · :class',
+        'no_account' => 'No account',
+        'no_assignments' => 'No assignments',
+        'coverage_more' => '+:count subjects',
+        'catalog_links' => 'Open in the register (platform activity)',
+    ],
+
     'credentials_mail' => [
         'subject' => 'Your sign-in details — Liceul Columna',
         'greeting' => 'Hello, :name!',
