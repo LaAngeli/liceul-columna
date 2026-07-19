@@ -55,6 +55,9 @@ it('scheduleCell traduce celulele compuse ale orarului pe prefix, cu fallback RO
         ->and(ContentTranslator::scheduleCell("Educa\u{0163}ie fizic\u{0103} Ciobanu A.", 'ru'))->toBe('Физкультура Ciobanu A.')
         // Zilele săptămânii ORIUNDE în celulă (orarele de examene).
         ->and(ContentTranslator::scheduleCell('Luni 04.05.2026', 'ru'))->toBe('Понедельник 04.05.2026')
+        // PTA = „Pregătirea temelor și activități" (programul prelungit) — abrevierea se expandează.
+        ->and(ContentTranslator::scheduleCell('PTA 1', 'ru'))->toBe('Подготовка домашних заданий и занятия 1')
+        ->and(ContentTranslator::scheduleCell('PTA 2', 'en'))->toBe('Homework preparation and activities 2')
         // Fără potrivire → RO neatins; RO → identitate.
         ->and(ContentTranslator::scheduleCell('Ședință administrativă, cab. 5', 'ru'))->toBe('Ședință administrativă, cab. 5')
         ->and(ContentTranslator::scheduleCell('Matematică Damian Iu.', 'ro'))->toBe('Matematică Damian Iu.');

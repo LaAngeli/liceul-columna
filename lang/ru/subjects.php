@@ -44,6 +44,8 @@ return [
     'Literatura universală' => 'Всемирная литература',
     'Managementul clasei' => 'Менеджмент класса',
     'Matematică' => 'Математика',
+    // PTA = „Pregătirea temelor și activități" (programul prelungit primar) — expandat la traducere.
+    'PTA' => 'Подготовка домашних заданий и занятия',
     'Pauză, Dejun' => 'Перемена, завтрак',
     'Pauză, Prânz' => 'Перемена, обед',
     'Pauză' => 'Перемена',

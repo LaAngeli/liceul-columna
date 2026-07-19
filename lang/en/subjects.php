@@ -44,6 +44,8 @@ return [
     'Literatura universală' => 'World Literature',
     'Managementul clasei' => 'Classroom Management',
     'Matematică' => 'Mathematics',
+    // PTA = „Pregătirea temelor și activități" (extended-day program) — expanded when translated.
+    'PTA' => 'Homework preparation and activities',
     'Pauză, Dejun' => 'Break, breakfast',
     'Pauză, Prânz' => 'Break, lunch',
     'Pauză' => 'Break',
