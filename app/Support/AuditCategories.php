@@ -13,6 +13,7 @@ use App\Models\CorigentaExam;
 use App\Models\CorigentaSession;
 use App\Models\Document;
 use App\Models\DocumentRequest;
+use App\Models\ExamCommission;
 use App\Models\GalleryAlbum;
 use App\Models\Grade;
 use App\Models\Holiday;
@@ -56,6 +57,7 @@ class AuditCategories
                 StatusAcknowledgement::class,
                 CorigentaSession::class,
                 CorigentaExam::class,
+                ExamCommission::class,
             ],
             'elevi' => [
                 Student::class,

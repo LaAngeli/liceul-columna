@@ -131,11 +131,7 @@ class UserForm
                             ->options(AudienceDomain::options())
                             ->columns(2)
                             ->visible(fn (Get $get, string $operation): bool => $operation !== 'create'
-                                && in_array($get('role'), [
-                                    UserRole::Director->value,
-                                    UserRole::PrimVicedirector->value,
-                                    UserRole::AdministratorOperational->value,
-                                ], true)),
+                                && in_array($get('role'), UserRole::audienceDomainHolderValues(), true)),
                         // ── Onboarding PROFESOR/DIRIGINTE: fișa (nouă sau existentă) + integrarea ──
                         // Fișa e sursa perimetrului (alocări, diriginție): un cont pedagogic nou
                         // nu poate exista fără ea. Implicit se CREEAZĂ o fișă nouă din datele de

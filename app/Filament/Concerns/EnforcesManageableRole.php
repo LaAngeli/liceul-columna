@@ -2,6 +2,7 @@
 
 namespace App\Filament\Concerns;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
@@ -36,8 +37,20 @@ trait EnforcesManageableRole
 
     protected function syncSelectedRole(): void
     {
-        if ($this->selectedRole !== null && $this->record instanceof User) {
-            $this->record->syncRoles([$this->selectedRole]);
+        if ($this->selectedRole === null || ! $this->record instanceof User) {
+            return;
+        }
+
+        $this->record->syncRoles([$this->selectedRole]);
+
+        // REZIDUU DE PRIVILEGIU (audit 2026-07-20): `audience_domains` e afișat doar pentru rolurile
+        // de conducere, iar Filament NU dehidratează componentele ascunse — la retrogradare valoarea
+        // supraviețuia în coloană. Consecințe reale, nu teoretice: `canManageCorigenta()` rămânea
+        // true prin `handlesAudienceDomain()`, iar rutările din SendMessage/AbsenceMotivationObserver
+        // interoghează coloana în SQL — o semnalare comportamentală despre un MINOR putea ateriza la
+        // un cont fără drept. Domeniile aparțin exclusiv rolurilor care le pot exercita.
+        if (! in_array($this->selectedRole, UserRole::audienceDomainHolderValues(), true)) {
+            $this->record->forceFill(['audience_domains' => null])->save();
         }
     }
 }

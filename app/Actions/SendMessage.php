@@ -142,7 +142,7 @@ class SendMessage
     private function behavioralTarget(): ?User
     {
         $handler = User::query()
-            ->whereJsonContains('audience_domains', AudienceDomain::Educatie->value)
+            ->handlingAudienceDomain(AudienceDomain::Educatie)
             ->orderBy('id')
             ->first();
 
@@ -439,7 +439,7 @@ class SendMessage
     private function audienceTargetForDomain(AudienceDomain $domain): ?User
     {
         $handler = User::query()
-            ->whereJsonContains('audience_domains', $domain->value)
+            ->handlingAudienceDomain($domain)
             ->orderBy('id')
             ->first();
 

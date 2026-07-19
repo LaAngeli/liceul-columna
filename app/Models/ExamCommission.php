@@ -5,13 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * Comisie de examen pentru lichidarea corigenței (spec §2.5): pe disciplină, cu președinte + membri.
  * Propusă de vicedirectorul pe instruire, folosită la sloturile sesiunilor de corigență.
+ *
+ * Auditabilă ca și sesiunea și examenul: componența comisiei e desemnată prin ordin, deci
+ * schimbarea ei trebuie să lase urmă (§7 / L133) — lipsea, deși surorile ei o aveau.
  */
-class ExamCommission extends Model
+class ExamCommission extends Model implements Auditable
 {
+    use AuditableTrait;
+
     protected $fillable = [
         'academic_year_id',
         'subject_id',

@@ -42,7 +42,7 @@ class AbsenceMotivationObserver
 
         if ($motivation->is_exception) {
             $handlers = User::query()
-                ->whereJsonContains('audience_domains', AudienceDomain::Educatie->value)
+                ->handlingAudienceDomain(AudienceDomain::Educatie)
                 ->get();
 
             if ($handlers->isNotEmpty()) {

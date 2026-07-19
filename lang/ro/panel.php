@@ -826,6 +826,7 @@ return [
             'result_pending' => 'Programat / neexaminat',
             'mark' => 'Nota de corigență',
             'mark_hint' => 'Nota obținută la examen (1–10). Promovat = nota ≥ 5; devine media finală a disciplinei în foaia matricolă.',
+            'mark_locked' => 'Nota se consemnează de autoritatea academică (director / prim-vicedirector). Tu poți programa examenul: sesiune, comisie, dată.',
         ],
         'exam_commission' => [
             'name' => 'Comisie',
@@ -1331,6 +1332,7 @@ return [
         'SummativeDesignation' => 'Desemnare sumativă',
         'StatusAcknowledgement' => 'Confirmare statut',
         'CorigentaSession' => 'Sesiune corigență',
+        'ExamCommission' => 'Comisie de examen',
         'CorigentaExam' => 'Examen corigență',
         'User' => 'Cont utilizator',
         'ConsentAcknowledgment' => 'Consimțământ',

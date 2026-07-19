@@ -78,6 +78,22 @@ enum UserRole: string
     }
 
     /**
+     * Rolurile care pot PURTA un domeniu de audiență (Instruire/Educație/…): conducerea academică
+     * și administratorul operațional. Regulă de DOMENIU, nu de UI — o folosesc deopotrivă
+     * vizibilitatea câmpului din formularul de utilizator, curățarea la retrogradare și rutările
+     * care caută responsabilul unui domeniu. O a doua listă undeva ar diverge tăcut.
+     *
+     * @return list<string>
+     */
+    public static function audienceDomainHolderValues(): array
+    {
+        return array_map(
+            static fn (self $role): string => $role->value,
+            [self::Director, self::PrimVicedirector, self::AdministratorOperational],
+        );
+    }
+
+    /**
      * Toate valorile string ale rolurilor.
      *
      * @return list<string>

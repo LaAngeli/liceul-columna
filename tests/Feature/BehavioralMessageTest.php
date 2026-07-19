@@ -86,7 +86,12 @@ it('semnalarea merge la PRIM-VICEDIRECTOR, nu la familie, și îl notifică', fu
 
 it('responsabilul domeniului EDUCAȚIE primează; fără conducere semnalarea e respinsă cu 422', function () {
     $deputy = primVicedirector();
+
+    // Responsabilul de domeniu trebuie să aibă și ROLUL care-l poate exercita: desemnarea singură,
+    // rămasă într-o coloană, nu face pe nimeni destinatar legitim al unei semnalări despre un MINOR
+    // (reziduul de privilegiu reparat în LOT 2 — vezi RoleResidualPrivilegeTest).
     $handler = User::factory()->create(['audience_domains' => ['educatie']]);
+    $handler->assignRole(UserRole::Director->value);
 
     $message = app(SendMessage::class)->behavioralReport(behaviorTeacher($this->class), $this->student, 'Situație raportabilă.');
 

@@ -813,6 +813,7 @@ return [
             'result_pending' => 'Scheduled / not examined',
             'mark' => 'Make-up mark',
             'mark_hint' => 'Mark obtained at the exam (1–10). Passed = mark ≥ 5; becomes the subject\'s final annual average in the transcript.',
+            'mark_locked' => 'The mark is recorded by academic leadership (director / deputy director). You may schedule the exam: session, commission, date.',
         ],
         'exam_commission' => [
             'name' => 'Commission',
@@ -1315,6 +1316,7 @@ return [
         'SummativeDesignation' => 'Summative designation',
         'StatusAcknowledgement' => 'Status acknowledgement',
         'CorigentaSession' => 'Make-up session',
+        'ExamCommission' => 'Exam commission',
         'CorigentaExam' => 'Make-up exam',
         'User' => 'User account',
         'ConsentAcknowledgment' => 'Consent',

@@ -24,13 +24,22 @@ class CorigentaExamForm
                 ->searchable(),
             DatePicker::make('scheduled_on')
                 ->label(__('panel.forms.corigenta_exam.scheduled_on_long')),
+            // SEPARAREA ATRIBUȚIILOR (§3.2/§3.3): programarea (sesiune, comisie, dată) e configurare
+            // — o face și administratorul operațional; CONSEMNAREA NOTEI e act de autoritate
+            // academică, expres interzis AO („Nu introduce/editează note"). `dehydrated(false)` la
+            // lipsa dreptului: câmpul dezactivat nu se trimite, deci nici un POST fabricat nu-l
+            // scrie prin formular.
             TextInput::make('mark')
                 ->label(__('panel.forms.corigenta_exam.mark'))
                 ->numeric()
                 ->minValue(1)
                 ->maxValue(10)
                 ->step(0.01)
-                ->helperText(__('panel.forms.corigenta_exam.mark_hint'))
+                ->disabled(fn (): bool => ! (auth('web')->user()?->canAdministerCatalog() ?? false))
+                ->dehydrated(fn (): bool => auth('web')->user()?->canAdministerCatalog() ?? false)
+                ->helperText(fn (): string => (auth('web')->user()?->canAdministerCatalog() ?? false)
+                    ? (string) __('panel.forms.corigenta_exam.mark_hint')
+                    : (string) __('panel.forms.corigenta_exam.mark_locked'))
                 ->placeholder(__('panel.forms.corigenta_exam.result_pending')),
         ]);
     }

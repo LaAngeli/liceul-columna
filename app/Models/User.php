@@ -12,6 +12,7 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -253,7 +254,24 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function handlesAudienceDomain(AudienceDomain $domain): bool
     {
-        return in_array($domain->value, $this->audience_domains ?? [], true);
+        return in_array($domain->value, $this->audience_domains ?? [], true)
+            && $this->hasAnyRole(UserRole::audienceDomainHolderValues());
+    }
+
+    /**
+     * Conturile care răspund EFECTIV de un domeniu: au domeniul marcat ȘI un rol care-l poate
+     * exercita. Rolul se verifică obligatoriu — o desemnare rămasă în coloană după retrogradare
+     * (câmpul e ascuns în formular, iar Filament nu dehidratează componentele ascunse) ar fi
+     * altfel aleasă ca destinatar, trimițând date despre un MINOR unui cont fără drept.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeHandlingAudienceDomain(Builder $query, AudienceDomain $domain): Builder
+    {
+        return $query
+            ->whereJsonContains('audience_domains', $domain->value)
+            ->whereHas('roles', fn (Builder $roles) => $roles->whereIn('name', UserRole::audienceDomainHolderValues()));
     }
 
     /**
