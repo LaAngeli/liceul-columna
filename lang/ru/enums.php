@@ -46,6 +46,7 @@ return [
     'message_type' => [
         'direct' => 'Сообщение',
         'audience' => 'Запрос на приём',
+        'behavioral' => 'Сигнал о поведении',
     ],
     'evaluation_type' => [
         'curenta' => 'Текущая',

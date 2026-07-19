@@ -350,6 +350,16 @@ return [
         'delete' => ['label' => 'Șterge'],
         'view' => ['label' => 'Vezi'],
         'restore' => ['label' => 'Restaurează'],
+        'behavior' => [
+            'report' => 'Semnalează comportament',
+            'heading' => 'Semnalare de comportament',
+            'description' => 'Semnalarea merge la prim-vicedirector (moderare) — NU direct la familie. Conducerea decide ce și cum se transmite părinților.',
+            'subject' => 'Comportament: :student',
+            'body' => 'Descrierea situației',
+            'body_hint' => 'Fapte concrete: ce s-a întâmplat, când, în ce context. Textul ajunge la conducere, nu la familie.',
+            'sent' => 'Semnalarea a fost trimisă spre moderare.',
+            'sent_body' => 'A ajuns la :name — conducerea decide ce se transmite familiei.',
+        ],
         'admission' => [
             'contacted' => 'Familia contactată',
             'contacted_done' => 'Cererea a trecut „în lucru" — momentul contactării e reținut.',

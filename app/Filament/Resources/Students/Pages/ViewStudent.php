@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Students\Pages;
 
 use App\Actions\LogStudentAccess;
+use App\Actions\SendMessage;
 use App\Enums\GeneratedDocumentType;
 use App\Filament\Resources\Students\StudentResource;
 use App\Http\Controllers\CabinetController;
@@ -11,6 +12,8 @@ use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 
 /**
@@ -45,9 +48,62 @@ class ViewStudent extends ViewRecord
         // Editarea rămâne doar pentru configuratori — EditAction se ascunde automat prin
         // StudentResource::canEdit() ({@see \App\Filament\Concerns\ManagedByConfigurators}).
         return [
+            $this->reportBehaviorAction(),
             $this->studentDocumentsAction(),
             EditAction::make(),
         ];
+    }
+
+    /**
+     * Semnalarea de COMPORTAMENT (spec §4.2, „mesaj comportamental filtrat"): profesorul care
+     * predă elevului / dirigintele lui o trimite de AICI (e pe fișă când constată problema) —
+     * mesajul merge la PRIM-VICEDIRECTOR spre moderare, NU direct la familie; vicedirectorul
+     * decide ce transmite părinților. Gardul real e în {@see SendMessage::behavioralReport}
+     * (403 pe server); vizibilitatea de aici doar îl oglindește.
+     */
+    private function reportBehaviorAction(): Action
+    {
+        return Action::make('reportBehavior')
+            ->label(__('panel.actions.behavior.report'))
+            ->icon('heroicon-o-flag')
+            ->color('warning')
+            ->visible(function (): bool {
+                $user = auth('web')->user();
+                $student = $this->getRecord();
+
+                if (! $user instanceof User || ! $student instanceof Student) {
+                    return false;
+                }
+
+                $classIds = $user->teacher?->visibleSchoolClassIds() ?? [];
+
+                return $classIds !== [] && $student->enrollments()->whereIn('school_class_id', $classIds)->exists();
+            })
+            ->schema([
+                Textarea::make('body')
+                    ->label(__('panel.actions.behavior.body'))
+                    ->helperText(__('panel.actions.behavior.body_hint'))
+                    ->required()
+                    ->rows(5)
+                    ->maxLength(3000),
+            ])
+            ->modalHeading(__('panel.actions.behavior.heading'))
+            ->modalDescription(__('panel.actions.behavior.description'))
+            ->modalSubmitActionLabel(__('panel.actions.behavior.report'))
+            ->action(function (array $data): void {
+                /** @var User $user */
+                $user = auth('web')->user();
+                /** @var Student $student */
+                $student = $this->getRecord();
+
+                $message = app(SendMessage::class)->behavioralReport($user, $student, (string) $data['body']);
+
+                Notification::make()
+                    ->success()
+                    ->title(__('panel.actions.behavior.sent'))
+                    ->body(__('panel.actions.behavior.sent_body', ['name' => (string) $message->recipient?->name]))
+                    ->send();
+            });
     }
 
     /**

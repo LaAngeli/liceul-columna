@@ -102,6 +102,65 @@ class SendMessage
     }
 
     /**
+     * Semnalare de COMPORTAMENT a unui elev (spec §4.2, „mesaj comportamental filtrat"):
+     * profesorul/dirigintele care PREDĂ elevului o trimite, dar mesajul NU merge la familie —
+     * merge la PRIM-VICEDIRECTOR (moderare), care decide ce și cum transmite părinților (prin
+     * compose-ul obișnuit). Rutare: responsabilul domeniului EDUCAȚIE (atributul
+     * audience_domains), altfel prim-vicedirector → director → administrator operațional.
+     */
+    public function behavioralReport(User $sender, Student $student, string $body): Message
+    {
+        abort_unless(
+            $this->teachesStudent($sender, $student),
+            403,
+            'Doar profesorul sau dirigintele elevului poate semnala comportamentul.',
+        );
+
+        $recipient = $this->behavioralTarget();
+        abort_unless($recipient !== null, 422, 'Nu există un membru al conducerii pentru rutarea semnalării.');
+
+        $class = $student->currentSchoolClass();
+        $classLabel = $class !== null ? ' ('.trim($class->name.' '.($class->section ?? '')).')' : '';
+
+        return Message::create([
+            'sender_user_id' => $sender->id,
+            'recipient_user_id' => $recipient->id,
+            'student_id' => $student->id,
+            'type' => MessageType::Behavioral,
+            'subject' => __('panel.actions.behavior.subject', ['student' => $student->full_name]).$classLabel,
+            'body' => $body,
+        ]);
+    }
+
+    /**
+     * Destinatarul unei semnalări de comportament: responsabilul domeniului EDUCAȚIE (dacă e
+     * desemnat), altfel prim-vicedirectorul (spec §4.2), apoi directorul / AO.
+     */
+    private function behavioralTarget(): ?User
+    {
+        $handler = User::query()
+            ->whereJsonContains('audience_domains', AudienceDomain::Educatie->value)
+            ->orderBy('id')
+            ->first();
+
+        if ($handler !== null) {
+            return $handler;
+        }
+
+        foreach ([UserRole::PrimVicedirector, UserRole::Director, UserRole::AdministratorOperational] as $role) {
+            $user = User::query()
+                ->whereHas('roles', fn ($query) => $query->where('name', $role->value))
+                ->first();
+
+            if ($user !== null) {
+                return $user;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Regula centrală „cine poate scrie cui" (§4.2):
      * - familia → doar profesorul/dirigintele copilului (NU conducerea: aceea e via audiență);
      * - personalul → familia unui elev pe care îl predă/conduce, sau alt membru al personalului;

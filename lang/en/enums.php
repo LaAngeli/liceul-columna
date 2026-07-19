@@ -46,6 +46,7 @@ return [
     'message_type' => [
         'direct' => 'Message',
         'audience' => 'Audience request',
+        'behavioral' => 'Behavior report',
     ],
     'evaluation_type' => [
         'curenta' => 'Current',

@@ -338,6 +338,16 @@ return [
         'delete' => ['label' => 'Delete'],
         'view' => ['label' => 'View'],
         'restore' => ['label' => 'Restore'],
+        'behavior' => [
+            'report' => 'Report behavior',
+            'heading' => 'Behavior report',
+            'description' => 'The report goes to the first deputy director (moderation) — NOT directly to the family. Management decides what to pass on to the parents.',
+            'subject' => 'Behavior: :student',
+            'body' => 'Description of the situation',
+            'body_hint' => 'Concrete facts: what happened, when, in what context. The text reaches management, not the family.',
+            'sent' => 'The report was sent for moderation.',
+            'sent_body' => 'Delivered to :name — management decides what is passed to the family.',
+        ],
         'admission' => [
             'contacted' => 'Family contacted',
             'contacted_done' => 'The request is now "in progress" — the contact moment was recorded.',

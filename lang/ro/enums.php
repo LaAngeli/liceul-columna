@@ -49,6 +49,7 @@ return [
     'message_type' => [
         'direct' => 'Mesaj',
         'audience' => 'Solicitare audiență',
+        'behavioral' => 'Semnalare comportament',
     ],
     'evaluation_type' => [
         'curenta' => 'Curentă',
