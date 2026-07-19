@@ -2,7 +2,7 @@ import { Head } from '@inertiajs/react';
 import { ArrowRight, BookOpen, Award, GraduationCap, DoorOpen, Heart, Mail, MapPin, Newspaper, Phone, ShieldCheck, Wallet } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { LocaleLink } from '@/components/locale-link';
-import { Band, BrandButton, Container, Display, FourStar, Reveal, Rhombus, SectionHeader, StatRibbon, ValueChips  } from '@/components/public/brand';
+import { Band, BrandButton, Container, Display, FourStar, Reveal, Rhombus, SectionHeader, StatRibbon, ValueChips } from '@/components/public/brand';
 import type {StatItem} from '@/components/public/brand';
 import { LeadershipGrid } from '@/components/public/leadership-grid';
 import { useTranslations } from '@/lib/i18n';
@@ -126,13 +126,6 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
         };
     }, []);
 
-    /* Bara de dovezi din hero — micro-ecou al cifrelor DEJA publicate în secțiunea 01
-       (StatRibbon): vechime, acoperirea treptelor, centrul Cambridge. Nimic inventat. */
-    const heroProof = [
-        { value: String(years), suffix: '+', label: t('home.hero_proof_years', 'ani de tradiție') },
-        { value: 'I–XII', label: t('home.hero_proof_grades', 'toate treptele') },
-        { value: '2019', label: t('home.hero_proof_cambridge', 'centru Cambridge') },
-    ];
 
     const stats: StatItem[] = [
         { value: String(years), suffix: '+', label: t('home.stat_years', 'ani de experiență, din 1998') },
@@ -224,21 +217,26 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                     Mobil: zona navy de sub blocul foto (începe exact la finalul lui: min(38vh,290px)). */}
                 <div aria-hidden="true" className="tx-hero-dots-desktop pointer-events-none absolute inset-y-0 left-0 hidden w-[46%] lg:block" />
                 <div aria-hidden="true" className="tx-hero-dots-mobile pointer-events-none absolute inset-x-0 bottom-0 lg:hidden" style={{ top: 'min(38vh, 290px)' }} />
-                {/* Crest heraldic ca filigran instituțional — CENTRAT în zona navy și INTEGRAL vizibil
-                    (înainte era ancorat `-left-20`, deci tăiat de marginea ecranului). Wrapper-ele
-                    oglindesc exact geometria texturii de puncte, deci sigla nu atinge niciodată
-                    fotografia: desktop = panoul de text (0→46% = muchia foto), mobil = banda navy de
-                    sub blocul foto. Dimensiunea e PROCENTUALĂ din wrapper (+ plafon în rem, `max-h` și
-                    `object-contain`) → se adaptează singură oricărui ecran, păstrându-și centrul. */}
-                <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 hidden w-[46%] items-center justify-center lg:flex">
-                    <img src="/images/logo/columna-crest-white.png" alt="" className="max-h-[72%] w-[68%] max-w-[27rem] object-contain opacity-[0.06] select-none" />
-                </div>
+                {/* Crest heraldic — filigran în BANDA LIBERĂ dintre marginea stângă a ecranului și
+                    coloana de text, ca să nu mai stea sub text. Lățimea benzii e o funcție exactă de
+                    container (`max-width: 75rem` centrat + `padding-inline: 1.5rem`):
+                        bandă = (lățime_ecran − 75rem) / 2 + 1.5rem
+                    → 360px la 1920, 144px la 1440, dar 40px la 1280 și ZERO sub 1200. De aceea pragul
+                    de afișare e 1440px: sub el banda se prăbușește matematic și sigla ar deveni fie o
+                    pată de ~50px, fie ar intra peste text. Poziția e FIXĂ (lipită de marginea stângă,
+                    centrată vertical), iar mărimea e fluidă — procentuală din bandă, deci scalează cu
+                    ecranul, cu plafon în rem și `max-h` ca să nu depășească hero-ul.
+                    `100%` (nu `100vw`) intenționat: exclude bara de derulare. Pe responsiv: ASCUNSĂ. */}
                 <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center lg:hidden"
-                    style={{ top: 'min(38vh, 290px)' }}
+                    className="pointer-events-none absolute inset-y-0 left-0 hidden items-center justify-center min-[1440px]:flex"
+                    style={{ width: 'calc((100% - 75rem) / 2 + 1.5rem)' }}
                 >
-                    <img src="/images/logo/columna-crest-white.png" alt="" className="max-h-[62%] w-[58%] max-w-[17rem] object-contain opacity-[0.06] select-none" />
+                    <img
+                        src="/images/logo/columna-crest-white.png"
+                        alt=""
+                        className="max-h-[46%] w-[70%] max-w-[20rem] object-contain opacity-[0.08] select-none"
+                    />
                 </div>
                 <div aria-hidden="true" className="hero-glow pointer-events-none absolute top-[10%] -left-[4%] hidden size-[32rem] lg:block" />
                 {/* Panoul de text absoarbe spațiul rămas (`flex-1`) și își centrează conținutul vertical
@@ -263,19 +261,33 @@ export default function Home({ latestNews, leadership }: { latestNews: NewsCard[
                                 {t('home.visit', 'Vizitează liceul')}
                             </BrandButton>
                         </div>
-                        {/* Bara de dovezi — umple zona de sub CTA-uri (fostul „gol" navy) cu încredere
-                            imediată: numerale Cervino + etichete scurte, separate de keyline-uri. */}
-                        <div className="hero-stage mt-1 grid grid-cols-3 overflow-hidden rounded-[12px] border border-white/15 bg-white/[0.04] supports-[backdrop-filter]:backdrop-blur-sm [--stage:4]">
-                            {heroProof.map((p, i) => (
-                                <div key={p.label} className={cn('flex flex-col gap-1 px-3 py-3 sm:px-4', i > 0 && 'border-l border-white/15')}>
-                                    <span className="numeral text-xl leading-none whitespace-nowrap text-[color:var(--brand-navy-foreground)] sm:text-2xl">
-                                        {p.value}
-                                        {p.suffix && <span className="text-brand-green">{p.suffix}</span>}
-                                    </span>
-                                    <span className="text-[0.68rem] leading-tight text-white/65 sm:text-xs">{p.label}</span>
-                                </div>
+                        {/* VARIANTA A — Rigla treptelor: index vertical navigabil care umple panoul cu
+                            STRUCTURĂ (nu decor) și arată din prima că școala acoperă tot parcursul I–XII.
+                            Reutilizează `programs` (aceleași trei trepte ca secțiunea 03) → zero chei i18n
+                            noi și o singură sursă de adevăr pentru denumiri/linkuri. */}
+                        {/* Rigla treptelor — index vertical navigabil care umple panoul cu STRUCTURĂ (nu
+                            decor) și arată din prima că școala acoperă tot parcursul I–XII. Reutilizează
+                            `programs` (aceleași trepte ca secțiunea 03) → o singură sursă de adevăr pentru
+                            denumiri/linkuri și zero chei i18n noi. */}
+                        <nav
+                            aria-label={t('home.programs_title', 'Cele trei trepte de școlaritate')}
+                            className="hero-stage mt-1 max-w-[26rem] border-l-2 border-l-brand-green pl-4 sm:pl-5 [--stage:4]"
+                        >
+                            {programs.map((p, i) => (
+                                <LocaleLink
+                                    key={p.href}
+                                    href={p.href}
+                                    className={cn(
+                                        'group flex items-baseline gap-4 py-2 text-white/85 transition-colors hover:text-white sm:gap-5 sm:py-2.5',
+                                        i > 0 && 'border-t border-white/15',
+                                    )}
+                                >
+                                    <span className="numeral w-14 shrink-0 text-lg text-brand-green sm:w-16 sm:text-xl">{p.range}</span>
+                                    <span className="text-sm font-semibold sm:text-[0.95rem]">{p.title}</span>
+                                    <ArrowRight className="ml-auto size-4 shrink-0 self-center text-white/40 transition-transform group-hover:translate-x-0.5 group-hover:text-white/80" />
+                                </LocaleLink>
                             ))}
-                        </div>
+                        </nav>
                     </div>
                 </Container>
                 {/* Chip de proveniență — decorativ (alt-ul imaginii poartă textul pentru SR) */}
