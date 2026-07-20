@@ -108,6 +108,18 @@ class CalendarEventForm
                     })
                     ->live()
                     ->required()
+                    // Mutarea startului DUPĂ un sfârșit deja ales l-ar lăsa pe acesta în urmă —
+                    // un interval care se încheie înainte să înceapă. Sfârșitul invalid se GOLEȘTE
+                    // (eveniment de o zi, sensul documentat al câmpului gol), nu se mută tăcut pe
+                    // o dată pe care utilizatorul n-a ales-o niciodată.
+                    ->afterStateUpdated(function (Get $get, Set $set): void {
+                        $start = substr((string) $get('starts_on'), 0, 10);
+                        $end = substr((string) $get('ends_on'), 0, 10);
+
+                        if ($start !== '' && $end !== '' && $end < $start) {
+                            $set('ends_on', null);
+                        }
+                    })
                     ->helperText(fn (): ?string => self::canBackdate()
                         ? (string) __('panel.forms.calendar_event.backdate_allowed')
                         : null)
@@ -132,6 +144,20 @@ class CalendarEventForm
                     ->label(__('panel.forms.calendar_event.ends'))
                     ->native(false)
                     ->displayFormat('d.m.Y')
+                    // STINSE vizual toate zilele dinaintea startului: un eveniment nu se poate
+                    // încheia înainte să înceapă, deci calendarul nici nu le oferă. Fără start ales
+                    // încă, reperul e azi (fusul școlii) — cu excepția dreptului de retro-datare.
+                    ->minDate(function (Get $get): ?string {
+                        $start = substr((string) $get('starts_on'), 0, 10);
+
+                        if ($start !== '') {
+                            return $start;
+                        }
+
+                        return self::canBackdate() ? null : SchoolCalendar::localNow()->toDateString();
+                    })
+                    // Dublura de SERVER a regulii vizuale: `afterOrEqual` e o regulă Laravel și
+                    // pică la fel pe un POST fabricat care ocolește calendarul de selecție.
                     ->afterOrEqual('starts_on')
                     ->helperText(__('panel.forms.calendar_event.ends_hint')),
 

@@ -144,6 +144,63 @@ it('un eveniment din trecut rămâne editabil fără a fi mutat — doar mutarea
         ->assertHasFormErrors(['starts_on']);
 });
 
+it('intervalul nu se poate încheia înaintea începutului — refuz pe SERVER, nu doar în calendar', function () {
+    calendarUser(UserRole::AdministratorOperational);
+
+    $start = SchoolCalendar::localNow()->addDays(5)->toDateString();
+
+    // fillForm ocolește calendarul de selecție — exact calea unei cereri modificate: regula
+    // vizuală (minDate) nu mai contează, trebuie să pice validarea de server.
+    Livewire::test(CreateCalendarEvent::class)
+        ->fillForm([
+            'type' => CalendarEventType::SchoolEvent->value,
+            'visibility_scope' => CalendarEventScope::Global->value,
+            'title' => 'Interval întors',
+            'starts_on' => $start,
+            'ends_on' => SchoolCalendar::localNow()->addDays(2)->toDateString(),
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['ends_on']);
+
+    expect(CalendarEvent::query()->where('title', 'Interval întors')->exists())->toBeFalse();
+
+    // Intervalul corect (sfârșit după început) trece.
+    Livewire::test(CreateCalendarEvent::class)
+        ->fillForm([
+            'type' => CalendarEventType::SchoolEvent->value,
+            'visibility_scope' => CalendarEventScope::Global->value,
+            'title' => 'Interval corect',
+            'starts_on' => $start,
+            'ends_on' => SchoolCalendar::localNow()->addDays(7)->toDateString(),
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+});
+
+it('mutarea startului DUPĂ sfârșitul ales golește sfârșitul, nu lasă intervalul întors', function () {
+    calendarUser(UserRole::AdministratorOperational);
+
+    $component = Livewire::test(CreateCalendarEvent::class)
+        ->fillForm([
+            'starts_on' => SchoolCalendar::localNow()->addDays(2)->toDateString(),
+            'ends_on' => SchoolCalendar::localNow()->addDays(4)->toDateString(),
+        ]);
+
+    // Startul sare peste sfârșit → sfârșitul rămas în urmă se golește (eveniment de o zi),
+    // nu se mută tăcut pe o dată nealeasă de utilizator.
+    $component->fillForm(['starts_on' => SchoolCalendar::localNow()->addDays(10)->toDateString()])
+        ->assertSchemaStateSet(['ends_on' => null]);
+
+    // Mutarea startului ÎNAINTEA sfârșitului existent nu atinge nimic.
+    $component->fillForm([
+        'ends_on' => SchoolCalendar::localNow()->addDays(15)->toDateString(),
+    ])->fillForm([
+        'starts_on' => SchoolCalendar::localNow()->addDays(12)->toDateString(),
+    ])->assertSchemaStateSet([
+        'ends_on' => SchoolCalendar::localNow()->addDays(15)->toDateString(),
+    ]);
+});
+
 it('rezumatul audienței spune CINE vede: clasele reale și numărul de elevi', function () {
     calendarUser(UserRole::AdministratorOperational);
 
