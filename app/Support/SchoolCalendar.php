@@ -67,4 +67,26 @@ final class SchoolCalendar
 
         return $id === null ? null : AcademicYear::query()->find($id);
     }
+
+    /**
+     * Intervalul calendaristic al unui an școlar: datele configurate sau, în lipsa lor,
+     * 1 septembrie – 31 august deduse din denumire („2025-2026"). Folosit de planificatorul
+     * zilelor libere și de generatorul de sărbători legale — aceeași definiție în ambele.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    public static function yearSpan(AcademicYear $year): array
+    {
+        if ($year->starts_on !== null && $year->ends_on !== null) {
+            return [Carbon::parse($year->starts_on), Carbon::parse($year->ends_on)];
+        }
+
+        preg_match('/(\d{4})/', $year->name, $matches);
+        $start = (int) ($matches[1] ?? self::localNow()->year);
+
+        return [
+            $year->starts_on !== null ? Carbon::parse($year->starts_on) : Carbon::create($start, 9, 1),
+            $year->ends_on !== null ? Carbon::parse($year->ends_on) : Carbon::create($start + 1, 8, 31),
+        ];
+    }
 }

@@ -27,6 +27,25 @@ class Holidays
     }
 
     /**
+     * ZI liberă care acoperă data — pentru etichete („Vacanța de iarnă"), nu doar adevăr/fals.
+     * Interogare directă (apeluri rare, în formulare/pagini); calea fierbinte rămâne {@see dates()}.
+     * La suprapuneri câștigă cea mai SPECIFICĂ (intervalul cel mai scurt): o zi de doliu din
+     * mijlocul unei vacanțe e informația, nu vacanța.
+     */
+    public static function holidayOn(CarbonInterface $date): ?Holiday
+    {
+        $day = Carbon::parse($date)->startOfDay();
+
+        // Sortarea după lungime se face în PHP: suprapunerile sunt 1-2 rânduri, iar SQL-ul
+        // portabil (SQLite la teste, MySQL în producție) n-are un DATEDIFF comun.
+        return Holiday::query()
+            ->overlappingSpan($day, $day)
+            ->get()
+            ->sortBy(fn (Holiday $holiday): int => $holiday->lengthInDays())
+            ->first();
+    }
+
+    /**
      * Toate zilele de sărbătoare (Y-m-d), expandate din intervale. Cache-uit.
      *
      * @return list<string>

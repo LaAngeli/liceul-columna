@@ -6,6 +6,7 @@ use App\Enums\CalendarEventType;
 use App\Enums\CorigentaSeason;
 use App\Enums\CorigentaSessionStatus;
 use App\Enums\CorigentaSessionType;
+use App\Enums\HolidayType;
 use App\Models\Absence;
 use App\Models\AcademicYear;
 use App\Models\CalendarEvent;
@@ -90,8 +91,13 @@ class CalendarDemoSeeder extends Seeder
             });
         }
 
-        // Vacanță (instituțional + cabinet, ca structură).
-        Holiday::create(['name' => 'Zi liberă (demo)', 'starts_on' => $on(20)]);
+        // Vacanță (instituțional + cabinet, ca structură). Marcaj [DEMO] standard → curățabilă
+        // de app:purge-demo-data la go-live, ca restul datelor de test.
+        Holiday::create([
+            'name' => '[DEMO] Zi liberă',
+            'type' => HolidayType::InstitutionalDay,
+            'starts_on' => $on(20),
+        ]);
 
         // Evenimente manuale — globale/treaptă/clasă (apar și la staff, și la familie).
         CalendarEvent::create([
@@ -163,7 +169,9 @@ class CalendarDemoSeeder extends Seeder
     {
         CalendarEvent::withTrashed()->where('title', 'like', '[DEMO]%')->forceDelete();
         HomeworkAssignment::withTrashed()->where('topic', 'like', '[DEMO]%')->forceDelete();
-        Holiday::where('name', 'Zi liberă (demo)')->delete();
+        // Ambele denumiri: cea istorică („Zi liberă (demo)", încă prezentă pe medii mai vechi)
+        // și marcajul standard de azi.
+        Holiday::where('name', 'Zi liberă (demo)')->orWhere('name', 'like', '[DEMO]%')->delete();
 
         Absence::where('student_id', $student->id)->whereIn('occurred_on', $absenceDates)->forceDelete();
 

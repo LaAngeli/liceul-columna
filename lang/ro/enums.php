@@ -214,4 +214,11 @@ return [
             'description' => 'Clasele anului curent: efective, media clasei și corigenți — dintr-o privire.',
         ],
     ],
+
+    'holiday_type' => [
+        'legal' => 'Sărbătoare legală',
+        'vacation' => 'Vacanță școlară',
+        'institutional' => 'Zi instituțională',
+        'other' => 'Altă zi liberă',
+    ],
 ];

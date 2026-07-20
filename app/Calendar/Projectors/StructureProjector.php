@@ -62,7 +62,7 @@ class StructureProjector implements CalendarProjector
                     category: CalendarCategory::Structure,
                     title: $holiday->name,
                     date: $cursor->toDateString(),
-                    meta: ['kind' => 'holiday'],
+                    meta: ['kind' => 'holiday', 'holiday_type' => $holiday->type->value],
                 );
 
                 $cursor->addDay();

@@ -9,6 +9,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Support\ContentTranslator;
+use App\Support\Holidays;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
@@ -18,6 +19,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Carbon;
 
 class AbsenceForm
 {
@@ -72,6 +74,22 @@ class AbsenceForm
                     // O absență nu poate fi în viitor; data determină și semestrul. Mesaj clar
                     // (fără ora cu secunde din `now()`) — vezi validation.not_future_date.
                     ->maxDate(now())
+                    ->live()
+                    // Avertisment, NU blocaj: o absență într-o zi liberă e aproape sigur o greșeală
+                    // de tastare, dar recuperările/activitățile din zilele libere există (§ orare).
+                    ->helperText(function (Get $get): ?string {
+                        $value = $get('occurred_on');
+
+                        if ($value === null) {
+                            return null;
+                        }
+
+                        $holiday = Holidays::holidayOn(Carbon::parse(substr((string) $value, 0, 10)));
+
+                        return $holiday === null
+                            ? null
+                            : (string) __('panel.forms.absence.free_day_warning', ['name' => $holiday->name]);
+                    })
                     ->validationMessages(['before_or_equal' => __('validation.not_future_date')]),
                 // Motivare LA CREARE (opțional, doar pe „create"): la activarea toggle-ului apar câmpurile
                 // pentru motiv + dovadă. NU setează direct is_motivated pe absență — la salvare creează un

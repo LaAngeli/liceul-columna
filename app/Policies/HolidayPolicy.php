@@ -10,17 +10,18 @@ use App\Models\User;
  * administratorului operațional (canManageSchedules = AO + super-admin break-glass, §3.2 „publică
  * orarul"), ca și resursa Filament. Fără policy, orice cale viitoare de scriere (API mobil, action)
  * rămânea complet negardată — iar Filament v4 autorizează acțiunile prin Gate, nu prin resursă.
+ * CITIREA urmează resursa (canViewSchedules): conducerea/dirigintele/profesorul VĂD planificatorul.
  */
 class HolidayPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->canManageSchedules();
+        return $user->canViewSchedules();
     }
 
     public function view(User $user, Holiday $holiday): bool
     {
-        return $user->canManageSchedules();
+        return $user->canViewSchedules();
     }
 
     public function create(User $user): bool

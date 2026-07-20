@@ -211,4 +211,11 @@ return [
             'description' => 'Current-year classes: headcount, class average and failing students — at a glance.',
         ],
     ],
+
+    'holiday_type' => [
+        'legal' => 'Legal holiday',
+        'vacation' => 'School vacation',
+        'institutional' => 'Institutional day',
+        'other' => 'Other free day',
+    ],
 ];

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Holidays;
 
 use App\Filament\Resources\Holidays\Pages\CreateHoliday;
 use App\Filament\Resources\Holidays\Pages\EditHoliday;
+use App\Filament\Resources\Holidays\Pages\LegalHolidaysGenerator;
 use App\Filament\Resources\Holidays\Pages\ListHolidays;
 use App\Filament\Resources\Holidays\Schemas\HolidayForm;
 use App\Filament\Resources\Holidays\Tables\HolidaysTable;
@@ -94,6 +95,7 @@ class HolidayResource extends Resource
         return [
             'index' => ListHolidays::route('/'),
             'create' => CreateHoliday::route('/create'),
+            'legal' => LegalHolidaysGenerator::route('/sarbatori-legale'),
             'edit' => EditHoliday::route('/{record}/edit'),
         ];
     }

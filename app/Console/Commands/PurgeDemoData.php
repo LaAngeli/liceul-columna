@@ -8,10 +8,12 @@ use App\Models\CalendarEvent;
 use App\Models\Document;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
+use App\Models\Holiday;
 use App\Models\HomeworkAssignment;
 use App\Models\HomeworkCorrection;
 use App\Models\Message;
 use App\Models\User;
+use App\Support\Holidays;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Notifications\DatabaseNotification;
@@ -77,6 +79,7 @@ class PurgeDemoData extends Command
             ['Motivări de absențe (+ justificative)', $this->purgeAbsenceMotivations($demoIds, $dryRun)],
             ['Documente (+ fișiere de pe disc)', $this->purgeDocuments($demoIds, $dryRun)],
             ['Evenimente de calendar', $this->purgeCalendarEvents($demoIds, $dryRun)],
+            ['Zile libere [DEMO]', $this->purgeHolidays($dryRun)],
             // Notificările ÎNAINTEA anunțurilor: se identifică prin announcement_id, care dispare
             // odată cu rândurile-mamă.
             ['Notificări de anunț din inboxuri', $this->purgeAnnouncementNotifications($demoIds, $dryRun)],
@@ -297,6 +300,30 @@ class PurgeDemoData extends Command
             $inner->whereIn('author_user_id', $demoIds)
                 ->orWhere('title', 'like', '%'.self::DEMO.'%');
         });
+    }
+
+    /**
+     * Zilele libere demo. Prinde ȘI denumirea istorică „Zi liberă (demo)" (pusă de seeder-ul de
+     * calendar înainte de standardizarea marcajului [DEMO]) — pe producție ea există deja.
+     * Ștergerea prin MODEL (nu query builder): evenimentul `deleted` invalidează cache-ul
+     * {@see Holidays} și recalculează termenele de motivare deschise.
+     */
+    private function purgeHolidays(bool $dryRun): int
+    {
+        $holidays = Holiday::query()
+            ->where(function (Builder $inner): void {
+                $inner->where('name', 'like', '%'.self::DEMO.'%')
+                    ->orWhere('name', 'Zi liberă (demo)');
+            })
+            ->get();
+
+        if (! $dryRun) {
+            foreach ($holidays as $holiday) {
+                $holiday->delete();
+            }
+        }
+
+        return $holidays->count();
     }
 
     /**
