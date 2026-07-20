@@ -145,8 +145,11 @@ it('respinge un semestru suprapus cu semestrul ALTUI an școlar', function () {
 });
 
 it('marcarea unui semestru drept curent stinge și un fost-curent ARHIVAT', function () {
-    $trashedCurrent = Term::factory()->for($this->year)->create(['number' => 1, 'is_current' => true]);
+    // Starea „fost-curent arhivat" se construiește prin query builder: garda de MODEL
+    // (2026-07-21) nu mai lasă semestrul CURENT să fie șters — starea e moștenire.
+    $trashedCurrent = Term::factory()->for($this->year)->create(['number' => 1, 'is_current' => false]);
     $trashedCurrent->delete();
+    Term::withTrashed()->whereKey($trashedCurrent->id)->update(['is_current' => true]);
 
     $newCurrent = Term::factory()->for($this->year)->create(['number' => 2, 'is_current' => false]);
     $newCurrent->update(['is_current' => true]);
@@ -157,8 +160,9 @@ it('marcarea unui semestru drept curent stinge și un fost-curent ARHIVAT', func
 });
 
 it('restaurarea unui semestru fost-curent NU produce doi curenți — cel activ câștigă', function () {
-    // Fost-curent arhivat CU flag-ul încă aprins (starea moștenită, dinaintea gărzii withTrashed).
-    $formerCurrent = Term::factory()->for($this->year)->create(['number' => 1, 'is_current' => true]);
+    // Fost-curent arhivat CU flag-ul încă aprins (stare moștenită, dinaintea gărzilor): se
+    // construiește ne-curent (garda de model nu lasă curentul șters), apoi flag prin query builder.
+    $formerCurrent = Term::factory()->for($this->year)->create(['number' => 1, 'is_current' => false]);
     $formerCurrent->delete();
     Term::withTrashed()->whereKey($formerCurrent->id)->update(['is_current' => true]);
 

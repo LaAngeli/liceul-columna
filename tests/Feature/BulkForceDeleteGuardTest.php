@@ -48,8 +48,10 @@ it('ștergerea în masă NU distruge un semestru cu note (gardul per-rând se ap
         'term_id' => $term->id,
     ]);
 
-    // Semestrul ajunge la coș (starea din care ForceDelete e disponibil în UI).
-    $term->delete();
+    // Semestrul ajunge la coș prin query builder: garda de MODEL (2026-07-21) nu mai lasă un
+    // semestru CU istoric să fie șters nici măcar soft — starea „arhivat cu note" e moștenire
+    // (rânduri dinaintea gărzii), exact ce simulăm aici ca să probăm gardul de ForceDelete.
+    Term::query()->whereKey($term->id)->update(['deleted_at' => now()]);
 
     Livewire::test(ListTerms::class)
         ->filterTable('trashed', 'only')

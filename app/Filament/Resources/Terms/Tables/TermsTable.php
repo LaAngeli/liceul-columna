@@ -55,7 +55,11 @@ class TermsTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        // Gardul per-rând și la soft-delete în masă: politica refuză semestrul
+                        // curent / cu istoric / din an închis — rândurile protejate sunt sărite,
+                        // nu aruncate în excepția gărzii de model.
+                        ->authorizeIndividualRecords('delete'),
                     ForceDeleteBulkAction::make()
                         // Filament autorizează BULK prin `forceDeleteAny()`; gardul per-rând
                         // (istoric academic dependent) se aplică doar cu asta.

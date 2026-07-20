@@ -21,6 +21,16 @@ use Illuminate\Database\Eloquent\Builder;
 class RealignTermAssignments
 {
     /**
+     * Rezultatul ULTIMEI rulări din request-ul curent. Observer-ul rulează realinierea în timpul
+     * salvării (unde UI-ul nu are acces la retur); pagina de editare citește de aici ca să-i
+     * arate administratorului CE s-a mutat — a doua rulare ar întoarce 0 (idempotentă), deci
+     * returul nu se poate recalcula.
+     *
+     * @var array{grades: int, absences: int}|null
+     */
+    public static ?array $lastRun = null;
+
+    /**
      * @return array{grades: int, absences: int}
      */
     public function run(Term $term): array
@@ -79,6 +89,6 @@ class RealignTermAssignments
                 });
         }
 
-        return ['grades' => $movedGrades, 'absences' => $movedAbsences];
+        return self::$lastRun = ['grades' => $movedGrades, 'absences' => $movedAbsences];
     }
 }

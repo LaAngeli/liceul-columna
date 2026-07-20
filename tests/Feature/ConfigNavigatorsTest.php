@@ -75,20 +75,21 @@ it('anii școlari sunt HUB-uri: badge „An curent", conținutul anului și săr
         ->and($cards[0]['can_archive'])->toBeTrue();
 });
 
-it('semestrele au pastile pe ani, cu anul CURENT implicit și tabelul restrâns', function () {
+it('semestrele au pastile pe ani, cu anul CURENT implicit și cardurile restrânse la anul activ', function () {
     $component = Livewire::test(ListTerms::class);
     $page = $component->instance();
 
     expect($page->activeYearId())->toBe($this->year->id)
         ->and(collect($page->yearPills())->pluck('id')->all())->toBe([$this->year->id, $this->oldYear->id]);
 
+    // Axa + cardurile (nu mai există tabel): semestrele se recunosc după intervalele lor.
     $component
-        ->assertCanSeeTableRecords([$this->currentTerm])
-        ->assertCanNotSeeTableRecords([$this->oldTerm]);
+        ->assertSee('01.09.2025 – 31.01.2026')
+        ->assertDontSee('01.09.2019 – 31.01.2020');
 
     $component->call('openYear', $this->oldYear->id)
-        ->assertCanSeeTableRecords([$this->oldTerm])
-        ->assertCanNotSeeTableRecords([$this->currentTerm]);
+        ->assertSee('01.09.2019 – 31.01.2020')
+        ->assertDontSee('01.09.2025 – 31.01.2026');
 });
 
 it('examenele de corigență au pastile pe SESIUNE, cu bucket pentru cele fără sesiune', function () {
