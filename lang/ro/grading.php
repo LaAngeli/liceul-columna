@@ -19,6 +19,7 @@ return [
             'order_reference' => 'Referință ordin',
             'summative_type' => 'Tip sumativă',
         ],
+        'pick_class_first' => 'Alegeți întâi clasa — disciplinele se filtrează după treapta ei.',
         'help' => 'Gimnaziul folosește ESS, liceul folosește teză (după ciclul clasei). Clasele primare (I–IV) nu au notă sumativă semestrială și nu apar aici.',
         'empty' => 'Nicio disciplină cu sumativă configurată încă.',
     ],

@@ -11,6 +11,7 @@ use App\Support\ScheduleCoverage;
 use App\Support\SchoolCalendar;
 use BackedEnum;
 use Filament\Pages\Page;
+use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 
@@ -143,6 +144,11 @@ class ConfigurationHub extends Page
      */
     private function urlFor(string $resource): string
     {
+        // Paginile au o singură rută, fără parametri de navigator.
+        if (! is_subclass_of($resource, Resource::class)) {
+            return $resource::getUrl();
+        }
+
         $yearId = SchoolCalendar::currentYearId();
 
         // Secțiunile cu pastile pe ani aterizează direct în anul curent.
@@ -161,7 +167,8 @@ class ConfigurationHub extends Page
      */
     private function countFor(string $resource): ?int
     {
-        if ($resource::getModel() === null) {
+        // Paginile (ex. regulile de notare) nu sunt resurse — nu există „câte" de numărat.
+        if (! is_subclass_of($resource, Resource::class)) {
             return null;
         }
 
@@ -182,6 +189,14 @@ class ConfigurationHub extends Page
      */
     private function badgeFor(string $resource): ?array
     {
+        // O pagină de consultare (regulile de notare) e read-only prin natura ei, nu prin drept.
+        if (! is_subclass_of($resource, Resource::class)) {
+            return [
+                'label' => (string) __('panel.config_hub.reference'),
+                'color' => 'gray',
+            ];
+        }
+
         // Cine nu poate scrie primește starea lui, nu o sarcină: „N de configurat" e o CHEMARE LA
         // ACȚIUNE, iar afișarea ei unui rol fără drept de scriere e o cerință pe care n-o poate
         // executa (prins la verificarea live — profesorul vedea „1 de configurat" pe Orare).

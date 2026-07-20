@@ -275,14 +275,6 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
-     * Contul e responsabil de cel puțin un domeniu de audiență (vede inboxul de audiențe pe domeniu).
-     */
-    public function canHandleAudiences(): bool
-    {
-        return $this->audienceDomains() !== [];
-    }
-
-    /**
      * Poate gestiona calendarul de corigență (spec §2.5): super-adminul, conducerea (director/
      * prim-vicedirector/AO) și vicedirectorul pe instruire (atribut de domeniu). Aprobarea (ordin
      * director) și publicarea (AO) concrete sunt gated mai fin în resursă.
@@ -359,15 +351,6 @@ class User extends Authenticatable implements Auditable, FilamentUser
             UserRole::PrimVicedirector->value,
             UserRole::AdministratorOperational->value,
         ]);
-    }
-
-    /**
-     * Modificarea formulei de calcul al mediilor — actor: administratorul operațional, numai
-     * în baza deciziei directorului (§3.3 / ⑩); versionată și logată.
-     */
-    public function canChangeAveragingFormula(): bool
-    {
-        return $this->hasAnyRole([UserRole::Admin->value, UserRole::AdministratorOperational->value]);
     }
 
     /**

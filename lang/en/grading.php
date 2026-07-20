@@ -17,6 +17,7 @@ return [
             'order_reference' => 'Order reference',
             'summative_type' => 'Summative type',
         ],
+        'pick_class_first' => 'Choose the class first — subjects are filtered by its grade level.',
         'help' => 'Lower secondary uses ESS, upper secondary uses the term paper (by the class cycle). Primary classes (I–IV) have no semester summative and do not appear here.',
         'empty' => 'No summative subjects configured yet.',
     ],

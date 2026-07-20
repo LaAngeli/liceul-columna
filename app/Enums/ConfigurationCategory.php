@@ -2,6 +2,7 @@
 
 namespace App\Enums;
 
+use App\Filament\Pages\GradingRules;
 use App\Filament\Resources\AcademicYears\AcademicYearResource;
 use App\Filament\Resources\CorigentaSessions\CorigentaSessionResource;
 use App\Filament\Resources\Enrollments\EnrollmentResource;
@@ -72,6 +73,8 @@ enum ConfigurationCategory: string
             ],
             self::Evaluare => [
                 SummativeDesignationResource::class,
+                // Pagină de consultare, nu resursă: regulile de calcul se citesc, nu se editează.
+                GradingRules::class,
             ],
             self::Corigenta => [
                 CorigentaSessionResource::class,

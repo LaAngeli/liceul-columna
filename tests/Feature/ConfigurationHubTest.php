@@ -88,16 +88,25 @@ it('prim-vicedirectorul vede anul, dar marcat „Doar citire" (nu e configurator
         ->and($ani['badge']['color'])->toBe('gray');
 });
 
-it('profesorul vede DOAR categoria orarului (LOT 5), nu și restul configurării', function () {
+it('profesorul vede orarul și regulile de notare, nu și configurarea propriu-zisă', function () {
     hubUser(UserRole::Profesor);
 
     // Are ce vedea (orarul, §3.3) → hub-ul îi apare…
     expect(ConfigurationHub::canAccess())->toBeTrue();
 
-    $keys = collect(Livewire::test(ConfigurationHub::class)->instance()->categories())->pluck('key')->all();
+    $categories = collect(Livewire::test(ConfigurationHub::class)->instance()->categories());
 
-    // …dar EXACT o categorie: anul, evaluarea și corigența rămân închise.
-    expect($keys)->toBe([ConfigurationCategory::Orar->value]);
+    // …dar numai secțiuni de CONSULTARE. Regula rescrisă la LOT 8: „Evaluare" apare fiindcă pagina
+    // „Reguli de notare" e deschisă personalului pedagogic — profesorul care explică o medie
+    // trebuie să aibă unde se uita. Designarea sumativelor din aceeași categorie îi rămâne închisă,
+    // iar anul și corigența nu apar deloc.
+    expect($categories->pluck('key')->all())
+        ->toBe([ConfigurationCategory::Orar->value, ConfigurationCategory::Evaluare->value]);
+
+    $evaluare = $categories->firstWhere('key', ConfigurationCategory::Evaluare->value);
+
+    expect(collect($evaluare['sections'])->pluck('title')->all())
+        ->toBe([__('panel.grading_rules.title')]);
 });
 
 it('semnalul „de configurat" primează asupra celui de „doar citire" și numără golurile reale', function () {
