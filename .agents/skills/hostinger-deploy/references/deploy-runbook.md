@@ -108,8 +108,8 @@ php artisan app:create-admin     # Super Admin real de producție (FĂRĂ marcaj
 ssh columna-host
 php artisan down --render="errors::503"        # opțional: mentenanță pe durata deploy-ului
 git pull origin main
-composer install --no-dev --optimize-autoloader   # dacă s-a schimbat composer.lock
-npm ci && npm run build                            # dacă s-a schimbat frontend-ul (altfel sari)
+composer install --no-dev --optimize-autoloader   # dacă s-a schimbat composer.lock SAU ai clase/seedere NOI (classmap)
+npm run build                                      # vezi regula „când e nevoie de build" mai jos — NU doar la resources/js
 php artisan migrate --force                        # ⚠️ confirmă; backup dacă e migrare cu risc
 php artisan config:cache route:cache view:cache event:cache
 php artisan filament:optimize
@@ -124,6 +124,15 @@ ele, `touch()` pe un fișier al altui proprietar dă `EPERM` → **500 pe tot si
 reală (2026-07-15). Detalii + fix în [troubleshooting.md](troubleshooting.md).
 
 Reguli:
+- 🔴 **Când e nevoie de `npm run build` (NU doar la `resources/js`):** tema Filament (`resources/css/
+  filament/admin/theme.css`) e Tailwind JIT — își compilează utilitarele scanând `resources/views/**` +
+  `app/Filament/**`. Deci **orice blade NOU sau clasă Tailwind NOUĂ** (într-un blade Filament, într-o metodă
+  care întoarce clase, într-un enum scanat) cere rebuild, chiar dacă `resources/js` e neatins. `public/build`
+  e **gitignored** → `git pull` NU-l aduce; fără rebuild, clasele noi lipsesc din CSS și elementele se
+  randează INVIZIBIL (fundal/culoare absente). Pățit 2026-07-21: axa Semestrelor a ajuns goală pe prod
+  (benzile `bg-fuchsia-400`/`bg-primary-100`/`ring-primary-300`, noi în blade-ul axei, necompilate).
+  Regula practică: build dacă `git diff --stat <prod>..HEAD` atinge `resources/{js,css}/**`,
+  `resources/views/**` SAU `app/Filament/**`. La dubiu, rulează build-ul — e ieftin (~15s pe acest VPS).
 - **`queue:restart` obligatoriu** la fiecare deploy — altfel worker-ul rulează codul vechi din memorie.
 - Dacă ai schimbat doar `.env`/`config/**` → `php artisan config:clear && php artisan config:cache`.
 - Dacă ai schimbat rute folosite în frontend (Wayfinder) → sunt regenerate de `npm run build`.
