@@ -13,7 +13,8 @@ use App\Models\User;
  * INTEROGARE, în {@see LessonResource::getEloquentQuery()}: policy-ul
  * răspunde „ce ai voie să faci", scope-ul răspunde „peste ce rânduri".
  *
- * Modelul are SoftDeletes; fără policy, `restore`/`forceDelete` cădeau pe „permis" pentru orice rol.
+ * Slotul se șterge definitiv (modelul nu mai are SoftDeletes — vezi {@see Lesson}), deci nu există
+ * `restore`/`forceDelete` de gardat: ștergerea trece prin `delete`.
  */
 class LessonPolicy
 {
@@ -43,26 +44,6 @@ class LessonPolicy
     }
 
     public function deleteAny(User $user): bool
-    {
-        return $user->canManageSchedules();
-    }
-
-    public function restore(User $user, Lesson $lesson): bool
-    {
-        return $user->canManageSchedules();
-    }
-
-    public function restoreAny(User $user): bool
-    {
-        return $user->canManageSchedules();
-    }
-
-    public function forceDelete(User $user, Lesson $lesson): bool
-    {
-        return $user->canManageSchedules();
-    }
-
-    public function forceDeleteAny(User $user): bool
     {
         return $user->canManageSchedules();
     }

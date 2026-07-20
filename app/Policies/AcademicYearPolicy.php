@@ -45,7 +45,8 @@ class AcademicYearPolicy
         return Term::withTrashed()->where('academic_year_id', $yearId)->exists()
             || SchoolClass::withTrashed()->where('academic_year_id', $yearId)->exists()
             || Enrollment::withTrashed()->where('academic_year_id', $yearId)->exists()
-            || Lesson::withTrashed()->where('academic_year_id', $yearId)->exists()
+            // Lesson n-are soft-delete (slotul e configurare, se șterge definitiv).
+            || Lesson::query()->where('academic_year_id', $yearId)->exists()
             || CorigentaSession::query()->where('academic_year_id', $yearId)->exists()
             || ExamCommission::query()->where('academic_year_id', $yearId)->exists();
     }

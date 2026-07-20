@@ -796,6 +796,10 @@ return [
             'ends_at' => 'Se termină la',
             'room' => 'Sala',
             'teacher_short' => 'Profesor',
+            'pick_class_first' => 'Alegeți întâi clasa — disciplinele se filtrează după treapta ei.',
+            'slot_taken' => 'Clasa are deja o lecție în acest interval. Modificați lecția existentă sau alegeți alt interval.',
+            'clash_teacher' => 'Atenție: profesorul are lecție în același interval la :classes. Corect dacă sunt grupe comasate.',
+            'clash_room' => 'Atenție: sala e ocupată în același interval de :classes. Corect dacă clasa se împarte pe grupe.',
         ],
         'corigenta_session' => [
             'year' => 'An',

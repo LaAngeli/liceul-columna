@@ -4,6 +4,9 @@
  * Importul orarului STRUCTURAT (Lesson) din orarele PUBLICATE ale claselor — best-effort:
  * doar rândurile „Lecția N", doar celulele care încep cert cu o disciplină din nomenclator;
  * grupele mixte (discipline diferite în același slot) se sar. Activează riscul de amânare.
+ *
+ * Aici se verifică PARSAREA celulei. Rezolvarea disciplinei pe treapta clasei, aliasurile de
+ * vocabular și invarianții slotului stau în {@see TimetableIntegrityTest}.
  */
 
 use App\Enums\ScheduleType;
@@ -35,7 +38,10 @@ function lessonsSchedule(SchoolClass $class): Schedule
 
 it('importă sloturile certe, sare grupele mixte și rândurile non-lecție; e idempotentă', function () {
     $year = AcademicYear::factory()->create();
-    $class = SchoolClass::factory()->for($year)->create();
+    // Treaptă FIXĂ: importul rezolvă disciplina pe intervalul de trepte al fișei, iar
+    // SubjectFactory acoperă 5-12. Cu treapta aleatorie a factory-ului de clasă (1-12), o clasă
+    // primară n-ar găsi nicio disciplină și testul ar pica ~1 rulare din 3, fără vină reală.
+    $class = SchoolClass::factory()->for($year)->create(['grade_level' => 8]);
 
     $math = Subject::factory()->create(['name' => 'Matematică']);
     $pe = Subject::factory()->create(['name' => 'Educație fizică']);
@@ -64,7 +70,10 @@ it('importă sloturile certe, sare grupele mixte și rândurile non-lecție; e i
 
 it('clasa cu orar structurat introdus deja NU e atinsă fără --force', function () {
     $year = AcademicYear::factory()->create();
-    $class = SchoolClass::factory()->for($year)->create();
+    // Treaptă FIXĂ: importul rezolvă disciplina pe intervalul de trepte al fișei, iar
+    // SubjectFactory acoperă 5-12. Cu treapta aleatorie a factory-ului de clasă (1-12), o clasă
+    // primară n-ar găsi nicio disciplină și testul ar pica ~1 rulare din 3, fără vină reală.
+    $class = SchoolClass::factory()->for($year)->create(['grade_level' => 8]);
     Subject::factory()->create(['name' => 'Matematică']);
 
     // Slot introdus manual (alt subiect, altă zi) — trebuie să supraviețuiască importului simplu.

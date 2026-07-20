@@ -783,6 +783,10 @@ return [
             'ends_at' => 'Ends at',
             'room' => 'Room',
             'teacher_short' => 'Teacher',
+            'pick_class_first' => 'Choose the class first — subjects are filtered by its grade level.',
+            'slot_taken' => 'This class already has a lesson in that period. Edit the existing lesson or pick another period.',
+            'clash_teacher' => 'Note: the teacher also has a lesson in this period with :classes. Fine if the groups are merged.',
+            'clash_room' => 'Note: the room is taken in this period by :classes. Fine if the class is split into groups.',
         ],
         'corigenta_session' => [
             'year' => 'Year',

@@ -15,7 +15,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 /**
  * Orarul STRUCTURAT al claselor (spec §2.1) — sloturi zi/lecție/disciplină/profesor/sală. Distinct de
@@ -117,11 +116,5 @@ class LessonResource extends Resource
         }
 
         return $query->whereIn('school_class_id', $user->teacher?->visibleSchoolClassIds() ?? []);
-    }
-
-    public static function getRecordRouteBindingEloquentQuery(): Builder
-    {
-        return parent::getRecordRouteBindingEloquentQuery()
-            ->withoutGlobalScopes([SoftDeletingScope::class]);
     }
 }
