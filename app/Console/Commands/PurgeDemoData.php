@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\CorrectionStatus;
 use App\Models\AbsenceMotivation;
 use App\Models\Announcement;
 use App\Models\Audit;
@@ -18,6 +19,7 @@ use App\Models\HomeworkCorrection;
 use App\Models\Message;
 use App\Models\User;
 use App\Observers\AbsenceMotivationObserver;
+use App\Observers\GradeObserver;
 use App\Support\Holidays;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
@@ -140,6 +142,12 @@ class PurgeDemoData extends Command
     /**
      * Corecțiile de note (FK `SET NULL` → ar supraviețui ștergerii conturilor).
      *
+     * ⚠️ O corecție demo APROBATĂ a suprascris DEFINITIV valoarea unei note REALE (seeder-ul vechi
+     * aproba, până la 2026-07-21) — ștergerea corecției NU restaura nota. Restaurăm nota la
+     * `old_value` ÎNAINTE de ștergere (idempotent: doar dacă încă ține valoarea demo), ca purge să
+     * reverseze COMPLET efectul. Salvarea prin model declanșează recalculul mediei
+     * ({@see GradeObserver::saved}). Seeder-ul nou nu mai aprobă → cazul e istoric.
+     *
      * @param  Collection<int, int>  $demoIds
      */
     private function purgeGradeCorrections(Collection $demoIds, bool $dryRun): int
@@ -150,13 +158,41 @@ class PurgeDemoData extends Command
                 ->orWhere('reason', 'like', '%'.self::DEMO.'%');
         });
 
-        $count = (clone $query)->count();
+        $corrections = (clone $query)->with('grade')->get();
 
-        if (! $dryRun && $count > 0) {
+        if (! $dryRun && $corrections->isNotEmpty()) {
+            foreach ($corrections as $correction) {
+                $this->restoreGradeIfDemoApproved($correction);
+            }
+
             $query->delete();
         }
 
-        return $count;
+        return $corrections->count();
+    }
+
+    /**
+     * Restaurează nota la valoarea de dinaintea unei corecții demo APROBATE, dacă nota încă ține
+     * valoarea injectată (nicio corecție reală n-a intervenit între timp).
+     */
+    private function restoreGradeIfDemoApproved(GradeCorrection $correction): void
+    {
+        if ($correction->status !== CorrectionStatus::Approved) {
+            return;
+        }
+
+        $grade = $correction->grade;
+
+        if ($grade === null
+            || (string) $grade->value !== (string) $correction->new_value
+            || (string) $correction->new_value === (string) $correction->old_value) {
+            return;
+        }
+
+        $grade->update([
+            'value' => $correction->old_value,
+            'calificativ' => $correction->old_calificativ,
+        ]);
     }
 
     /**

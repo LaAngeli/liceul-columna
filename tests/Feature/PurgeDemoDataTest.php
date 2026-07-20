@@ -6,7 +6,10 @@
  * Aceste cazuri acoperă exact găurile închise pentru rularea demo pe columna.md (2026-07-21).
  */
 
+use App\Enums\CorrectionStatus;
 use App\Models\AbsenceMotivation;
+use App\Models\Grade;
+use App\Models\GradeCorrection;
 use App\Models\Student;
 use App\Models\User;
 use App\Notifications\CatalogNotification;
@@ -105,6 +108,45 @@ it('curăță intrările de audit ale conturilor demo, dar nu pe cele reale', fu
 
     expect(DB::table('audits')->where('id', $demoAudit)->exists())->toBeFalse()
         ->and(DB::table('audits')->where('id', $realAudit)->exists())->toBeTrue();
+});
+
+it('restaurează nota la valoarea de dinainte când șterge o corecție demo APROBATĂ', function () {
+    $grade = Grade::factory()->create(['value' => 5]);
+
+    // Corecție demo APROBATĂ care a schimbat nota reală 5 → 9 (cazul seeder-ului vechi).
+    GradeCorrection::factory()->create([
+        'grade_id' => $grade->id,
+        'requested_by_user_id' => pdDemoUser('Profesor')->id,
+        'old_value' => 5,
+        'new_value' => 9,
+        'reason' => '[DEMO] Eroare de transcriere',
+        'status' => CorrectionStatus::Approved,
+    ]);
+    $grade->update(['value' => 9]); // starea lăsată de aprobarea demo
+
+    $this->artisan('app:purge-demo-data')->assertExitCode(0);
+
+    expect((float) $grade->fresh()->value)->toBe(5.0)
+        ->and(GradeCorrection::query()->count())->toBe(0);
+});
+
+it('nu atinge nota dacă valoarea curentă nu mai e cea injectată de demo', function () {
+    $grade = Grade::factory()->create(['value' => 5]);
+
+    GradeCorrection::factory()->create([
+        'grade_id' => $grade->id,
+        'requested_by_user_id' => pdDemoUser('Profesor')->id,
+        'old_value' => 5,
+        'new_value' => 9,
+        'reason' => '[DEMO] Eroare',
+        'status' => CorrectionStatus::Approved,
+    ]);
+    // Între timp o corecție REALĂ a dus nota la 10 → purge NU trebuie s-o retrogradeze la 5.
+    $grade->update(['value' => 10]);
+
+    $this->artisan('app:purge-demo-data')->assertExitCode(0);
+
+    expect((float) $grade->fresh()->value)->toBe(10.0);
 });
 
 it('dry-run raportează dar nu șterge nimic', function () {
