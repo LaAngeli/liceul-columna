@@ -4,6 +4,7 @@ namespace App\Filament\Resources\GradeCorrections;
 
 use App\Enums\CorrectionStatus;
 use App\Filament\Resources\GradeCorrections\Pages\ListGradeCorrections;
+use App\Filament\Resources\GradeCorrections\Pages\ViewGradeCorrection;
 use App\Filament\Resources\GradeCorrections\Tables\GradeCorrectionsTable;
 use App\Models\GradeCorrection;
 use BackedEnum;
@@ -11,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class GradeCorrectionResource extends Resource
 {
@@ -56,7 +58,23 @@ class GradeCorrectionResource extends Resource
     {
         return [
             'index' => ListGradeCorrections::route('/'),
+            'view' => ViewGradeCorrection::route('/{record}'),
         ];
+    }
+
+    /**
+     * Fișa cererii: administrația academică (arhiva) sau SOLICITANTUL propriu — aceeași regulă
+     * ca scoping-ul listei, aplicată per înregistrare.
+     */
+    public static function canView(Model $record): bool
+    {
+        $user = auth('web')->user();
+
+        if ($user === null || ! $record instanceof GradeCorrection) {
+            return false;
+        }
+
+        return $user->canViewCorrectionArchive() || $record->requested_by_user_id === $user->id;
     }
 
     // Corecțiile se creează din acțiunea „Solicită corecție" de pe notă, nu direct.

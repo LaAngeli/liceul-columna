@@ -1236,6 +1236,25 @@ return [
         ],
     ],
 
+    'grade_correction_view' => [
+        'title' => 'Исправление оценки — :student',
+        'current_value' => 'Текущая оценка',
+        'proposed_value' => 'Предложенная оценка',
+        'applied_value' => 'Применённая оценка',
+        'grade' => 'Оценка',
+        'graded_by' => 'Поставил(а)',
+        'evaluation_type' => 'Тип оценивания',
+        'grade_annulled' => 'Оценка тем временем была АННУЛИРОВАНА — запрос остаётся в архиве как история.',
+        'grade_history' => 'История оценки',
+        'no_history' => 'По этой оценке нет ни предыдущих исправлений, ни записанных изменений.',
+        'audit_trail' => 'Журнал изменений оценки',
+        'audit_created' => 'Поставлена оценка :value',
+        'audit_value_changed' => 'Значение изменилось: :old → :new',
+        'audit_annulled' => 'Оценка аннулирована',
+        'from_contestation' => 'Начато с обжалования семьи',
+        'from_contestation_hint' => 'Открыть заявление семьи — полный контекст пересмотра.',
+    ],
+
     'homework_correction_view' => [
         'title' => 'Запрос на исправление — :subject',
         'by_author' => 'подан: :name',
@@ -1560,6 +1579,7 @@ return [
         'ExamCommission' => 'Экзаменационная комиссия',
         'CorigentaExam' => 'Экзамен переэкзаменовки',
         'HomeworkCorrection' => 'Исправление задания',
+        'GradeCorrection' => 'Исправление оценки',
         'User' => 'Учётная запись',
         'ConsentAcknowledgment' => 'Согласие',
         'AdmissionRequest' => 'Заявка на зачисление',

@@ -1238,6 +1238,25 @@ return [
         ],
     ],
 
+    'grade_correction_view' => [
+        'title' => 'Grade correction — :student',
+        'current_value' => 'Current grade',
+        'proposed_value' => 'Proposed grade',
+        'applied_value' => 'Applied grade',
+        'grade' => 'Targeted grade',
+        'graded_by' => 'Graded by',
+        'evaluation_type' => 'Evaluation type',
+        'grade_annulled' => 'The grade was ANNULLED in the meantime — the request stays in the archive as history.',
+        'grade_history' => 'Grade history',
+        'no_history' => 'No prior corrections and no recorded changes on this grade.',
+        'audit_trail' => 'Grade change log',
+        'audit_created' => 'Grade :value was recorded',
+        'audit_value_changed' => 'Value changed: :old → :new',
+        'audit_annulled' => 'The grade was annulled',
+        'from_contestation' => 'Born from a family contestation',
+        'from_contestation_hint' => 'Open the family\'s request — the full context of the re-examination.',
+    ],
+
     'homework_correction_view' => [
         'title' => 'Correction request — :subject',
         'by_author' => 'submitted by :name',
@@ -1562,6 +1581,7 @@ return [
         'ExamCommission' => 'Exam commission',
         'CorigentaExam' => 'Make-up exam',
         'HomeworkCorrection' => 'Homework correction',
+        'GradeCorrection' => 'Grade correction',
         'User' => 'User account',
         'ConsentAcknowledgment' => 'Consent',
         'AdmissionRequest' => 'Admission request',

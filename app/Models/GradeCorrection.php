@@ -10,9 +10,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * Solicitare de corecție a unei note: profesorul cere, administrația aprobă (§3.1).
+ *
+ * AUDITABLE: cererea e actul care SCHIMBĂ valoarea unei note (PII academic al unui minor) —
+ * orice atingere a rândului (motiv editat post-factum, verdict rescris) lasă urmă în jurnal
+ * (§7 / L133), în simetrie cu corecțiile de teme.
  *
  * @property CorrectionStatus $status
  * @property numeric-string|null $old_value
@@ -20,8 +26,10 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $reviewed_at
  */
 #[ObservedBy(GradeCorrectionObserver::class)]
-class GradeCorrection extends Model
+class GradeCorrection extends Model implements Auditable
 {
+    use AuditableTrait;
+
     /** @use HasFactory<GradeCorrectionFactory> */
     use HasFactory;
 

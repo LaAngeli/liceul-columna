@@ -12,6 +12,7 @@ use App\Enums\GradingType;
 use App\Enums\RequestStatus;
 use App\Enums\UserRole;
 use App\Filament\Resources\GradeCorrections\Pages\ListGradeCorrections;
+use App\Filament\Resources\GradeCorrections\Pages\ViewGradeCorrection;
 use App\Filament\Resources\Grades\Pages\ListGrades;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
@@ -193,8 +194,9 @@ it('solicitantul își retrage cererea în așteptare, iar aceasta rămâne în 
 
     actingAs($this->profesor);
 
-    Livewire::test(ListGradeCorrections::class)
-        ->callTableAction('withdraw', $correction);
+    // Retragerea stă acum pe FIȘA cererii (judecata s-a mutat de pe rândurile listei).
+    Livewire::test(ViewGradeCorrection::class, ['record' => $correction->id])
+        ->callAction('withdraw');
 
     $correction->refresh();
 
@@ -213,9 +215,11 @@ it('retragerea apare doar pe cererea proprie în așteptare, nu pe una soluțion
 
     actingAs($this->profesor);
 
-    Livewire::test(ListGradeCorrections::class)
-        ->assertTableActionVisible('withdraw', $aMea)
-        ->assertTableActionHidden('withdraw', $soluționată);
+    Livewire::test(ViewGradeCorrection::class, ['record' => $aMea->id])
+        ->assertActionVisible('withdraw');
+
+    Livewire::test(ViewGradeCorrection::class, ['record' => $soluționată->id])
+        ->assertActionHidden('withdraw');
 });
 
 /** Cererile colegilor nici nu ajung în lista profesorului — arhiva e scoped pe solicitant. */

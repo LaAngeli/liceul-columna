@@ -1254,6 +1254,25 @@ return [
         ],
     ],
 
+    'grade_correction_view' => [
+        'title' => 'Corecție de notă — :student',
+        'current_value' => 'Nota actuală',
+        'proposed_value' => 'Nota propusă',
+        'applied_value' => 'Nota aplicată',
+        'grade' => 'Nota vizată',
+        'graded_by' => 'Pusă de',
+        'evaluation_type' => 'Tipul evaluării',
+        'grade_annulled' => 'Nota a fost ANULATĂ între timp — cererea rămâne în arhivă ca istoric.',
+        'grade_history' => 'Istoricul notei',
+        'no_history' => 'Nicio corecție anterioară și nicio modificare consemnată pe această notă.',
+        'audit_trail' => 'Jurnalul de modificări al notei',
+        'audit_created' => 'Nota :value a fost pusă',
+        'audit_value_changed' => 'Valoarea s-a schimbat: :old → :new',
+        'audit_annulled' => 'Nota a fost anulată',
+        'from_contestation' => 'Pornită dintr-o contestație a familiei',
+        'from_contestation_hint' => 'Deschide cererea familiei — contextul complet al reexaminării.',
+    ],
+
     'homework_correction_view' => [
         'title' => 'Cerere de corecție — :subject',
         'by_author' => 'depusă de :name',
@@ -1578,6 +1597,7 @@ return [
         'ExamCommission' => 'Comisie de examen',
         'CorigentaExam' => 'Examen corigență',
         'HomeworkCorrection' => 'Corecție de temă',
+        'GradeCorrection' => 'Corecție de notă',
         'User' => 'Cont utilizator',
         'ConsentAcknowledgment' => 'Consimțământ',
         'AdmissionRequest' => 'Cerere de înscriere',

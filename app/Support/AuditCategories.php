@@ -16,6 +16,7 @@ use App\Models\DocumentRequest;
 use App\Models\ExamCommission;
 use App\Models\GalleryAlbum;
 use App\Models\Grade;
+use App\Models\GradeCorrection;
 use App\Models\Holiday;
 use App\Models\HomeworkCorrection;
 use App\Models\LibraryCategory;
@@ -60,6 +61,7 @@ class AuditCategories
                 CorigentaExam::class,
                 ExamCommission::class,
                 HomeworkCorrection::class,
+                GradeCorrection::class,
             ],
             'elevi' => [
                 Student::class,
