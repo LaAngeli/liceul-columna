@@ -129,6 +129,14 @@ Reguli:
 - Dacă ai schimbat rute folosite în frontend (Wayfinder) → sunt regenerate de `npm run build`.
 - **Nu** rula `optimize:clear` și lăsa acolo — pe prod vrei cache-urile calde. `optimize:clear` e doar
   pentru depanare (vezi troubleshooting).
+- 🔴 **NU trece `npm run build` printr-un `grep`/`tail` în lanțul `&&`.** Pipeline-ul întoarce exit-ul
+  ULTIMEI comenzi (tail), deci un build eșuat NU rupe lanțul — cache-urile rulează peste assets vechi și
+  deploy-ul „reușește" cu manifest stale (pățit 2026-07-20: build-ul nu s-a finalizat, manifestul a rămas
+  de la deploy-ul anterior, restul lanțului a mers senin). Rulează `npm run build` SINGUR (verifică
+  `✓ built in …s` + `EXIT: 0`) SAU în `> /tmp/build.log 2>&1; echo "EXIT: $?"`.
+- **Verificare de build (obligatorie când ai rulat `npm run build`):** timestamp-ul
+  `public/build/manifest.json` trebuie să fie DIN acest deploy, nu din cel anterior — dovada că build-ul
+  chiar a rescris assets-urile. „A rulat comanda" ≠ „a produs assets".
 
 ---
 
