@@ -21,6 +21,7 @@ return [
         'announcement' => 'Management announcement',
         'grade_correction_request' => 'Grade correction to approve',
         'grade_correction_rejected' => 'Grade correction rejected',
+        'homework_correction_rejected' => 'Homework correction rejected',
         'absence_motivation_submitted' => 'New absence-excuse request',
         'document_request_submitted' => 'New document request',
         'admission_request_submitted' => 'New admission request',
@@ -91,6 +92,10 @@ return [
     'grade_correction_rejected' => [
         'title' => 'Grade correction rejected',
         'body' => 'The grade correction requested for :student was rejected. See the reason in the corrections archive.',
+    ],
+    'homework_correction_rejected' => [
+        'title' => 'Homework correction rejected',
+        'body' => 'The correction requested for the :subject homework was rejected. The reason is recorded on the request page.',
     ],
     'absence_motivation_submitted' => [
         'title' => 'New absence-excuse request',

@@ -3,11 +3,10 @@
 namespace App\Filament\Resources\HomeworkCorrections\Tables;
 
 use App\Enums\CorrectionStatus;
+use App\Filament\Resources\HomeworkCorrections\HomeworkCorrectionResource;
 use App\Filament\Resources\HomeworkCorrections\Pages\ListHomeworkCorrections;
 use App\Models\HomeworkCorrection;
 use App\Support\ContentTranslator;
-use Filament\Actions\Action;
-use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\Textarea;
@@ -88,66 +87,10 @@ class HomeworkCorrectionsTable
                         || ! $livewire->isQueueManagerView()
                         || $livewire->isArchiveView()),
             ])
-            // Acțiunile pe rând în grup „⋮" (mobile-first): trei butoane late lățeau rândul.
-            ->recordActions([
-                ActionGroup::make([
-                    // Solicitantul își poate RETRAGE cererea cât timp e în așteptare.
-                    Action::make('withdraw')
-                        ->label(__('panel.actions.request_correction.withdraw'))
-                        ->icon('heroicon-o-arrow-uturn-left')
-                        ->color('gray')
-                        ->requiresConfirmation()
-                        ->modalHeading(fn (): string => __('panel.actions.request_correction.withdraw_heading'))
-                        ->modalDescription(fn (): string => __('panel.actions.request_correction.withdraw_description'))
-                        ->modalSubmitActionLabel(__('panel.actions.request_correction.withdraw_submit'))
-                        ->visible(fn (HomeworkCorrection $record): bool => $record->isPending()
-                            && $record->requested_by_user_id === auth('web')->id())
-                        ->action(function (HomeworkCorrection $record): void {
-                            $record->withdraw();
-
-                            Notification::make()->success()->title(__('panel.actions.request_correction.withdraw_success'))->send();
-                        }),
-                    Action::make('approve')
-                        ->label(__('panel.actions.approve.label'))
-                        ->icon('heroicon-o-check')
-                        ->color('success')
-                        ->modalSubmitActionLabel(__('panel.actions.approve.label'))
-                        ->visible(fn (HomeworkCorrection $record): bool => $record->isPending()
-                            && (auth('web')->user()?->canApproveHomeworkCorrections() ?? false))
-                        ->modalHeading(fn (): string => __('panel.actions.approve.label'))
-                        ->modalDescription(fn (): string => __('panel.actions.homework_correction.approve_description'))
-                        ->schema([
-                            Textarea::make('review_note')
-                                ->label(__('panel.common.review_note'))
-                                ->maxLength(255),
-                        ])
-                        ->action(function (HomeworkCorrection $record, array $data): void {
-                            $record->approve((int) auth()->id(), $data['review_note'] ?? null);
-
-                            Notification::make()->success()->title(__('panel.actions.approve.success'))->send();
-                        }),
-                    Action::make('reject')
-                        ->label(__('panel.actions.reject.label'))
-                        ->icon('heroicon-o-x-mark')
-                        ->color('danger')
-                        ->modalSubmitActionLabel(__('panel.actions.reject.label'))
-                        ->visible(fn (HomeworkCorrection $record): bool => $record->isPending()
-                            && (auth('web')->user()?->canApproveHomeworkCorrections() ?? false))
-                        ->modalHeading(fn (): string => __('panel.actions.reject.label'))
-                        ->schema([
-                            // Profesorul trebuie să afle DE CE i s-a respins corecția, altfel o redepune.
-                            Textarea::make('review_note')
-                                ->label(__('panel.common.rejection_reason'))
-                                ->required()
-                                ->maxLength(255),
-                        ])
-                        ->action(function (HomeworkCorrection $record, array $data): void {
-                            $record->reject((int) auth()->id(), $data['review_note'] ?? null);
-
-                            Notification::make()->warning()->title(__('panel.actions.reject.success'))->send();
-                        }),
-                ]),
-            ])
+            // Rândul întreg deschide FIȘA cererii — acolo stau motivul integral, propunerea
+            // vechi → nou, cronologia și judecata (Aprobă / Respinge / Retrage). Din listă rămân
+            // doar operațiunile în masă: decizia individuală se ia cu tot contextul în față.
+            ->recordUrl(fn (HomeworkCorrection $record): string => HomeworkCorrectionResource::getUrl('view', ['record' => $record]))
             ->toolbarActions([
                 BulkActionGroup::make([
                     BulkAction::make('approveSelected')

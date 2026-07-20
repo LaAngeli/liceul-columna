@@ -1238,6 +1238,24 @@ return [
         ],
     ],
 
+    'homework_correction_view' => [
+        'title' => 'Correction request — :subject',
+        'by_author' => 'submitted by :name',
+        'changes' => 'The proposal (old → new)',
+        'current' => 'Currently on the homework',
+        'proposed' => 'Proposed',
+        'before' => 'Before',
+        'applied' => 'Applied to the homework',
+        'timeline' => 'Timeline',
+        'submitted' => 'Request submitted',
+        'pending_hint' => 'Read the reason and the proposal in full, then decide from the buttons above. Rejection requires a reason — the requester receives it.',
+        'homework' => 'Targeted homework',
+        'homework_author' => 'Homework author',
+        'homework_deleted' => 'The homework was withdrawn in the meantime — the request stays in the archive as history.',
+        'current_content' => 'Current homework content',
+        'back' => 'Back to corrections',
+    ],
+
     'exam_commissions' => [
         'subjects_with_exams' => '{1}One subject with corigenta exams|[2,*]:count subjects with corigenta exams',
         'covered' => ':count covered by commissions',
@@ -1543,6 +1561,7 @@ return [
         'CorigentaSession' => 'Make-up session',
         'ExamCommission' => 'Exam commission',
         'CorigentaExam' => 'Make-up exam',
+        'HomeworkCorrection' => 'Homework correction',
         'User' => 'User account',
         'ConsentAcknowledgment' => 'Consent',
         'AdmissionRequest' => 'Admission request',

@@ -1254,6 +1254,24 @@ return [
         ],
     ],
 
+    'homework_correction_view' => [
+        'title' => 'Cerere de corecție — :subject',
+        'by_author' => 'depusă de :name',
+        'changes' => 'Propunerea (vechi → nou)',
+        'current' => 'Acum pe temă',
+        'proposed' => 'Propus',
+        'before' => 'Înainte',
+        'applied' => 'Aplicat pe temă',
+        'timeline' => 'Cronologie',
+        'submitted' => 'Cerere depusă',
+        'pending_hint' => 'Citește motivul și propunerea integral, apoi decide din butoanele de sus. Respingerea cere motiv — solicitantul îl primește.',
+        'homework' => 'Tema vizată',
+        'homework_author' => 'Autorul temei',
+        'homework_deleted' => 'Tema a fost retrasă între timp — cererea rămâne în arhivă ca istoric.',
+        'current_content' => 'Conținutul curent al temei',
+        'back' => 'Înapoi la corecții',
+    ],
+
     'exam_commissions' => [
         'subjects_with_exams' => '{1}O disciplină cu examene de corigență|[2,19]:count discipline cu examene de corigență|[20,*]:count de discipline cu examene de corigență',
         'covered' => ':count acoperite de comisii',
@@ -1559,6 +1577,7 @@ return [
         'CorigentaSession' => 'Sesiune corigență',
         'ExamCommission' => 'Comisie de examen',
         'CorigentaExam' => 'Examen corigență',
+        'HomeworkCorrection' => 'Corecție de temă',
         'User' => 'Cont utilizator',
         'ConsentAcknowledgment' => 'Consimțământ',
         'AdmissionRequest' => 'Cerere de înscriere',

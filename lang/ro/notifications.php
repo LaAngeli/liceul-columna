@@ -26,6 +26,7 @@ return [
         'announcement' => 'Anunț al conducerii',
         'grade_correction_request' => 'Corecție de notă de aprobat',
         'grade_correction_rejected' => 'Corecție de notă respinsă',
+        'homework_correction_rejected' => 'Corecție de temă respinsă',
         'absence_motivation_submitted' => 'Cerere de motivare nouă',
         'document_request_submitted' => 'Cerere tipică nouă',
         'admission_request_submitted' => 'Cerere de înscriere nouă',
@@ -98,6 +99,10 @@ return [
     'grade_correction_rejected' => [
         'title' => 'Corecție de notă respinsă',
         'body' => 'Corecția de notă solicitată pentru :student a fost respinsă. Vezi motivul în arhiva corecțiilor.',
+    ],
+    'homework_correction_rejected' => [
+        'title' => 'Corecție de temă respinsă',
+        'body' => 'Corecția solicitată la tema de :subject a fost respinsă. Motivul e consemnat pe fișa cererii.',
     ],
     'absence_motivation_submitted' => [
         'title' => 'Cerere de motivare nouă',

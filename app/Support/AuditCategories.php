@@ -17,6 +17,7 @@ use App\Models\ExamCommission;
 use App\Models\GalleryAlbum;
 use App\Models\Grade;
 use App\Models\Holiday;
+use App\Models\HomeworkCorrection;
 use App\Models\LibraryCategory;
 use App\Models\Post;
 use App\Models\SemesterValidation;
@@ -58,6 +59,7 @@ class AuditCategories
                 CorigentaSession::class,
                 CorigentaExam::class,
                 ExamCommission::class,
+                HomeworkCorrection::class,
             ],
             'elevi' => [
                 Student::class,

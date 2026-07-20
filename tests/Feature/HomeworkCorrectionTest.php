@@ -7,14 +7,20 @@
  */
 
 use App\Enums\CorrectionStatus;
+use App\Enums\NotificationType;
 use App\Enums\UserRole;
 use App\Filament\Resources\HomeworkCorrections\HomeworkCorrectionResource;
+use App\Filament\Resources\HomeworkCorrections\Pages\ViewHomeworkCorrection;
 use App\Models\HomeworkAssignment;
 use App\Models\HomeworkCorrection;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\User;
+use App\Notifications\CatalogNotification;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
@@ -242,4 +248,152 @@ it('purge-ul demo șterge corecțiile [DEMO] și temele-suport, dar nu atinge da
         ->and(HomeworkCorrection::query()->where('reason', 'like', '[DEMO]%')->exists())->toBeFalse()
         ->and(HomeworkAssignment::query()->whereKey($realHomework->id)->exists())->toBeTrue()
         ->and(HomeworkCorrection::query()->whereKey($realCorrection->id)->exists())->toBeTrue();
+});
+
+// ─── Fișa cererii (analiza completă înainte de decizie) ─────────────────────────────────
+
+it('fișa arată motivul integral, propunerea vechi → nou și cronologia', function () {
+    $homework = hwcAssignment();
+    $requester = hwcUser(UserRole::Profesor);
+    $reviewer = hwcUser(UserRole::Director);
+
+    $correction = HomeworkCorrection::create([
+        'homework_assignment_id' => $homework->id,
+        'requested_by_user_id' => $requester->id,
+        'old_required_task' => $homework->required_task,
+        'new_required_task' => 'Ex. 1-6 pagina 14',
+        'reason' => 'Un motiv suficient de lung încât lista îl trunchia — fișa îl arată însă integral, fără puncte de suspensie.',
+    ]);
+
+    $this->actingAs($reviewer);
+
+    Livewire::test(ViewHomeworkCorrection::class, ['record' => $correction->id])
+        ->assertSee('Un motiv suficient de lung încât lista îl trunchia — fișa îl arată însă integral, fără puncte de suspensie.')
+        ->assertSee('Ex. 1-3 pagina 10')
+        ->assertSee('Ex. 1-6 pagina 14')
+        ->assertSee(__('panel.homework_correction_view.timeline'))
+        ->assertSee(__('panel.homework_correction_view.submitted'))
+        ->assertSee(__('panel.actions.approve.label'))
+        ->assertSee(__('panel.actions.reject.label'));
+});
+
+it('respingerea din fișă CERE motiv, îl consemnează în cronologie și notifică solicitantul', function () {
+    Notification::fake();
+
+    $homework = hwcAssignment();
+    $requester = hwcUser(UserRole::Profesor);
+    $reviewer = hwcUser(UserRole::PrimVicedirector);
+
+    $correction = HomeworkCorrection::create([
+        'homework_assignment_id' => $homework->id,
+        'requested_by_user_id' => $requester->id,
+        'old_topic' => $homework->topic,
+        'new_topic' => 'Tema nouă',
+        'reason' => 'Titlul e greșit.',
+    ]);
+
+    $this->actingAs($reviewer);
+
+    // Fără motiv → refuz de validare; verdictul NU se consemnează.
+    Livewire::test(ViewHomeworkCorrection::class, ['record' => $correction->id])
+        ->callAction('reject', ['review_note' => ''])
+        ->assertHasActionErrors();
+
+    expect($correction->refresh()->status)->toBe(CorrectionStatus::Pending);
+
+    // Cu motiv → respinsă, iar solicitantul primește verdictul cu link spre fișă.
+    Livewire::test(ViewHomeworkCorrection::class, ['record' => $correction->id])
+        ->callAction('reject', ['review_note' => 'Titlul din manual e cel vechi.'])
+        ->assertNotified();
+
+    expect($correction->refresh()->status)->toBe(CorrectionStatus::Rejected)
+        ->and($correction->review_note)->toBe('Titlul din manual e cel vechi.');
+
+    Notification::assertSentTo(
+        $requester,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::HomeworkCorrectionRejected
+            && $n->url !== null && str_contains($n->url, (string) $correction->id),
+    );
+});
+
+it('aprobarea din fișă aplică schimbarea; retragerea e doar a solicitantului', function () {
+    $homework = hwcAssignment();
+    $requester = hwcUser(UserRole::Profesor);
+    $reviewer = hwcUser(UserRole::AdministratorOperational);
+
+    $correction = HomeworkCorrection::create([
+        'homework_assignment_id' => $homework->id,
+        'requested_by_user_id' => $requester->id,
+        'old_required_task' => $homework->required_task,
+        'new_required_task' => 'Ex. 7-9 pagina 20',
+        'reason' => 'Completare.',
+    ]);
+
+    // Aprobatorul NU vede „Retrage" (nu e cererea lui); solicitantul o vede pe a lui.
+    $this->actingAs($reviewer);
+    Livewire::test(ViewHomeworkCorrection::class, ['record' => $correction->id])
+        ->assertActionHidden('withdraw')
+        ->callAction('approve', ['review_note' => 'De acord.'])
+        ->assertNotified();
+
+    expect($homework->refresh()->required_task)->toBe('Ex. 7-9 pagina 20')
+        ->and($correction->refresh()->status)->toBe(CorrectionStatus::Approved);
+
+    // După verdict, judecata dispare de pe fișă.
+    Livewire::test(ViewHomeworkCorrection::class, ['record' => $correction->id])
+        ->assertActionHidden('approve')
+        ->assertActionHidden('reject');
+});
+
+it('fișa e a arhivarilor sau a solicitantului propriu — alt profesor primește 404', function () {
+    $homework = hwcAssignment();
+    $requester = hwcUser(UserRole::Profesor);
+    // Ambii cu fișă de profesor: poarta resursei (canSeeAcademicData) cere fișa.
+    Teacher::factory()->create(['user_id' => $requester->id]);
+    $stranger = hwcUser(UserRole::Profesor);
+    Teacher::factory()->create(['user_id' => $stranger->id]);
+
+    $correction = HomeworkCorrection::create([
+        'homework_assignment_id' => $homework->id,
+        'requested_by_user_id' => $requester->id,
+        'old_topic' => $homework->topic,
+        'new_topic' => 'Alt titlu',
+        'reason' => 'Motiv.',
+    ]);
+
+    // Scoping-ul din getEloquentQuery ASCUNDE cererile străine → 404 (nici măcar existența
+    // nu se confirmă), mai puternic decât un 403.
+    $this->actingAs($stranger)
+        ->get("/admin/homework-corrections/{$correction->id}")
+        ->assertNotFound();
+
+    $this->actingAs($requester)
+        ->get("/admin/homework-corrections/{$correction->id}")
+        ->assertOk();
+});
+
+it('judecata lasă urmă în jurnalul de audit (modelul e auditabil)', function () {
+    // Auditarea e oprită implicit în consolă (config audit.console=false) — pornită pentru test.
+    config(['audit.console' => true]);
+
+    $homework = hwcAssignment();
+    $requester = hwcUser(UserRole::Profesor);
+    $reviewer = hwcUser(UserRole::Director);
+
+    $correction = HomeworkCorrection::create([
+        'homework_assignment_id' => $homework->id,
+        'requested_by_user_id' => $requester->id,
+        'old_topic' => $homework->topic,
+        'new_topic' => 'Titlu auditat',
+        'reason' => 'Motiv.',
+    ]);
+
+    $this->actingAs($reviewer);
+    $correction->approve($reviewer->id, 'Ok.');
+
+    expect(DB::table('audits')
+        ->where('auditable_type', HomeworkCorrection::class)
+        ->where('auditable_id', $correction->id)
+        ->where('event', 'updated')
+        ->exists())->toBeTrue();
 });

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\HomeworkCorrections;
 
 use App\Enums\CorrectionStatus;
 use App\Filament\Resources\HomeworkCorrections\Pages\ListHomeworkCorrections;
+use App\Filament\Resources\HomeworkCorrections\Pages\ViewHomeworkCorrection;
 use App\Filament\Resources\HomeworkCorrections\Tables\HomeworkCorrectionsTable;
 use App\Models\HomeworkCorrection;
 use BackedEnum;
@@ -11,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Coada + arhiva corecțiilor de TEME: profesorul-autor cere, Directorul / Prim-vicedirectorul /
@@ -60,7 +62,23 @@ class HomeworkCorrectionResource extends Resource
     {
         return [
             'index' => ListHomeworkCorrections::route('/'),
+            'view' => ViewHomeworkCorrection::route('/{record}'),
         ];
+    }
+
+    /**
+     * Fișa cererii: administrația academică (arhiva) sau SOLICITANTUL propriu — aceeași regulă
+     * ca scoping-ul listei, aplicată per înregistrare.
+     */
+    public static function canView(Model $record): bool
+    {
+        $user = auth('web')->user();
+
+        if ($user === null || ! $record instanceof HomeworkCorrection) {
+            return false;
+        }
+
+        return $user->canViewCorrectionArchive() || $record->requested_by_user_id === $user->id;
     }
 
     // Corecțiile se creează din acțiunea „Solicită corecție" de pe temă, nu direct.

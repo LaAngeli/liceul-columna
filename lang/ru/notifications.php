@@ -21,6 +21,7 @@ return [
         'announcement' => 'Объявление руководства',
         'grade_correction_request' => 'Исправление оценки на утверждение',
         'grade_correction_rejected' => 'Исправление оценки отклонено',
+        'homework_correction_rejected' => 'Исправление задания отклонено',
         'absence_motivation_submitted' => 'Новое заявление об оправдании',
         'document_request_submitted' => 'Новое типовое заявление',
         'admission_request_submitted' => 'Новая заявка на зачисление',
@@ -91,6 +92,10 @@ return [
     'grade_correction_rejected' => [
         'title' => 'Исправление оценки отклонено',
         'body' => 'Запрошенное исправление оценки для :student отклонено. Причину см. в архиве исправлений.',
+    ],
+    'homework_correction_rejected' => [
+        'title' => 'Исправление задания отклонено',
+        'body' => 'Запрошенное исправление домашнего задания по предмету :subject отклонено. Причина указана на странице запроса.',
     ],
     'absence_motivation_submitted' => [
         'title' => 'Новое заявление об оправдании',

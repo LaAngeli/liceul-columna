@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * Solicitare de corecție a unei TEME: profesorul-autor cere, Directorul / Prim-vicedirectorul /
@@ -17,12 +19,17 @@ use Illuminate\Support\Carbon;
  * corecțiile de notă, unde AO doar vede arhiva). Câmpurile corectabile sunt cele de conținut
  * (subiect / sarcină obligatorie / sarcină opțională); `new_*` null = câmp nemodificat.
  *
+ * AUDITABLE: cererea e actul care SCHIMBĂ conținut văzut de familii — orice atingere a rândului
+ * (motiv editat post-factum, verdict rescris) trebuie să lase urmă în jurnal (§7 / L133).
+ *
  * @property CorrectionStatus $status
  * @property Carbon|null $reviewed_at
  */
 #[ObservedBy(HomeworkCorrectionObserver::class)]
-class HomeworkCorrection extends Model
+class HomeworkCorrection extends Model implements Auditable
 {
+    use AuditableTrait;
+
     /** @use HasFactory<HomeworkCorrectionFactory> */
     use HasFactory;
 

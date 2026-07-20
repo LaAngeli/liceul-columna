@@ -33,6 +33,7 @@ enum NotificationType: string implements HasLabel
     // Nișă conducere / secretariat.
     case GradeCorrectionRequest = 'grade_correction_request';
     case GradeCorrectionRejected = 'grade_correction_rejected';
+    case HomeworkCorrectionRejected = 'homework_correction_rejected';
     case AbsenceMotivationSubmitted = 'absence_motivation_submitted';
     case DocumentRequestSubmitted = 'document_request_submitted';
     case AdmissionRequestSubmitted = 'admission_request_submitted';
@@ -71,6 +72,7 @@ enum NotificationType: string implements HasLabel
             self::Announcement => 'heroicon-o-megaphone',
             self::GradeCorrectionRequest => 'heroicon-o-pencil-square',
             self::GradeCorrectionRejected => 'heroicon-o-x-mark',
+            self::HomeworkCorrectionRejected => 'heroicon-o-clipboard-document-check',
             self::AbsenceMotivationSubmitted => 'heroicon-o-document-check',
             self::DocumentRequestSubmitted => 'heroicon-o-inbox-arrow-down',
             self::AdmissionRequestSubmitted => 'heroicon-o-user-plus',
@@ -110,6 +112,7 @@ enum NotificationType: string implements HasLabel
             UserRole::Diriginte => [
                 self::AbsenceMotivationSubmitted,
                 self::GradeCorrectionRejected,
+                self::HomeworkCorrectionRejected,
                 self::NewMessage,
                 self::Announcement,
             ],
@@ -117,6 +120,7 @@ enum NotificationType: string implements HasLabel
             // Profesor: comunicare + verdictul corecțiilor cerute.
             UserRole::Profesor => [
                 self::GradeCorrectionRejected,
+                self::HomeworkCorrectionRejected,
                 self::NewMessage,
                 self::Announcement,
             ],
