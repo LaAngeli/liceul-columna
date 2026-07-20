@@ -20,14 +20,27 @@ beforeEach(function () {
     }
 });
 
-it('resursa „Orar structurat" e gestionată de administratorul operațional, nu de profesor', function () {
+/*
+ * REGULĂ RESCRISĂ DELIBERAT (LOT 5): profesorul VEDE acum orarul (§3.3 îi dă dreptul, scoped pe
+ * clasele lui), dar tot nu-l GESTIONEAZĂ. Înainte, citirea și scrierea treceau prin aceeași
+ * capabilitate, deci accesul îi era refuzat cu 403 — testul verifica exact conflatarea reparată.
+ */
+it('resursa „Orar structurat": profesorul o VEDE, dar gestionarea rămâne a administratorului operațional', function () {
     $ao = User::factory()->create();
     $ao->assignRole(UserRole::AdministratorOperational->value);
     $profesor = User::factory()->create();
     $profesor->assignRole(UserRole::Profesor->value);
+    $tehnic = User::factory()->create();
+    $tehnic->assignRole(UserRole::AdministratorTehnic->value);
 
     $this->actingAs($ao)->get('/admin/lessons')->assertOk();
-    $this->actingAs($profesor)->get('/admin/lessons')->assertForbidden();
+    $this->actingAs($profesor)->get('/admin/lessons')->assertOk();
+    // Infrastructura rămâne în afara datelor academice (§3.2).
+    $this->actingAs($tehnic)->get('/admin/lessons')->assertForbidden();
+
+    // Vederea nu aduce scrierea: pagina de creare rămâne închisă profesorului.
+    $this->actingAs($profesor)->get('/admin/lessons/create')->assertForbidden();
+    $this->actingAs($ao)->get('/admin/lessons/create')->assertOk();
 });
 
 it('cabinetul afișează orarul structurat al clasei elevului', function () {

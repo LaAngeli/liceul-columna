@@ -48,9 +48,15 @@ class HolidayResource extends Resource
         return __('panel.resources.holidays.plural');
     }
 
+    /**
+     * CITIREA se separă de SCRIERE: zilele libere se vede de toți cei cărora §3.3 le dă
+     * dreptul (conducere, diriginte, profesor), dar se scrie doar de administratorul operațional
+     * (`canManageSchedules`, metodele de mai jos). Înainte, ambele treceau prin capabilitatea de
+     * scriere, deci secțiunea era invizibilă tuturor celorlalți.
+     */
     public static function canAccess(): bool
     {
-        return auth('web')->user()?->canManageSchedules() ?? false;
+        return auth('web')->user()?->canViewSchedules() ?? false;
     }
 
     public static function canCreate(): bool

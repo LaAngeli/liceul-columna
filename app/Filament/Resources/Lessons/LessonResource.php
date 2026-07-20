@@ -50,9 +50,15 @@ class LessonResource extends Resource
         return __('panel.resources.lessons.plural');
     }
 
+    /**
+     * CITIREA se separă de SCRIERE: orarul structurat se vede de toți cei cărora §3.3 le dă
+     * dreptul (conducere, diriginte, profesor), dar se scrie doar de administratorul operațional
+     * (`canManageSchedules`, metodele de mai jos). Înainte, ambele treceau prin capabilitatea de
+     * scriere, deci secțiunea era invizibilă tuturor celorlalți.
+     */
     public static function canAccess(): bool
     {
-        return auth('web')->user()?->canManageSchedules() ?? false;
+        return auth('web')->user()?->canViewSchedules() ?? false;
     }
 
     public static function canCreate(): bool
@@ -92,6 +98,25 @@ class LessonResource extends Resource
             'create' => CreateLesson::route('/create'),
             'edit' => EditLesson::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * PERIMETRUL de citire: administrația vede orarul întregii școli; profesorul și dirigintele —
+     * doar clasele lor (predate + cele în coordonare), din aceeași sursă unică folosită de
+     * SchoolClassResource. Policy-ul răspunde „ce ai voie să faci"; scope-ul, „peste ce rânduri".
+     *
+     * Fără fișă de profesor (cont pedagogic incomplet) perimetrul e gol — nu întreaga școală.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth('web')->user();
+
+        if (! $user || $user->isAdministrator()) {
+            return $query;
+        }
+
+        return $query->whereIn('school_class_id', $user->teacher?->visibleSchoolClassIds() ?? []);
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

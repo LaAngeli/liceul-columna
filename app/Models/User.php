@@ -380,6 +380,28 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * VEDEREA orarelor (§3.3, rândul „Orar": Drg/VD/Dir/AO ●, Prof ◐ — scoped pe clasele lui).
+     *
+     * Citirea se separă de scriere: până acum ambele treceau prin `canManageSchedules()`, deci
+     * orarul era invizibil în panou tuturor celor cărora specul le dă drept de vedere. Consecința
+     * practică nu era doar de comoditate: singura cale a directorului spre orarul unei clase trecea
+     * prin dosarul unui MINOR, iar acel acces se jurnalizează (retenție 12 ani, L133) — se producea
+     * o intrare de acces la PII pentru o dată care nu e PII.
+     *
+     * Administratorul tehnic rămâne exclus (infrastructură, fără date academice).
+     */
+    public function canViewSchedules(): bool
+    {
+        return $this->canManageSchedules()
+            || $this->hasAnyRole([
+                UserRole::Director->value,
+                UserRole::PrimVicedirector->value,
+                UserRole::Diriginte->value,
+                UserRole::Profesor->value,
+            ]);
+    }
+
+    /**
      * Aprobă corecțiile de notă solicitate de profesor/diriginte: prim-vicedirectorul, iar
      * excepțional directorul (§3.1 / ⑧). Administratorul operațional doar VEDE arhiva (○).
      */

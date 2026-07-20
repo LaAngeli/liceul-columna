@@ -161,10 +161,14 @@ class ConfigurationHub extends Page
      */
     private function countFor(string $resource): ?int
     {
-        /** @var class-string<Model>|null $model */
-        $model = $resource::getModel();
+        if ($resource::getModel() === null) {
+            return null;
+        }
 
-        return $model === null ? null : (int) $model::query()->count();
+        // Prin `getEloquentQuery()`, NU pe model direct: resursele scoped (orarul structurat, de
+        // exemplu) trebuie să arate perimetrul utilizatorului, altfel cardul promitea 507 lecții
+        // unui profesor care, la click, vedea doar clasele lui.
+        return (int) $resource::getEloquentQuery()->count();
     }
 
     /**
@@ -178,21 +182,24 @@ class ConfigurationHub extends Page
      */
     private function badgeFor(string $resource): ?array
     {
+        // Cine nu poate scrie primește starea lui, nu o sarcină: „N de configurat" e o CHEMARE LA
+        // ACȚIUNE, iar afișarea ei unui rol fără drept de scriere e o cerință pe care n-o poate
+        // executa (prins la verificarea live — profesorul vedea „1 de configurat" pe Orare).
+        if (! $resource::canCreate()) {
+            return [
+                'label' => (string) __('panel.config_hub.read_only'),
+                'color' => 'gray',
+            ];
+        }
+
         $missing = $this->missingFor($resource);
 
         if ($missing > 0) {
             return [
                 // `trans_choice`, nu `__`: șirul e pluralizat, iar `__` l-ar afișa BRUT
-                // („[1]1 de configurat|[2,*]…") — vizibil în UI, prins la verificarea live.
+                // („[1]1 de configurat|[2,*]…") — vizibil în UI, prins tot la verificarea live.
                 'label' => trans_choice('panel.config_hub.needs_setup', $missing, ['count' => $missing]),
                 'color' => 'warning',
-            ];
-        }
-
-        if (! $resource::canCreate()) {
-            return [
-                'label' => (string) __('panel.config_hub.read_only'),
-                'color' => 'gray',
             ];
         }
 

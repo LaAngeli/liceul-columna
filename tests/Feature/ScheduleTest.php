@@ -68,7 +68,13 @@ it('pagina publică de orar randează tabelele din DB', function () {
             ->where('sections.1.label', 'Clasa V demo'));
 });
 
-it('inserarea orarelor e obligația administratorului operațional (+ super-admin break-glass)', function (UserRole $role, bool $access) {
+/*
+ * REGULĂ RESCRISĂ DELIBERAT (LOT 5): până acum, o singură capabilitate (`canManageSchedules`)
+ * gardona și citirea, și scrierea — deci orarul era invizibil în panou conducerii și personalului
+ * pedagogic, contrar §3.3 (rândul „Orar": Drg/VD/Dir/AO ●, Prof ◐). Acum VEDEREA are capabilitatea
+ * ei; INSERAREA rămâne exact unde era.
+ */
+it('orarul se VEDE de conducere și de personalul pedagogic (§3.3), nu doar de cine îl inserează', function (UserRole $role, bool $access) {
     $user = User::factory()->create();
     $user->assignRole($role->value);
     $this->actingAs($user);
@@ -77,11 +83,30 @@ it('inserarea orarelor e obligația administratorului operațional (+ super-admi
 })->with([
     'super-admin' => [UserRole::Admin, true],
     'administrator operațional' => [UserRole::AdministratorOperational, true],
+    'director' => [UserRole::Director, true],
+    'prim-vicedirector' => [UserRole::PrimVicedirector, true],
+    'diriginte' => [UserRole::Diriginte, true],
+    'profesor' => [UserRole::Profesor, true],
+    // Infrastructură, fără date academice (§3.2).
+    'administrator tehnic' => [UserRole::AdministratorTehnic, false],
+    // Familia își vede orarul în cabinet, nu în panou.
+    'părinte' => [UserRole::Parinte, false],
+]);
+
+it('INSERAREA orarelor rămâne obligația administratorului operațional (+ super-admin break-glass)', function (UserRole $role, bool $canWrite) {
+    $user = User::factory()->create();
+    $user->assignRole($role->value);
+    $this->actingAs($user);
+
+    expect(ScheduleResource::canCreate())->toBe($canWrite);
+})->with([
+    'super-admin' => [UserRole::Admin, true],
+    'administrator operațional' => [UserRole::AdministratorOperational, true],
+    // Văd, dar nu scriu — publicarea rămâne act operațional.
     'director' => [UserRole::Director, false],
     'prim-vicedirector' => [UserRole::PrimVicedirector, false],
-    'administrator tehnic' => [UserRole::AdministratorTehnic, false],
+    'diriginte' => [UserRole::Diriginte, false],
     'profesor' => [UserRole::Profesor, false],
-    'părinte' => [UserRole::Parinte, false],
 ]);
 
 it('widget-ul „orare de completat" apare AO-ului cât timp lipsesc tipuri și se ascunde când toate au date', function () {

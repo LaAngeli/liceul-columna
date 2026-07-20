@@ -14,7 +14,12 @@ use App\Enums\ScheduleType;
 use App\Enums\UserRole;
 use App\Filament\Pages\ConfigurationHub;
 use App\Models\AcademicYear;
+use App\Models\Lesson;
 use App\Models\Schedule;
+use App\Models\SchoolClass;
+use App\Models\Subject;
+use App\Models\Teacher;
+use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -83,10 +88,16 @@ it('prim-vicedirectorul vede anul, dar marcat „Doar citire" (nu e configurator
         ->and($ani['badge']['color'])->toBe('gray');
 });
 
-it('profesorul nu are ce configura: hub-ul îi e inaccesibil', function () {
+it('profesorul vede DOAR categoria orarului (LOT 5), nu și restul configurării', function () {
     hubUser(UserRole::Profesor);
 
-    expect(ConfigurationHub::canAccess())->toBeFalse();
+    // Are ce vedea (orarul, §3.3) → hub-ul îi apare…
+    expect(ConfigurationHub::canAccess())->toBeTrue();
+
+    $keys = collect(Livewire::test(ConfigurationHub::class)->instance()->categories())->pluck('key')->all();
+
+    // …dar EXACT o categorie: anul, evaluarea și corigența rămân închise.
+    expect($keys)->toBe([ConfigurationCategory::Orar->value]);
 });
 
 it('semnalul „de configurat" primează asupra celui de „doar citire" și numără golurile reale', function () {
@@ -119,6 +130,67 @@ it('linkurile duc în secțiuni, iar cele pe ani aterizează în anul CURENT', f
     $semestre = collect($an['sections'])->firstWhere('title', __('panel.resources.terms.label'));
 
     expect($semestre['url'])->toContain('an='.$this->year->id);
+});
+
+it('numărătoarea de pe card respectă PERIMETRUL utilizatorului, nu totalul școlii', function () {
+    $mine = SchoolClass::factory()->for($this->year)->create();
+    $theirs = SchoolClass::factory()->for($this->year)->create();
+    $subject = Subject::factory()->create();
+
+    foreach ([$mine, $theirs] as $class) {
+        Lesson::factory()->create([
+            'school_class_id' => $class->id,
+            'academic_year_id' => $this->year->id,
+            'subject_id' => $subject->id,
+        ]);
+    }
+
+    // Profesor cu O SINGURĂ clasă în perimetru.
+    $teacherUser = User::factory()->create();
+    $teacherUser->assignRole(UserRole::Profesor->value);
+    $teacher = Teacher::factory()->create(['user_id' => $teacherUser->id]);
+    TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id,
+        'school_class_id' => $mine->id,
+        'subject_id' => $subject->id,
+    ]);
+    actingAs($teacherUser);
+
+    $orar = collect(Livewire::test(ConfigurationHub::class)->instance()->categories())
+        ->firstWhere('key', ConfigurationCategory::Orar->value);
+    $structurat = collect($orar['sections'])->firstWhere('title', __('panel.resources.lessons.label'));
+
+    // 1, nu 2: cardul promitea altfel un total pe care, la click, utilizatorul nu-l vedea.
+    expect($structurat['count'])->toBe(1);
+});
+
+it('semnalul „de configurat" nu se arată cui nu poate configura — primește starea, nu o sarcină', function () {
+    // Un tip de orar publicat → există goluri reale în secțiunea Orare.
+    Schedule::factory()->create(['type' => ScheduleType::cases()[0], 'is_public' => true]);
+
+    $teacherUser = User::factory()->create();
+    $teacherUser->assignRole(UserRole::Profesor->value);
+    Teacher::factory()->create(['user_id' => $teacherUser->id]);
+    actingAs($teacherUser);
+
+    $orar = collect(Livewire::test(ConfigurationHub::class)->instance()->categories())
+        ->firstWhere('key', ConfigurationCategory::Orar->value);
+
+    foreach ($orar['sections'] as $section) {
+        expect($section['badge']['label'])->toBe(__('panel.config_hub.read_only'))
+            ->and($section['badge']['color'])->toBe('gray');
+    }
+
+    // Aceleași goluri, dar pentru cine LE POATE rezolva, rămân o chemare la acțiune.
+    $ao = User::factory()->create();
+    $ao->assignRole(UserRole::AdministratorOperational->value);
+    actingAs($ao);
+
+    $orarAo = collect(Livewire::test(ConfigurationHub::class)->instance()->categories())
+        ->firstWhere('key', ConfigurationCategory::Orar->value);
+    $orare = collect($orarAo['sections'])->firstWhere('title', __('panel.resources.schedules.label'));
+
+    expect($orare['badge']['color'])->toBe('warning');
 });
 
 it('DISCIPLINĂ: fiecare resursă/pagină declară un grup care există în navigationGroups()', function () {
