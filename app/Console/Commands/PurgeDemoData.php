@@ -8,6 +8,8 @@ use App\Models\CalendarEvent;
 use App\Models\Document;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
+use App\Models\HomeworkAssignment;
+use App\Models\HomeworkCorrection;
 use App\Models\Message;
 use App\Models\User;
 use Illuminate\Console\Command;
@@ -68,6 +70,10 @@ class PurgeDemoData extends Command
 
         $rows = [
             ['Corecții de note', $this->purgeGradeCorrections($demoIds, $dryRun)],
+            // Corecțiile ÎNAINTEA temelor: FK-ul e CASCADE, deci ștergerea temelor le-ar lua cu ea
+            // și raportul ar arăta 0 pe un rând care de fapt a curățat.
+            ['Corecții de teme', $this->purgeHomeworkCorrections($demoIds, $dryRun)],
+            ['Teme [DEMO]', $this->purgeHomeworkAssignments($dryRun)],
             ['Motivări de absențe (+ justificative)', $this->purgeAbsenceMotivations($demoIds, $dryRun)],
             ['Documente (+ fișiere de pe disc)', $this->purgeDocuments($demoIds, $dryRun)],
             ['Evenimente de calendar', $this->purgeCalendarEvents($demoIds, $dryRun)],
@@ -186,6 +192,47 @@ class PurgeDemoData extends Command
             $inner->whereIn('created_by', $demoIds)
                 ->orWhere('title', 'like', '%'.self::DEMO.'%');
         });
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->forceDelete();
+        }
+
+        return $count;
+    }
+
+    /**
+     * Corecțiile de teme cerute de conturile demo sau marcate [DEMO] în motiv. Modelul n-are
+     * SoftDeletes — delete-ul e definitiv de la sine.
+     *
+     * @param  Collection<int, int>  $demoIds
+     */
+    private function purgeHomeworkCorrections(Collection $demoIds, bool $dryRun): int
+    {
+        $query = HomeworkCorrection::query()->where(function (Builder $inner) use ($demoIds): void {
+            $inner->whereIn('requested_by_user_id', $demoIds)
+                ->orWhere('reason', 'like', '%'.self::DEMO.'%');
+        });
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->delete();
+        }
+
+        return $count;
+    }
+
+    /**
+     * Temele-suport create pentru corecțiile demo (subiect marcat [DEMO]). `withTrashed()` +
+     * `forceDelete()`: au SoftDeletes, iar una „ștearsă" în testare ar rămâne altfel în tabel.
+     * NU se șterg pe autor: profesorul demo e legat de o fișă REALĂ de profesor, iar temele
+     * legacy ale aceleiași fișe sunt date reale.
+     */
+    private function purgeHomeworkAssignments(bool $dryRun): int
+    {
+        $query = HomeworkAssignment::withTrashed()->where('topic', 'like', '%'.self::DEMO.'%');
 
         $count = (clone $query)->count();
 

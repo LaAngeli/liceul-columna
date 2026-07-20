@@ -14,6 +14,8 @@ use App\Models\Announcement;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
+use App\Models\HomeworkAssignment;
+use App\Models\HomeworkCorrection;
 use App\Models\Lesson;
 use App\Models\Message;
 use App\Models\Student;
@@ -58,6 +60,10 @@ class DemoTestDataSeeder extends Seeder
             ->pluck('id');
         DatabaseNotification::query()->whereIn('data->announcement_id', $demoAnnouncementIds)->delete();
         Announcement::withTrashed()->whereKey($demoAnnouncementIds)->forceDelete();
+        // Corecțiile de teme ÎNAINTEA temelor (aparțin temelor prin FK); temele [DEMO] definitiv —
+        // au SoftDeletes, iar un delete simplu le-ar lăsa marcate în tabel la fiecare re-seedare.
+        HomeworkCorrection::query()->where('reason', 'like', self::MARKER.'%')->delete();
+        HomeworkAssignment::withTrashed()->where('topic', 'like', self::MARKER.'%')->forceDelete();
         // forceDelete PE MODEL (nu pe query): observer-ul curăță PDF/justificativ dacă există.
         DocumentRequest::withTrashed()
             ->where('payload->details', 'like', self::MARKER.'%')
@@ -71,6 +77,86 @@ class DemoTestDataSeeder extends Seeder
         $this->seedDocumentRequests();
         $this->seedLessons();
         $this->seedAnnouncements();
+        $this->seedHomeworkCorrections();
+    }
+
+    /**
+     * Corecții de TEME demo, pe toate stările judecății: una ÎN AȘTEPTARE (alimentează badge-ul
+     * aprobatorilor), una APROBATĂ prin fluxul real ({@see HomeworkCorrection::approve()} — tema
+     * chiar se modifică, iar arhiva păstrează vechi → nou) și una RESPINSĂ cu motiv consemnat.
+     *
+     * Temele-suport sunt create tot aici, marcate [DEMO] în subiect și semnate de profesorul demo:
+     * corecțiile pe teme REALE ar fi alterat, la aprobarea de test, conținutul văzut de familii.
+     */
+    private function seedHomeworkCorrections(): void
+    {
+        $requester = User::query()->where('email', 'profesor@columna.test')->first();
+        $reviewer = User::query()->where('email', 'vicedirector@columna.test')->first()
+            ?? User::query()->where('email', 'admin@liceul-columna.test')->first();
+        $teacher = $requester?->teacher;
+
+        if ($requester === null || $reviewer === null || $teacher === null) {
+            $this->command->warn('Fără profesor/aprobator demo — sar peste corecțiile de teme.');
+
+            return;
+        }
+
+        $assignment = $teacher->teachingAssignments()->with(['schoolClass', 'subject'])->first();
+        $class = $assignment?->schoolClass;
+        $subject = $assignment?->subject;
+
+        if ($class === null || $subject === null) {
+            $this->command->warn('Profesorul demo nu are alocări — sar peste corecțiile de teme.');
+
+            return;
+        }
+
+        $makeHomework = fn (string $topic, string $task): HomeworkAssignment => HomeworkAssignment::query()->create([
+            'subject_id' => $subject->id,
+            'teacher_id' => $teacher->id,
+            'subject_name' => $subject->name,
+            'author_name' => $teacher->full_name,
+            'grade_level' => $class->grade_level,
+            'section' => $class->section,
+            'assigned_on' => Carbon::now()->subDays(3)->toDateString(),
+            'due_on' => Carbon::now()->addDays(4)->toDateString(),
+            'topic' => $topic,
+            'required_task' => $task,
+        ]);
+
+        // 1) ÎN AȘTEPTARE — exercițiile propuse diferă; aprobatorii au ce judeca.
+        $pendingHomework = $makeHomework(self::MARKER.' Fracții ordinare — recapitulare', 'Ex. 1–4, pag. 52');
+        HomeworkCorrection::query()->create([
+            'homework_assignment_id' => $pendingHomework->id,
+            'requested_by_user_id' => $requester->id,
+            'old_required_task' => $pendingHomework->required_task,
+            'new_required_task' => 'Ex. 1–6, pag. 52 (am omis două exerciții la dictare)',
+            'reason' => self::MARKER.' Am transcris greșit lista de exerciții din planificare.',
+        ]);
+
+        // 2) APROBATĂ — prin fluxul real: tema se modifică, arhiva reține vechi → nou.
+        $approvedHomework = $makeHomework(self::MARKER.' Ecuații de gradul I', 'Fișa de lucru nr. 3');
+        $approved = HomeworkCorrection::query()->create([
+            'homework_assignment_id' => $approvedHomework->id,
+            'requested_by_user_id' => $requester->id,
+            'old_topic' => $approvedHomework->topic,
+            'new_topic' => self::MARKER.' Ecuații de gradul I cu o necunoscută',
+            'reason' => self::MARKER.' Titlul trunchiat deruta elevii la căutarea lecției.',
+        ]);
+        $approved->approve($reviewer->id, self::MARKER.' Corect — titlul complet e cel din manual.');
+
+        // 3) RESPINSĂ — tema rămâne neatinsă, motivul respingerii e consemnat.
+        $rejectedHomework = $makeHomework(self::MARKER.' Probleme cu procente', 'Problemele 7–9, pag. 60');
+        $rejected = HomeworkCorrection::query()->create([
+            'homework_assignment_id' => $rejectedHomework->id,
+            'requested_by_user_id' => $requester->id,
+            'old_required_task' => $rejectedHomework->required_task,
+            'new_required_task' => 'Problemele 7–12, pag. 60',
+            'reason' => self::MARKER.' Aș vrea să extind tema cu încă trei probleme.',
+        ]);
+        $rejected->reject($reviewer->id, self::MARKER.' Extinderea după publicare ar surprinde familiile — depune o temă nouă.');
+
+        $this->command->info('Corecții de teme demo: 1 în așteptare + 1 aprobată + 1 respinsă (pe teme [DEMO] proprii).');
     }
 
     /**

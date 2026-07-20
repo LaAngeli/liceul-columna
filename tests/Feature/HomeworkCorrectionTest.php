@@ -8,6 +8,7 @@
 
 use App\Enums\CorrectionStatus;
 use App\Enums\UserRole;
+use App\Filament\Resources\HomeworkCorrections\HomeworkCorrectionResource;
 use App\Models\HomeworkAssignment;
 use App\Models\HomeworkCorrection;
 use App\Models\Subject;
@@ -156,4 +157,89 @@ it('solicitantul își poate retrage cererea în așteptare (rămâne în arhiv�
 
     expect($correction->refresh()->status)->toBe(CorrectionStatus::Withdrawn)
         ->and(HomeworkCorrection::query()->count())->toBe(1);
+});
+
+// ─── Accesul la resursă + curățarea demo (2026-07-20) ────────────────────────────────────
+
+it('matricea de acces la arhiva corecțiilor de teme, pe toate rolurile', function (string $role, bool $needsTeacher, bool $allowed) {
+    $user = hwcUser(UserRole::from($role));
+
+    if ($needsTeacher) {
+        Teacher::factory()->create(['user_id' => $user->id]);
+    }
+
+    $response = $this->actingAs($user)->get('/admin/homework-corrections');
+
+    $allowed ? $response->assertOk() : $response->assertForbidden();
+})->with([
+    'super-admin' => [UserRole::Admin->value, false, true],
+    'director' => [UserRole::Director->value, false, true],
+    'prim-vicedirector' => [UserRole::PrimVicedirector->value, false, true],
+    'administrator operațional' => [UserRole::AdministratorOperational->value, false, true],
+    // Personalul pedagogic vede (arhiva PROPRIE, prin scoping); fără fișă de profesor — nu.
+    'profesor cu fișă' => [UserRole::Profesor->value, true, true],
+    'diriginte cu fișă' => [UserRole::Diriginte->value, true, true],
+    'profesor fără fișă' => [UserRole::Profesor->value, false, false],
+    // Tehnicul n-are date academice; familia n-are panou.
+    'administrator tehnic' => [UserRole::AdministratorTehnic->value, false, false],
+    'elev' => [UserRole::Elev->value, false, false],
+    'părinte' => [UserRole::Parinte->value, false, false],
+]);
+
+it('profesorul vede în arhivă DOAR cererile lui; administrația pe toate', function () {
+    $mine = hwcUser(UserRole::Profesor);
+    $mineTeacher = Teacher::factory()->create(['user_id' => $mine->id]);
+    $other = hwcUser(UserRole::Profesor);
+    $otherTeacher = Teacher::factory()->create(['user_id' => $other->id]);
+
+    foreach ([[$mine, $mineTeacher], [$other, $otherTeacher]] as [$user, $teacher]) {
+        HomeworkCorrection::create([
+            'homework_assignment_id' => hwcAssignment($teacher)->id,
+            'requested_by_user_id' => $user->id,
+            'old_topic' => 'Tema veche',
+            'new_topic' => 'Tema corectată',
+            'reason' => 'motiv',
+        ]);
+    }
+
+    $this->actingAs($mine);
+    expect(HomeworkCorrectionResource::getEloquentQuery()->count())->toBe(1);
+
+    $this->actingAs(hwcUser(UserRole::Director));
+    expect(HomeworkCorrectionResource::getEloquentQuery()->count())->toBe(2);
+});
+
+it('purge-ul demo șterge corecțiile [DEMO] și temele-suport, dar nu atinge datele reale', function () {
+    $teacher = Teacher::factory()->create();
+
+    // Set DEMO: temă marcată + corecție marcată.
+    $demoHomework = HomeworkAssignment::factory()->create([
+        'teacher_id' => $teacher->id,
+        'topic' => '[DEMO] Fracții ordinare',
+        'required_task' => 'Ex. 1-4',
+    ]);
+    HomeworkCorrection::create([
+        'homework_assignment_id' => $demoHomework->id,
+        'requested_by_user_id' => hwcUser(UserRole::Profesor)->id,
+        'old_required_task' => 'Ex. 1-4',
+        'new_required_task' => 'Ex. 1-6',
+        'reason' => '[DEMO] motiv de test',
+    ]);
+
+    // Set REAL: temă legacy + corecție autentică — trebuie să supraviețuiască.
+    $realHomework = hwcAssignment($teacher);
+    $realCorrection = HomeworkCorrection::create([
+        'homework_assignment_id' => $realHomework->id,
+        'requested_by_user_id' => hwcUser(UserRole::Profesor)->id,
+        'old_topic' => 'Tema veche',
+        'new_topic' => 'Tema corectată',
+        'reason' => 'greșeală reală de redactare',
+    ]);
+
+    $this->artisan('app:purge-demo-data')->assertSuccessful();
+
+    expect(HomeworkAssignment::withTrashed()->whereKey($demoHomework->id)->exists())->toBeFalse()
+        ->and(HomeworkCorrection::query()->where('reason', 'like', '[DEMO]%')->exists())->toBeFalse()
+        ->and(HomeworkAssignment::query()->whereKey($realHomework->id)->exists())->toBeTrue()
+        ->and(HomeworkCorrection::query()->whereKey($realCorrection->id)->exists())->toBeTrue();
 });
