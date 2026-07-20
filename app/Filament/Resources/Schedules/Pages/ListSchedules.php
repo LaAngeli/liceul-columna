@@ -115,6 +115,27 @@ class ListSchedules extends ListRecords
         return (string) __('panel.config_nav.schedules_hint');
     }
 
+    /**
+     * Starea tipului activ, pentru antetul contextului: câte tabele, câte publice.
+     *
+     * @return array{total: int, public: int}|null
+     */
+    public function typeStats(): ?array
+    {
+        $type = $this->activeType();
+
+        if ($type === null) {
+            return null;
+        }
+
+        $row = $this->typeCounts()->get($type->value);
+
+        return [
+            'total' => (int) ($row->aggregate ?? 0),
+            'public' => (int) ($row->public_count ?? 0),
+        ];
+    }
+
     /** @return Collection<string, \stdClass> */
     private function typeCounts(): Collection
     {

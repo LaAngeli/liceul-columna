@@ -186,8 +186,17 @@ it('orarul structurat: ani → clase (cu „fără orar" semnalat) → lecțiile
     expect($cards->get($classA->id)['badge'])->toBeNull()
         ->and($cards->get($classB->id)['badge'])->not->toBeNull();
 
-    // Lecțiile clasei active; clasa fără orar nu poluează contextul.
-    $component->call('openClass', $classA->id)
+    // REGULĂ RESCRISĂ (restructurarea UI 2026-07-20): destinația drill-down-ului e GRILA
+    // săptămânală, nu tabelul — lecția apare în matricea zi × oră; tabelul clasic rămâne
+    // vedere secundară (?vedere=lista), cu aceleași rânduri.
+    $component->call('openClass', $classA->id);
+
+    $grid = $component->instance()->timetableGrid();
+
+    expect($grid)->not->toBeNull()
+        ->and($grid['cells'][Weekday::Monday->value][1]['subject'] ?? null)->not->toBeNull();
+
+    $component->call('openListView')
         ->assertCanSeeTableRecords([$lesson]);
 
     // Adăugarea din context vine pre-completată (an + clasă).

@@ -3,9 +3,12 @@
 namespace App\Filament\Resources\Schedules\Tables;
 
 use App\Filament\Resources\Schedules\Pages\ListSchedules;
+use App\Models\Schedule;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\TernaryFilter;
@@ -42,6 +45,21 @@ class SchedulesTable
                     ->label(__('panel.forms.schedule.is_public_filter')),
             ])
             ->recordActions([
+                // Conținutul orarului nu se vedea NICĂIERI în panou: rândul arăta doar eticheta,
+                // iar tabelul propriu-zis apărea abia pe site (sau descifrat din repeater-ul de
+                // editare). Previzualizarea arată exact ce văd familiile — înainte de a publica.
+                Action::make('preview')
+                    ->label(__('panel.forms.schedule.preview'))
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->slideOver()
+                    ->modalWidth(Width::FiveExtraLarge)
+                    ->modalHeading(fn (Schedule $record): string => (string) $record->label)
+                    ->modalDescription(fn (Schedule $record): string => $record->is_public
+                        ? (string) __('panel.forms.schedule.preview_public')
+                        : (string) __('panel.forms.schedule.preview_draft'))
+                    ->modalContent(fn (Schedule $record) => view('filament.catalog.schedule-preview', ['schedule' => $record]))
+                    ->modalSubmitAction(false),
                 EditAction::make(),
             ])
             ->toolbarActions([

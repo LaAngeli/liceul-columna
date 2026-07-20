@@ -87,11 +87,14 @@ class LessonForm
                 Select::make('day_of_week')
                     ->label(__('panel.forms.lesson.weekday'))
                     ->options(Weekday::class)
+                    // Din grila săptămânală, celula liberă vine cu ziua gata aleasă (validată).
+                    ->default(fn (): ?int => self::contextInt('zi', 1, 6))
                     ->required()
                     ->live(),
                 Select::make('lesson_number')
                     ->label(__('panel.forms.lesson.period_with_no'))
                     ->options(array_combine(range(1, 8), array_map(fn (int $n): string => (string) $n, range(1, 8))))
+                    ->default(fn (): ?int => self::contextInt('lectie', 1, 8))
                     ->required()
                     ->live()
                     // Slotul e unic pe (clasă, an, zi, nr.) în baza de date. Fără regula asta,
@@ -197,6 +200,20 @@ class LessonForm
             ->where('lesson_number', $lessonNumber)
             ->when($record?->exists, fn (Builder $q): Builder => $q->whereKeyNot($record?->getKey()))
             ->exists();
+    }
+
+    /** Un întreg din query string, doar dacă e în intervalul permis — altfel null, fără presupuneri. */
+    private static function contextInt(string $key, int $min, int $max): ?int
+    {
+        $raw = request()->query($key);
+
+        if (! is_string($raw) || ! ctype_digit($raw)) {
+            return null;
+        }
+
+        $value = (int) $raw;
+
+        return ($value >= $min && $value <= $max) ? $value : null;
     }
 
     /** Clasa din contextul navigatorului (`?clasa=`), doar dacă există. */

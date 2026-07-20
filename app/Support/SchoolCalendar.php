@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\AcademicYear;
 use App\Models\Term;
+use Illuminate\Support\Carbon;
 
 /**
  * SURSA UNICĂ a „momentului școlar curent".
@@ -23,6 +24,20 @@ use App\Models\Term;
  */
 final class SchoolCalendar
 {
+    /**
+     * Fusul orar al ȘCOLII. Aplicația stochează în UTC (convenția corectă pentru timestamps), dar
+     * orele din orare — „Lecția 1 08.15 – 09.00" — sunt ore locale de Chișinău. Orice comparație
+     * „acum vs ora lecției" făcută în UTC greșește cu 2-3 ore: la 14:39 locală, grila marca drept
+     * „Acum" lecția de la 11:15 (prins la verificarea live). Un singur liceu → un singur fus, aici.
+     */
+    public const TIMEZONE = 'Europe/Chisinau';
+
+    /** Momentul curent în fusul școlii — pentru comparații cu orele din orare. */
+    public static function localNow(): Carbon
+    {
+        return Carbon::now(self::TIMEZONE);
+    }
+
     public static function currentTerm(): ?Term
     {
         return Term::query()->where('is_current', true)->first();
