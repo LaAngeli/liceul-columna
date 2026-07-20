@@ -22,11 +22,42 @@ optimize:clear`; pe VPS repornește FPM (`systemctl reload php8.3-fpm`); pe web 
 OPcache din hPanel sau atinge `.htaccess`. Diagnostic: dacă `php artisan tinker --execute
 'var_dump(method_exists(...))'` dă `true` dar web-ul dă „undefined" → e cache, nu bug.
 
-## Permisiuni (VPS)
+## 🔴 500 pe tot site-ul după un deploy: `touch(): Utime failed: Operation not permitted`
+
+**A provocat o cădere reală (2026-07-15).** Simptom: tot site-ul public dă **500**, dar `/admin` pare
+OK (302 — redirect, fără randare de Blade). În `nginx/error.log`:
+
+```
+PHP Fatal error: touch(): Utime failed: Operation not permitted
+in .../View/Compilers/BladeCompiler.php:215
+```
+
+**Cauza:** ai rulat `artisan` ca **root** pe producție (deploy, `view:cache`, `config:cache`, seed).
+Fișierele de view compilate din `storage/framework/views/` au rămas **`root:root`**. php-fpm rulează ca
+`www-data` — poate SCRIE în ele, dar `touch()` (utime) pe un fișier al ALTUI proprietar dă `EPERM`,
+chiar cu drept de scriere. De aceea eșuează exact la recompilarea unui view.
+
+**Fix:**
+```bash
+cd /var/www/columna
+php artisan view:clear
+chown -R www-data:www-data storage bootstrap/cache
+sudo -u www-data php artisan view:cache     # reconstruit CA www-data
+chown -R www-data:www-data storage bootstrap/cache
+```
+
+**⚠️ REGULA care previne recidiva — după ORICE `artisan` rulat ca root pe producție:**
+```bash
+chown -R www-data:www-data storage bootstrap/cache
+```
+Ideal, rulează comenzile care scriu în cache direct ca userul FPM: `sudo -u www-data php artisan …`.
+Verifică oricând cu `ls -l storage/framework/views | head` — dacă vezi `root root`, e o cădere care
+așteaptă să se întâmple.
+
+## Permisiuni (VPS) — alte simptome
 `The stream or file "storage/logs/laravel.log" could not be opened` / erori de scriere →
 `chown -R www-data:www-data storage bootstrap/cache` + `chmod -R 775`. Userul php-fpm ≠ userul cu care
-ai făcut `git pull`; de aceea fișierele noi pot fi neschribile de FPM. Rulează artisan ca userul FPM
-sau refă `chown` după fiecare `git pull` care creează fișiere în `storage/`.
+ai făcut `git pull`; de aceea fișierele noi pot fi neschribile de FPM.
 
 ## E-mailurile „tac" (contact, coduri 2FA)
 `MAIL_MAILER=log` sau lipsă worker de queue → mailul nu pleacă, fără eroare vizibilă (NOTE-DEV-DEPLOY

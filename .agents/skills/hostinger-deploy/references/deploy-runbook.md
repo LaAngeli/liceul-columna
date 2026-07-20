@@ -114,8 +114,14 @@ php artisan migrate --force                        # ⚠️ confirmă; backup da
 php artisan config:cache route:cache view:cache event:cache
 php artisan filament:optimize
 php artisan queue:restart                           # worker-ul reîncarcă codul nou
+chown -R www-data:www-data storage bootstrap/cache  # ⚠️ OBLIGATORIU — vezi mai jos
 php artisan up
 ```
+
+🔴 **`chown`-ul de la final NU e opțional.** Comenzile `artisan` rulate ca root lasă fișierele de cache
+(views compilate, config) **deținute de root**; php-fpm rulează ca `www-data` și, deși poate scrie în
+ele, `touch()` pe un fișier al altui proprietar dă `EPERM` → **500 pe tot site-ul**. A provocat o cădere
+reală (2026-07-15). Detalii + fix în [troubleshooting.md](troubleshooting.md).
 
 Reguli:
 - **`queue:restart` obligatoriu** la fiecare deploy — altfel worker-ul rulează codul vechi din memorie.
