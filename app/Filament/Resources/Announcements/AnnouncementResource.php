@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Announcements;
 use App\Filament\Resources\Announcements\Pages\CreateAnnouncement;
 use App\Filament\Resources\Announcements\Pages\EditAnnouncement;
 use App\Filament\Resources\Announcements\Pages\ListAnnouncements;
+use App\Filament\Resources\Announcements\Pages\ViewAnnouncement;
 use App\Filament\Resources\Announcements\Schemas\AnnouncementForm;
 use App\Filament\Resources\Announcements\Tables\AnnouncementsTable;
 use App\Models\Announcement;
@@ -53,6 +54,11 @@ class AnnouncementResource extends Resource
         return auth('web')->user()?->canPublishContent() ?? false;
     }
 
+    public static function canView(Model $record): bool
+    {
+        return auth('web')->user()?->canPublishContent() ?? false;
+    }
+
     public static function canCreate(): bool
     {
         return auth('web')->user()?->canPublishContent() ?? false;
@@ -89,6 +95,7 @@ class AnnouncementResource extends Resource
         return [
             'index' => ListAnnouncements::route('/'),
             'create' => CreateAnnouncement::route('/create'),
+            'view' => ViewAnnouncement::route('/{record}'),
             'edit' => EditAnnouncement::route('/{record}/edit'),
         ];
     }

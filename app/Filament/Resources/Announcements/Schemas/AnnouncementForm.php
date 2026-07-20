@@ -18,6 +18,7 @@ class AnnouncementForm
                     ->maxLength(200),
                 Textarea::make('body')
                     ->label(__('panel.forms.announcement.body'))
+                    ->helperText(__('panel.forms.announcement.body_hint'))
                     ->required()
                     ->rows(6),
             ]);

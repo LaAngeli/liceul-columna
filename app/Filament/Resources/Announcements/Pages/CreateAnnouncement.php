@@ -22,4 +22,13 @@ class CreateAnnouncement extends CreateRecord
 
         return $data;
     }
+
+    /**
+     * După salvare → FIȘA anunțului, nu lista: fluxul e compune → recitește → publică,
+     * iar butonul „Publică" stă pe fișă.
+     */
+    protected function getRedirectUrl(): string
+    {
+        return AnnouncementResource::getUrl('view', ['record' => $this->getRecord()]);
+    }
 }

@@ -20,4 +20,10 @@ class EditAnnouncement extends EditRecord
             DeleteAction::make(),
         ];
     }
+
+    /** După editare → înapoi pe fișă, unde stă „Publică". */
+    protected function getRedirectUrl(): string
+    {
+        return AnnouncementResource::getUrl('view', ['record' => $this->getRecord()]);
+    }
 }
