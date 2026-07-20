@@ -81,6 +81,49 @@ php artisan filament:optimize
 php artisan queue:restart
 ```
 
+### 1.7 Orarul STRUCTURAT — `app:import-lessons` după publicarea orarelor (OBLIGATORIU la an nou)
+
+Orarul structurat (`lessons`) NU se populează singur. E alimentat de `php artisan app:import-lessons`
+din orarele PUBLICATE ale claselor (`Schedule` tip `orarul-lectiilor` legat de o clasă).
+
+**De ce contează:** singurul consumator al tabelului e `App\Actions\ComputeDeferralRisk` — alerta de
+**risc de amânare** (spec §2.1: cel mult o notă la o disciplină ȘI peste 50% absențe din lecțiile
+programate la ea). Numitorul „lecții programate" vine exclusiv de acolo. Fără rânduri în `lessons`,
+acțiunea returnează listă goală, iar blocul de alertă din cabinet se randează doar când lista e
+nevidă → **eșuează TĂCUT**: nimeni nu vede o eroare, familia și dirigintele pur și simplu nu primesc
+niciodată avertismentul. Afișarea orarului nu depinde de asta (cabinetul preferă orarul PUBLICAT).
+
+**Ordinea, la go-live și la fiecare an școlar nou:**
+```
+php artisan app:import-schedules          # orarele publicabile (dacă s-au schimbat sursele)
+php artisan app:import-lessons --force    # DUPĂ ele; --force rescrie clasele care au deja sloturi
+```
+`--force` e necesar fiindcă altfel clasele cu orar structurat existent sunt SĂRITE (protecție pentru
+intrările manuale). Comanda e idempotentă și reversibilă: se poate relua oricând.
+
+**Verificare după rulare** (comanda tipărește totalul + celulele nerezolvate, grupat):
+- `SELECT COUNT(*) FROM lessons l JOIN subjects s ON s.id=l.subject_id JOIN school_classes k ON k.id=l.school_class_id
+  WHERE (s.min_grade IS NOT NULL AND k.grade_level < s.min_grade) OR (s.max_grade IS NOT NULL AND k.grade_level > s.max_grade)`
+  trebuie să dea **0** — disciplina legată de fișa altui ciclu a fost defectul reparat în LOT 6
+  (219 din 507 lecții pe local, tăcut).
+
+**Două limite ASUMATE, de comunicat beneficiarului — absența alertelor NU înseamnă absența riscului:**
+1. **Acoperire parțială.** Primesc sloturi doar clasele care au orar publicat. Măsurat în producție
+   la 2026-07-20: **24 din 52** de clase ale anului curent, **536 din 773** de elevi. Pentru restul,
+   riscul nu se poate calcula deloc.
+2. **Engleza rămâne oarbă.** Nomenclatorul are DOUĂ fișe („Limba străină 1 (engleza)" și „Limba
+   engleză (opț)"), iar orarele scriu doar „Limba engleză", fără să marcheze vreodată opționalul
+   (verificat: zero apariții de „opț" în cele 25 de orare). Celulele rămân NEREZOLVATE deliberat — a
+   alege una ar umfla numărul de lecții al uneia și l-ar anula pe al celeilalte. Consecință: la
+   engleză `scheduled = 0`, deci alerta nu pornește niciodată. Se rezolvă doar când sursa distinge
+   cele două ore.
+
+⚠️ **Nu rula `db:seed --class=DemoTestDataSeeder` în producție după import.** `seedLessons()` șterge
+TOATE lecțiile clasei în dirigenția lui `profesor@columna.test` și le înlocuiește cu ~22 de sloturi
+generate, cu discipline aleatorii și FĂRĂ marcaj `[DEMO]` — adică indistinctibile ulterior de cele
+reale. Azi e inert (contul nu are clasă în dirigenție pe producție) și dispare de tot odată cu
+curățarea de la §1.2, dar riscul reapare dacă i se atribuie o clasă.
+
 ---
 
 ## 2. DEV — mediu & build (gotcha-uri)

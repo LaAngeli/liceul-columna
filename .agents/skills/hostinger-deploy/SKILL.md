@@ -56,7 +56,8 @@ utilizatorul care plan Hostinger e** — determină worker-ul, permisiunile și 
 | **Restaurez date** (selectiv sau complet) / verific backup-ul | **[references/backup-restore.md](references/backup-restore.md)** — ⚠️ arhivele sunt AES-256: se deschid cu `7z`, NU cu `unzip` |
 | Mut domeniul `columna.org.md` → `columna.md` | `DEPLOY-DOMENIU.md` (autoritativ) + rezumat în `NOTE-DEV-DEPLOY.md` §1.4 |
 | Rezolv „merge local, e rupt pe live" / pagină albă / secrete | [references/troubleshooting.md](references/troubleshooting.md) |
-| Checklist go-live (SMTP, curățare `[DEMO]`, Studio, juridic) | `NOTE-DEV-DEPLOY.md` §1 |
+| Checklist go-live (SMTP, curățare `[DEMO]`, Studio, juridic, **orar structurat**) | `NOTE-DEV-DEPLOY.md` §1 |
+| Populez orarul structurat după publicarea orarelor (alerta de risc de amânare) | `NOTE-DEV-DEPLOY.md` **§1.7** — eșuează TĂCUT dacă se sare |
 
 Aceste fișiere din repo sunt **sursa autoritativă**, nu le duplica — trimite la ele:
 - `DEPLOY-DOMENIU.md` — procedura de cutover domeniu (rescrisă 2026-07-13).
