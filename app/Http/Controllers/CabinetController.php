@@ -1519,16 +1519,25 @@ class CabinetController extends Controller
             ->with(['subject', 'commission', 'session'])
             ->orderByDesc('id')
             ->get()
-            ->map(fn (CorigentaExam $exam): array => [
-                'id' => $exam->id,
-                'subject' => ContentTranslator::subject((string) $exam->subject->name),
-                'season' => $exam->season->label(),
-                'scheduledOn' => $exam->scheduled_on?->format('d.m.Y'),
-                'commission' => $exam->commission?->name,
-                'sessionType' => $exam->session?->type->label(),
-                'mark' => $exam->mark,
-                'passed' => $exam->isPassed(),
-            ])
+            ->map(function (CorigentaExam $exam): array {
+                // Sesiunea trece prin draft → aprobată prin ordin → PUBLICATĂ, iar publicarea e
+                // exact pasul care o face vizibilă familiilor. Până atunci data și comisia sunt
+                // propuneri de lucru: arătate devreme, familia își face planuri pe un calendar
+                // care se poate încă schimba (sau care n-a fost aprobat deloc). Disciplina
+                // restantă rămâne vizibilă — vine din propriile medii ale elevului.
+                $scheduled = $exam->session?->isPublished() ?? false;
+
+                return [
+                    'id' => $exam->id,
+                    'subject' => ContentTranslator::subject((string) $exam->subject->name),
+                    'season' => $exam->season->label(),
+                    'scheduledOn' => $scheduled ? $exam->scheduled_on?->format('d.m.Y') : null,
+                    'commission' => $scheduled ? $exam->commission?->name : null,
+                    'sessionType' => $scheduled ? $exam->session->type->label() : null,
+                    'mark' => $exam->mark,
+                    'passed' => $exam->isPassed(),
+                ];
+            })
             ->all();
     }
 }

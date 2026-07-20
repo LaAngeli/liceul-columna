@@ -17,6 +17,7 @@ return [
         'document_request_closed' => 'Ответ на поданное заявление',
         'new_message' => 'Новое сообщение',
         'status_change' => 'Изменение статуса',
+        'corigenta_result' => 'Результат переэкзаменовки',
         'announcement' => 'Объявление руководства',
         'grade_correction_request' => 'Исправление оценки на утверждение',
         'grade_correction_rejected' => 'Исправление оценки отклонено',
@@ -58,6 +59,10 @@ return [
     'new_message' => [
         'title' => 'Новое сообщение',
         'body' => 'Вам пришло сообщение от :sender.',
+    ],
+    'corigenta_result' => [
+        'title' => 'Результат экзамена по переэкзаменовке',
+        'body' => 'Экзамен по переэкзаменовке (:subject) завершён с оценкой :mark.',
     ],
     'status_change' => [
         'title' => 'Изменение статуса',

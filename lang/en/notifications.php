@@ -17,6 +17,7 @@ return [
         'document_request_closed' => 'Reply to your request',
         'new_message' => 'New message',
         'status_change' => 'Status change',
+        'corigenta_result' => 'Retake exam result',
         'announcement' => 'Management announcement',
         'grade_correction_request' => 'Grade correction to approve',
         'grade_correction_rejected' => 'Grade correction rejected',
@@ -58,6 +59,10 @@ return [
     'new_message' => [
         'title' => 'New message',
         'body' => 'You received a message from :sender.',
+    ],
+    'corigenta_result' => [
+        'title' => 'Retake exam result',
+        'body' => 'The retake exam in :subject ended with mark :mark.',
     ],
     'status_change' => [
         'title' => 'Status change',

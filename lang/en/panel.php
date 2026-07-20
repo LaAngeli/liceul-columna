@@ -809,6 +809,12 @@ return [
                 'heading' => 'Approve session',
                 'success' => 'Session approved',
             ],
+            'attach' => [
+                'label' => 'Attach pending exams',
+                'heading' => 'Attach unlinked exams to this session',
+                'description' => ':count retake exams from the same year and season, with no session yet, will be linked to this session.',
+                'success' => '{0}No unlinked exams|{1}One exam attached to the session|[2,*]:count exams attached to the session',
+            ],
         ],
         'corigenta_exam' => [
             'session' => 'Session',
@@ -823,6 +829,7 @@ return [
             'mark' => 'Make-up mark',
             'mark_hint' => 'Mark obtained at the exam (1–10). Passed = mark ≥ 5; becomes the subject\'s final annual average in the transcript.',
             'mark_locked' => 'The mark is recorded by academic leadership (director / deputy director). You may schedule the exam: session, commission, date.',
+            'within_session' => 'The date must fall within the session: :start – :end.',
         ],
         'exam_commission' => [
             'name' => 'Commission',

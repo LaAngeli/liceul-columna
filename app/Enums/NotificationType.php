@@ -20,6 +20,7 @@ enum NotificationType: string implements HasLabel
     case NewAbsence = 'new_absence';
     case NewHomework = 'new_homework';
     case StatusChange = 'status_change';
+    case CorigentaResult = 'corigenta_result';
     case NewCalendarEvent = 'new_calendar_event';
     case CalendarEventCancelled = 'calendar_event_cancelled';
     case ContestationRejected = 'contestation_rejected';
@@ -61,6 +62,7 @@ enum NotificationType: string implements HasLabel
             self::NewAbsence => 'heroicon-o-calendar-days',
             self::NewHomework => 'heroicon-o-book-open',
             self::StatusChange => 'heroicon-o-flag',
+            self::CorigentaResult => 'heroicon-o-clipboard-document-check',
             self::NewCalendarEvent => 'heroicon-o-calendar',
             self::CalendarEventCancelled => 'heroicon-o-calendar-date-range',
             self::ContestationRejected => 'heroicon-o-scale',
@@ -95,6 +97,7 @@ enum NotificationType: string implements HasLabel
                 self::NewAbsence,
                 self::NewHomework,
                 self::StatusChange,
+                self::CorigentaResult,
                 self::NewCalendarEvent,
                 self::CalendarEventCancelled,
                 self::ContestationRejected,

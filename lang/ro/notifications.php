@@ -22,6 +22,7 @@ return [
         'document_request_closed' => 'Răspuns la cererea depusă',
         'new_message' => 'Mesaj nou',
         'status_change' => 'Schimbare de statut',
+        'corigenta_result' => 'Rezultat corigență',
         'announcement' => 'Anunț al conducerii',
         'grade_correction_request' => 'Corecție de notă de aprobat',
         'grade_correction_rejected' => 'Corecție de notă respinsă',
@@ -65,6 +66,10 @@ return [
     'new_message' => [
         'title' => 'Mesaj nou',
         'body' => 'Ai primit un mesaj de la :sender.',
+    ],
+    'corigenta_result' => [
+        'title' => 'Rezultatul examenului de corigență',
+        'body' => 'Examenul de corigență la :subject s-a încheiat cu nota :mark.',
     ],
     'status_change' => [
         'title' => 'Schimbare de statut',

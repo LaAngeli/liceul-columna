@@ -82,6 +82,11 @@ class ArchiveYearToTranscript
         $corigentaMarks = CorigentaExam::query()
             ->whereIn('term_id', $termIdsByNumber->values())
             ->whereNotNull('mark')
+            // Cheia e (elev, disciplină), fără semestru: un elev corigent la aceeași disciplină în
+            // AMBELE semestre are două rânduri care se suprapun, iar `keyBy` păstrează ULTIMUL.
+            // Fără ordonare, „ultimul" era cel pe care-l returna baza — nedeterminist. Ordonate pe
+            // semestru, câștigă rezultatul cel mai RECENT, care e și cel corect pentru media anuală.
+            ->orderBy('term_id')
             ->get()
             ->keyBy(fn (CorigentaExam $e): string => $e->student_id.'-'.$e->subject_id);
 

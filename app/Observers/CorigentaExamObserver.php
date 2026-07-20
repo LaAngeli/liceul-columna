@@ -2,10 +2,13 @@
 
 namespace App\Observers;
 
+use App\Actions\NotifyStudentFamily;
 use App\Enums\AcademicRecordPeriod;
+use App\Enums\NotificationType;
 use App\Models\AcademicRecord;
 use App\Models\CorigentaExam;
 use App\Models\Enrollment;
+use App\Notifications\CatalogNotification;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 
@@ -19,11 +22,15 @@ use Illuminate\Support\Facades\Log;
  */
 class CorigentaExamObserver
 {
+    public function __construct(private NotifyStudentFamily $notifier) {}
+
     public function saved(CorigentaExam $exam): void
     {
         if ($exam->mark === null) {
             return;
         }
+
+        $this->notifyFamily($exam);
 
         $gradeLevel = $this->currentGradeLevel($exam);
 
@@ -42,6 +49,34 @@ class CorigentaExamObserver
             ],
             ['value' => $exam->mark],
         );
+    }
+
+    /**
+     * Rezultatul examenului ajunge la familie în momentul consemnării lui — nu descoperit
+     * întâmplător pe pagina copilului. Doar la SCHIMBAREA notei: `saved` se declanșează la orice
+     * salvare (programare, comisie, dată), iar fără gardă familia ar primi aceeași veste de câte
+     * ori cineva atinge examenul.
+     */
+    private function notifyFamily(CorigentaExam $exam): void
+    {
+        if (! $exam->wasChanged('mark')) {
+            return;
+        }
+
+        $student = $exam->student;
+
+        if ($student === null) {
+            return;
+        }
+
+        $this->notifier->send($student, new CatalogNotification(
+            NotificationType::CorigentaResult,
+            [
+                'subject' => (string) $exam->subject?->name,
+                'mark' => (string) $exam->mark,
+            ],
+            route('cabinet.student', ['student' => $student->id], false),
+        ));
     }
 
     private function currentGradeLevel(CorigentaExam $exam): ?int

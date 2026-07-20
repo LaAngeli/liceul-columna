@@ -822,6 +822,12 @@ return [
                 'heading' => 'Aprobă sesiunea',
                 'success' => 'Sesiune aprobată',
             ],
+            'attach' => [
+                'label' => 'Atribuie examenele restante',
+                'heading' => 'Atribuie sesiunii examenele nelegate',
+                'description' => 'Se leagă de această sesiune :count examene de corigență din același an și sezon, care nu au încă o sesiune.',
+                'success' => '{0}Niciun examen nelegat|{1}Un examen atribuit sesiunii|[2,*]:count examene atribuite sesiunii',
+            ],
         ],
         'corigenta_exam' => [
             'session' => 'Sesiune',
@@ -836,6 +842,7 @@ return [
             'mark' => 'Nota de corigență',
             'mark_hint' => 'Nota obținută la examen (1–10). Promovat = nota ≥ 5; devine media finală a disciplinei în foaia matricolă.',
             'mark_locked' => 'Nota se consemnează de autoritatea academică (director / prim-vicedirector). Tu poți programa examenul: sesiune, comisie, dată.',
+            'within_session' => 'Data trebuie să cadă în sesiune: :start – :end.',
         ],
         'exam_commission' => [
             'name' => 'Comisie',
