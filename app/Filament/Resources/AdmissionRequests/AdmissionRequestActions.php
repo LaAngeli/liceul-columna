@@ -9,6 +9,7 @@ use App\Enums\UserRole;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\AdmissionRequest;
 use App\Models\User;
+use App\Support\SchoolCalendar;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Textarea;
@@ -75,7 +76,7 @@ class AdmissionRequestActions
                 Notification::make()
                     ->success()
                     ->title(__('panel.actions.admission.visit_scheduled_done'))
-                    ->body($record->refresh()->scheduled_visit_at?->translatedFormat('l, j F Y · H:i') ?? '')
+                    ->body(SchoolCalendar::local($record->refresh()->scheduled_visit_at)?->translatedFormat('l, j F Y · H:i') ?? '')
                     ->send();
             });
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\NotificationChannel;
 use App\Enums\NotificationType;
 use App\Models\Student;
+use App\Support\SchoolCalendar;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
@@ -43,7 +44,7 @@ class NotificationsController extends Controller
                     'body' => $notification->data['body'] ?? '',
                     'url' => ($studentId !== null && in_array($studentId, $missingStudentIds, true)) ? null : $url,
                     'read' => $notification->read_at !== null,
-                    'at' => $notification->created_at?->format('d.m.Y H:i'),
+                    'at' => SchoolCalendar::local($notification->created_at)?->format('d.m.Y H:i'),
                 ];
             })->all();
 

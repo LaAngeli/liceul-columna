@@ -8,6 +8,7 @@ use App\Filament\Resources\AdmissionRequests\AdmissionRequestActions;
 use App\Filament\Resources\AdmissionRequests\Pages\ListAdmissionRequests;
 use App\Filament\Resources\AdmissionRequests\Schemas\AdmissionRequestInfolist;
 use App\Models\AdmissionRequest;
+use App\Support\SchoolCalendar;
 use Carbon\Carbon;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
@@ -87,7 +88,7 @@ class AdmissionRequestsTable
                 TextColumn::make('processedBy.name')
                     ->label(__('panel.forms.admission.processed_by'))
                     ->placeholder(__('panel.common.dash'))
-                    ->description(fn (AdmissionRequest $record): ?string => $record->processed_at?->format('d.m.Y H:i'))
+                    ->description(fn (AdmissionRequest $record): ?string => SchoolCalendar::local($record->processed_at)?->format('d.m.Y H:i'))
                     ->visibleFrom('md')
                     ->visible(fn ($livewire): bool => $livewire instanceof ListAdmissionRequests && $livewire->isArchiveView()),
                 TextColumn::make('staff_note')

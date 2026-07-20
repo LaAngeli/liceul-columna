@@ -5,6 +5,7 @@ namespace App\Filament\Resources\AdmissionRequests\Schemas;
 use App\Enums\AdmissionRequestType;
 use App\Enums\AdmissionStatus;
 use App\Models\AdmissionRequest;
+use App\Support\SchoolCalendar;
 use Carbon\Carbon;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -103,7 +104,7 @@ class AdmissionRequestInfolist
         }
 
         try {
-            return Carbon::parse($state)->translatedFormat('d.m.Y · H:i');
+            return (string) SchoolCalendar::local(Carbon::parse($state))?->translatedFormat('d.m.Y · H:i');
         } catch (\Throwable) {
             return $state;
         }

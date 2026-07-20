@@ -38,6 +38,8 @@ final class ThreadPresenter
             'direction' => $mineRoot ? 'sent' : 'received',
             // Audiența PROGRAMATĂ (calendar v3): data fixată de conducere; programarea o poate
             // face DOAR destinatarul rădăcinii (gardul real e în SendMessage::scheduleAudience).
+            // FĂRĂ conversie de fus: scheduled_at e „ceas-de-perete" — introdus și stocat verbatim
+            // pe ora locală (input custom, nu DateTimePicker) — vezi SchoolCalendar::local().
             'scheduledAt' => $root->scheduled_at?->format('d.m.Y H:i'),
             'canSchedule' => $root->type->value === 'audience'
                 && $root->parent_id === null
@@ -46,7 +48,7 @@ final class ThreadPresenter
             'archived' => $root->states->first()?->archived_at !== null,
             'trashed' => $root->states->first()?->trashed_at !== null,
             'snippet' => $last !== null ? Str::limit((string) preg_replace('/\s+/', ' ', $last->body), 110) : '',
-            'lastAt' => $last?->created_at?->format('d.m.Y H:i'),
+            'lastAt' => SchoolCalendar::local($last?->created_at)?->format('d.m.Y H:i'),
             'unread' => $all->where('recipient_user_id', $userId)->whereNull('read_at')->count(),
             'attachmentCount' => $attachmentCount,
             'messages' => $all->map(fn (Message $message): array => [
@@ -54,7 +56,7 @@ final class ThreadPresenter
                 'body' => $message->body,
                 'mine' => (int) $message->sender_user_id === $userId,
                 'senderName' => $message->sender->name,
-                'at' => $message->created_at?->format('d.m.Y H:i'),
+                'at' => SchoolCalendar::local($message->created_at)?->format('d.m.Y H:i'),
                 'attachments' => $message->attachments->map(fn (MessageAttachment $attachment): array => [
                     'id' => $attachment->id,
                     'name' => $attachment->original_name,

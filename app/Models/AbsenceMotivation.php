@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\AudienceDomain;
 use App\Enums\RequestStatus;
 use App\Observers\AbsenceMotivationObserver;
+use App\Support\SchoolCalendar;
 use App\Support\WorkingDays;
 use Database\Factories\AbsenceMotivationFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -68,10 +69,14 @@ class AbsenceMotivation extends Model implements Auditable
 
     /**
      * Termenul-limită de validare al dirigintelui (spec §2.1): depunere + 2 zile lucrătoare.
+     * Ziua depunerii = ziua LOCALĂ a școlii (fix fus orar 2026-07-21): o cerere depusă la 01:17
+     * ora Chișinăului e „de azi", nu de ieri (created_at e UTC, cu 2–3 ore în urmă).
      */
     public function validationDeadline(): ?Carbon
     {
-        return $this->created_at !== null ? WorkingDays::add($this->created_at, 2) : null;
+        $submitted = SchoolCalendar::local($this->created_at);
+
+        return $submitted !== null ? WorkingDays::add($submitted, 2) : null;
     }
 
     /**

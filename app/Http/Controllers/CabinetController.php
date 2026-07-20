@@ -1280,7 +1280,7 @@ class CabinetController extends Controller
         $acknowledgedAt = null;
         $acknowledgedBy = null;
         if ($ack !== null && $acknowledged) {
-            $acknowledgedAt = $ack->acknowledged_at->format('d.m.Y H:i');
+            $acknowledgedAt = SchoolCalendar::local($ack->acknowledged_at)?->format('d.m.Y H:i');
             // CINE a confirmat — părintele nu poate distinge altfel confirmarea proprie de cea făcută
             // de elevul (minor) însuși (isFamilyOf include contul elevului). Transparență (#37).
             $acknowledgedBy = $ack->acknowledgedBy?->name;

@@ -9,6 +9,7 @@ use App\Filament\Resources\Students\StudentResource;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
 use App\Support\ContentTranslator;
+use App\Support\SchoolCalendar;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -167,7 +168,7 @@ class ViewGradeCorrection extends ViewRecord
                 'status_label' => $correction->status->getLabel(),
                 'status_color' => $correction->status->color(),
                 'reviewer' => $correction->reviewedBy?->name,
-                'at' => $correction->created_at->translatedFormat('d.m.Y H:i'),
+                'at' => (string) SchoolCalendar::local($correction->created_at)?->translatedFormat('d.m.Y H:i'),
                 'url' => GradeCorrectionResource::getUrl('view', ['record' => $correction]),
             ])
             ->all();
@@ -206,7 +207,7 @@ class ViewGradeCorrection extends ViewRecord
             $entries[] = [
                 'summary' => $summary,
                 'actor' => $row->name !== null ? (string) $row->name : null,
-                'at' => Carbon::parse((string) $row->created_at)->translatedFormat('d.m.Y H:i'),
+                'at' => (string) SchoolCalendar::local(Carbon::parse((string) $row->created_at))?->translatedFormat('d.m.Y H:i'),
             ];
         }
 
@@ -261,7 +262,7 @@ class ViewGradeCorrection extends ViewRecord
         $entries = [[
             'label' => (string) __('panel.homework_correction_view.submitted'),
             'actor' => $this->record->requestedBy?->name,
-            'at' => $this->record->created_at->translatedFormat('d.m.Y H:i'),
+            'at' => (string) SchoolCalendar::local($this->record->created_at)?->translatedFormat('d.m.Y H:i'),
             'note' => null,
             'color' => 'bg-primary-500',
         ]];
@@ -270,7 +271,7 @@ class ViewGradeCorrection extends ViewRecord
             $entries[] = [
                 'label' => $this->record->status->getLabel(),
                 'actor' => $this->record->reviewedBy?->name,
-                'at' => $this->record->reviewed_at->translatedFormat('d.m.Y H:i'),
+                'at' => (string) SchoolCalendar::local($this->record->reviewed_at)?->translatedFormat('d.m.Y H:i'),
                 'note' => $this->record->review_note,
                 'color' => match ($this->record->status) {
                     CorrectionStatus::Approved => 'bg-success-500',

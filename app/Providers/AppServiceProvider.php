@@ -12,8 +12,10 @@ use App\Calendar\Projectors\HomeworkProjector;
 use App\Calendar\Projectors\ManualEventProjector;
 use App\Calendar\Projectors\StructureProjector;
 use App\Support\Locale;
+use App\Support\SchoolCalendar;
 use Carbon\CarbonImmutable;
 use Filament\Schemas\Schema;
+use Filament\Support\Facades\FilamentTimezone;
 use Filament\Tables\Table;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Date;
@@ -79,6 +81,15 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureFilamentDateFormats(): void
     {
+        // ORA ȘCOLII la afișare (fix sistemic 2026-07-21): stocarea rămâne UTC, dar toate
+        // coloanele/intrările `dateTime()` și DateTimePicker-ele Filament afișează (și, la
+        // pickere, convertesc înapoi la salvare) în fusul Chișinăului. Câmpurile DOAR-dată
+        // (DatePicker) NU sunt atinse — garanția documentată Filament, exact ce ne trebuie:
+        // datele-calendar (occurred_on, perioade) rămân verbatim. Formatările MANUALE
+        // (->format în closures/blades/controllere) NU trec pe aici — ele folosesc
+        // {@see SchoolCalendar::local()}.
+        FilamentTimezone::set(SchoolCalendar::TIMEZONE);
+
         Table::configureUsing(fn (Table $table): Table => $table
             ->defaultDateDisplayFormat('d.m.Y')
             ->defaultDateTimeDisplayFormat('d.m.Y H:i'));

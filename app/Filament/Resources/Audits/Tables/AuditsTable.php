@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Audits\Tables;
 use App\Filament\Resources\Audits\Pages\ListAudits;
 use App\Models\Audit;
 use App\Support\AuditCategories;
+use App\Support\SchoolCalendar;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -30,7 +31,7 @@ class AuditsTable
                 TextColumn::make('created_at')
                     ->label(__('panel.fields.date'))
                     ->date('d.m.Y')
-                    ->description(fn (Audit $record): ?string => $record->created_at?->format('H:i'))
+                    ->description(fn (Audit $record): ?string => SchoolCalendar::local($record->created_at)?->format('H:i'))
                     ->sortable(),
                 TextColumn::make('user.name')
                     ->label(__('panel.fields.author'))

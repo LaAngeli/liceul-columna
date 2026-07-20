@@ -8,6 +8,7 @@ use App\Filament\Resources\Messages\ComposeSchema;
 use App\Models\Message;
 use App\Models\User;
 use App\Support\MessageMailbox;
+use App\Support\SchoolCalendar;
 use App\Support\ThreadPresenter;
 use BackedEnum;
 use Filament\Forms\Components\Textarea;
@@ -432,7 +433,8 @@ class Mailbox extends Page
         $unreadRoot = ((int) $root->recipient_user_id === $uid && $root->read_at === null) ? 1 : 0;
         // Aliasuri din selectRaw (nu atribute ale modelului) → prin getAttribute.
         $lastBody = (string) ($root->getAttribute('last_reply_body') ?? $root->body);
-        $lastAt = Carbon::parse((string) $root->getAttribute('last_activity_at'));
+        // Instant UTC → ora școlii la afișare (fix fus orar 2026-07-21).
+        $lastAt = Carbon::parse((string) $root->getAttribute('last_activity_at'))->timezone(SchoolCalendar::TIMEZONE);
 
         return [
             'id' => (int) $root->id,

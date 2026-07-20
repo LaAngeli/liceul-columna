@@ -91,7 +91,7 @@
                 <div class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-400 dark:text-gray-500">
                     <span>{{ __('panel.homework_correction_view.by_author', ['name' => $record->requestedBy?->name ?? '—']) }}</span>
                     <span aria-hidden="true" class="text-gray-300 dark:text-gray-600">·</span>
-                    <span class="tabular-nums">{{ $record->created_at?->translatedFormat('d.m.Y H:i') ?? '—' }}</span>
+                    <span class="tabular-nums">{{ \App\Support\SchoolCalendar::local($record->created_at)?->translatedFormat('d.m.Y H:i') ?? '—' }}</span>
                 </div>
             </section>
 
@@ -258,7 +258,7 @@
                         </div>
                         <div class="flex items-baseline justify-between gap-3">
                             <dt class="shrink-0 text-gray-500 dark:text-gray-400">{{ __('panel.fields.submitted_at') }}</dt>
-                            <dd class="text-right tabular-nums text-gray-950 dark:text-white">{{ $record->created_at?->translatedFormat('d.m.Y H:i') ?? '—' }}</dd>
+                            <dd class="text-right tabular-nums text-gray-950 dark:text-white">{{ \App\Support\SchoolCalendar::local($record->created_at)?->translatedFormat('d.m.Y H:i') ?? '—' }}</dd>
                         </div>
                     </dl>
                 @endif

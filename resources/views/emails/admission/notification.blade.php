@@ -24,7 +24,7 @@
 
 @if ($isVisit && $visit)
 <x-mail::panel>
-**{{ __('admission_mail.notification.visit') }}:** {{ ucfirst($visit->locale(app()->getLocale())->translatedFormat('l, j F Y')) }} · <strong>{{ $visit->format('H:i') }}</strong>
+**{{ __('admission_mail.notification.visit') }}:** {{ ucfirst(\App\Support\SchoolCalendar::local($visit)->locale(app()->getLocale())->translatedFormat('l, j F Y')) }} · <strong>{{ \App\Support\SchoolCalendar::local($visit)->format('H:i') }}</strong>
 </x-mail::panel>
 @endif
 

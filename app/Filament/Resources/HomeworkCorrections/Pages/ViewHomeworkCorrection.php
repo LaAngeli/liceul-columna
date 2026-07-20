@@ -6,6 +6,7 @@ use App\Enums\CorrectionStatus;
 use App\Filament\Resources\HomeworkCorrections\HomeworkCorrectionResource;
 use App\Models\HomeworkCorrection;
 use App\Support\ContentTranslator;
+use App\Support\SchoolCalendar;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -136,7 +137,7 @@ class ViewHomeworkCorrection extends ViewRecord
         $entries = [[
             'label' => (string) __('panel.homework_correction_view.submitted'),
             'actor' => $this->record->requestedBy?->name,
-            'at' => $this->record->created_at->translatedFormat('d.m.Y H:i'),
+            'at' => (string) SchoolCalendar::local($this->record->created_at)?->translatedFormat('d.m.Y H:i'),
             'note' => null,
             'color' => 'bg-primary-500',
         ]];
@@ -145,7 +146,7 @@ class ViewHomeworkCorrection extends ViewRecord
             $entries[] = [
                 'label' => $this->record->status->getLabel(),
                 'actor' => $this->record->reviewedBy?->name,
-                'at' => $this->record->reviewed_at->translatedFormat('d.m.Y H:i'),
+                'at' => (string) SchoolCalendar::local($this->record->reviewed_at)?->translatedFormat('d.m.Y H:i'),
                 'note' => $this->record->review_note,
                 'color' => match ($this->record->status) {
                     CorrectionStatus::Approved => 'bg-success-500',

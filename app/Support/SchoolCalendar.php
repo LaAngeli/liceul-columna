@@ -38,6 +38,18 @@ final class SchoolCalendar
         return Carbon::now(self::TIMEZONE);
     }
 
+    /**
+     * Un INSTANT stocat (UTC — created_at, reviewed_at, published_at…), convertit în fusul
+     * școlii pentru AFIȘARE. Sursa unică a conversiei pentru formatările manuale (->format în
+     * closures/blades/controllere), în oglindă cu FilamentTimezone care acoperă coloanele
+     * `dateTime()` și pickerele. NU se aplică valorilor „ceas-de-perete" stocate verbatim
+     * (ex. `messages.scheduled_at` — introdus și afișat brut, deja pe ora locală).
+     */
+    public static function local(?\DateTimeInterface $moment): ?Carbon
+    {
+        return $moment === null ? null : Carbon::parse($moment)->timezone(self::TIMEZONE);
+    }
+
     public static function currentTerm(): ?Term
     {
         return Term::query()->where('is_current', true)->first();

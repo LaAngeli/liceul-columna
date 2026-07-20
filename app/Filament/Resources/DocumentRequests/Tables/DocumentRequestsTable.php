@@ -6,6 +6,7 @@ use App\Enums\RequestStatus;
 use App\Filament\Resources\DocumentRequests\DocumentRequestActions;
 use App\Filament\Resources\DocumentRequests\Pages\ListDocumentRequests;
 use App\Models\DocumentRequest;
+use App\Support\SchoolCalendar;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -45,7 +46,7 @@ class DocumentRequestsTable
                     ->searchable(['last_name', 'first_name'])
                     // Data sub nume (nu coloană separată): rândul rămâne îngust, iar coada e
                     // oricum sortată implicit desc pe primire.
-                    ->description(fn (DocumentRequest $record): ?string => $record->created_at?->format('d.m.Y H:i')),
+                    ->description(fn (DocumentRequest $record): ?string => SchoolCalendar::local($record->created_at)?->format('d.m.Y H:i')),
                 TextColumn::make('requestedBy.name')
                     ->label(__('panel.fields.requested_by'))
                     ->searchable()
@@ -65,7 +66,7 @@ class DocumentRequestsTable
                 TextColumn::make('reviewedBy.name')
                     ->label(__('panel.forms.admission.processed_by'))
                     ->placeholder(__('panel.common.dash'))
-                    ->description(fn (DocumentRequest $record): ?string => $record->reviewed_at?->format('d.m.Y H:i'))
+                    ->description(fn (DocumentRequest $record): ?string => SchoolCalendar::local($record->reviewed_at)?->format('d.m.Y H:i'))
                     ->visibleFrom('md')
                     ->visible(fn ($livewire): bool => $livewire instanceof ListDocumentRequests && $livewire->isArchiveView()),
                 TextColumn::make('review_note')

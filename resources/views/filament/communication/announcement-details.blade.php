@@ -11,12 +11,12 @@
                         <x-filament::badge color="success" size="sm">
                             {{ __('panel.forms.announcement.published_at') }}
                         </x-filament::badge>
-                        <span class="tabular-nums">{{ $this->record->published_at->translatedFormat('d.m.Y H:i') }}</span>
+                        <span class="tabular-nums">{{ \App\Support\SchoolCalendar::local($this->record->published_at)?->translatedFormat('d.m.Y H:i') }}</span>
                     @else
                         <x-filament::badge color="warning" size="sm">
                             {{ __('panel.forms.announcement.draft') }}
                         </x-filament::badge>
-                        <span class="tabular-nums">{{ $this->record->created_at->translatedFormat('d.m.Y H:i') }}</span>
+                        <span class="tabular-nums">{{ \App\Support\SchoolCalendar::local($this->record->created_at)?->translatedFormat('d.m.Y H:i') }}</span>
                     @endif
 
                     @if ($this->record->author !== null)

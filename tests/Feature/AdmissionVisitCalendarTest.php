@@ -58,10 +58,12 @@ it('programarea vizitei setează data și trece cererea nouă în „Contactat"'
 });
 
 it('vizita programată apare în calendarul staff cu numele PĂRINTELUI, fără numele copilului', function () {
+    // Stocarea e INSTANT (UTC — fix fus orar 2026-07-21): vizita „de la 10:30 ora școlii" în
+    // septembrie (EEST, +3) se stochează 07:30 UTC; proiecția în calendar o arată LOCAL, 10:30.
     $request = AdmissionRequest::factory()->visit()->contacted()->create([
         'parent_name' => 'Rusu Elena',
         'child_name' => 'Rusu Andrei',
-        'scheduled_visit_at' => '2026-09-10 10:30',
+        'scheduled_visit_at' => '2026-09-10 07:30',
     ]);
 
     $items = projectVisits(app(CalendarAccess::class)->staffScope(admissionStaff()));
@@ -106,7 +108,9 @@ it('acțiunea „Programează vizita" din fișă e vizibilă doar pe cererile de
         ->callAction('scheduleVisit', ['scheduled_visit_at' => '2026-09-10 10:30'])
         ->assertHasNoActionErrors();
 
-    expect($visit->refresh()->scheduled_visit_at?->format('Y-m-d H:i'))->toBe('2026-09-10 10:30');
+    // Ora TASTATĂ e ora școlii; pickerul (FilamentTimezone global) o convertește la salvare —
+    // stocat 07:30 UTC, afișat peste tot înapoi ca 10:30 (round-trip verificat de TimezoneDisplayTest).
+    expect($visit->refresh()->scheduled_visit_at?->format('Y-m-d H:i'))->toBe('2026-09-10 07:30');
 
     // Cererea de ÎNMATRICULARE nu are vizită de programat.
     $enrollment = AdmissionRequest::factory()->create();

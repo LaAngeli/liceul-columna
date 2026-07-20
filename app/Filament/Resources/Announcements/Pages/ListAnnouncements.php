@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Announcements\Pages;
 
 use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Models\Announcement;
+use App\Support\SchoolCalendar;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
@@ -82,7 +83,7 @@ class ListAnnouncements extends ListRecords
                     'preview' => Str::limit(trim($announcement->body), 180),
                     'author' => $announcement->author?->name,
                     'published' => $announcement->isPublished(),
-                    'date' => ($announcement->published_at ?? $announcement->created_at)->translatedFormat('d.m.Y H:i'),
+                    'date' => (string) SchoolCalendar::local($announcement->published_at ?? $announcement->created_at)?->translatedFormat('d.m.Y H:i'),
                     'delivered' => $delivered,
                     'recipients' => $announcement->recipients_count,
                     'read' => $announcement->isPublished() ? $announcement->readCount() : 0,

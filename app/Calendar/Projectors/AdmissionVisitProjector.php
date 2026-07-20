@@ -8,6 +8,7 @@ use App\Calendar\CalendarScope;
 use App\Enums\AdmissionStatus;
 use App\Enums\CalendarCategory;
 use App\Models\AdmissionRequest;
+use App\Support\SchoolCalendar;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
@@ -40,7 +41,8 @@ class AdmissionVisitProjector implements CalendarProjector
 
         foreach ($visits as $visit) {
             /** @var Carbon $at */
-            $at = $visit->scheduled_visit_at;
+            // Instant UTC → ziua/ora LOCALĂ a vizitei (fix fus orar 2026-07-21).
+            $at = SchoolCalendar::local($visit->scheduled_visit_at);
 
             $items[] = new CalendarItem(
                 id: "admission-visit:{$visit->id}",
