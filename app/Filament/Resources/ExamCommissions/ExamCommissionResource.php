@@ -62,6 +62,19 @@ class ExamCommissionResource extends Resource
         return auth('web')->user()?->canManageCorigenta() ?? false;
     }
 
+    /**
+     * Președintele nu poate fi și membru al aceleiași comisii — pragul de 3 persoane e despre
+     * oameni distincți. Gardă de SERVER, rulată DUPĂ salvare (Create + Edit): select-ul de membri
+     * e o relație many-to-many pe care Filament o sincronizează separat de datele formularului,
+     * deci un mutate pe $data n-o atinge.
+     */
+    public static function enforceDistinctPresident(ExamCommission $commission): void
+    {
+        if ($commission->president_teacher_id !== null) {
+            $commission->members()->detach($commission->president_teacher_id);
+        }
+    }
+
     public static function getPages(): array
     {
         return [

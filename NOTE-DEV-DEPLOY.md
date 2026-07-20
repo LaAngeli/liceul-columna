@@ -34,7 +34,9 @@ Toate datele de test sunt marcate `[DEMO]` → NU trebuie să ajungă în produc
   `tehnic@columna.test`); golește `user_id` pe fișele reale (care RĂMÂN). Adminul real → `app:create-admin`
   (fără marcaj → neatins).
 - Date din `DemoTestDataSeeder` (corecții/motivări/mesaje/lecții/**anunțuri**/**corecții de teme**/**zile
-  libere**): re-rulează seeder-ul (idempotent) SAU `php artisan app:purge-demo-data` (întâi `--dry-run`).
+  libere**/**comisii de examen + sesiunea-suport cu examenele ei**): re-rulează seeder-ul (idempotent)
+  SAU `php artisan app:purge-demo-data` (întâi `--dry-run`). La corigență, ordinea e examene → sesiuni →
+  comisii (FK-urile sunt nullOnDelete — invers, examenele demo ar rămâne orfane, de negăsit).
   Zilele libere demo sunt prinse sub AMBELE denumiri („[DEMO] …" + istorica „Zi liberă (demo)", încă
   prezentă pe prod) și se șterg prin MODEL — ștergerea invalidează cache-ul `Holidays` și recalculează
   termenele de motivare deschise. ⚠️ Anunțurile demo au fost

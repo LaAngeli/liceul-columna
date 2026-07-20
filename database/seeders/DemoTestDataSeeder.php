@@ -5,13 +5,19 @@ namespace Database\Seeders;
 use App\Actions\BroadcastAnnouncement;
 use App\Actions\SendMessage;
 use App\Enums\AudienceDomain;
+use App\Enums\CorigentaSeason;
+use App\Enums\CorigentaSessionStatus;
+use App\Enums\CorigentaSessionType;
 use App\Enums\CorrectionStatus;
 use App\Enums\DocumentRequestType;
 use App\Enums\RequestStatus;
 use App\Enums\UserRole;
 use App\Models\AbsenceMotivation;
 use App\Models\Announcement;
+use App\Models\CorigentaExam;
+use App\Models\CorigentaSession;
 use App\Models\DocumentRequest;
+use App\Models\ExamCommission;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
 use App\Models\HomeworkAssignment;
@@ -20,6 +26,8 @@ use App\Models\Lesson;
 use App\Models\Message;
 use App\Models\Student;
 use App\Models\Subject;
+use App\Models\Teacher;
+use App\Models\Term;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Notifications\DatabaseNotification;
@@ -41,6 +49,9 @@ use Illuminate\Support\Collection;
 class DemoTestDataSeeder extends Seeder
 {
     private const MARKER = '[DEMO]';
+
+    /** Ordinul sesiunii-suport pentru comisiile demo (distinct de sesiunea din CalendarDemoSeeder). */
+    private const COMMISSION_SESSION = '[DEMO] Sesiune comisii';
 
     public function run(): void
     {
@@ -70,6 +81,20 @@ class DemoTestDataSeeder extends Seeder
             ->get()
             ->each(fn (DocumentRequest $request) => $request->forceDelete());
 
+        // Comisiile + sesiunea-suport demo: examenele ÎNTÂI (referă sesiunea și comisiile prin
+        // FK nullOnDelete — șterse după, ar rămâne orfane cu comisia null și s-ar dubla la
+        // re-seedare), apoi sesiunea proprie și comisiile [DEMO].
+        $demoCommissionIds = ExamCommission::query()->where('name', 'like', self::MARKER.'%')->pluck('id');
+        $demoSessionIds = CorigentaSession::query()->where('order_reference', self::COMMISSION_SESSION)->pluck('id');
+        CorigentaExam::query()
+            ->where(function ($query) use ($demoCommissionIds, $demoSessionIds): void {
+                $query->whereIn('exam_commission_id', $demoCommissionIds)
+                    ->orWhereIn('corigenta_session_id', $demoSessionIds);
+            })
+            ->delete();
+        CorigentaSession::query()->whereKey($demoSessionIds)->delete();
+        ExamCommission::query()->whereKey($demoCommissionIds)->delete();
+
         $this->seedRoleAccounts();
         $this->seedCorrections();
         $this->seedMotivations();
@@ -78,6 +103,124 @@ class DemoTestDataSeeder extends Seeder
         $this->seedLessons();
         $this->seedAnnouncements();
         $this->seedHomeworkCorrections();
+        $this->seedExamCommissions();
+    }
+
+    /**
+     * Comisii de examen DEMO, pe toate stările care contează operațional (spec §2.5):
+     *  - COMPLETĂ și FOLOSITĂ (președinte + 2 membri, cu examene de corigență alocate și programate);
+     *  - COMPLETĂ dar fără examene (pregătită din timp);
+     *  - INCOMPLETĂ (fără președinte, un singur membru) — starea care cere atenție;
+     *  - plus o disciplină CU examene dar FĂRĂ comisie — golul de acoperire pe care secțiunea
+     *    trebuie să-l scoată la suprafață.
+     *
+     * Examenele-suport stau într-o sesiune proprie ([DEMO] în ordin), pe elevii demo — nu ating
+     * corigențele reale. Componența = fișe REALE de profesori (ca formularele și listele să arate
+     * nume adevărate).
+     */
+    private function seedExamCommissions(): void
+    {
+        $term = Term::query()->where('is_current', true)->first();
+        $yearId = $term?->academic_year_id;
+
+        $students = Student::query()
+            ->whereIn('user_id', User::query()->whereIn('email', ['elev@columna.test', 'elev2@columna.test'])->pluck('id'))
+            ->orderBy('id')
+            ->get();
+
+        $teachers = Teacher::query()
+            ->where('last_name', 'not like', self::MARKER.'%')
+            ->orderBy('id')
+            ->limit(5)
+            ->get();
+
+        if ($term === null || $yearId === null || $students->count() < 2 || $teachers->count() < 5) {
+            $this->command->warn('Fără semestru curent / elevi demo / fișe de profesori — sar peste comisiile demo.');
+
+            return;
+        }
+
+        $subjectByName = fn (string $name): ?Subject => Subject::query()
+            ->where('name', $name)
+            ->orderBy('id')
+            ->first();
+
+        $math = $subjectByName('Matematică');
+        $romanian = $subjectByName('Limba și literatura română');
+        $physics = $subjectByName('Fizică');
+        $uncovered = Subject::query()
+            ->whereNotIn('id', collect([$math?->id, $romanian?->id, $physics?->id])->filter()->all())
+            ->orderBy('id')
+            ->first();
+
+        if ($math === null || $romanian === null || $physics === null || $uncovered === null) {
+            $this->command->warn('Nomenclatorul de discipline e incomplet — sar peste comisiile demo.');
+
+            return;
+        }
+
+        // Sesiunea-suport (publicată — examenele ei sunt „în lucru", nu ipotetice).
+        $session = CorigentaSession::query()->create([
+            'academic_year_id' => $yearId,
+            'season' => CorigentaSeason::cases()[0]->value,
+            'type' => CorigentaSessionType::cases()[0]->value,
+            'starts_on' => Carbon::now()->addDays(10)->toDateString(),
+            'ends_on' => Carbon::now()->addDays(17)->toDateString(),
+            'status' => CorigentaSessionStatus::Published->value,
+            'order_reference' => self::COMMISSION_SESSION,
+        ]);
+
+        [$first, $second] = [$students[0], $students[1]];
+        $season = $session->season->value;
+
+        $makeExam = fn (Student $student, Subject $subject, ?int $commissionId, ?string $scheduledOn) => CorigentaExam::query()->updateOrCreate(
+            ['student_id' => $student->id, 'subject_id' => $subject->id, 'term_id' => $term->id],
+            [
+                'season' => $season,
+                'corigenta_session_id' => $session->id,
+                'exam_commission_id' => $commissionId,
+                'scheduled_on' => $scheduledOn,
+            ],
+        );
+
+        // 1) Matematică: comisie COMPLETĂ + 2 examene alocate ei, programate.
+        $mathCommission = ExamCommission::query()->create([
+            'academic_year_id' => $yearId,
+            'subject_id' => $math->id,
+            'name' => self::MARKER.' Comisia de matematică',
+            'president_teacher_id' => $teachers[0]->id,
+        ]);
+        $mathCommission->members()->sync([$teachers[1]->id, $teachers[2]->id]);
+        $makeExam($first, $math, $mathCommission->id, $session->starts_on->toDateString());
+        $makeExam($second, $math, $mathCommission->id, $session->starts_on->toDateString());
+
+        // 2) Limba română: comisie COMPLETĂ, fără examene alocate (pregătită din timp).
+        $romanianCommission = ExamCommission::query()->create([
+            'academic_year_id' => $yearId,
+            'subject_id' => $romanian->id,
+            'name' => self::MARKER.' Comisia de limba și literatura română',
+            'president_teacher_id' => $teachers[3]->id,
+        ]);
+        $romanianCommission->members()->sync([$teachers[4]->id, $teachers[1]->id]);
+
+        // 3) Fizică: comisie INCOMPLETĂ (fără președinte, un singur membru) + un examen încă
+        //    NEatribuit vreunei comisii.
+        $physicsCommission = ExamCommission::query()->create([
+            'academic_year_id' => $yearId,
+            'subject_id' => $physics->id,
+            'name' => self::MARKER.' Comisia de fizică',
+            'president_teacher_id' => null,
+        ]);
+        $physicsCommission->members()->sync([$teachers[2]->id]);
+        $makeExam($first, $physics, null, null);
+
+        // 4) Disciplină cu examen dar FĂRĂ comisie → golul de acoperire.
+        $makeExam($second, $uncovered, null, null);
+
+        $this->command->info(
+            'Comisii demo: completă+folosită (matematică), completă (lb. română), incompletă (fizică) '
+            ."+ examen fără comisie ({$uncovered->name})."
+        );
     }
 
     /**

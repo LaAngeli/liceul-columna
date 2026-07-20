@@ -860,9 +860,12 @@ return [
         'exam_commission' => [
             'name' => 'Comisie',
             'name_long' => 'Denumire comisie',
+            'name_placeholder' => 'Comisia de matematică — sesiunea de vară',
             'subject' => 'Disciplina',
             'president' => 'Președinte',
+            'president_hint' => 'Regulamentar, comisia funcțională are președinte + cel puțin 2 membri.',
             'members' => 'Membri',
+            'members_hint' => 'Președintele nu se alege și ca membru — pragul de 3 e despre persoane distincte.',
             'members_short' => 'Membri',
         ],
         'announcement' => [
@@ -1249,6 +1252,23 @@ return [
             'christmas_new' => 'Crăciunul (stil nou)',
             'note' => 'Sărbătoare legală (Codul muncii, art. 111).',
         ],
+    ],
+
+    'exam_commissions' => [
+        'subjects_with_exams' => '{1}O disciplină cu examene de corigență|[2,19]:count discipline cu examene de corigență|[20,*]:count de discipline cu examene de corigență',
+        'covered' => ':count acoperite de comisii',
+        'uncovered_badge' => '{1}1 fără comisie|[2,19]:count fără comisie|[20,*]:count fără comisie',
+        'unassigned_exams' => '{1}1 examen fără comisie atribuită|[2,19]:count examene fără comisie atribuită|[20,*]:count de examene fără comisie atribuită',
+        'to_cover' => 'De acoperit',
+        'gap_exams' => '{1}1 examen de corigență așteaptă comisia|[2,19]:count examene de corigență așteaptă comisia|[20,*]:count de examene de corigență așteaptă comisia',
+        'create_commission' => 'Creează comisia',
+        'no_president' => 'fără președinte',
+        'thin' => 'componență sub 3 (:count)',
+        'no_composition' => 'Fără componență — alege președintele și membrii.',
+        'exams_assigned' => '{1}1 examen alocat acestei comisii|[2,19]:count examene alocate acestei comisii|[20,*]:count de examene alocate acestei comisii',
+        'no_exams_yet' => 'Fără examene alocate încă.',
+        'empty_title' => 'Nicio comisie în acest an școlar',
+        'empty_description' => 'Creează comisiile pe disciplinele cu examene de corigență — coada „De acoperit" de mai sus le arată exact pe acelea.',
     ],
 
     'announcements' => [

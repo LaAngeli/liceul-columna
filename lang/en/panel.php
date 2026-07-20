@@ -847,9 +847,12 @@ return [
         'exam_commission' => [
             'name' => 'Commission',
             'name_long' => 'Commission name',
+            'name_placeholder' => 'Mathematics commission — summer session',
             'subject' => 'Subject',
             'president' => 'President',
+            'president_hint' => 'By regulation, a working commission has a president + at least 2 members.',
             'members' => 'Members',
+            'members_hint' => 'The president is not also picked as a member — the threshold of 3 counts distinct people.',
             'members_short' => 'Members',
         ],
         'announcement' => [
@@ -1233,6 +1236,23 @@ return [
             'christmas_new' => 'Christmas (new style)',
             'note' => 'Legal holiday (Labour Code, art. 111).',
         ],
+    ],
+
+    'exam_commissions' => [
+        'subjects_with_exams' => '{1}One subject with corigenta exams|[2,*]:count subjects with corigenta exams',
+        'covered' => ':count covered by commissions',
+        'uncovered_badge' => '{1}1 without a commission|[2,*]:count without a commission',
+        'unassigned_exams' => '{1}1 exam without an assigned commission|[2,*]:count exams without an assigned commission',
+        'to_cover' => 'Needs a commission',
+        'gap_exams' => '{1}1 corigenta exam awaits its commission|[2,*]:count corigenta exams await their commission',
+        'create_commission' => 'Create the commission',
+        'no_president' => 'no president',
+        'thin' => 'fewer than 3 people (:count)',
+        'no_composition' => 'No composition yet — pick the president and members.',
+        'exams_assigned' => '{1}1 exam assigned to this commission|[2,*]:count exams assigned to this commission',
+        'no_exams_yet' => 'No exams assigned yet.',
+        'empty_title' => 'No commissions in this school year',
+        'empty_description' => 'Create commissions for the subjects with corigenta exams — the "Needs a commission" queue above shows exactly those.',
     ],
 
     'announcements' => [

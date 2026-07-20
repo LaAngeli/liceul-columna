@@ -5,7 +5,10 @@ namespace App\Console\Commands;
 use App\Models\AbsenceMotivation;
 use App\Models\Announcement;
 use App\Models\CalendarEvent;
+use App\Models\CorigentaExam;
+use App\Models\CorigentaSession;
 use App\Models\Document;
+use App\Models\ExamCommission;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
 use App\Models\Holiday;
@@ -80,6 +83,11 @@ class PurgeDemoData extends Command
             ['Documente (+ fișiere de pe disc)', $this->purgeDocuments($demoIds, $dryRun)],
             ['Evenimente de calendar', $this->purgeCalendarEvents($demoIds, $dryRun)],
             ['Zile libere [DEMO]', $this->purgeHolidays($dryRun)],
+            // Examenele ÎNAINTEA sesiunilor și comisiilor: FK-urile sunt nullOnDelete — ștergerea
+            // părinților întâi ar lăsa examene demo orfane (comisie/sesiune null), de negăsit.
+            ['Examene de corigență [DEMO]', $this->purgeCorigentaExams($dryRun)],
+            ['Sesiuni de corigență [DEMO]', $this->purgeCorigentaSessions($dryRun)],
+            ['Comisii de examen [DEMO]', $this->purgeExamCommissions($dryRun)],
             // Notificările ÎNAINTEA anunțurilor: se identifică prin announcement_id, care dispare
             // odată cu rândurile-mamă.
             ['Notificări de anunț din inboxuri', $this->purgeAnnouncementNotifications($demoIds, $dryRun)],
@@ -300,6 +308,57 @@ class PurgeDemoData extends Command
             $inner->whereIn('author_user_id', $demoIds)
                 ->orWhere('title', 'like', '%'.self::DEMO.'%');
         });
+    }
+
+    /**
+     * Examenele de corigență demo: cele din sesiunile [DEMO] sau alocate comisiilor [DEMO].
+     * Se șterg ÎNAINTEA sesiunilor/comisiilor (FK nullOnDelete le-ar orfaniza tăcut).
+     */
+    private function purgeCorigentaExams(bool $dryRun): int
+    {
+        $sessionIds = CorigentaSession::query()->where('order_reference', 'like', self::DEMO.'%')->pluck('id');
+        $commissionIds = ExamCommission::query()->where('name', 'like', self::DEMO.'%')->pluck('id');
+
+        $query = CorigentaExam::query()->where(function (Builder $inner) use ($sessionIds, $commissionIds): void {
+            $inner->whereIn('corigenta_session_id', $sessionIds)
+                ->orWhereIn('exam_commission_id', $commissionIds);
+        });
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->delete();
+        }
+
+        return $count;
+    }
+
+    /** Sesiunile de corigență demo (ordinul poartă marcajul — inclusiv cea din seed-ul de calendar). */
+    private function purgeCorigentaSessions(bool $dryRun): int
+    {
+        $query = CorigentaSession::query()->where('order_reference', 'like', self::DEMO.'%');
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->delete();
+        }
+
+        return $count;
+    }
+
+    /** Comisiile de examen demo (denumirea poartă marcajul; pivotul de membri cade prin CASCADE). */
+    private function purgeExamCommissions(bool $dryRun): int
+    {
+        $query = ExamCommission::query()->where('name', 'like', self::DEMO.'%');
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->delete();
+        }
+
+        return $count;
     }
 
     /**
