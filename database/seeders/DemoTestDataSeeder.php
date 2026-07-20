@@ -571,8 +571,14 @@ class DemoTestDataSeeder extends Seeder
     }
 
     /**
-     * Corecții de notă peste note reale, solicitate de profesorul demo; câteva aprobate/respinse
-     * de admin, restul în așteptare (ca administrația să testeze fluxul de aprobare).
+     * Corecții de notă peste note reale, solicitate de profesorul demo: câteva RESPINSE de admin,
+     * restul în așteptare (ca administrația să testeze fluxul de analiză + decizie).
+     *
+     * ⚠️ NU aprobăm nicio corecție demo: aprobarea suprascrie DEFINITIV valoarea unei note REALE
+     * ({@see GradeCorrection::approve}) și `app:purge-demo-data` NU o poate restaura (marcajul [DEMO]
+     * e pe corecție, nu pe notă) — pe producție ar corupe note reale, negăsibile la go-live. Starea
+     * „aprobată" a fișei de corecție e ilustrată NEDISTRUCTIV de corecțiile de TEME (pe teme [DEMO]
+     * proprii). Respingerea și așteptarea nu ating valoarea notei.
      */
     private function seedCorrections(): void
     {
@@ -606,14 +612,13 @@ class DemoTestDataSeeder extends Seeder
                 'status' => CorrectionStatus::Pending,
             ]);
 
-            if ($reviewer !== null && $i <= 2) {
-                $correction->approve($reviewer->id, self::MARKER.' Corect, aprobat.');
-            } elseif ($reviewer !== null && $i <= 4) {
+            // Doar RESPINGERE (lasă nota neatinsă) + în-așteptare. Fără aprobare — vezi docblock.
+            if ($reviewer !== null && $i <= 3) {
                 $correction->reject($reviewer->id, self::MARKER.' Nejustificat.');
             }
         }
 
-        $this->command->info("Corecții note demo: {$grades->count()} (2 aprobate, 2 respinse, restul în așteptare).");
+        $this->command->info("Corecții note demo: {$grades->count()} (3 respinse, restul în așteptare; niciuna aprobată — nu atingem note reale).");
     }
 
     /**

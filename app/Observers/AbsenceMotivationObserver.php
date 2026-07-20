@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Actions\NotifyStaff;
 use App\Actions\NotifyStudentFamily;
+use App\Console\Commands\PurgeDemoData;
 use App\Enums\AudienceDomain;
 use App\Enums\NotificationType;
 use App\Enums\RequestStatus;
@@ -16,7 +17,11 @@ use App\Notifications\CatalogNotification;
  * cererile normale → dirigintele clasei; EXCEPȚIILE (tardive) → vicedirectorul pe educație —
  * dirigintele nu le poate aproba ({@see AbsenceMotivation::canBeReviewedBy}), deci ping-ul lui
  * era zgomot fără acțiune, iar aprobatorul real nu afla. La VALIDARE/RESPINGERE, închide bucla
- * de feedback: anunță familia că statutul cererii s-a schimbat (spec §5, tipul StatusChange).
+ * de feedback: anunță familia + dirigintele că statutul cererii s-a schimbat (tipul dedicat
+ * {@see NotificationType::AbsenceMotivationDecided}).
+ *
+ * Fiecare notificare poartă `motivation_id` în payload — la fel ca anunțurile cu `announcement_id`,
+ * ca datele demo să fie curățabile complet la go-live ({@see PurgeDemoData}).
  */
 class AbsenceMotivationObserver
 {
@@ -38,6 +43,7 @@ class AbsenceMotivationObserver
             ['student' => $student->full_name],
             // Clopoțelul panoului duce direct în coada de validare (un click = pe cerere).
             '/admin/absence-motivations',
+            meta: ['motivation_id' => $motivation->id],
         );
 
         if ($motivation->is_exception) {
@@ -83,6 +89,7 @@ class AbsenceMotivationObserver
             NotificationType::AbsenceMotivationDecided,
             $params,
             route('cabinet.student', ['student' => $student->id], false),
+            meta: ['motivation_id' => $motivation->id],
         ));
 
         // Dirigintele clasei, când verdictul l-a dat ALTCINEVA (vicedirectorul pe excepții,
@@ -95,6 +102,7 @@ class AbsenceMotivationObserver
                 NotificationType::AbsenceMotivationDecided,
                 $params,
                 '/admin/absence-motivations/'.$motivation->id,
+                meta: ['motivation_id' => $motivation->id],
             ));
         }
     }

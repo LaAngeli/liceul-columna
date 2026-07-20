@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\AbsenceMotivation;
 use App\Models\Announcement;
+use App\Models\Audit;
 use App\Models\CalendarEvent;
 use App\Models\CorigentaExam;
 use App\Models\CorigentaSession;
@@ -16,6 +17,7 @@ use App\Models\HomeworkAssignment;
 use App\Models\HomeworkCorrection;
 use App\Models\Message;
 use App\Models\User;
+use App\Observers\AbsenceMotivationObserver;
 use App\Support\Holidays;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
@@ -71,6 +73,16 @@ class PurgeDemoData extends Command
             $this->info($demoIds->count().' cont(uri) demo identificate.');
         }
 
+        // ID-urile motivărilor demo, colectate ÎNAINTE de orice ștergere: notificările lor de verdict
+        // ajung în inboxurile unor familii REALE și le referă prin `data->motivation_id` — după ce
+        // rândul-motivare dispare, legătura nu mai poate fi refăcută (la fel ca la anunțuri).
+        $demoMotivationIds = AbsenceMotivation::query()
+            ->where(fn (Builder $inner) => $inner
+                ->whereIn('requested_by_user_id', $demoIds)
+                ->orWhereIn('reviewed_by_user_id', $demoIds)
+                ->orWhere('reason', 'like', '%'.self::DEMO.'%'))
+            ->pluck('id');
+
         $this->newLine();
 
         $rows = [
@@ -79,6 +91,8 @@ class PurgeDemoData extends Command
             // și raportul ar arăta 0 pe un rând care de fapt a curățat.
             ['Corecții de teme', $this->purgeHomeworkCorrections($demoIds, $dryRun)],
             ['Teme [DEMO]', $this->purgeHomeworkAssignments($dryRun)],
+            // Verdictele motivărilor demo din inboxurile REALE — ÎNAINTE de ștergerea motivărilor.
+            ['Notificări de verdict al motivărilor (inboxuri reale)', $this->purgeMotivationNotifications($demoMotivationIds, $dryRun)],
             ['Motivări de absențe (+ justificative)', $this->purgeAbsenceMotivations($demoIds, $dryRun)],
             ['Documente (+ fișiere de pe disc)', $this->purgeDocuments($demoIds, $dryRun)],
             ['Evenimente de calendar', $this->purgeCalendarEvents($demoIds, $dryRun)],
@@ -94,6 +108,10 @@ class PurgeDemoData extends Command
             ['Anunțuri', $this->purgeAnnouncements($demoIds, $dryRun)],
             ['Note injectate la testare', $this->purgeTestGrades($dryRun)],
             ['Mesaje', $this->purgeMessages($demoIds, $dryRun)],
+            // Restul inboxurilor conturilor demo + jurnalul lor de audit — ULTIMELE, cât conturile
+            // demo încă există (autorul devine NULL la ștergerea lor).
+            ['Notificări din inboxurile conturilor demo', $this->purgeDemoUserNotifications($demoIds, $dryRun)],
+            ['Intrări de audit ale conturilor demo', $this->purgeDemoAudits($demoIds, $dryRun)],
         ];
 
         $this->table(['Date demo/test', $dryRun ? 'AR FI șterse' : 'Șterse'], $rows);
@@ -109,9 +127,12 @@ class PurgeDemoData extends Command
 
         $this->newLine();
         $this->info("Curățare finalizată — {$total} rânduri șterse.");
-        $this->line('Pașii următori la go-live:');
-        $this->line('  1. php artisan app:demo-alerts --remove');
-        $this->line('  2. php artisan app:demo-accounts --remove');
+        $this->line('Pași rămași la go-live (ideal cât worker-ul de queue și SMTP sunt OPRITE, ca');
+        $this->line('joburile de notificare demo să nu fie LIVRATE — inclusiv prin email — la ștergere):');
+        $this->line('  1. php artisan queue:clear        # aruncă joburile de notificare demo nelivrate');
+        $this->line('  2. php artisan app:demo-alerts --remove');
+        $this->line('  3. php artisan app:demo-accounts --remove');
+        $this->line('  ⤷ dacă un worker a livrat notificări între timp, reia app:purge-demo-data.');
 
         return self::SUCCESS;
     }
@@ -268,6 +289,85 @@ class PurgeDemoData extends Command
         $announcementIds = $this->demoAnnouncements($demoIds)->pluck('id');
 
         $query = DatabaseNotification::query()->whereIn('data->announcement_id', $announcementIds);
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->delete();
+        }
+
+        return $count;
+    }
+
+    /**
+     * Notificările de VERDICT ale motivărilor demo, din inboxurile utilizatorilor REALI (familii +
+     * diriginți). La fel ca anunțurile, ele copiază textul în payload și poartă `motivation_id`
+     * ({@see AbsenceMotivationObserver}) — ștergerea motivării nu le atinge, deci
+     * fără pasul acesta o familie reală ar păstra în inbox un verdict despre o cerere demo pe care
+     * n-a depus-o niciodată (fără marcaj [DEMO] în text → alarmant). ID-urile se colectează în
+     * `handle()`, înainte de ștergerea motivărilor.
+     *
+     * @param  Collection<int, int>  $motivationIds
+     */
+    private function purgeMotivationNotifications(Collection $motivationIds, bool $dryRun): int
+    {
+        if ($motivationIds->isEmpty()) {
+            return 0;
+        }
+
+        $query = DatabaseNotification::query()->whereIn('data->motivation_id', $motivationIds->all());
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->delete();
+        }
+
+        return $count;
+    }
+
+    /**
+     * Restul notificărilor din inboxurile CONTURILOR DEMO (verdicte de corecții către profesorul
+     * demo, mesaje, cereri rutate către dirigintele demo...). Tabelul `notifications` e polimorf,
+     * FĂRĂ FK — ștergerea conturilor NU le duce cu ea, deci ar rămâne orfane. Se rulează ÎNAINTE de
+     * `app:demo-accounts --remove`, cât `notifiable_id` încă indică un cont demo.
+     *
+     * @param  Collection<int, int>  $demoIds
+     */
+    private function purgeDemoUserNotifications(Collection $demoIds, bool $dryRun): int
+    {
+        if ($demoIds->isEmpty()) {
+            return 0;
+        }
+
+        $query = DatabaseNotification::query()
+            ->where('notifiable_type', User::class)
+            ->whereIn('notifiable_id', $demoIds->all());
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->delete();
+        }
+
+        return $count;
+    }
+
+    /**
+     * Intrările din jurnalul de audit generate de acțiunile conturilor demo (crearea/judecarea
+     * corecțiilor și motivărilor demo trec toate printr-un cont [DEMO]). Fără curățare, ar rămâne
+     * vizibile în „Jurnal de audit" după go-live, atribuite unui autor șters (`user_id` NULL). Se
+     * rulează ÎNAINTE de ștergerea conturilor, cât `user_id` încă le leagă de un cont demo.
+     *
+     * @param  Collection<int, int>  $demoIds
+     */
+    private function purgeDemoAudits(Collection $demoIds, bool $dryRun): int
+    {
+        if ($demoIds->isEmpty()) {
+            return 0;
+        }
+
+        $query = Audit::query()->whereIn('user_id', $demoIds->all());
 
         $count = (clone $query)->count();
 
