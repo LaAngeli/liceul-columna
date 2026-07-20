@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Actions\BroadcastAnnouncement;
 use App\Actions\SendMessage;
 use App\Enums\AudienceDomain;
 use App\Enums\CorrectionStatus;
@@ -9,6 +10,7 @@ use App\Enums\DocumentRequestType;
 use App\Enums\RequestStatus;
 use App\Enums\UserRole;
 use App\Models\AbsenceMotivation;
+use App\Models\Announcement;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
@@ -18,6 +20,7 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -48,6 +51,13 @@ class DemoTestDataSeeder extends Seeder
         GradeCorrection::query()->where('reason', 'like', self::MARKER.'%')->delete();
         AbsenceMotivation::query()->where('reason', 'like', self::MARKER.'%')->delete();
         Message::query()->where('body', 'like', self::MARKER.'%')->forceDelete();
+        // Anunțurile demo + notificările DIFUZATE pentru ele (titlul/corpul sunt COPIATE în
+        // payload — fără ștergerea notificărilor, re-seedarea ar dubla anunțul în inboxuri).
+        $demoAnnouncementIds = Announcement::withTrashed()
+            ->where('title', 'like', self::MARKER.'%')
+            ->pluck('id');
+        DatabaseNotification::query()->whereIn('data->announcement_id', $demoAnnouncementIds)->delete();
+        Announcement::withTrashed()->whereKey($demoAnnouncementIds)->forceDelete();
         // forceDelete PE MODEL (nu pe query): observer-ul curăță PDF/justificativ dacă există.
         DocumentRequest::withTrashed()
             ->where('payload->details', 'like', self::MARKER.'%')
@@ -60,6 +70,50 @@ class DemoTestDataSeeder extends Seeder
         $this->seedMessages();
         $this->seedDocumentRequests();
         $this->seedLessons();
+        $this->seedAnnouncements();
+    }
+
+    /**
+     * Anunțuri DEMO pe toate stările fluxului: două PUBLICATE (difuzate REAL, prin
+     * {@see BroadcastAnnouncement} — notificările ajung în inboxurile familiilor, deci confirmarea
+     * de citire e testabilă, nu doar afișabilă) și unul NEPUBLICAT (pe el se vede că publicarea e
+     * un pas separat, iar editarea/ștergerea sunt permise doar înainte de difuzare).
+     *
+     * Autor = contul demo al administratorului operațional (canPublishContent). Titlurile poartă
+     * marcajul [DEMO] → intră în plasa `app:purge-demo-data`, care șterge și notificările difuzate.
+     */
+    private function seedAnnouncements(): void
+    {
+        $author = User::query()->where('email', 'operational@columna.test')->first()
+            ?? User::query()->where('email', 'admin@liceul-columna.test')->first();
+
+        if ($author === null) {
+            return;
+        }
+
+        $broadcaster = app(BroadcastAnnouncement::class);
+
+        foreach ([
+            [
+                'title' => self::MARKER.' Ședința generală a părinților — 5 septembrie',
+                'body' => 'Vineri, 5 septembrie, ora 18:00, în sala festivă. Prezența unui părinte per familie este binevenită; ordinea de zi include organizarea noului an școlar.',
+            ],
+            [
+                'title' => self::MARKER.' Program scurtat în ajunul sărbătorilor',
+                'body' => 'În ultima zi de școală dinaintea vacanței, lecțiile se scurtează la 30 de minute, iar programul prelungit se încheie la ora 15:00.',
+            ],
+        ] as $data) {
+            $broadcaster->publish(Announcement::query()->create($data + ['author_user_id' => $author->id]));
+        }
+
+        // Ciornă: rămâne needitată/nedifuzată — de pe ea se testează publicarea din panou.
+        Announcement::query()->create([
+            'title' => self::MARKER.' Colecta de rechizite (în pregătire — nepublicat)',
+            'body' => 'Ciornă de anunț pentru testarea pasului de publicare: familiile NU o văd până la difuzare.',
+            'author_user_id' => $author->id,
+        ]);
+
+        $this->command->info('Anunțuri demo: 2 publicate (difuzate real) + 1 ciornă.');
     }
 
     /**

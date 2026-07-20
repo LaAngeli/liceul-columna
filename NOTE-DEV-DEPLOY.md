@@ -33,8 +33,11 @@ Toate datele de test sunt marcate `[DEMO]` → NU trebuie să ajungă în produc
   `elev@`/`elev2@`/`parinte@`/`profesor@`/`diriginte@columna.test` + rolurile `vicedirector@`/`operational@`/
   `tehnic@columna.test`); golește `user_id` pe fișele reale (care RĂMÂN). Adminul real → `app:create-admin`
   (fără marcaj → neatins).
-- Date din `DemoTestDataSeeder` (corecții/motivări/mesaje/lecții): re-rulează seeder-ul (idempotent) SAU șterge
-  manual `where('reason'|'body','like','[DEMO]%')`.
+- Date din `DemoTestDataSeeder` (corecții/motivări/mesaje/lecții/**anunțuri**): re-rulează seeder-ul (idempotent)
+  SAU `php artisan app:purge-demo-data` (întâi `--dry-run`). ⚠️ Anunțurile demo au fost DIFUZATE real: titlul e
+  COPIAT în payload-ul fiecărei notificări din inboxurile familiilor — purge-ul șterge și rândurile din
+  `notifications` (după `data->announcement_id`), altfel fiecare familie păstra pe termen nelimitat un anunț
+  „[DEMO]" orfan. Verifică rândul „Notificări de anunț din inboxuri" din raportul comenzii.
 
 ⚠️ Date `[DEMO]` în producție = elev real „corigent" fictiv + conturi cu parola `password` (risc de securitate)
 + mesaje de test vizibile părinților. Verifică cu `app:demo-accounts` că nu mai rămâne nimic.

@@ -12,6 +12,7 @@ use App\Models\Message;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
@@ -70,6 +71,9 @@ class PurgeDemoData extends Command
             ['Motivări de absențe (+ justificative)', $this->purgeAbsenceMotivations($demoIds, $dryRun)],
             ['Documente (+ fișiere de pe disc)', $this->purgeDocuments($demoIds, $dryRun)],
             ['Evenimente de calendar', $this->purgeCalendarEvents($demoIds, $dryRun)],
+            // Notificările ÎNAINTEA anunțurilor: se identifică prin announcement_id, care dispare
+            // odată cu rândurile-mamă.
+            ['Notificări de anunț din inboxuri', $this->purgeAnnouncementNotifications($demoIds, $dryRun)],
             ['Anunțuri', $this->purgeAnnouncements($demoIds, $dryRun)],
             ['Note injectate la testare', $this->purgeTestGrades($dryRun)],
             ['Mesaje', $this->purgeMessages($demoIds, $dryRun)],
@@ -193,16 +197,35 @@ class PurgeDemoData extends Command
     }
 
     /**
+     * Notificările DIFUZATE pentru anunțurile demo, din inboxurile utilizatorilor REALI.
+     *
+     * Broadcast-ul COPIAZĂ titlul și corpul în payload-ul fiecărei notificări — ștergerea
+     * anunțului nu le atinge, deci fără pasul acesta fiecare familie ar păstra în inbox, pe
+     * termen nelimitat, un anunț „[DEMO]" orfan, de la un expeditor care nu mai există.
+     *
+     * @param  Collection<int, int>  $demoIds
+     */
+    private function purgeAnnouncementNotifications(Collection $demoIds, bool $dryRun): int
+    {
+        $announcementIds = $this->demoAnnouncements($demoIds)->pluck('id');
+
+        $query = DatabaseNotification::query()->whereIn('data->announcement_id', $announcementIds);
+
+        $count = (clone $query)->count();
+
+        if (! $dryRun && $count > 0) {
+            $query->delete();
+        }
+
+        return $count;
+    }
+
+    /**
      * @param  Collection<int, int>  $demoIds
      */
     private function purgeAnnouncements(Collection $demoIds, bool $dryRun): int
     {
-        // `withTrashed()` + `forceDelete()`: Announcement e SoftDeletes, iar un `delete()` simplu ar
-        // lăsa rândul în tabel (doar marcat) — adică exact ce încearcă comanda asta să prevină.
-        $query = Announcement::withTrashed()->where(function (Builder $inner) use ($demoIds): void {
-            $inner->whereIn('author_user_id', $demoIds)
-                ->orWhere('title', 'like', '%'.self::DEMO.'%');
-        });
+        $query = $this->demoAnnouncements($demoIds);
 
         $count = (clone $query)->count();
 
@@ -211,6 +234,22 @@ class PurgeDemoData extends Command
         }
 
         return $count;
+    }
+
+    /**
+     * Anunțurile-țintă, o singură definiție pentru rândul de anunțuri ȘI pentru notificările lor.
+     * `withTrashed()` + `forceDelete()`: Announcement e SoftDeletes, iar un `delete()` simplu ar
+     * lăsa rândul în tabel (doar marcat) — adică exact ce încearcă comanda asta să prevină.
+     *
+     * @param  Collection<int, int>  $demoIds
+     * @return Builder<Announcement>
+     */
+    private function demoAnnouncements(Collection $demoIds): Builder
+    {
+        return Announcement::withTrashed()->where(function (Builder $inner) use ($demoIds): void {
+            $inner->whereIn('author_user_id', $demoIds)
+                ->orWhere('title', 'like', '%'.self::DEMO.'%');
+        });
     }
 
     /**
