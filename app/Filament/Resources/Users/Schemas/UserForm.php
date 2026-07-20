@@ -156,10 +156,6 @@ class UserForm
                             ->native(false)
                             ->visible(fn (Get $get, string $operation): bool => self::creatingTeacherFiche($get, $operation))
                             ->required(fn (Get $get, string $operation): bool => self::creatingTeacherFiche($get, $operation)),
-                        TextInput::make('teacher_fiche_position')
-                            ->label(__('panel.forms.teacher.position'))
-                            ->maxLength(255)
-                            ->visible(fn (Get $get, string $operation): bool => self::creatingTeacherFiche($get, $operation)),
                         Select::make('teacher_id')
                             ->label(__('panel.forms.user.teacher_link'))
                             ->helperText(__('panel.forms.user.teacher_link_hint'))

@@ -103,10 +103,6 @@ class ImportLegacy extends Command
                 'first_name' => $p->name_2 ?: null,
                 'sex' => in_array($p->sex, ['f', 'm'], true) ? $p->sex : null,
                 'email' => $p->email_prof ?: null,
-                'position' => match ((string) $p->func) {
-                    '3' => 'Diriginte',
-                    default => 'Profesor',
-                },
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);

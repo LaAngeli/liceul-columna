@@ -468,7 +468,6 @@ class BuildStaffReportData
         return $teachers->map(fn (Teacher $teacher, int $index): array => [
             'index' => $index + 1,
             'name' => (string) $teacher->full_name,
-            'position' => $teacher->position,
             'assignments' => (int) $teacher->getAttribute('assignments_count'),
             'grades' => (int) ($gradeCounts[$teacher->id] ?? 0),
             'absences' => (int) ($absenceCounts[$teacher->id] ?? 0),

@@ -25,7 +25,6 @@ class Teacher extends Model
         'last_name',
         'sex',
         'email',
-        'position',
     ];
 
     protected function casts(): array

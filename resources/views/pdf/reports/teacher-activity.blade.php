@@ -19,12 +19,9 @@
             @forelse ($rows as $row)
                 <tr class="{{ $loop->even ? 'alt' : '' }}">
                     <td class="idx">{{ $row['index'] }}</td>
-                    <td>
-                        {{ $row['name'] }}
-                        @if ($row['position'] !== null && $row['position'] !== '')
-                            <br><span class="muted" style="font-size:8pt">{{ $row['position'] }}</span>
-                        @endif
-                    </td>
+                    {{-- Funcția reală se citește din coloana „Diriginte al" — eticheta legacy
+                         `position` (care putea minți) a fost eliminată. --}}
+                    <td>{{ $row['name'] }}</td>
                     <td class="num">{{ $row['assignments'] }}</td>
                     <td class="num">{!! $row['grades'] === 0 ? '<span class="muted">0</span>' : $row['grades'] !!}</td>
                     <td class="num">{!! $row['absences'] === 0 ? '<span class="muted">0</span>' : $row['absences'] !!}</td>

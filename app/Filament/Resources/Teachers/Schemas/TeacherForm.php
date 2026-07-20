@@ -27,9 +27,6 @@ class TeacherForm
                     ->label(__('panel.fields.email'))
                     ->email()
                     ->maxLength(255),
-                TextInput::make('position')
-                    ->label(__('panel.forms.teacher.position'))
-                    ->maxLength(255),
                 Select::make('user_id')
                     ->label(__('panel.forms.student.account'))
                     ->relationship('user', 'name')

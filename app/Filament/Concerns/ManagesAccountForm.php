@@ -48,8 +48,6 @@ trait ManagesAccountForm
 
     protected ?string $teacherFicheSex = null;
 
-    protected ?string $teacherFichePosition = null;
-
     protected ?string $studentFicheSex = null;
 
     protected ?string $studentFicheRegisterNumber = null;
@@ -99,7 +97,6 @@ trait ManagesAccountForm
         // Select-urile cu opțiuni-enum (sex, limba a 2-a) dehidratează INSTANȚA enum-ului,
         // nu string-ul — se normalizează la valoarea scalară (cast-urile modelelor o refac).
         $this->teacherFicheSex = $this->scalarFormValue($data['teacher_fiche_sex'] ?? null);
-        $this->teacherFichePosition = $this->scalarFormValue($data['teacher_fiche_position'] ?? null);
         $this->studentFicheSex = $this->scalarFormValue($data['student_fiche_sex'] ?? null);
         $this->studentFicheRegisterNumber = $this->scalarFormValue($data['student_fiche_register_number'] ?? null);
         $this->studentFicheSecondLanguage = $this->scalarFormValue($data['student_fiche_second_language'] ?? null);
@@ -120,7 +117,6 @@ trait ManagesAccountForm
             $data['teacher_fiche_mode'],
             $data['student_fiche_mode'],
             $data['teacher_fiche_sex'],
-            $data['teacher_fiche_position'],
             $data['student_fiche_sex'],
             $data['student_fiche_register_number'],
             $data['student_fiche_second_language'],
@@ -178,7 +174,6 @@ trait ManagesAccountForm
                     'last_name' => $this->accountLastName,
                     'first_name' => $this->accountFirstName,
                     'sex' => $this->teacherFicheSex,
-                    'position' => $this->teacherFichePosition,
                     'email' => $user->email,
                 ]);
 

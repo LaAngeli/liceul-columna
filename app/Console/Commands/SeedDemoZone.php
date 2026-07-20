@@ -177,7 +177,6 @@ class SeedDemoZone extends Command
             'last_name' => self::MARK,
             'first_name' => $label,
             'sex' => ['m', 'f'][random_int(0, 1)],
-            'position' => 'profesor',
             'created_at' => $now,
             'updated_at' => $now,
         ]);

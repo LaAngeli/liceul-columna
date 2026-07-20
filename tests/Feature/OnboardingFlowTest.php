@@ -58,7 +58,6 @@ it('onboarding profesor: contul, fișa și alocările se nasc împreună, gata d
             'role' => UserRole::Profesor->value,
             'teacher_fiche_mode' => 'create',
             'teacher_fiche_sex' => Sex::Female->value,
-            'teacher_fiche_position' => 'Profesoară de matematică',
             'teaching_pairs' => [
                 ['school_class_id' => $this->classA->id, 'subject_id' => $this->math->id],
                 ['school_class_id' => $this->classB->id, 'subject_id' => $this->chem->id],
@@ -71,11 +70,11 @@ it('onboarding profesor: contul, fișa și alocările se nasc împreună, gata d
     $user = User::query()->where('username', 'onboard.prof')->sole();
     $fiche = Teacher::query()->where('user_id', $user->id)->sole();
 
-    // Fișa preia identitatea contului (nume + e-mail) și datele proprii.
+    // Fișa preia identitatea contului (nume + e-mail) și datele proprii. Fără „funcție":
+    // eticheta legacy a fost eliminată — funcția reală se derivează din alocări/dirigenție.
     expect($fiche->last_name)->toBe('Onboard')
         ->and($fiche->first_name)->toBe('Profesoara')
         ->and($fiche->sex)->toBe(Sex::Female)
-        ->and($fiche->position)->toBe('Profesoară de matematică')
         ->and($fiche->email)->toBe('onboard.prof@test.columna');
 
     // Integrarea în catalog: perimetrul (alocările) e funcțional din prima zi.

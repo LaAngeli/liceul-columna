@@ -725,7 +725,6 @@ return [
             'report_order_long' => 'Academic record order',
         ],
         'teacher' => [
-            'position' => 'Position',
             'account_hint' => 'Optional — link the teacher to a login account.',
         ],
         'school_class' => [

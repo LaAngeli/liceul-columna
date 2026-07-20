@@ -738,7 +738,6 @@ return [
             'report_order_long' => 'Ordine în foaia matricolă',
         ],
         'teacher' => [
-            'position' => 'Funcția',
             'account_hint' => 'Opțional — leagă profesorul de un cont de logare.',
         ],
         'school_class' => [
