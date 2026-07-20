@@ -1231,6 +1231,27 @@ return [
         'no_teachers' => 'No assignments yet: this subject is not taught in any class.',
     ],
 
+    'config_hub' => [
+        'title' => 'Configuration',
+        'subtitle' => 'The rules the register runs on: the academic year and its structure, timetables, assessment, make-up exams.',
+        'current_year' => 'Configuring year',
+        'records' => '{0}nothing configured|{1}:count record|[2,*]:count records',
+        'needs_setup' => '{1}1 to set up|[2,*]:count to set up',
+        'read_only' => 'Read only',
+        'categories' => [
+            'an' => 'Academic year',
+            'orar' => 'Time and timetables',
+            'evaluare' => 'Assessment rules',
+            'corigenta' => 'Make-up exams',
+        ],
+        'descriptions' => [
+            'an' => 'The foundation of every setting: the current year, its terms and student enrolments.',
+            'orar' => 'When classes run and when they do not: published timetables, the structured timetable, holidays.',
+            'evaluare' => 'How results are computed: subjects with a summative paper and the grading mode.',
+            'corigenta' => 'Clearing failed subjects: sessions opened by order and the appointed commissions.',
+        ],
+    ],
+
     'credentials_mail' => [
         'subject' => 'Your sign-in details — Liceul Columna',
         'greeting' => 'Hello, :name!',

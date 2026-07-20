@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Schedules\Pages;
 use App\Enums\ScheduleType;
 use App\Filament\Resources\Schedules\ScheduleResource;
 use App\Models\Schedule;
+use App\Support\ScheduleCoverage;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,8 +15,11 @@ use Livewire\Attributes\Url;
 
 /**
  * Orarele publicabile, pe cele 9 TIPURI din Calendar (navigatorul de configurare, 2026-07-16):
- * un card per tip — câte tabele are, câte sunt publice, avertisment „fără date" unde e gol
- * (aceeași excepție pe care o semnalează widget-ul SchedulesToComplete) — apoi tabelul tipului.
+ * un card per tip — câte tabele are, câte sunt publice, avertisment „neconfigurat" pentru tipurile
+ * fără niciun tabel PUBLICAT. Definiția e unică ({@see ScheduleCoverage}) și o
+ * împart widget-ul SchedulesToComplete și hub-ul de configurare; înainte, acest navigator marca
+ * „fără date" doar tipurile fără NICIUN rând, deci un orar scris-dar-nepublicat apărea complet
+ * aici și lipsă în widget, iar docblock-ul le declara — fals — identice.
  */
 class ListSchedules extends ListRecords
 {
@@ -97,7 +101,9 @@ class ListSchedules extends ListRecords
                 'id' => $type->value,
                 'title' => $type->label(),
                 'stats' => $stats,
-                'badge' => $total === 0 ? (string) __('panel.config_nav.schedule_missing') : null,
+                // „Neconfigurat" = fără tabel PUBLICAT (nu fără niciun rând): un orar scris și
+                // nepublicat nu ajunge la nimeni, deci sarcina AO nu e încheiată.
+                'badge' => $public === 0 ? (string) __('panel.config_nav.schedule_missing') : null,
             ];
         }
 

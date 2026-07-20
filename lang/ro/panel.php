@@ -1247,6 +1247,27 @@ return [
         'no_teachers' => 'Nicio alocare încă: disciplina nu e predată în nicio clasă.',
     ],
 
+    'config_hub' => [
+        'title' => 'Configurare',
+        'subtitle' => 'Regulile după care funcționează registrul: anul și structura lui, orarele, evaluarea, examenele de corigență.',
+        'current_year' => 'Se configurează anul',
+        'records' => '{0}nimic configurat|{1}:count înregistrare|[2,19]:count înregistrări|[20,*]:count de înregistrări',
+        'needs_setup' => '{1}1 de configurat|[2,*]:count de configurat',
+        'read_only' => 'Doar citire',
+        'categories' => [
+            'an' => 'Anul școlar',
+            'orar' => 'Timp și orare',
+            'evaluare' => 'Reguli de evaluare',
+            'corigenta' => 'Corigență și examene',
+        ],
+        'descriptions' => [
+            'an' => 'Fundația tuturor configurărilor: anul în curs, semestrele lui și înmatriculările elevilor.',
+            'orar' => 'Când se ține ora și când nu: orarele publicate, orarul structurat pe lecții, zilele libere.',
+            'evaluare' => 'Regulile după care se calculează situația: disciplinele cu teză și modul de notare.',
+            'corigenta' => 'Lichidarea restanțelor: sesiunile deschise prin ordin și comisiile desemnate.',
+        ],
+    ],
+
     'credentials_mail' => [
         'subject' => 'Datele tale de autentificare — Liceul Columna',
         'greeting' => 'Salut, :name!',

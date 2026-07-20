@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\SummativeDesignations;
 
+use App\Filament\Concerns\ConfiguresSchool;
 use App\Filament\Resources\SummativeDesignations\Pages\CreateSummativeDesignation;
 use App\Filament\Resources\SummativeDesignations\Pages\EditSummativeDesignation;
 use App\Filament\Resources\SummativeDesignations\Pages\ListSummativeDesignations;
@@ -48,9 +49,16 @@ class SummativeDesignationResource extends Resource
         return __('grading.designation.plural');
     }
 
+    /**
+     * CITIREA se separă de scriere, ca peste tot în grupul „Configurare" (tiparul din
+     * {@see ConfiguresSchool}). Era singura secțiune a grupului inaccesibilă
+     * administratorului operațional — deși designarea armează o gardă care blochează profesorii
+     * la introducerea tezelor, iar cel care operează configurarea școlii trebuie măcar să vadă ce
+     * lipsește. SCRIEREA rămâne act de autoritate academică (super/director/prim-vicedirector).
+     */
     public static function canAccess(): bool
     {
-        return auth('web')->user()?->canAdministerCatalog() ?? false;
+        return auth('web')->user()?->isAdministrator() ?? false;
     }
 
     public static function canCreate(): bool

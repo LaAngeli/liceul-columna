@@ -26,11 +26,16 @@ class EnrollmentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
-    protected static ?int $navigationSort = 110;
+    protected static ?int $navigationSort = 25;
 
+    /**
+     * CONFIGURARE, nu Catalog: e gardată de `ConfiguresSchool` (deci invizibilă profesorilor, spre
+     * deosebire de restul Catalogului) și se operează la deschiderea anului, nu în fluxul zilnic —
+     * era singura secțiune din Catalog care nu deservea pe nimeni din Catalog.
+     */
     public static function getNavigationGroup(): ?string
     {
-        return __('panel.nav.groups.catalog');
+        return __('panel.nav.groups.configuration');
     }
 
     public static function getNavigationLabel(): string

@@ -25,9 +25,15 @@ class CorigentaExamResource extends Resource
 
     protected static ?int $navigationSort = 80;
 
+    /**
+     * CATALOG, nu Configurare: rândurile se generează automat la validarea statutului, `canCreate`
+     * e refuzat, iar tabelul listează elev + disciplină + notă — aceeași categorie de date ca
+     * Note/Absențe/Foaia matricolă. Sesiunile și comisiile rămân configurare (calendar + componență,
+     * create manual, prin ordin); rezultatul examenului nu e o setare.
+     */
     public static function getNavigationGroup(): ?string
     {
-        return __('panel.nav.groups.configuration');
+        return __('panel.nav.groups.catalog');
     }
 
     public static function getNavigationLabel(): string

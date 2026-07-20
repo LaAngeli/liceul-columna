@@ -4,7 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Enums\ScheduleType;
 use App\Filament\Resources\Schedules\ScheduleResource;
-use App\Models\Schedule;
+use App\Support\ScheduleCoverage;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -67,7 +67,9 @@ class SchedulesToComplete extends StatsOverviewWidget
     }
 
     /**
-     * Tipurile de orar (din cele 9) care nu au niciun rând PUBLICAT pe site.
+     * Tipurile de orar (din cele 9) care nu au niciun rând PUBLICAT pe site — definiția trăiește
+     * într-un singur loc ({@see ScheduleCoverage}), fiindcă o consumă și navigatorul de orare, și
+     * hub-ul de configurare. Aici rămâne doar memoizarea per-cerere.
      *
      * @return list<ScheduleType>
      */
@@ -77,17 +79,7 @@ class SchedulesToComplete extends StatsOverviewWidget
             return self::$cachedMissingTypes;
         }
 
-        // pluck aplică cast-ul → normalizăm la valorile string ale enum-ului.
-        $present = Schedule::query()
-            ->where('is_public', true)
-            ->pluck('type')
-            ->map(static fn ($type): string => $type instanceof ScheduleType ? $type->value : (string) $type)
-            ->all();
-
-        self::$cachedMissingTypes = array_values(array_filter(
-            ScheduleType::cases(),
-            static fn (ScheduleType $type): bool => ! in_array($type->value, $present, true),
-        ));
+        self::$cachedMissingTypes = ScheduleCoverage::missingTypes();
         self::$missingTypesComputed = true;
 
         return self::$cachedMissingTypes;
