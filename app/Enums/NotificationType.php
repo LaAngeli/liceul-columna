@@ -25,6 +25,7 @@ enum NotificationType: string implements HasLabel
     case CalendarEventCancelled = 'calendar_event_cancelled';
     case ContestationRejected = 'contestation_rejected';
     case DocumentRequestClosed = 'document_request_closed';
+    case AbsenceMotivationDecided = 'absence_motivation_decided';
 
     // Comune (toți).
     case NewMessage = 'new_message';
@@ -68,6 +69,7 @@ enum NotificationType: string implements HasLabel
             self::CalendarEventCancelled => 'heroicon-o-calendar-date-range',
             self::ContestationRejected => 'heroicon-o-scale',
             self::DocumentRequestClosed => 'heroicon-o-document-check',
+            self::AbsenceMotivationDecided => 'heroicon-o-check-badge',
             self::NewMessage => 'heroicon-o-chat-bubble-left-right',
             self::Announcement => 'heroicon-o-megaphone',
             self::GradeCorrectionRequest => 'heroicon-o-pencil-square',
@@ -104,6 +106,7 @@ enum NotificationType: string implements HasLabel
                 self::CalendarEventCancelled,
                 self::ContestationRejected,
                 self::DocumentRequestClosed,
+                self::AbsenceMotivationDecided,
                 self::NewMessage,
                 self::Announcement,
             ],
@@ -111,6 +114,9 @@ enum NotificationType: string implements HasLabel
             // Diriginte: validează motivările clasei lui + primește verdictul corecțiilor cerute.
             UserRole::Diriginte => [
                 self::AbsenceMotivationSubmitted,
+                // Verdictul dat de ALTCINEVA (vicedirectorul pe excepții, administrația) —
+                // absențele clasei lui se schimbă fără acțiunea lui, deci trebuie să afle.
+                self::AbsenceMotivationDecided,
                 self::GradeCorrectionRejected,
                 self::HomeworkCorrectionRejected,
                 self::NewMessage,

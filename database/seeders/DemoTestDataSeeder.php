@@ -12,6 +12,7 @@ use App\Enums\CorrectionStatus;
 use App\Enums\DocumentRequestType;
 use App\Enums\RequestStatus;
 use App\Enums\UserRole;
+use App\Models\Absence;
 use App\Models\AbsenceMotivation;
 use App\Models\Announcement;
 use App\Models\CorigentaExam;
@@ -33,6 +34,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Date de TEST (random) pentru secțiunile noi/goale ale catalogului: corecții de notă și
@@ -506,6 +508,12 @@ class DemoTestDataSeeder extends Seeder
             );
             $user->forceFill(['email_verified_at' => now()])->save();
             $user->syncRoles([$role->value]);
+
+            // Prim-vicedirectorul demo poartă domeniul „educație" (§4.2): fără el, EXCEPȚIILE
+            // de motivare și audiențele pe educație nu ar avea validator/destinatar de testat.
+            if ($role === UserRole::PrimVicedirector) {
+                $user->forceFill(['audience_domains' => [AudienceDomain::Educatie->value]])->save();
+            }
         }
 
         $this->command->info('Conturi de rol demo: vicedirector@/operational@/tehnic@columna.test / password.');
@@ -656,17 +664,38 @@ class DemoTestDataSeeder extends Seeder
             return;
         }
 
+        // Cele 4 povești acoperă TOATE stările fișei (2026-07-20): aprobată; în așteptare CU
+        // justificativ atașat (previzualizabil pe fișă); respinsă cu motiv COERENT (chiar nu are
+        // document); EXCEPȚIE tardivă în așteptare (coada vicedirectorului pe educație).
         $reasons = [
             'Consultație medicală programată.',
             'Stare gripală, certificat anexat.',
             'Participare la concurs/olimpiadă.',
-            'Probleme de familie.',
+            'Certificat medical obținut după termen.',
         ];
+
+        $documentPath = $this->storeDemoJustificativ();
 
         $i = 0;
         foreach ($targets as $student) {
-            $start = Carbon::now()->subDays(($i * 5) % 60 + 3);
-            $end = $start->copy()->addDays($i % 3);
+            $pending = in_array($i % 4, [1, 3], true);
+
+            // Cererile care RĂMÂN în așteptare se ancorează pe o absență REALĂ a elevului, ca
+            // fișa să arate impact adevărat („N absențe vor fi motivate"). Cele judecate de
+            // seeder păstrează perioade de vară FĂRĂ absențe: approve() de la seeding nu are
+            // voie să motiveze absențe reale (datele de catalog nu se ating).
+            $anchor = $pending
+                ? Absence::query()
+                    ->where('student_id', $student->id)
+                    ->where('is_motivated', false)
+                    ->latest('occurred_on')
+                    ->value('occurred_on')
+                : null;
+
+            $start = $anchor !== null
+                ? Carbon::parse((string) $anchor)->subDay()
+                : Carbon::now()->subDays(($i * 5) % 60 + 3);
+            $end = $start->copy()->addDays($anchor !== null ? 2 : $i % 3);
 
             $motivation = AbsenceMotivation::create([
                 'student_id' => $student->id,
@@ -675,17 +704,60 @@ class DemoTestDataSeeder extends Seeder
                 'period_start' => $start->toDateString(),
                 'period_end' => $end->toDateString(),
                 'status' => RequestStatus::Pending,
+                'document_path' => $i % 4 === 1 ? $documentPath : null,
+                'is_exception' => $i % 4 === 3,
             ]);
 
             if ($reviewer !== null && $i % 4 === 0) {
                 $motivation->approve($reviewer->id, self::MARKER.' Justificat.');
-            } elseif ($reviewer !== null && $i % 4 === 1) {
-                $motivation->reject($reviewer->id, self::MARKER.' Lipsă document.');
+            } elseif ($reviewer !== null && $i % 4 === 2) {
+                $motivation->reject($reviewer->id, self::MARKER.' Lipsă document — diploma nu a fost anexată.');
             }
 
             $i++;
         }
 
-        $this->command->info("Cereri de motivare demo: {$targets->count()} (statusuri mixte).");
+        $this->command->info("Cereri de motivare demo: {$targets->count()} (statusuri mixte + justificativ + excepție).");
+    }
+
+    /**
+     * Un justificativ-imagine DEMO în stocarea PRIVATĂ (aceeași cale ca upload-urile reale ale
+     * familiei), ca previzualizarea/descărcarea de pe fișă să fie testabilă. Un singur fișier,
+     * refolosit de toate cererile demo; `app:purge-demo-data` îl șterge odată cu rândurile.
+     * Text ASCII (fonturile GD built-in nu au diacritice); fără GD → cereri fără document.
+     */
+    private function storeDemoJustificativ(): ?string
+    {
+        $path = 'motivations/demo-justificativ.png';
+
+        if (Storage::disk('local')->exists($path)) {
+            return $path;
+        }
+
+        if (! function_exists('imagecreatetruecolor')) {
+            return null;
+        }
+
+        $image = imagecreatetruecolor(640, 400);
+        $white = (int) imagecolorallocate($image, 255, 255, 252);
+        $navy = (int) imagecolorallocate($image, 15, 77, 119);
+        $gray = (int) imagecolorallocate($image, 104, 104, 103);
+        imagefill($image, 0, 0, $white);
+        imagerectangle($image, 12, 12, 627, 387, $navy);
+        imagestring($image, 5, 40, 60, '[DEMO] ADEVERINTA MEDICALA', $navy);
+        imagestring($image, 3, 40, 110, 'Document generat pentru TESTAREA platformei.', $gray);
+        imagestring($image, 3, 40, 140, 'Nu este un act medical real.', $gray);
+        imagestring($image, 3, 40, 200, 'Se recomanda scutirea de frecventa', $navy);
+        imagestring($image, 3, 40, 230, 'pe perioada indicata in cerere.', $navy);
+        imagestring($image, 2, 40, 340, 'Liceul Columna - mediu de test', $gray);
+
+        ob_start();
+        imagepng($image);
+        $bytes = (string) ob_get_clean();
+        imagedestroy($image);
+
+        Storage::disk('local')->put($path, $bytes);
+
+        return $path;
     }
 }

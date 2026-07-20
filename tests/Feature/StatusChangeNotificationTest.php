@@ -34,7 +34,7 @@ function studentWithFamily(): Student
     return Student::factory()->create(['user_id' => $elev->id]);
 }
 
-it('aprobarea unei motivări notifică familia (StatusChange)', function () {
+it('aprobarea unei motivări notifică familia (verdict dedicat)', function () {
     Notification::fake();
     $student = studentWithFamily();
     $reviewer = User::factory()->create();
@@ -46,10 +46,12 @@ it('aprobarea unei motivări notifică familia (StatusChange)', function () {
 
     $motivation->approve($reviewer->id, null);
 
+    // Tip DEDICAT (2026-07-20): verdictul motivării nu mai folosește StatusChange generic —
+    // notificarea numește cererea și perioada; motivul respingerii rămâne DOAR în cabinet.
     Notification::assertSentTo(
         $student->user,
         CatalogNotification::class,
-        fn (CatalogNotification $n): bool => $n->type === NotificationType::StatusChange,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::AbsenceMotivationDecided,
     );
 });
 

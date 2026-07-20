@@ -8,6 +8,7 @@ use App\Observers\AbsenceMotivationObserver;
 use App\Support\WorkingDays;
 use Database\Factories\AbsenceMotivationFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -125,18 +126,29 @@ class AbsenceMotivation extends Model implements Auditable
     }
 
     /**
+     * Absențele elevului acoperite de perioada cererii. Sursă UNICĂ pentru efectul aprobării
+     * ȘI pentru previzualizarea impactului pe fișa cererii — ca judecata să vadă exact ce va
+     * atinge validarea. whereDate pe ambele margini: occurred_on e datetime, deci comparăm pe
+     * ZI (o margine dată-doar ar rata absența chiar pe ultima zi a perioadei).
+     *
+     * @return Builder<Absence>
+     */
+    public function absencesInPeriod(): Builder
+    {
+        return Absence::query()
+            ->where('student_id', $this->student_id)
+            ->whereDate('occurred_on', '>=', $this->period_start)
+            ->whereDate('occurred_on', '<=', $this->period_end);
+    }
+
+    /**
      * Aprobă: marchează ca MOTIVATE absențele elevului din perioada cerută și consemnează
      * dirigintele/data.
      */
     public function approve(int $reviewerId, ?string $note = null): void
     {
         // Marchează MOTIVATE + DEBLOCHEAZĂ absențele consolidate (cazul aprobării unei excepții).
-        // whereDate pe ambele margini: occurred_on e datetime, deci comparăm pe ZI (o margine
-        // dată-doar ar rata absența chiar pe ultima zi a perioadei).
-        Absence::query()
-            ->where('student_id', $this->student_id)
-            ->whereDate('occurred_on', '>=', $this->period_start)
-            ->whereDate('occurred_on', '<=', $this->period_end)
+        $this->absencesInPeriod()
             ->where('is_motivated', false)
             ->update(['is_motivated' => true, 'motivation_locked_at' => null]);
 

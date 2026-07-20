@@ -5,6 +5,7 @@ namespace App\Filament\Resources\AbsenceMotivations;
 use App\Enums\AudienceDomain;
 use App\Enums\RequestStatus;
 use App\Filament\Resources\AbsenceMotivations\Pages\ListAbsenceMotivations;
+use App\Filament\Resources\AbsenceMotivations\Pages\ViewAbsenceMotivation;
 use App\Filament\Resources\AbsenceMotivations\Tables\AbsenceMotivationsTable;
 use App\Models\AbsenceMotivation;
 use App\Models\User;
@@ -57,6 +58,7 @@ class AbsenceMotivationResource extends Resource
     {
         return [
             'index' => ListAbsenceMotivations::route('/'),
+            'view' => ViewAbsenceMotivation::route('/{record}'),
         ];
     }
 

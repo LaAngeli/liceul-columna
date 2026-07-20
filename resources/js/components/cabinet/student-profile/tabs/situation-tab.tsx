@@ -24,6 +24,7 @@ interface MotivationItem {
     statusLabel: string;
     isException: boolean;
     documentUrl: string | null;
+    note: string | null;
 }
 
 /**
@@ -215,6 +216,12 @@ export function SituationTab({
                                                     >
                                                         📎 {t('cabinet.motivation_document_view')}
                                                     </a>
+                                                )}
+                                                {m.note && (
+                                                    <p className="mt-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-xs text-muted-foreground">
+                                                        <span className="font-semibold">{t('cabinet.motivation_note')}:</span>{' '}
+                                                        {m.note}
+                                                    </p>
                                                 )}
                                             </div>
                                             <span

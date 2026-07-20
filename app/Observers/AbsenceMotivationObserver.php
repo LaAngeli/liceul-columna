@@ -71,10 +71,31 @@ class AbsenceMotivationObserver
             return;
         }
 
+        $params = [
+            'student' => $student->full_name,
+            'period' => $motivation->period_start->format('d.m.Y').' – '.$motivation->period_end->format('d.m.Y'),
+            'status' => $motivation->status->getLabel(),
+        ];
+
+        // Familia (solicitantul): verdictul, cu perioada — motivul respingerii îl citește în
+        // cabinet, pe cerere (nu punem textul liber al validatorului într-un email/canal extern).
         $this->family->send($student, new CatalogNotification(
-            NotificationType::StatusChange,
-            ['student' => $student->full_name, 'status' => $motivation->status->getLabel()],
+            NotificationType::AbsenceMotivationDecided,
+            $params,
             route('cabinet.student', ['student' => $student->id], false),
         ));
+
+        // Dirigintele clasei, când verdictul l-a dat ALTCINEVA (vicedirectorul pe excepții,
+        // administrația): absențele clasei lui se schimbă fără acțiunea lui — află, cu link
+        // pe fișa cererii. Când chiar el a judecat, nu se auto-anunță.
+        $homeroom = $student->homeroomUser();
+
+        if ($homeroom !== null && $homeroom->id !== $motivation->reviewed_by_user_id) {
+            $this->notifier->toUser($homeroom, new CatalogNotification(
+                NotificationType::AbsenceMotivationDecided,
+                $params,
+                '/admin/absence-motivations/'.$motivation->id,
+            ));
+        }
     }
 }

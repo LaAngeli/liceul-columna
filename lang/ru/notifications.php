@@ -23,6 +23,7 @@ return [
         'grade_correction_rejected' => 'Исправление оценки отклонено',
         'homework_correction_rejected' => 'Исправление задания отклонено',
         'absence_motivation_submitted' => 'Новое заявление об оправдании',
+        'absence_motivation_decided' => 'Решение по оправданию пропусков',
         'document_request_submitted' => 'Новое типовое заявление',
         'admission_request_submitted' => 'Новая заявка на зачисление',
     ],
@@ -100,6 +101,10 @@ return [
     'absence_motivation_submitted' => [
         'title' => 'Новое заявление об оправдании',
         'body' => 'Подано заявление об оправдании пропусков для :student.',
+    ],
+    'absence_motivation_decided' => [
+        'title' => 'Решение по оправданию пропусков',
+        'body' => 'Заявление об оправдании пропусков для :student (:period) рассмотрено: :status.',
     ],
     'document_request_submitted' => [
         'title' => 'Новое типовое заявление',

@@ -705,6 +705,7 @@ return [
         'motivation_sent' => 'The excuse request has been sent.',
         'motivation_none' => 'No excuse requests submitted.',
         'motivation_exception' => 'Exception (past deadline)',
+        'motivation_note' => 'Reviewer\'s comment',
         'corigenta_title' => 'Make-up exams',
         'corigenta_unscheduled' => 'scheduling pending',
         'corigenta_passed' => 'Passed',

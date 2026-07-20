@@ -705,6 +705,7 @@ return [
         'motivation_sent' => 'Cererea de motivare a fost trimisă.',
         'motivation_none' => 'Nicio cerere de motivare depusă.',
         'motivation_exception' => 'Excepție (după termen)',
+        'motivation_note' => 'Comentariul validatorului',
         'corigenta_title' => 'Lichidarea corigenței',
         'corigenta_unscheduled' => 'în curs de programare',
         'corigenta_passed' => 'Promovat',

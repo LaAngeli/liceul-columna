@@ -28,6 +28,7 @@ return [
         'grade_correction_rejected' => 'Corecție de notă respinsă',
         'homework_correction_rejected' => 'Corecție de temă respinsă',
         'absence_motivation_submitted' => 'Cerere de motivare nouă',
+        'absence_motivation_decided' => 'Verdict la motivarea absențelor',
         'document_request_submitted' => 'Cerere tipică nouă',
         'admission_request_submitted' => 'Cerere de înscriere nouă',
     ],
@@ -107,6 +108,12 @@ return [
     'absence_motivation_submitted' => [
         'title' => 'Cerere de motivare nouă',
         'body' => 'S-a depus o cerere de motivare a absențelor pentru :student.',
+    ],
+    'absence_motivation_decided' => [
+        // Motivul respingerii NU intră în corp (text liber → doar în cabinet/panou, nu pe
+        // canale externe); linkul duce la cerere.
+        'title' => 'Verdict la motivarea absențelor',
+        'body' => 'Cererea de motivare a absențelor pentru :student (:period) a fost soluționată: :status.',
     ],
     'document_request_submitted' => [
         'title' => 'Cerere tipică nouă',

@@ -785,8 +785,11 @@ class CabinetController extends Controller
     }
 
     /**
-     * Descărcarea justificativului unei cereri de motivare — fișier PRIVAT (PII de minor): familia
-     * elevului, dirigintele clasei sau administrația. Niciodată URL public. Accesul se jurnalizează.
+     * Justificativul unei cereri de motivare — fișier PRIVAT (PII de minor): familia elevului,
+     * dirigintele clasei sau administrația (validatorul excepțiilor — vicedirectorul pe educație —
+     * e mereu un rol de administrație, {@see UserRole::audienceDomainHolderValues}). Niciodată URL
+     * public. Accesul se jurnalizează. `?inline=1` servește fișierul inline (previzualizarea de pe
+     * fișa cererii din panou).
      */
     public function downloadMotivationDocument(Request $request, AbsenceMotivation $absenceMotivation, LogStudentAccess $accessLog): StreamedResponse
     {
@@ -807,9 +810,14 @@ class CabinetController extends Controller
             404,
         );
 
-        $accessLog->record($student, 'exported', 'Descărcare justificativ motivare');
+        $inline = $request->boolean('inline');
+        $accessLog->record($student, 'exported', $inline
+            ? 'Previzualizare justificativ motivare'
+            : 'Descărcare justificativ motivare');
 
-        return Storage::disk('local')->download($absenceMotivation->document_path);
+        return $inline
+            ? Storage::disk('local')->response($absenceMotivation->document_path)
+            : Storage::disk('local')->download($absenceMotivation->document_path);
     }
 
     /**
@@ -1088,6 +1096,9 @@ class CabinetController extends Controller
                 'documentUrl' => $motivation->document_path !== null
                     ? route('cabinet.motivation.document', ['absenceMotivation' => $motivation->id], false)
                     : null,
+                // Nota validatorului (obligatorie la respingere) — familia vede DE CE,
+                // nu doar un badge „Respinsă" (§4 transparență).
+                'note' => $motivation->review_note,
             ])
             ->all();
     }

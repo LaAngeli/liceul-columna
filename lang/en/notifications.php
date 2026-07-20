@@ -23,6 +23,7 @@ return [
         'grade_correction_rejected' => 'Grade correction rejected',
         'homework_correction_rejected' => 'Homework correction rejected',
         'absence_motivation_submitted' => 'New absence-excuse request',
+        'absence_motivation_decided' => 'Absence-excuse request decided',
         'document_request_submitted' => 'New document request',
         'admission_request_submitted' => 'New admission request',
     ],
@@ -100,6 +101,10 @@ return [
     'absence_motivation_submitted' => [
         'title' => 'New absence-excuse request',
         'body' => 'An absence-excuse request was submitted for :student.',
+    ],
+    'absence_motivation_decided' => [
+        'title' => 'Absence-excuse request decided',
+        'body' => 'The absence-excuse request for :student (:period) has been decided: :status.',
     ],
     'document_request_submitted' => [
         'title' => 'New document request',

@@ -114,6 +114,7 @@ interface Props {
         statusLabel: string;
         isException: boolean;
         documentUrl: string | null;
+        note: string | null;
     }[];
     corigentaExams?: {
         id: number;

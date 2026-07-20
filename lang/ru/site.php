@@ -705,6 +705,7 @@ return [
         'motivation_sent' => 'Заявка на мотивирование отправлена.',
         'motivation_none' => 'Нет поданных заявок.',
         'motivation_exception' => 'Исключение (после срока)',
+        'motivation_note' => 'Комментарий проверяющего',
         'corigenta_title' => 'Ликвидация задолженностей',
         'corigenta_unscheduled' => 'ожидает назначения даты',
         'corigenta_passed' => 'Сдан',

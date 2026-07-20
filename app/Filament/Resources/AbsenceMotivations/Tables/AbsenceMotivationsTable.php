@@ -3,11 +3,10 @@
 namespace App\Filament\Resources\AbsenceMotivations\Tables;
 
 use App\Enums\RequestStatus;
+use App\Filament\Resources\AbsenceMotivations\AbsenceMotivationResource;
 use App\Filament\Resources\AbsenceMotivations\Pages\ListAbsenceMotivations;
 use App\Models\AbsenceMotivation;
 use App\Models\User;
-use Filament\Actions\Action;
-use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\Textarea;
@@ -93,55 +92,10 @@ class AbsenceMotivationsTable
                     ->visible(fn ($livewire): bool => ! $livewire instanceof ListAbsenceMotivations
                         || $livewire->isArchiveView()),
             ])
-            // Acțiunile pe rând în grup „⋮" (mobile-first): trei butoane late lățeau rândul.
-            ->recordActions([
-                ActionGroup::make([
-                    Action::make('document')
-                        ->label(__('panel.actions.document.label'))
-                        ->icon('heroicon-o-paper-clip')
-                        ->color('gray')
-                        ->visible(fn (AbsenceMotivation $record): bool => $record->document_path !== null)
-                        ->url(fn (AbsenceMotivation $record): string => route('cabinet.motivation.document', $record), shouldOpenInNewTab: true),
-                    Action::make('approve')
-                        ->label(__('panel.actions.validate.label'))
-                        ->icon('heroicon-o-check')
-                        ->color('success')
-                        ->modalSubmitActionLabel(__('panel.actions.validate.label'))
-                        ->visible(fn (AbsenceMotivation $record): bool => self::canReview($record))
-                        ->modalHeading(fn (): string => __('panel.actions.validate.label'))
-                        ->modalDescription(fn (): string => __('panel.actions.validate_bulk.description'))
-                        ->schema([
-                            Textarea::make('review_note')
-                                ->label(__('panel.common.review_note'))
-                                ->maxLength(255),
-                        ])
-                        ->action(function (AbsenceMotivation $record, array $data): void {
-                            $record->approve((int) auth()->id(), $data['review_note'] ?? null);
-
-                            Notification::make()->success()->title(__('panel.actions.validate.success'))->send();
-                        }),
-                    Action::make('reject')
-                        ->label(__('panel.actions.reject.label'))
-                        ->icon('heroicon-o-x-mark')
-                        ->color('danger')
-                        ->modalSubmitActionLabel(__('panel.actions.reject.label'))
-                        ->visible(fn (AbsenceMotivation $record): bool => self::canReview($record))
-                        ->modalHeading(fn (): string => __('panel.actions.reject.label'))
-                        ->schema([
-                            // Familia vede în cabinet doar starea „Respinsă" — fără motiv, ar rămâne cu o
-                            // decizie neexplicată (și cu un drum inutil spre secretariat).
-                            Textarea::make('review_note')
-                                ->label(__('panel.common.rejection_reason'))
-                                ->required()
-                                ->maxLength(255),
-                        ])
-                        ->action(function (AbsenceMotivation $record, array $data): void {
-                            $record->reject((int) auth()->id(), $data['review_note'] ?? null);
-
-                            Notification::make()->warning()->title(__('panel.actions.reject.success'))->send();
-                        }),
-                ]),
-            ])
+            // Judecata s-a mutat pe FIȘA cererii (rândul o deschide): motivul integral, impactul
+            // pe absențe, justificativul previzualizabil și termenul — analiza completă înainte
+            // de verdict. Rămân doar bulk-urile, pentru loturile evident valide.
+            ->recordUrl(fn (AbsenceMotivation $record): string => AbsenceMotivationResource::getUrl('view', ['record' => $record]))
             ->toolbarActions([
                 BulkActionGroup::make([
                     BulkAction::make('approveSelected')
