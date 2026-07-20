@@ -17,6 +17,7 @@ use App\Models\Term;
 use App\Models\TermAverage;
 use App\Support\ContentTranslator;
 use App\Support\Grades;
+use App\Support\SchoolCalendar;
 use Illuminate\Support\Collection;
 
 /**
@@ -41,7 +42,9 @@ class BuildStaffReportData
             'periodLabel' => $term !== null
                 ? $term->name.', '.$term->academicYear->name
                 : '—',
-            'generatedAt' => now()->format('d.m.Y, H:i'),
+            // ORA ȘCOLII, nu a serverului: aplicația rulează pe UTC, iar „Generat la 22:17" pe un
+            // raport scos la 01:17 ora Chișinăului submina încrederea în document (raportat 2026-07-21).
+            'generatedAt' => SchoolCalendar::localNow()->format('d.m.Y, H:i'),
             'generatedBy' => (string) (auth('web')->user()->name ?? 'Sistem'),
         ];
 

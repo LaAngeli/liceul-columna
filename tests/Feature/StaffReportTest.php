@@ -15,6 +15,7 @@ use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -145,6 +146,18 @@ it('lista de clasă conține elevii înmatriculați activ', function () {
 
     expect($data['students'])->toHaveCount(3)
         ->and($data['className'])->not->toBeEmpty();
+});
+
+it('„Generat la" poartă ORA ȘCOLII, nu UTC-ul serverului', function () {
+    $class = SchoolClass::factory()->for($this->year)->create();
+
+    // Instantul exact din raportul defect (2026-07-21): 20.07 22:17 UTC = 21.07 01:17 Chișinău
+    // (+3 vara) — pe UTC, și DATA era greșită, nu doar ora.
+    $this->travelTo(Carbon::parse('2026-07-20 22:17:00', 'UTC'));
+
+    $data = app(BuildStaffReportData::class)->build(StaffReportType::ClassRoster, $class->id, null);
+
+    expect($data['generatedAt'])->toBe('21.07.2026, 01:17');
 });
 
 // ─── Navigatorul pe categorii + rapoartele noi (2026-07-17) ──────────────────────────────

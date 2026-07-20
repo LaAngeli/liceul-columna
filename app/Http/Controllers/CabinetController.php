@@ -33,6 +33,7 @@ use App\Models\TermAverage;
 use App\Models\User;
 use App\Support\ContentTranslator;
 use App\Support\Grades;
+use App\Support\SchoolCalendar;
 use App\Support\Timetable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -893,7 +894,7 @@ class CabinetController extends Controller
                 'studentName' => $student->full_name,
                 'className' => $className,
                 'levels' => $levels,
-                'date' => now()->format('d.m.Y'),
+                'date' => SchoolCalendar::localNow()->format('d.m.Y'),
             ];
         }
 
@@ -973,7 +974,7 @@ class CabinetController extends Controller
             'total' => $absences->count(),
             'totalMotivated' => $absences->where('is_motivated', true)->count(),
             'totalUnmotivated' => $absences->where('is_motivated', false)->count(),
-            'date' => now()->format('d.m.Y'),
+            'date' => SchoolCalendar::localNow()->format('d.m.Y'),
         ];
     }
 
@@ -1014,7 +1015,7 @@ class CabinetController extends Controller
             'average' => $this->summary($student)['average'],
             'statusLabel' => $status['label'],
             'statusOfficial' => $status['official'],
-            'date' => now()->format('d.m.Y'),
+            'date' => SchoolCalendar::localNow()->format('d.m.Y'),
         ];
     }
 

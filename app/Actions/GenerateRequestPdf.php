@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use App\Models\DocumentRequest;
+use App\Support\SchoolCalendar;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -45,7 +46,8 @@ class GenerateRequestPdf
                 'contestedGrade' => $request->contestedGradeLabel(),
                 // Documentul tipărit consemnează că cererea are justificativ anexat electronic.
                 'hasAttachment' => $request->attachment_path !== null,
-                'date' => now()->format('d.m.Y'),
+                // Ora ȘCOLII: pe UTC, o cerere depusă seara ar purta data de IERI (localNow).
+                'date' => SchoolCalendar::localNow()->format('d.m.Y'),
             ])->render();
         } finally {
             app()->setLocale($originalLocale);
