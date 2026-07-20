@@ -107,16 +107,38 @@ intrările manuale). Comanda e idempotentă și reversibilă: se poate relua ori
   trebuie să dea **0** — disciplina legată de fișa altui ciclu a fost defectul reparat în LOT 6
   (219 din 507 lecții pe local, tăcut).
 
-**Două limite ASUMATE, de comunicat beneficiarului — absența alertelor NU înseamnă absența riscului:**
+**Golul NU mai e tăcut (2026-07-20).** `ComputeDeferralRisk` întoarce acum trei lucruri: `risks`,
+`undetermined` (disciplinele la care elevul are absențe, dar care lipsesc din orar) și `noTimetable`
+(clasa n-are niciun slot). Cabinetul afișează un bloc sobru — „Riscul nu se poate calcula la aceste
+discipline" — cu textul explicit **„Absența unui avertisment aici NU înseamnă că nu există risc"**.
+Înainte, „nu pot calcula" și „nu e risc" produceau exact aceeași pagină goală, iar tăcerea se citea
+drept confirmare.
+
+**Două limite ASUMATE, de comunicat beneficiarului:**
 1. **Acoperire parțială.** Primesc sloturi doar clasele care au orar publicat. Măsurat în producție
    la 2026-07-20: **24 din 52** de clase ale anului curent, **536 din 773** de elevi. Pentru restul,
-   riscul nu se poate calcula deloc.
-2. **Engleza rămâne oarbă.** Nomenclatorul are DOUĂ fișe („Limba străină 1 (engleza)" și „Limba
-   engleză (opț)"), iar orarele scriu doar „Limba engleză", fără să marcheze vreodată opționalul
-   (verificat: zero apariții de „opț" în cele 25 de orare). Celulele rămân NEREZOLVATE deliberat — a
-   alege una ar umfla numărul de lecții al uneia și l-ar anula pe al celeilalte. Consecință: la
-   engleză `scheduled = 0`, deci alerta nu pornește niciodată. Se rezolvă doar când sursa distinge
-   cele două ore.
+   riscul nu se poate calcula deloc — dar acum se și SPUNE, per elev.
+2. **Engleza: cauza e la SURSĂ, iar remediul e o editare de text.** Nomenclatorul are DOUĂ fișe
+   („Limba străină 1 (engleza)" și „Limba engleză (opț)"), iar orarele scriu doar „Limba engleză",
+   fără să marcheze vreodată opționalul (verificat: zero apariții de „opț" în cele 25 de orare).
+   Împărțirea orelor între ele **nu se poate deduce din date** — măsurat: zilele distincte de notare
+   dau un raport L1:opț de ~1,36, absențele ~2,04; două proxy-uri care se contrazic, deci orice
+   atribuire automată ar fi o ghicire care schimbă cine primește avertismentul. Sunt cursuri
+   PARALELE reale, nu o fișă duplicată (verificat: 641 din 641 de medii la opțional coexistă cu una
+   la L1, pentru același elev și semestru), deci fuziunea nomenclatorului e exclusă.
+
+   ➜ **REMEDIUL:** în orarul publicat, orele opționale se scriu **„Limba engleză (opț)"**, iar cele
+   obligatorii **„Limba străină 1 (engleza)"**. Importatorul le rezolvă atunci singur, fără nicio
+   modificare de cod — denumirile sunt deja în nomenclator, iar regula „cel mai lung prefix" le
+   distinge. Garantat de testul `DeferralRiskCoverageTest::REMEDIUL LA SURSĂ`. Sunt **57** de celule
+   de reetichetat.
+
+3. **31 de celule rămân neimportabile ORICUM**, indiferent de denumire: sunt sloturi cu DOUĂ
+   discipline pe două grupe („Limba engleză gr.1 / Informatică gr.2"), iar modelul are o singură
+   disciplină per (clasă, zi, oră). Afectează și Informatica, Educația fizică, Educația digitală.
+   Reprezentarea lor ar cere un discriminator de grupă în cheia unică a lui `lessons` — ⚠️ atenție,
+   o coloană NULLABLE într-un index unic anulează constrângerea (NULL-urile sunt distincte în
+   MySQL), deci ar trebui o valoare-santinelă, nu `null`.
 
 ⚠️ **Nu rula `db:seed --class=DemoTestDataSeeder` în producție după import.** `seedLessons()` șterge
 TOATE lecțiile clasei în dirigenția lui `profesor@columna.test` și le înlocuiește cu ~22 de sloturi

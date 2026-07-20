@@ -863,6 +863,9 @@ return [
         'deferral_title' => 'Risc de amânare',
         'deferral_hint' => 'La aceste discipline ai prea puține note și prea multe absențe — există risc de amânare (neîncheierea situației). Recuperează absențele și solicită evaluări.',
         'deferral_lessons' => 'absențe din lecțiile programate',
+        'deferral_unknown_title' => 'Riscul nu se poate calcula la aceste discipline',
+        'deferral_no_timetable' => 'Clasa nu are încă orar structurat, iar riscul de amânare se calculează din numărul de lecții programate. Absența unui avertisment NU înseamnă că nu există risc — întreabă dirigintele.',
+        'deferral_unknown_hint' => 'Orarul clasei nu acoperă încă aceste discipline, iar riscul de amânare se calculează din numărul de lecții programate. Absența unui avertisment aici NU înseamnă că nu există risc — întreabă dirigintele.',
         'deferral_not_status' => 'Riscul de amânare este un avertisment preventiv — nu modifică încă statutul oficial. Statutul „amânat" se stabilește administrativ (Consiliul profesoral + ordinul directorului).',
 
         // A11y (folosite în aria-labels)

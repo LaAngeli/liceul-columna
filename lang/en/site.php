@@ -863,6 +863,9 @@ return [
         'deferral_title' => 'Deferral risk',
         'deferral_hint' => 'In these subjects you have too few grades and too many absences — there is a risk of deferral (non-assessment). Make up the absences and request assessments.',
         'deferral_lessons' => 'absences out of scheduled lessons',
+        'deferral_unknown_title' => 'Risk cannot be computed for these subjects',
+        'deferral_no_timetable' => 'This class has no structured timetable yet, and deferral risk is computed from the number of scheduled lessons. No warning does NOT mean there is no risk — ask the homeroom teacher.',
+        'deferral_unknown_hint' => 'The class timetable does not cover these subjects yet, and deferral risk is computed from the number of scheduled lessons. No warning here does NOT mean there is no risk — ask the homeroom teacher.',
         'deferral_not_status' => 'The deferral risk is a preventive warning — it does not change the official status. The "deferred" status is set administratively (Teachers Council + director\'s order).',
 
         // A11y (used in aria-labels)

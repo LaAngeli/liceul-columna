@@ -15,8 +15,13 @@ use Illuminate\Support\Carbon;
  * puține note (≤ 1) ȘI a lipsit la peste 50% din lecțiile programate. Numărul de lecții programate =
  * lecții/săptămână (din orarul structurat) × săptămânile LUCRĂTOARE ale semestrului curent —
  * zilele din `holidays` nu se numără (#31): cu vacanțele incluse, numitorul era umflat și pragul
- * de 50% practic imposibil de atins. Fără orar sau fără semestru curent cu date, nu se calculează
- * (listă goală).
+ * de 50% practic imposibil de atins.
+ *
+ * Întoarce DOUĂ liste, fiindcă „nu e risc" și „nu pot calcula" nu sunt același lucru: `risks` =
+ * disciplinele care depășesc pragul; `undetermined` = disciplinele la care elevul are absențe, dar
+ * care lipsesc din orarul structurat, deci n-au numitor. Confundate într-o singură listă goală,
+ * familia unui elev cu orar incomplet vedea exact aceeași pagină ca familia unui elev fără nicio
+ * problemă — o tăcere care se citea drept confirmare.
  */
 class ComputeDeferralRisk
 {
@@ -25,7 +30,7 @@ class ComputeDeferralRisk
     private const ABSENCE_THRESHOLD = 0.5;
 
     /**
-     * @return list<array{subject: string, absences: int, scheduled: int}>
+     * @return array{risks: list<array{subject: string, absences: int, scheduled: int}>, undetermined: list<string>, noTimetable: bool}
      */
     public function for(Student $student): array
     {
@@ -33,7 +38,7 @@ class ComputeDeferralRisk
         $term = Term::query()->where('is_current', true)->first();
 
         if ($class === null || $term === null || $term->starts_on === null || $term->ends_on === null) {
-            return [];
+            return ['risks' => [], 'undetermined' => [], 'noTimetable' => true];
         }
 
         $weeks = self::workingWeeks($term);
@@ -44,8 +49,18 @@ class ComputeDeferralRisk
             ->groupBy('subject_id')
             ->pluck('cnt', 'subject_id');
 
+        // Disciplinele la care elevul CHIAR are absențe, dar care lipsesc din orarul structurat:
+        // acolo numitorul nu există, deci riscul nu se poate calcula. Până acum astfel de discipline
+        // dispăreau pur și simplu din rezultat, iar familia vedea aceeași pagină ca un elev fără
+        // nicio problemă — „nu pot calcula" era indistinct de „nu e risc". Cauza pe date reale:
+        // celulele de orar cu DOUĂ discipline pe grupe (nereprezentabile într-un slot) și cele două
+        // fișe de engleză pe care orarele nu le disting. Vezi NOTE-DEV-DEPLOY §1.7.
+        $undetermined = $this->subjectsWithoutSchedule($student, $term, array_values($lessonsPerWeek->keys()->all()));
+
+        // Clasa fără NICIUN slot: nu enumerăm toate disciplinele ei (ar fi un zid de text care
+        // sugerează 12 probleme), ci spunem o singură dată că orarul lipsește cu totul.
         if ($lessonsPerWeek->isEmpty()) {
-            return [];
+            return ['risks' => [], 'undetermined' => [], 'noTimetable' => true];
         }
 
         $subjectNames = Subject::query()->whereIn('id', $lessonsPerWeek->keys())->pluck('name', 'id');
@@ -79,7 +94,37 @@ class ComputeDeferralRisk
             }
         }
 
-        return $risks;
+        return ['risks' => $risks, 'undetermined' => $undetermined, 'noTimetable' => false];
+    }
+
+    /**
+     * Disciplinele la care elevul are absențe în semestru, dar care NU apar în orarul structurat al
+     * clasei — deci fără număr de lecții programate, deci fără prag de comparat.
+     *
+     * @param  list<int|string>  $scheduledSubjectIds
+     * @return list<string>
+     */
+    private function subjectsWithoutSchedule(Student $student, Term $term, array $scheduledSubjectIds): array
+    {
+        $missing = $student->absences()
+            ->where('term_id', $term->id)
+            ->whereNotNull('subject_id')
+            ->whereNotIn('subject_id', $scheduledSubjectIds)
+            ->distinct()
+            ->pluck('subject_id');
+
+        if ($missing->isEmpty()) {
+            return [];
+        }
+
+        $names = Subject::query()
+            ->whereIn('id', $missing)
+            ->orderBy('name')
+            ->pluck('name')
+            ->map(fn (string $name): string => ContentTranslator::subject($name))
+            ->values();
+
+        return array_values($names->all());
     }
 
     /**

@@ -107,9 +107,13 @@ it('riscul de amânare apare la disciplina cu ≤1 notă și >50% absențe din l
         'is_motivated' => false,
     ]);
 
-    $risks = app(ComputeDeferralRisk::class)->for($student);
+    // Forma s-a schimbat deliberat: acțiunea întoarce ACUM două liste, fiindcă „nu e risc" și „nu
+    // pot calcula" nu sunt același lucru (vezi DeferralRiskCoverageTest).
+    $result = app(ComputeDeferralRisk::class)->for($student);
 
-    expect($risks)->toHaveCount(1)
-        ->and($risks[0]['scheduled'])->toBe(20)
-        ->and($risks[0]['absences'])->toBe(11);
+    expect($result['risks'])->toHaveCount(1)
+        ->and($result['risks'][0]['scheduled'])->toBe(20)
+        ->and($result['risks'][0]['absences'])->toBe(11)
+        // Disciplina e în orar, deci evaluabilă — nu apare ca nedeterminată.
+        ->and($result['undetermined'])->toBe([]);
 });

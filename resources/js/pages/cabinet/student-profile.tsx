@@ -105,7 +105,7 @@ interface Props {
         headers: string[];
         rows: string[][];
     } | null;
-    deferralRisk?: { subject: string; absences: number; scheduled: number }[];
+    deferralRisk?: { risks: { subject: string; absences: number; scheduled: number }[]; undetermined: string[]; noTimetable: boolean };
     motivations?: {
         id: number;
         reason: string;

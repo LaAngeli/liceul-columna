@@ -1,5 +1,5 @@
 import { Form } from '@inertiajs/react';
-import { AlertTriangle, ArrowRight, BellRing, ShieldCheck, TrendingDown } from 'lucide-react';
+import { AlertTriangle, ArrowRight, BellRing, Info, ShieldCheck, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
 import { SectionHeading } from '@/components/cabinet/section-heading';
 import { StatCard } from '@/components/cabinet/stat-card';
@@ -69,7 +69,7 @@ export function OverviewTab({
     absencesUnmotivated: number;
     status: StudentStatus;
     statusAck: StatusAck;
-    deferralRisk?: DeferralRisk[];
+    deferralRisk?: { risks: DeferralRisk[]; undetermined: string[]; noTimetable: boolean };
     dynamics?: Dynamics;
     /** Comută la tabul „Situație" (unde se află notele/mediile), ca părintele să vadă ÎNAINTE de confirmare. */
     onShowDetails: () => void;
@@ -78,8 +78,12 @@ export function OverviewTab({
 }) {
     const t = useTranslations();
     const tr = dynamics ? trendSymbol(dynamics.current.trend) : null;
+    // Golul de calcul (orar incomplet) TREBUIE să deschidă secțiunea de la sine: altfel se afișa
+    // doar când elevul avea deja o altă alertă — adică exact invers față de scopul lui, fiindcă
+    // tocmai elevul fără alte semnale e cel despre care nu putem spune nimic.
+    const cannotCompute = (deferralRisk?.undetermined.length ?? 0) > 0 || (deferralRisk?.noTimetable ?? false);
     const hasAlerts =
-        statusAck.needed || (deferralRisk && deferralRisk.length > 0) || (dynamics?.current.alert ?? false);
+        statusAck.needed || (deferralRisk?.risks.length ?? 0) > 0 || (dynamics?.current.alert ?? false) || cannotCompute;
     // Audit § confirmare statut #9 — anti-click-accidental: butonul de confirmare (înregistrare cu dată
     // în jurnalul de audit) e activ DOAR după ce părintele bifează explicit „Am citit situația de mai sus".
     const [confirmReady, setConfirmReady] = useState(false);
@@ -169,7 +173,7 @@ export function OverviewTab({
                     )}
 
                     {/* Risc amânare */}
-                    {deferralRisk && deferralRisk.length > 0 && (
+                    {deferralRisk && deferralRisk.risks.length > 0 && (
                         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
                             <div className="flex items-start gap-3">
                                 <AlertTriangle className="mt-0.5 size-5 text-amber-700 dark:text-amber-300" aria-hidden="true" />
@@ -178,7 +182,7 @@ export function OverviewTab({
                                     <p className="mt-1 text-sm text-amber-800/90 dark:text-amber-300/90">{t('cabinet.deferral_hint')}</p>
                                     <p className="mt-1 text-xs text-amber-700/80 dark:text-amber-300/70">{t('cabinet.deferral_not_status')}</p>
                                     <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                        {deferralRisk.map((r) => (
+                                        {deferralRisk.risks.map((r) => (
                                             <li key={r.subject} className="rounded-lg border border-amber-500/40 bg-card px-3 py-2 text-sm">
                                                 <span className="font-medium">{r.subject}</span>
                                                 <span className="mt-0.5 block text-xs text-muted-foreground">
@@ -187,6 +191,25 @@ export function OverviewTab({
                                             </li>
                                         ))}
                                     </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Discipline la care riscul NU se poate calcula (orar structurat incomplet).
+                        Deliberat sobru, nu alarmant: nu spune că elevul are o problemă, spune că
+                        sistemul nu poate răspunde. Tăcerea de dinainte se citea drept „totul e în
+                        regulă", ceea ce e o afirmație pe care datele nu o susțin. */}
+                    {deferralRisk && cannotCompute && (
+                        <div className="rounded-xl border border-border bg-muted/40 p-4">
+                            <div className="flex items-start gap-3">
+                                <Info className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="text-sm font-semibold">{t('cabinet.deferral_unknown_title')}</h3>
+                                    <p className="mt-1 text-sm text-muted-foreground">{deferralRisk.noTimetable ? t('cabinet.deferral_no_timetable') : t('cabinet.deferral_unknown_hint')}</p>
+                                    {deferralRisk.undetermined.length > 0 && (
+                                        <p className="mt-2 text-sm">{deferralRisk.undetermined.join(', ')}</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
