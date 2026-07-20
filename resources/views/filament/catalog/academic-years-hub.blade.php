@@ -27,8 +27,20 @@
                                 <x-filament::badge color="primary" size="sm">
                                     {{ __('panel.config_nav.current_year') }}
                                 </x-filament::badge>
+                            @elseif ($card['closed'])
+                                {{-- Anul închis nu mai primește note: starea se vede ÎNAINTE de a
+                                     încerca o scriere care ar fi refuzată. --}}
+                                <x-filament::badge color="gray" size="sm">
+                                    {{ __('panel.fields.year_closed') }}
+                                </x-filament::badge>
                             @endif
                         </span>
+
+                        @if ($card['closed'] && $card['closed_on'] !== null)
+                            <span class="mt-0.5 block truncate text-sm text-gray-500 dark:text-gray-400">
+                                {{ __('panel.fields.year_closed_on', ['date' => $card['closed_on']]) }}
+                            </span>
+                        @endif
 
                         @if ($card['period'] !== null)
                             <span class="mt-0.5 block truncate text-sm text-gray-500 dark:text-gray-400">

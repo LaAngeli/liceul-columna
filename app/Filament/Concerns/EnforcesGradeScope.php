@@ -15,6 +15,8 @@ use Illuminate\Validation\ValidationException;
  */
 trait EnforcesGradeScope
 {
+    use RejectsClosedYearWrites;
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -59,6 +61,8 @@ trait EnforcesGradeScope
                 $data['term_id'] = $current->id;
             }
         }
+
+        $this->rejectClosedYear($data['term_id'] ?? null, 'data.graded_on');
 
         $user = auth('web')->user();
 

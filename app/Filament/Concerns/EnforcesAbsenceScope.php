@@ -17,6 +17,8 @@ use Illuminate\Validation\ValidationException;
  */
 trait EnforcesAbsenceScope
 {
+    use RejectsClosedYearWrites;
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -41,6 +43,8 @@ trait EnforcesAbsenceScope
             $data['term_id'] = $term instanceof Term
                 ? $term->id
                 : Term::query()->where('is_current', true)->value('id');
+
+            $this->rejectClosedYear($data['term_id'] ?? null, 'data.occurred_on');
         }
 
         // (3) Anti-duplicat: aceeași absență ACTIVĂ (elev + zi + disciplină) nu se consemnează de 2 ori.

@@ -338,6 +338,10 @@ return [
         'occurred_on' => 'Data',
         'is_motivated' => 'Motivată',
         'is_current' => 'Curent',
+        'year_state' => 'Stare',
+        'year_open' => 'Deschis',
+        'year_closed' => 'Închis',
+        'year_closed_on' => 'Închis la :date',
         'is_anonymous' => 'Anonim',
         'topic' => 'Subiect',
         'subject_name' => 'Disciplina',
@@ -1123,6 +1127,7 @@ return [
     ],
 
     'validation' => [
+        'closed_year' => 'Anul :year este închis: mediile lui au trecut în foaia matricolă. O îndreptare se face prin cererea de corecție, cu aprobare, nu prin scriere directă.',
         'homework' => [
             'class_target_invalid' => 'Alege o clasă validă din listă.',
             'whole_grade_admin_only' => 'Doar administrația poate da temă pentru toată treapta.',

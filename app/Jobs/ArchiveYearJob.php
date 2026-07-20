@@ -44,6 +44,14 @@ class ArchiveYearJob implements ShouldBeUnique, ShouldQueue
     {
         $result = $archiver->run($this->year);
 
+        // Anul devine ÎNCHIS abia DUPĂ ce arhivarea a reușit: marcat înainte, o arhivare eșuată la
+        // mijloc ar fi lăsat un an blocat la scriere și incomplet în foaia matricolă — cea mai
+        // proastă combinație posibilă. Cine a închis rămâne consemnat: e un act cu răspundere.
+        $this->year->forceFill([
+            'closed_at' => now(),
+            'closed_by_user_id' => $this->initiatorId,
+        ])->save();
+
         $initiator = User::query()->find($this->initiatorId);
 
         if ($initiator === null) {

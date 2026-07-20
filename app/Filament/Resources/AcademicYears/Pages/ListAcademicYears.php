@@ -78,7 +78,7 @@ class ListAcademicYears extends ListRecords
      * Cardurile anilor (cei mai noi întâi): badge „An curent" + semestre/clase/înmatriculări
      * + sărituri pre-filtrate + Editare.
      *
-     * @return array<int, array{id: int, title: string, period: string|null, current: bool, stats: array<int, string>, links: array<string, string>, edit_url: string|null, can_archive: bool}>
+     * @return array<int, array{id: int, title: string, period: string|null, current: bool, closed: bool, closed_on: string|null, stats: array<int, string>, links: array<string, string>, edit_url: string|null, can_archive: bool}>
      */
     public function yearCards(): array
     {
@@ -106,6 +106,10 @@ class ListAcademicYears extends ListRecords
                     ? Carbon::parse($year->starts_on)->format('d.m.Y').' – '.Carbon::parse($year->ends_on)->format('d.m.Y')
                     : null,
                 'current' => $currentYearId !== null && (int) $year->id === (int) $currentYearId,
+                // Regimul anului, nu doar un detaliu: într-un an închis catalogul nu mai primește
+                // note. Fără semnalul de aici, refuzul de la salvare ar părea o defecțiune.
+                'closed' => $year->isClosed(),
+                'closed_on' => $year->closed_at?->format('d.m.Y'),
                 'stats' => [
                     (string) trans_choice('panel.config_nav.terms', (int) ($termCounts->get($year->id) ?? 0), ['count' => (int) ($termCounts->get($year->id) ?? 0)]),
                     (string) trans_choice('panel.catalog_nav.classes', (int) ($classCounts->get($year->id) ?? 0), ['count' => (int) ($classCounts->get($year->id) ?? 0)]),
@@ -119,7 +123,7 @@ class ListAcademicYears extends ListRecords
                 'edit_url' => $canConfigure
                     ? AcademicYearResource::getUrl('edit', ['record' => $year])
                     : null,
-                'can_archive' => $canConfigure,
+                'can_archive' => $canConfigure && ! $year->isClosed(),
             ];
         }
 

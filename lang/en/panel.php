@@ -326,6 +326,10 @@ return [
         'ends_on' => 'Ends on',
         'occurred_on' => 'Date',
         'is_motivated' => 'Justified',
+        'year_state' => 'State',
+        'year_open' => 'Open',
+        'year_closed' => 'Closed',
+        'year_closed_on' => 'Closed on :date',
         'is_current' => 'Current',
         'is_anonymous' => 'Anonymous',
         'topic' => 'Topic',
@@ -1108,6 +1112,7 @@ return [
     ],
 
     'validation' => [
+        'closed_year' => 'Academic year :year is closed: its averages have been written to the transcript. A correction goes through the approval request, not a direct write.',
         'homework' => [
             'class_target_invalid' => 'Choose a valid class from the list.',
             'whole_grade_admin_only' => 'Only the administration can assign homework to a whole grade level.',
