@@ -200,6 +200,10 @@ return [
             'heading' => 'Orare de completat',
             'value' => 'De completat',
         ],
+        'year_needs_terms' => [
+            'heading' => 'Ani școlari fără semestre',
+            'value' => 'Definește semestrele',
+        ],
         'quick_actions' => [
             'heading' => 'Acțiuni rapide',
             'new_class' => 'Clasă nouă',
@@ -749,6 +753,7 @@ return [
             'name' => 'Denumire',
             'name_placeholder' => 'ex: 2025–2026',
             'is_current' => 'An curent',
+            'is_current_hint' => 'Se stabilește automat din semestrul curent (comanda zilnică de sincronizare) — nu se bifează manual.',
         ],
         'term' => [
             'number' => 'Numărul semestrului',
@@ -1124,6 +1129,10 @@ return [
         ],
         'grade' => [
             'future' => 'Data notei nu poate fi în viitor.',
+            'no_term_for_date' => 'Nu există un semestru definit pentru această dată. Deschide anul școlar nou (semestre cu intervale) înainte de a introduce note în el.',
+        ],
+        'academic_year' => [
+            'overlap' => 'Intervalul se suprapune cu alt an școlar existent.',
         ],
         'term' => [
             'outside_year' => 'Intervalul semestrului trebuie să se încadreze în anul școlar selectat.',

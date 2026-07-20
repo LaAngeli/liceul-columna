@@ -3,7 +3,7 @@
 namespace App\Filament\Concerns;
 
 use App\Models\AcademicYear;
-use App\Models\Term;
+use App\Support\SchoolCalendar;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -43,10 +43,10 @@ trait HasYearPillsTable
             return (int) $this->yearParam;
         }
 
-        $currentYearId = Term::query()->where('is_current', true)->value('academic_year_id');
+        $currentYearId = SchoolCalendar::currentYearId();
 
-        if ($currentYearId !== null && $visible->contains((int) $currentYearId)) {
-            return (int) $currentYearId;
+        if ($currentYearId !== null && $visible->contains($currentYearId)) {
+            return $currentYearId;
         }
 
         $newest = $visible->sortDesc()->first();
@@ -97,15 +97,33 @@ trait HasYearPillsTable
         return $query;
     }
 
-    /** @return Collection<int, int> anii afișabili: cei cu înregistrări + anul CURENT (mereu) */
+    /**
+     * Anii afișabili: cei cu înregistrări + anul CURENT (mereu) + anul CERUT explicit prin `?an=`,
+     * dacă acela chiar există.
+     *
+     * Ultima parte repară o fundătură: un an NOU, încă fără semestre/clase/înmatriculări, nu apărea
+     * în nicio pastilă, deci toate săriturile spre el (de pe cardul anului, din hub) aterizau TĂCUT
+     * în anul vechi — utilizatorul credea că lucrează în anul nou. Validarea rămâne (un id
+     * inexistent tot cade), doar că „gol" nu mai înseamnă „inexistent".
+     *
+     * @return Collection<int, int>
+     */
     private function visibleYearIds(): Collection
     {
         $ids = $this->yearCounts()->keys()->map(fn ($id): int => (int) $id);
 
-        $currentYearId = Term::query()->where('is_current', true)->value('academic_year_id');
+        $currentYearId = SchoolCalendar::currentYearId();
 
-        if ($currentYearId !== null && ! $ids->contains((int) $currentYearId)) {
-            $ids->push((int) $currentYearId);
+        if ($currentYearId !== null && ! $ids->contains($currentYearId)) {
+            $ids->push($currentYearId);
+        }
+
+        if ($this->yearParam !== null && ctype_digit($this->yearParam)) {
+            $requested = (int) $this->yearParam;
+
+            if (! $ids->contains($requested) && AcademicYear::query()->whereKey($requested)->exists()) {
+                $ids->push($requested);
+            }
         }
 
         return $ids->values();

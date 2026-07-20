@@ -4,6 +4,7 @@ namespace App\Filament\Concerns;
 
 use App\Models\Enrollment;
 use App\Models\Term;
+use App\Support\SchoolCalendar;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -32,11 +33,31 @@ trait EnforcesGradeScope
                 ]);
             }
 
-            // Semestrul aparține datei notei; fallback la semestrul curent în afara intervalelor.
+            // Semestrul aparține datei notei; fallback la semestrul curent în afara intervalelor
+            // (o notă dintr-o vacanță trecută aparține legitim semestrului în curs).
             $term = Term::forDate($gradedOn);
-            $data['term_id'] = $term instanceof Term
-                ? $term->id
-                : Term::query()->where('is_current', true)->value('id');
+
+            if ($term instanceof Term) {
+                $data['term_id'] = $term->id;
+            } else {
+                $current = SchoolCalendar::currentTerm();
+
+                // GARD DE ROLLOVER: dacă data e ULTERIOARĂ sfârșitului anului din care face parte
+                // semestrul curent, înseamnă că a început anul nou fără ca structura lui să fie
+                // definită. Fallback-ul tăcut ar fi pus nota de septembrie în semestrul anului
+                // ÎNCHEIAT — o eroare invizibilă, care se descoperă la calculul mediilor. Mai bine
+                // un mesaj clar. (Refuzăm doar depășirea în VIITOR, nu orice dată din afara anului:
+                // vacanța dinaintea semestrului curent rămâne acoperită de fallback.)
+                $yearEndsOn = $current?->academicYear?->ends_on;
+
+                if ($current === null || ($yearEndsOn !== null && $gradedOn->startOfDay()->isAfter($yearEndsOn))) {
+                    throw ValidationException::withMessages([
+                        'data.graded_on' => __('panel.validation.grade.no_term_for_date'),
+                    ]);
+                }
+
+                $data['term_id'] = $current->id;
+            }
         }
 
         $user = auth('web')->user();

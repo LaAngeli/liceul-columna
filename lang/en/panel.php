@@ -190,6 +190,10 @@ return [
             'heading' => 'Schedules to complete',
             'value' => 'To complete',
         ],
+        'year_needs_terms' => [
+            'heading' => 'Academic years without terms',
+            'value' => 'Define the terms',
+        ],
         'quick_actions' => [
             'heading' => 'Quick actions',
             'new_class' => 'New class',
@@ -736,6 +740,7 @@ return [
             'name' => 'Name',
             'name_placeholder' => 'e.g.: 2025–2026',
             'is_current' => 'Current year',
+            'is_current_hint' => 'Set automatically from the current term (daily sync) — not toggled by hand.',
         ],
         'term' => [
             'number' => 'Term number',
@@ -1109,6 +1114,10 @@ return [
         ],
         'grade' => [
             'future' => 'The grade date cannot be in the future.',
+            'no_term_for_date' => 'No term is defined for this date. Open the new academic year (terms with date ranges) before recording grades in it.',
+        ],
+        'academic_year' => [
+            'overlap' => 'The dates overlap another existing academic year.',
         ],
         'term' => [
             'outside_year' => 'The term dates must fall within the selected academic year.',

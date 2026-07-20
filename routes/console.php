@@ -11,15 +11,22 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// ORA LOCALĂ, explicit: scheduler-ul evaluează implicit în `app.timezone` (UTC), deci orele de mai
+// jos rulau cu 2–3 ore mai târziu decât scria — digestul „de seară" ajungea la 22:00, iar comutarea
+// semestrului se făcea după miezul nopții pe alt calendar decât cel al școlii. Backup-urile primiseră
+// deja fixarea (vezi mai jos); comenzile de domeniu școlar rămăseseră pe UTC.
+$scoala = 'Europe/Chisinau';
+
 // Digestul zilnic de teme (spec §5): un singur rezumat/zi/clasă, ca să nu spamăm familiile.
 // Absențele/notele rămân instant (observers). Necesită ca scheduler-ul să ruleze (cron `schedule:run`).
-Schedule::command(SendHomeworkDigest::class)->dailyAt('19:00');
+Schedule::command(SendHomeworkDigest::class)->dailyAt('19:00')->timezone($scoala);
 
 // Consolidarea zilnică a absențelor nemotivate al căror termen de motivare (5 zile lucrătoare) a expirat (spec §2.1).
-Schedule::command(ConsolidateAbsences::class)->dailyAt('06:00');
+Schedule::command(ConsolidateAbsences::class)->dailyAt('06:00')->timezone($scoala);
 
-// Semestrul „curent" (is_current) urmărește automat data — după intervalele starts_on/ends_on.
-Schedule::command(SyncCurrentTerm::class)->dailyAt('00:05');
+// Semestrul „curent" (is_current) urmărește automat data — după intervalele starts_on/ends_on —
+// și oglindește anul curent pe `academic_years.is_current` (sursa unică: App\Support\SchoolCalendar).
+Schedule::command(SyncCurrentTerm::class)->dailyAt('00:05')->timezone($scoala);
 
 /*
  * Reziliență (#41) — backup pe DOUĂ ritmuri, fiindcă datele au două viteze diferite:

@@ -8,7 +8,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property string $name
+ * @property Carbon|null $starts_on
+ * @property Carbon|null $ends_on
+ * @property bool $is_current
+ */
 class AcademicYear extends Model
 {
     /** @use HasFactory<AcademicYearFactory> */

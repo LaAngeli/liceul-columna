@@ -8,10 +8,10 @@ use App\Filament\Resources\Grades\GradeResource;
 use App\Filament\Resources\HomeworkAssignments\HomeworkAssignmentResource;
 use App\Filament\Resources\Teachers\TeacherResource;
 use App\Filament\Resources\Users\UserResource;
-use App\Models\AcademicYear;
 use App\Models\SchoolClass;
 use App\Models\Teacher;
 use App\Support\ContentTranslator;
+use App\Support\SchoolCalendar;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
@@ -256,7 +256,11 @@ class ListTeachers extends ListRecords
     public function applyRegistryView(Builder $query): Builder
     {
         return match ($this->activeView()) {
-            'diriginti' => $query->whereHas('homeroomClasses', fn (Builder $q) => $q->where('academic_year_id', $this->currentYearId())),
+            // Fără an curent definit nu există „diriginte al anului curent" — vedere goală, nu
+            // o interogare pe un id inexistent.
+            'diriginti' => $this->currentYearId() === null
+                ? $query->whereRaw('1 = 0')
+                : $query->whereHas('homeroomClasses', fn (Builder $q) => $q->where('academic_year_id', $this->currentYearId())),
             'fara-alocari' => $query->whereDoesntHave('teachingAssignments'),
             'fara-cont' => $query->whereNull('user_id'),
             'arhiva' => $query->onlyTrashed(),
@@ -267,6 +271,10 @@ class ListTeachers extends ListRecords
     /** @return Collection<int, string> */
     public function homeroomOfMap(): Collection
     {
+        if ($this->currentYearId() === null) {
+            return $this->homeroomOfMap ??= collect();
+        }
+
         return $this->homeroomOfMap ??= SchoolClass::query()
             ->whereNotNull('homeroom_teacher_id')
             ->where('academic_year_id', $this->currentYearId())
@@ -303,10 +311,12 @@ class ListTeachers extends ListRecords
     /** @return array<string, int> */
     private function viewCounts(): array
     {
+        $currentYearId = $this->currentYearId();
+
         return $this->viewCounts ??= [
             'toti' => Teacher::query()->count(),
-            'diriginti' => Teacher::query()
-                ->whereHas('homeroomClasses', fn (Builder $q) => $q->where('academic_year_id', $this->currentYearId()))
+            'diriginti' => $currentYearId === null ? 0 : Teacher::query()
+                ->whereHas('homeroomClasses', fn (Builder $q) => $q->where('academic_year_id', $currentYearId))
                 ->count(),
             'fara-alocari' => Teacher::query()->whereDoesntHave('teachingAssignments')->count(),
             'fara-cont' => Teacher::query()->whereNull('user_id')->count(),
@@ -314,8 +324,14 @@ class ListTeachers extends ListRecords
         ];
     }
 
-    private function currentYearId(): int
+    /**
+     * Anul curent DERIVAT (semestrul e sursa — vezi {@see SchoolCalendar}). Înainte se citea
+     * flagul manual de pe an, care la rollover rămâne pe anul încheiat: registrul ar fi arătat
+     * diriginții altui an decât restul panoului. `null` = școala n-are încă structură; se
+     * propagă ca atare, fiindcă un `(int) null` ar da 0 și ar filtra tăcut zero rânduri.
+     */
+    private function currentYearId(): ?int
     {
-        return (int) AcademicYear::query()->where('is_current', true)->value('id');
+        return SchoolCalendar::currentYearId();
     }
 }
