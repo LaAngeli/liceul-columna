@@ -94,8 +94,8 @@ return [
         'deadline' => 'Срок',
     ],
     'calendar_event_scope' => [
-        'global' => 'Вся школа',
-        'grade_level' => 'Одна ступень',
+        'global' => 'Вся школа — все ученики и родители',
+        'grade_level' => 'Одна параллель — все классы года обучения',
         'school_class' => 'Один класс',
     ],
     'audience_domain' => [

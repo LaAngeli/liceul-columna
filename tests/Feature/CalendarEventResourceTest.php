@@ -69,7 +69,9 @@ it('conducerea creează un eveniment global, cu autor și fără FK reziduale', 
             'type' => CalendarEventType::SchoolEvent->value,
             'visibility_scope' => CalendarEventScope::Global->value,
             'title' => 'Festivalul de toamnă',
-            'starts_on' => '2026-06-20',
+            // Dată VIITOARE: de la gardarea calendarului (2026-07-20), formularul refuză trecutul
+            // pentru evenimente noi — fixtura veche folosea o dată deja consumată.
+            'starts_on' => now()->addMonth()->toDateString(),
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -93,7 +95,7 @@ it('dirigintele creează un eveniment pentru clasa lui', function () {
             'visibility_scope' => CalendarEventScope::SchoolClass->value,
             'school_class_id' => $class->id,
             'title' => 'Ședință cu părinții',
-            'starts_on' => '2026-06-18',
+            'starts_on' => now()->addWeek()->toDateString(),
         ])
         ->call('create')
         ->assertHasNoFormErrors();

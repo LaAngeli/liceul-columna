@@ -97,9 +97,9 @@ return [
         'deadline' => 'Termen-limită',
     ],
     'calendar_event_scope' => [
-        'global' => 'Toată școala',
-        'grade_level' => 'O treaptă',
-        'school_class' => 'O clasă',
+        'global' => 'Toată școala — toți elevii și părinții',
+        'grade_level' => 'Un an de studiu — toate clasele paralele',
+        'school_class' => 'O singură clasă',
     ],
     'audience_domain' => [
         'instruire' => 'Instruire',

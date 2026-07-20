@@ -676,6 +676,17 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * Poate ÎNREGISTRA RETROACTIV evenimente de calendar (cu dată în trecut). Cazul normal e
+     * planificarea — reperul e ziua de azi, iar trecutul e închis pentru toți; consemnarea
+     * retrospectivă (un eveniment care a avut loc și trebuie să rămână în istoric) e un act de
+     * autoritate, rezervat conducerii academice depline. Verificat pe SERVER, nu doar în formular.
+     */
+    public function canBackdateCalendarEvents(): bool
+    {
+        return $this->hasAnyRole([UserRole::Admin->value, UserRole::Director->value]);
+    }
+
+    /**
      * Poate motiva absențele elevilor unei clase, pe baza unei dovezi: DIRIGINTELE clasei sau
      * administrația academică (spec §2.1). NU și profesorul de disciplină, deși consemnează
      * absențe: o dovadă acoperă ziua/perioada întreagă, deci ar motiva și orele colegilor.

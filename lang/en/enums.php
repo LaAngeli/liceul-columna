@@ -94,9 +94,9 @@ return [
         'deadline' => 'Deadline',
     ],
     'calendar_event_scope' => [
-        'global' => 'Whole school',
-        'grade_level' => 'One grade level',
-        'school_class' => 'One class',
+        'global' => 'Whole school — all students and parents',
+        'grade_level' => 'One year of study — all parallel classes',
+        'school_class' => 'A single class',
     ],
     'audience_domain' => [
         'instruire' => 'Instruction',
