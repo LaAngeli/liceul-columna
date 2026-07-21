@@ -1138,3 +1138,11 @@ html:root.dark {
         row-gap: 0;
     }
 }
+
+/* Matricea rolurilor (și orice tabel lat în scroller propriu): Chrome umflă zona de scroll a
+   DOCUMENTULUI cu lățimea tabelului din interiorul lui `.overflow-x-auto` — body-ul rămâne la
+   375, dar html-ul derulează ~700px în GOL. Pagina de panou nu derulează orizontal prin design
+   (fi-main are max-width); clip pe html taie vidul fără să atingă scrollerele interioare. */
+html.fi {
+    overflow-x: clip;
+}
