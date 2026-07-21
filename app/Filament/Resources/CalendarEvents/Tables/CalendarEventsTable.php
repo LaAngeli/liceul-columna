@@ -24,6 +24,8 @@ class CalendarEventsTable
                     ->wrap(),
 
                 TextColumn::make('type')
+                    // Mobil: esența = titlul + data; tipul intră de la sm în sus.
+                    ->visibleFrom('sm')
                     ->label(__('panel.fields.type'))
                     ->badge(),
 
