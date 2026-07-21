@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Subjects\Pages;
 
 use App\Filament\Resources\Subjects\SubjectResource;
+use App\Models\Subject;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -23,13 +24,23 @@ class EditSubject extends EditRecord
     }
 
     /**
-     * Dicționarele RU/EN (`lang/{ru,en}/subjects.php`) sunt cheiate pe numele RO EXACT —
+     * (1) Poziția în foaia matricolă se aplică prin singura cale de scriere
+     * ({@see Subject::placeInReportOrder}) — mutarea pe o poziție ocupată împinge
+     * restul tranzacțional, pozițiile rămân unice și contigue.
+     * (2) Dicționarele RU/EN (`lang/{ru,en}/subjects.php`) sunt cheiate pe numele RO EXACT —
      * redenumirea disciplinei rupe traducerea TĂCUT (fallback la RO în cabinet/site).
      * Avertizăm configuratorul pe loc, cu pașii de urmat (CLAUDE.md §9).
      */
     protected function afterSave(): void
     {
         $record = $this->getRecord();
+
+        if (! $record instanceof Subject) {
+            return;
+        }
+
+        $raw = $this->data['report_order'] ?? null;
+        Subject::placeInReportOrder($record, is_numeric($raw) ? (int) $raw : null);
 
         if (! $record->wasChanged('name')) {
             return;

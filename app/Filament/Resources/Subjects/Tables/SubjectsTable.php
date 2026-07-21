@@ -27,12 +27,6 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class SubjectsTable
 {
-    /** @var array<int, string> cifrele romane ale treptelor I–XII */
-    private const ROMAN = [
-        1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI',
-        7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII',
-    ];
-
     public static function configure(Table $table): Table
     {
         return $table
@@ -106,8 +100,8 @@ class SubjectsTable
             return (string) __('panel.common.dash');
         }
 
-        $min = self::ROMAN[(int) $record->min_grade] ?? (string) $record->min_grade;
-        $max = self::ROMAN[(int) $record->max_grade] ?? (string) $record->max_grade;
+        $min = SchoolCycle::romanNumeral((int) $record->min_grade);
+        $max = SchoolCycle::romanNumeral((int) $record->max_grade);
 
         return $min === $max ? $min : $min.'–'.$max;
     }

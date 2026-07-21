@@ -29,4 +29,41 @@ enum SchoolCycle: string
             self::Liceu => 'Liceu',
         };
     }
+
+    /** Treapta minimă / maximă VALIDĂ în structura școlii (clasa I–XII) — sursă unică. */
+    public const MIN_GRADE_LEVEL = 1;
+
+    public const MAX_GRADE_LEVEL = 12;
+
+    /**
+     * Cifra romană a unei trepte (I–XII) — convenția de afișare a claselor în tot panoul.
+     */
+    public static function romanNumeral(int $gradeLevel): string
+    {
+        return match ($gradeLevel) {
+            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI',
+            7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII',
+            default => (string) $gradeLevel,
+        };
+    }
+
+    /**
+     * Opțiunile de treaptă pentru selectoare (formulare standardizate — cerința 2026-07-21:
+     * clasele se ALEG, nu se tastează): „Clasa V — Gimnaziu" etc., traduse în limba interfeței.
+     *
+     * @return array<int, string>
+     */
+    public static function gradeLevelOptions(): array
+    {
+        $options = [];
+
+        foreach (range(self::MIN_GRADE_LEVEL, self::MAX_GRADE_LEVEL) as $grade) {
+            $options[$grade] = (string) __('panel.forms.subject.grade_option', [
+                'roman' => self::romanNumeral($grade),
+                'cycle' => self::fromGradeLevel($grade)->label(),
+            ]);
+        }
+
+        return $options;
+    }
 }
