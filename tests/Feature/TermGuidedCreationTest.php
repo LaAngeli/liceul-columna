@@ -129,6 +129,30 @@ it('validarea pe pași oprește înaintarea fără numărul ales', function () {
         ->assertHasFormErrors(['number']);
 });
 
+it('anul are exact DOUĂ semestre: numărul 3 e respins, iar anul plin nu mai oferă nicio opțiune', function () {
+    // Structura reală a școlii: doar semestrele 1 și 2 (foaia matricolă cunoaște Sem I/II/anuala).
+    expect(fn () => Term::factory()->create(['academic_year_id' => $this->year->id, 'number' => 3]))
+        ->toThrow(ValidationException::class);
+
+    // An cu ambele semestre definite → POST forjat cu orice număr e respins (1/2 luate, 3 invalid).
+    Term::factory()->create(['academic_year_id' => $this->year->id, 'number' => 1, 'starts_on' => '2025-09-01', 'ends_on' => '2025-12-20']);
+    Term::factory()->create(['academic_year_id' => $this->year->id, 'number' => 2, 'starts_on' => '2026-01-05', 'ends_on' => '2026-05-31']);
+
+    Livewire::test(CreateTerm::class)
+        ->fillForm([
+            'academic_year_id' => $this->year->id,
+            'number' => 2,
+            'name' => 'Semestrul II',
+            'starts_on' => '2026-06-01',
+            'ends_on' => '2026-06-15',
+        ])
+        ->goToWizardStep(3)
+        ->call('create')
+        ->assertHasFormErrors(['number']);
+
+    expect(Term::query()->where('academic_year_id', $this->year->id)->count())->toBe(2);
+});
+
 it('gărzile de model prind orice cale: număr în afara plajei, interval răsturnat, an închis', function () {
     expect(fn () => Term::factory()->create(['academic_year_id' => $this->year->id, 'number' => 5]))
         ->toThrow(ValidationException::class);

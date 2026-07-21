@@ -810,6 +810,7 @@ return [
             'year_period_info' => 'Year :year: :from - :to',
             'year_no_terms_info' => 'The year has no terms yet - this will be the first.',
             'year_terms_info' => 'Defined terms: :terms',
+            'year_terms_full' => 'The chosen year already has both terms defined - an academic year has exactly two. Nothing left to create here; intervals can be adjusted by editing each term.',
         ],
         'holiday' => [
             'name' => 'Name',
@@ -1219,7 +1220,7 @@ return [
         'term' => [
             'outside_year' => 'The term dates must fall within the selected academic year.',
             'overlap' => 'The dates overlap another existing term.',
-            'number_out_of_range' => 'The term number can only be 1-4.',
+            'number_out_of_range' => 'An academic year has exactly two terms - the number can only be 1 or 2.',
             'dates_inverted' => 'The term end cannot be before its start.',
             'number_taken' => 'The selected year already has a term with this number.',
             'year_closed' => 'The academic year is closed — its term structure is frozen.',

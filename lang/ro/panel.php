@@ -823,6 +823,7 @@ return [
             'year_period_info' => 'Anul :year: :from – :to',
             'year_no_terms_info' => 'Anul nu are încă semestre definite — acesta va fi primul.',
             'year_terms_info' => 'Semestre definite: :terms',
+            'year_terms_full' => 'Anul ales are deja ambele semestre definite — un an școlar are exact două. Nu mai e nimic de creat aici; intervalele se pot ajusta din editarea fiecărui semestru.',
         ],
         'holiday' => [
             'name' => 'Denumire',
@@ -1234,7 +1235,7 @@ return [
         'term' => [
             'outside_year' => 'Intervalul semestrului trebuie să se încadreze în anul școlar selectat.',
             'overlap' => 'Intervalul se suprapune cu alt semestru existent.',
-            'number_out_of_range' => 'Numărul semestrului poate fi doar 1–4.',
+            'number_out_of_range' => 'Anul școlar are exact două semestre — numărul poate fi doar 1 sau 2.',
             'dates_inverted' => 'Sfârșitul semestrului nu poate fi înaintea începutului.',
             'number_taken' => 'Anul selectat are deja un semestru cu acest număr.',
             'year_closed' => 'Anul școlar este închis — structura lui de semestre e înghețată.',

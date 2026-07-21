@@ -46,14 +46,17 @@ class Term extends Model implements Auditable
     protected static function booted(): void
     {
         // Gărzi ABSOLUTE de consistență (fluxul ghidat 2026-07-21), sub ORICE cale de model:
-        // numărul doar 1–4, intervalul nerăsturnat, denumirea CANONICĂ („Semestrul I/II...")
-        // completată automat când lipsește și ținută sincron cât timp e cea canonică — o denumire
-        // custom (editată justificat) rămâne. Semestre noi nu se nasc în ani ÎNCHIȘI (dublura
-        // gărzii din formular). Importul legacy scrie prin query builder — deliberat neatins.
+        // anul școlar are EXACT DOUĂ semestre (structura reală: toate datele istorice au doar
+        // nr. 1–2, iar foaia matricolă/corigența/mediile cunosc doar Sem I/Sem II/anuala — plaja
+        // „1–4" era o permisivitate moștenită din formularul vechi, fără acoperire în domeniu);
+        // intervalul nerăsturnat; denumirea CANONICĂ („Semestrul I/II") completată automat când
+        // lipsește și ținută sincron cât timp e cea canonică — o denumire custom (editată
+        // justificat) rămâne. Semestre noi nu se nasc în ani ÎNCHIȘI (dublura gărzii din
+        // formular). Importul legacy scrie prin query builder — deliberat neatins.
         static::saving(static function (self $term): void {
             $number = $term->getAttribute('number');
 
-            if ($number !== null && ((int) $number < 1 || (int) $number > 4)) {
+            if ($number !== null && ! in_array((int) $number, [1, 2], true)) {
                 throw ValidationException::withMessages([
                     'number' => __('panel.validation.term.number_out_of_range'),
                 ]);
@@ -110,12 +113,13 @@ class Term extends Model implements Auditable
     }
 
     /**
-     * Denumirea CANONICĂ a semestrului cu numărul dat („Semestrul I/II/III/IV") — sursă unică
-     * pentru completarea automată din formular și pentru garda de sincronizare din {@see booted}.
+     * Denumirea CANONICĂ a semestrului cu numărul dat („Semestrul I/II") — sursă unică pentru
+     * completarea automată din formular și pentru garda de sincronizare din {@see booted}.
+     * Anul are exact DOUĂ semestre — structura reală a școlii, nu o limită de UI.
      */
     public static function canonicalName(int $number): ?string
     {
-        $numerals = [1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV'];
+        $numerals = [1 => 'I', 2 => 'II'];
 
         return isset($numerals[$number])
             ? (string) __('panel.forms.term.name_suggestion', ['numeral' => $numerals[$number]])

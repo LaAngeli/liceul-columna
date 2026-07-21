@@ -18,6 +18,7 @@ use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -112,8 +113,8 @@ it('anul ÎNCHIS nu primește semestre noi, iar cele existente nu se mai editeaz
     Livewire::test(CreateTerm::class)
         ->fillForm([
             'academic_year_id' => $year->id,
-            'number' => 3,
-            'name' => 'Semestrul III',
+            'number' => 1,
+            'name' => 'Semestrul I',
             'starts_on' => '2026-07-01',
             'ends_on' => '2026-08-01',
         ])
@@ -155,10 +156,12 @@ it('semestrul cu ISTORIC academic nu poate fi șters; unul gol, ne-curent, da', 
         ->and($configurator->can('delete', $semI))->toBeFalse()
         ->and(fn () => $semI->delete())->toThrow(ValidationException::class);
 
-    // Un semestru gol și ne-curent rămâne curățabil (rând creat din greșeală).
-    $empty = Term::factory()->for($year)->create([
-        'number' => 3, 'name' => 'Semestrul III',
-        'starts_on' => '2026-07-01', 'ends_on' => '2026-08-01', 'is_current' => false,
+    // Un semestru gol și ne-curent rămâne curățabil (rând creat din greșeală) — într-un an nou
+    // (anul are exact DOUĂ semestre; un al treilea nu mai poate exista).
+    $emptyYear = AcademicYear::factory()->create(['starts_on' => '2026-09-01', 'ends_on' => '2027-08-31']);
+    $empty = Term::factory()->for($emptyYear)->create([
+        'number' => 1, 'name' => 'Semestrul I',
+        'starts_on' => '2026-09-01', 'ends_on' => '2026-12-20', 'is_current' => false,
     ]);
 
     expect($configurator->can('delete', $empty))->toBeTrue();
@@ -221,8 +224,12 @@ it('SyncCurrentTermFlag e idempotentă și lasă exact un semestru curent', func
 
 it('pagina arată axa anului, cardurile semestrelor și semnalul pentru semestrul fără interval', function () {
     [$year] = tsYearWithTerms();
-    Term::factory()->for($year)->create([
-        'number' => 4, 'name' => 'Semestru rătăcit', 'starts_on' => null, 'ends_on' => null, 'is_current' => false,
+    // Stare MOȘTENITĂ (un „al treilea semestru" fără interval nu mai poate fi produs de model —
+    // anul are exact două semestre): construită prin query builder, ca datele legacy.
+    DB::table('terms')->insert([
+        'academic_year_id' => $year->id, 'number' => 3, 'name' => 'Semestru rătăcit',
+        'starts_on' => null, 'ends_on' => null, 'is_current' => false,
+        'created_at' => now(), 'updated_at' => now(),
     ]);
 
     $this->travelTo(Carbon::parse('2026-03-10'));

@@ -43,6 +43,7 @@ class CreateTerm extends CreateRecord
                 ->schema([
                     TermForm::numberField(),
                     TermForm::nameField(),
+                    TermForm::yearFullInfoBox(),
                 ]),
             Step::make(__('panel.forms.term.step_period'))
                 ->description(__('panel.forms.term.step_period_hint'))

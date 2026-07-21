@@ -50,6 +50,7 @@ class TermForm
                     ->schema([
                         self::numberField(),
                         self::nameField(),
+                        self::yearFullInfoBox(),
                     ]),
                 Section::make(__('panel.forms.term.step_period'))
                     ->description(__('panel.forms.term.step_period_hint'))
@@ -223,6 +224,24 @@ class TermForm
             ->helperText(__('panel.forms.term.name_autofill_hint'));
     }
 
+    /**
+     * INFO BOX când anul ales are DEJA ambele semestre (lista de numere e goală): explică de ce
+     * nu mai e nimic de creat — anul școlar are exact două semestre.
+     */
+    public static function yearFullInfoBox(): Section
+    {
+        return Section::make()
+            ->compact()
+            ->secondary()
+            ->columnSpanFull()
+            ->visibleOn('create')
+            ->visible(static fn (Get $get): bool => is_numeric($get('academic_year_id'))
+                && count(array_diff([1, 2], self::takenNumbers($get, null))) === 0)
+            ->schema([
+                Text::make(fn (): string => (string) __('panel.forms.term.year_terms_full'))->weight('bold'),
+            ]);
+    }
+
     /** Începutul: limitat la perioada anului chiar în calendar; propus automat la alegerea numărului. */
     public static function startsOnField(): DatePicker
     {
@@ -296,33 +315,47 @@ class TermForm
     }
 
     /**
-     * Numerele DISPONIBILE în anul ales (1–4 minus cele deja definite), etichetate canonic.
-     * La editare, numărul propriu rămâne selectabil.
+     * Numerele DISPONIBILE în anul ales — anul are exact DOUĂ semestre (structura reală a
+     * școlii), deci opțiunile sunt 1–2 minus cele deja definite. La editare, numărul propriu
+     * rămâne selectabil. Când ambele există, lista e goală — info box-ul de alături explică.
      *
      * @return array<int, string>
      */
     private static function numberOptions(Get $get, ?Model $record): array
     {
-        $yearId = $get('academic_year_id') ?? ($record?->getAttribute('academic_year_id'));
-
-        $taken = is_numeric($yearId)
-            ? Term::query()
-                ->where('academic_year_id', (int) $yearId)
-                ->when($record !== null, fn (Builder $query) => $query->whereKeyNot($record->getKey()))
-                ->pluck('number')
-                ->map(fn ($number): int => (int) $number)
-                ->all()
-            : [];
+        $taken = self::takenNumbers($get, $record);
 
         $options = [];
 
-        foreach ([1, 2, 3, 4] as $number) {
+        foreach ([1, 2] as $number) {
             if (! in_array($number, $taken, true)) {
                 $options[$number] = Term::canonicalName($number) ?? (string) $number;
             }
         }
 
         return $options;
+    }
+
+    /**
+     * Numerele deja definite în anul ales (fără recordul editat).
+     *
+     * @return array<int, int>
+     */
+    private static function takenNumbers(Get $get, ?Model $record): array
+    {
+        $yearId = $get('academic_year_id') ?? ($record?->getAttribute('academic_year_id'));
+
+        if (! is_numeric($yearId)) {
+            return [];
+        }
+
+        return Term::query()
+            ->where('academic_year_id', (int) $yearId)
+            ->when($record !== null, fn (Builder $query) => $query->whereKeyNot($record->getKey()))
+            ->pluck('number')
+            ->map(fn ($number): int => (int) $number)
+            ->values()
+            ->all();
     }
 
     /** Prima zi LIBERĂ a anului ales: după ultimul semestru definit, altfel începutul anului. */
