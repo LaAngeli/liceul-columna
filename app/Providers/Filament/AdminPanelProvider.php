@@ -120,6 +120,13 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): string => View::make('filament.topbar.live-datetime')->render(),
             )
+            // Meniul mobil (audit responsiv 2026-07-21): sub `lg` sidebar-ul deschis acoperă tot
+            // ecranul, iar închiderea stă în ACEEAȘI bară cu logo-ul (colțul dreapta-sus) — X-ul
+            // implicit din topbar rămânea ACOPERIT de sidebar-ul full-width. Stilurile în theme.css.
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_LOGO_AFTER,
+                fn (): string => View::make('filament.topbar.sidebar-mobile-close')->render(),
+            )
             // Afordanțe interactive (audit UI/UX 2026-07-17): Tailwind v4 a scos `cursor: pointer`
             // de pe butoane, deci cardurile navigatoarelor, pastilele vederilor și rândurile-buton
             // arătau săgeată deși sunt apăsabile. Regulă de PANOU injectată în <head> (supraviețuiește

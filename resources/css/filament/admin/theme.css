@@ -958,3 +958,73 @@ html:root.dark {
     .cx-composer { inset: 0; width: auto; max-height: none; border-radius: 0; }
     .cx-composer__bar { border-radius: 0; }
 }
+
+/* ==========================================================================
+   MENIUL MOBIL AL PANOULUI (audit responsiv 2026-07-21) — doar sub `lg`.
+   Vendorul dă sidebar-ului `transition-all`, dar în starea ÎNCHISĂ nu-i dă
+   nicio lățime → glisarea nu avea ce anima (meniul „sărea"). Lățime CONSTANTĂ
+   = tot ecranul (cerința beneficiarului) + tranziție explicită. Închiderea
+   stă în bara logo-ului (render hook SIDEBAR_LOGO_AFTER), fiindcă X-ul
+   implicit din topbar rămâne ACOPERIT de sidebar-ul full-width.
+   ========================================================================== */
+@media (max-width: 1023.98px) {
+    .fi-sidebar {
+        width: 100dvw;
+        max-width: 100dvw;
+        transition:
+            translate 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.3s ease;
+    }
+
+    .fi-sidebar.fi-sidebar-open {
+        width: 100dvw;
+    }
+
+    /* Ecranul din spate nu derulează cât meniul e deschis (meniul are scroll propriu). */
+    body:has(.fi-sidebar.fi-sidebar-open) {
+        overflow: hidden;
+    }
+
+    /* Țintă tactilă ≥44px pentru comutatorul de meniu din topbar. */
+    .fi-topbar-open-sidebar-btn,
+    .fi-topbar-close-sidebar-btn {
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+    }
+}
+
+/* X-ul din bara logo-ului sidebar-ului: împins în colțul din dreapta, țintă 44px,
+   aceleași stări ca butoanele-icon Filament. Ascuns pe desktop și de `lg:hidden`
+   din blade — regula de aici e centura de siguranță + stilul propriu-zis. */
+.fi-sidebar-mobile-close-btn {
+    margin-inline-start: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.625rem;
+    color: rgb(107 114 128);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.fi-sidebar-mobile-close-btn:hover {
+    background: rgb(0 0 0 / 0.05);
+    color: rgb(55 65 81);
+}
+
+.dark .fi-sidebar-mobile-close-btn {
+    color: rgb(156 163 175);
+}
+
+.dark .fi-sidebar-mobile-close-btn:hover {
+    background: rgb(255 255 255 / 0.06);
+    color: rgb(229 231 235);
+}
+
+@media (min-width: 1024px) {
+    .fi-sidebar-mobile-close-btn {
+        display: none;
+    }
+}

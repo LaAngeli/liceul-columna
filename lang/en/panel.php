@@ -2,6 +2,7 @@
 
 return [
     'nav' => [
+        'close_menu' => 'Close menu',
         'groups' => [
             'catalog' => 'Catalog',
             'approvals' => 'Approvals',

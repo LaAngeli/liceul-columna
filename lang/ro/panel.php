@@ -12,6 +12,7 @@
 
 return [
     'nav' => [
+        'close_menu' => 'Închide meniul',
         'groups' => [
             'catalog' => 'Catalog',
             'approvals' => 'Aprobări',
