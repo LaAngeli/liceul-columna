@@ -45,6 +45,49 @@ class Term extends Model implements Auditable
      */
     protected static function booted(): void
     {
+        // Gărzi ABSOLUTE de consistență (fluxul ghidat 2026-07-21), sub ORICE cale de model:
+        // numărul doar 1–4, intervalul nerăsturnat, denumirea CANONICĂ („Semestrul I/II...")
+        // completată automat când lipsește și ținută sincron cât timp e cea canonică — o denumire
+        // custom (editată justificat) rămâne. Semestre noi nu se nasc în ani ÎNCHIȘI (dublura
+        // gărzii din formular). Importul legacy scrie prin query builder — deliberat neatins.
+        static::saving(static function (self $term): void {
+            $number = $term->getAttribute('number');
+
+            if ($number !== null && ((int) $number < 1 || (int) $number > 4)) {
+                throw ValidationException::withMessages([
+                    'number' => __('panel.validation.term.number_out_of_range'),
+                ]);
+            }
+
+            $startsOn = $term->getAttribute('starts_on');
+            $endsOn = $term->getAttribute('ends_on');
+
+            if ($startsOn !== null && $endsOn !== null && $endsOn < $startsOn) {
+                throw ValidationException::withMessages([
+                    'ends_on' => __('panel.validation.term.dates_inverted'),
+                ]);
+            }
+
+            if ($number !== null) {
+                $name = $term->getAttribute('name');
+                $canonicalForOldNumber = self::canonicalName((int) $term->getOriginal('number'));
+
+                if (! is_string($name) || trim($name) === '' || $name === $canonicalForOldNumber) {
+                    $term->setAttribute('name', self::canonicalName((int) $number) ?? $name);
+                }
+            }
+        });
+
+        static::creating(static function (self $term): void {
+            $closedAt = AcademicYear::query()->whereKey($term->getAttribute('academic_year_id'))->value('closed_at');
+
+            if ($closedAt !== null) {
+                throw ValidationException::withMessages([
+                    'academic_year_id' => __('panel.validation.term.year_closed'),
+                ]);
+            }
+        });
+
         static::deleting(static function (self $term): void {
             if ($term->is_current) {
                 throw ValidationException::withMessages([
@@ -64,6 +107,19 @@ class Term extends Model implements Auditable
                 ]);
             }
         });
+    }
+
+    /**
+     * Denumirea CANONICĂ a semestrului cu numărul dat („Semestrul I/II/III/IV") — sursă unică
+     * pentru completarea automată din formular și pentru garda de sincronizare din {@see booted}.
+     */
+    public static function canonicalName(int $number): ?string
+    {
+        $numerals = [1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV'];
+
+        return isset($numerals[$number])
+            ? (string) __('panel.forms.term.name_suggestion', ['numeral' => $numerals[$number]])
+            : null;
     }
 
     /**
