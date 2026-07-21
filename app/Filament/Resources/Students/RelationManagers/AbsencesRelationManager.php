@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Students\RelationManagers;
 
+use App\Filament\Concerns\OmitsOwnerColumns;
 use App\Filament\Resources\Absences\Tables\AbsencesTable;
 use App\Models\User;
 use BackedEnum;
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class AbsencesRelationManager extends RelationManager
 {
+    use OmitsOwnerColumns;
+
     protected static string $relationship = 'absences';
 
     public static function getTitle(Model $ownerRecord, string $pageClass): string
@@ -34,8 +37,11 @@ class AbsencesRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return AbsencesTable::configure(
-            $table->recordTitleAttribute('id'),
+        $table = $this->withoutColumns(
+            AbsencesTable::configure($table->recordTitleAttribute('id')),
+            ['student.full_name'],
         );
+
+        return $this->wrapColumns($table, ['subject.name']);
     }
 }

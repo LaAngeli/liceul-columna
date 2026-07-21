@@ -12,6 +12,8 @@
 
 return [
     'nav' => [
+        'tabs_scroll_start' => 'Derulează taburile spre stânga',
+        'tabs_scroll_end' => 'Derulează taburile spre dreapta',
         'close_menu' => 'Închide meniul',
         'groups' => [
             'catalog' => 'Catalog',

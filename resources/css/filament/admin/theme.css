@@ -1028,3 +1028,73 @@ html:root.dark {
         display: none;
     }
 }
+
+/* ==========================================================================
+   BARA DE TABURI derulabilă (audit responsiv 2026-07-21). Vendorul lasă doar
+   scrollbar-ul nativ — urât pe desktop, invizibil pe touch până tragi de bară.
+   Îl ascundem și punem SĂGEȚI care apar doar când mai e conținut în direcția
+   lor (logica în suprascrierea `components/tabs/index.blade.php`).
+   ========================================================================== */
+.fi-tabs-scroller {
+    position: relative;
+    min-width: 0;
+}
+
+.fi-tabs-scroller > .fi-tabs {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-behavior: smooth;
+}
+
+.fi-tabs-scroller > .fi-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.fi-tabs-scroll-btn {
+    position: absolute;
+    top: 50%;
+    translate: 0 -50%;
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 9999px;
+    background: rgb(255 255 255);
+    color: rgb(75 85 99);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 0 0 1px rgb(0 0 0 / 0.06);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.fi-tabs-scroll-btn:hover {
+    background: rgb(243 244 246);
+    color: rgb(17 24 39);
+}
+
+.fi-tabs-scroll-btn-start {
+    inset-inline-start: 0.375rem;
+}
+
+.fi-tabs-scroll-btn-end {
+    inset-inline-end: 0.375rem;
+}
+
+.dark .fi-tabs-scroll-btn {
+    background: rgb(39 39 42);
+    color: rgb(212 212 216);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.1);
+}
+
+.dark .fi-tabs-scroll-btn:hover {
+    background: rgb(63 63 70);
+    color: rgb(244 244 245);
+}
+
+/* Săgeata nu trebuie să acopere primul/ultimul tab: bara primește pernă doar
+   pe mobil, unde apar săgețile (pe desktop taburile încap aproape mereu). */
+@media (max-width: 1023.98px) {
+    .fi-tabs-scroller > .fi-tabs:not(.fi-contained) {
+        scroll-padding-inline: 2.25rem;
+    }
+}

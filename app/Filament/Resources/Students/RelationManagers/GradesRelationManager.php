@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Students\RelationManagers;
 
+use App\Filament\Concerns\OmitsOwnerColumns;
 use App\Filament\Resources\Grades\Tables\GradesTable;
 use App\Models\User;
 use BackedEnum;
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class GradesRelationManager extends RelationManager
 {
+    use OmitsOwnerColumns;
+
     protected static string $relationship = 'grades';
 
     public static function getTitle(Model $ownerRecord, string $pageClass): string
@@ -41,8 +44,13 @@ class GradesRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return GradesTable::configure(
-            $table->recordTitleAttribute('id'),
+        // Coloana „Elev" e redundantă pe fișa elevului — și costa 122 din cele 343 de puncte
+        // disponibile pe mobil, împingând tabelul în scroll orizontal.
+        $table = $this->withoutColumns(
+            GradesTable::configure($table->recordTitleAttribute('id')),
+            ['student.full_name'],
         );
+
+        return $this->wrapColumns($table, ['subject.name']);
     }
 }

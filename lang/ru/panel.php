@@ -2,6 +2,8 @@
 
 return [
     'nav' => [
+        'tabs_scroll_start' => 'Прокрутить вкладки влево',
+        'tabs_scroll_end' => 'Прокрутить вкладки вправо',
         'close_menu' => 'Закрыть меню',
         'groups' => [
             'catalog' => 'Каталог',

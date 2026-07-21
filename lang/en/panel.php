@@ -2,6 +2,8 @@
 
 return [
     'nav' => [
+        'tabs_scroll_start' => 'Scroll tabs left',
+        'tabs_scroll_end' => 'Scroll tabs right',
         'close_menu' => 'Close menu',
         'groups' => [
             'catalog' => 'Catalog',
