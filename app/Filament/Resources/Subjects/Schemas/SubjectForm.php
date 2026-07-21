@@ -168,8 +168,20 @@ class SubjectForm
                                         }
                                     }
 
+                                    // DOAR la îngustare față de starea salvată: istoricul care era
+                                    // DEJA în afara intervalului (stare moștenită) nu blochează
+                                    // salvările care nu ating intervalul — același principiu ca la
+                                    // duplicatele legacy de număr matricol.
                                     if ($record !== null) {
-                                        self::failIfNarrowingOverHistory($record, $min, $max, $fail);
+                                        $originalMin = $record->getRawOriginal('min_grade');
+                                        $originalMax = $record->getRawOriginal('max_grade');
+
+                                        $narrowing = ($originalMin !== null && $min > (int) $originalMin)
+                                            || ($originalMax !== null && $max < (int) $originalMax);
+
+                                        if ($narrowing) {
+                                            self::failIfNarrowingOverHistory($record, $min, $max, $fail);
+                                        }
                                     }
                                 },
                             ]),

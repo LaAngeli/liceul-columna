@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -34,6 +35,33 @@ class Student extends Model implements Auditable
 
     /** @use HasFactory<StudentFactory> */
     use HasFactory, SoftDeletes;
+
+    /**
+     * Gardă ABSOLUTĂ de consistență (standardizarea 2026-07-21), sub ORICE cale de model:
+     * numele se normalizează, iar grupa la engleză nu poate fi decât 1, 2 sau lipsă — școala
+     * împarte clasa în exact două grupe la L1 (formularul vechi accepta și „3"). Importul
+     * legacy scrie prin query builder — deliberat neatins.
+     */
+    protected static function booted(): void
+    {
+        static::saving(static function (self $student): void {
+            foreach (['last_name', 'first_name'] as $attribute) {
+                $raw = $student->getAttribute($attribute);
+
+                if (is_string($raw)) {
+                    $student->setAttribute($attribute, trim((string) preg_replace('/\s+/u', ' ', $raw)));
+                }
+            }
+
+            $group = $student->getAttribute('english_group');
+
+            if ($group !== null && ! in_array((int) $group, [1, 2], true)) {
+                throw ValidationException::withMessages([
+                    'english_group' => __('panel.validation.student.english_group_invalid'),
+                ]);
+            }
+        });
+    }
 
     protected $fillable = [
         'user_id',

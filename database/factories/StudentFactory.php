@@ -22,7 +22,7 @@ class StudentFactory extends Factory
             'last_name' => fake()->firstName(),
             'sex' => fake()->randomElement(Sex::cases()),
             'register_number' => (string) fake()->unique()->numberBetween(1, 9999),
-            'english_group' => fake()->numberBetween(1, 3),
+            'english_group' => fake()->numberBetween(1, 2),
             'second_language' => SecondLanguage::None,
         ];
     }
