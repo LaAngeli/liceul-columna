@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\ArchiveNotifications;
 use App\Console\Commands\ConsolidateAbsences;
 use App\Console\Commands\SendHomeworkDigest;
 use App\Console\Commands\SyncCurrentTerm;
@@ -27,6 +28,11 @@ Schedule::command(ConsolidateAbsences::class)->dailyAt('06:00')->timezone($scoal
 // Semestrul „curent" (is_current) urmărește automat data — după intervalele starts_on/ends_on —
 // și oglindește anul curent pe `academic_years.is_current` (sursa unică: App\Support\SchoolCalendar).
 Schedule::command(SyncCurrentTerm::class)->dailyAt('00:05')->timezone($scoala);
+
+// Retenția notificărilor (2026-07-21): cele CITITE mai vechi de `notifications.archive_after_days`
+// trec automat în arhivă (nu se șterg; necititele nu se ating). Utilizatorii nu pot șterge
+// notificări — arhivarea e singura cale de ieșire din lista principală, și e a sistemului.
+Schedule::command(ArchiveNotifications::class)->dailyAt('03:10')->timezone($scoala);
 
 /*
  * Reziliență (#41) — backup pe DOUĂ ritmuri, fiindcă datele au două viteze diferite:

@@ -109,7 +109,7 @@ return [
             'event_no_description' => 'Fără descriere',
             'event_time_all_day' => 'Toată ziua',
         ],
-        'notifications' => ['title' => 'Notificări'],
+        'notifications' => ['title' => 'Preferințe notificări'],
         'reports' => [
             'title' => 'Generare rapoarte',
             'hint' => 'Generează rapoarte pe clasă (PDF). Vezi doar clasele și disciplinele la care ai acces.',
@@ -1655,6 +1655,29 @@ return [
         'missing_empty_description' => 'Toate conturile active ale segmentului au confirmat versiunea curentă.',
         'superseded' => 'versiune anterioară',
         'filter_current' => 'Versiunea curentă',
+    ],
+
+    // Setări → Notificările mele: inboxul complet al contului (retenție 2026-07-21).
+    'my_notifications' => [
+        'title' => 'Notificările mele',
+        'tab_recent' => 'Recente',
+        'tab_archive' => 'Arhivă',
+        'archive_hint' => 'Notificările citite mai vechi de :zile zile ajung automat aici. Nimic nu se șterge — istoricul rămâne mereu accesibil.',
+        'search' => 'Caută în arhivă…',
+        'filter_type' => 'Tipul notificării',
+        'all_types' => 'Toate tipurile',
+        'from' => 'De la',
+        'until' => 'Până la',
+        'sort_new' => 'Cele mai noi întâi',
+        'sort_old' => 'Cele mai vechi întâi',
+        'reset' => 'Resetează filtrele',
+        'archived_on' => 'Arhivată la',
+        'empty_active' => 'Nicio notificare activă.',
+        'empty_archive' => 'Arhiva e goală deocamdată.',
+        'empty_filtered' => 'Nicio notificare nu corespunde filtrelor.',
+        'open' => 'Deschide',
+        'mark_read' => 'Marchează citită',
+        'mark_all' => 'Marchează toate citite',
     ],
 
     'audit_nav' => [

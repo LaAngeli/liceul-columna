@@ -99,7 +99,7 @@ return [
             'event_no_description' => 'No description',
             'event_time_all_day' => 'All day',
         ],
-        'notifications' => ['title' => 'Notifications'],
+        'notifications' => ['title' => 'Notification preferences'],
         'reports' => [
             'title' => 'Generate reports',
             'hint' => 'Generate class reports (PDF). You only see the classes and subjects you can access.',
@@ -1639,6 +1639,29 @@ return [
         'missing_empty_description' => 'Every active account in the segment has confirmed the current version.',
         'superseded' => 'previous version',
         'filter_current' => 'Current version',
+    ],
+
+    // Settings → My notifications: the account's full inbox (retention 2026-07-21).
+    'my_notifications' => [
+        'title' => 'My notifications',
+        'tab_recent' => 'Recent',
+        'tab_archive' => 'Archive',
+        'archive_hint' => 'Read notifications older than :zile days land here automatically. Nothing is deleted — the history stays accessible.',
+        'search' => 'Search the archive…',
+        'filter_type' => 'Notification type',
+        'all_types' => 'All types',
+        'from' => 'From',
+        'until' => 'Until',
+        'sort_new' => 'Newest first',
+        'sort_old' => 'Oldest first',
+        'reset' => 'Reset filters',
+        'archived_on' => 'Archived on',
+        'empty_active' => 'No active notifications.',
+        'empty_archive' => 'The archive is empty for now.',
+        'empty_filtered' => 'No notification matches the filters.',
+        'open' => 'Open',
+        'mark_read' => 'Mark as read',
+        'mark_all' => 'Mark all as read',
     ],
 
     'audit_nav' => [

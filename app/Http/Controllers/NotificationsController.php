@@ -4,12 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Enums\NotificationChannel;
 use App\Enums\NotificationType;
+use App\Models\DatabaseNotification;
 use App\Models\Student;
 use App\Support\SchoolCalendar;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -21,21 +22,139 @@ use Inertia\Response;
  */
 class NotificationsController extends Controller
 {
+    /**
+     * Inboxul pe DOUĂ file (retenția 2026-07-21): „Recente" = notificările active (nearhivate),
+     * „Arhivă" = istoricul complet, căutabil și filtrabil (perioadă, tip, sortare), grupat pe luni.
+     * Nimic nu se șterge — arhivarea automată e singura cale de ieșire din lista principală.
+     */
     public function index(Request $request): Response
     {
         $user = $request->user('web');
 
-        $records = $user->notifications()->latest()->limit(50)->get();
+        $tab = $request->query('tab') === 'arhiva' ? 'arhiva' : 'recente';
 
-        // Elevii care NU mai există (fișă arhivată) → link-urile „cabinet/elev/{id}" din notificările
-        // vechi ar da 404 (binding-ul implicit exclude soft-deleted). Neutralizăm URL-ul pentru ei ca
-        // să nu trimitem familia spre pagini moarte (#37).
+        $props = [
+            'tab' => $tab,
+            // Numărătorile filelor — arhiva e vizibilă ca destinație chiar de pe fila activă.
+            'counts' => [
+                'active' => $user->notifications()->active()->count(),
+                'archived' => $user->notifications()->archived()->count(),
+            ],
+            // Pragul de arhivare (configurabil) — afișat ca explicație în fila Arhivă.
+            'archiveDays' => max(1, (int) config('notifications.archive_after_days', 30)),
+            // Totalul REAL de necitite (badge-ul din header) — lista activă e plafonată la 50, deci
+            // butonul „Marchează tot" se afișează după acest total, nu după cele 50 afișate (#37).
+            'unreadTotal' => $user->unreadNotifications()->count(),
+        ];
+
+        if ($tab === 'arhiva') {
+            $props += $this->archiveProps($request);
+            $props['notifications'] = [];
+        } else {
+            $records = $user->notifications()->active()->limit(50)->get();
+            $props['notifications'] = $this->present($records);
+        }
+
+        return Inertia::render('cabinet/notifications', $props);
+    }
+
+    /**
+     * Fila „Arhivă": filtre validate blând (valorile invalide se ignoră, nu aruncă), paginare,
+     * sortare cronologică în ambele sensuri și eticheta lunii pentru gruparea vizuală.
+     *
+     * @return array<string, mixed>
+     */
+    private function archiveProps(Request $request): array
+    {
+        $user = $request->user('web');
+
+        $q = trim((string) $request->query('q', ''));
+        $q = mb_substr($q, 0, 100);
+
+        $tip = NotificationType::tryFrom((string) $request->query('tip', ''))?->value;
+
+        $deLa = self::validDate($request->query('de_la'));
+        $panaLa = self::validDate($request->query('pana_la'));
+
+        $sort = $request->query('sort') === 'vechi' ? 'asc' : 'desc';
+
+        $query = $user->notifications()
+            ->archived()
+            ->when($q !== '', fn ($builder) => $builder->where(function ($w) use ($q): void {
+                $w->where('data->title', 'like', "%{$q}%")
+                    ->orWhere('data->body', 'like', "%{$q}%");
+            }))
+            ->when($tip !== null, fn ($builder) => $builder->where('data->type', $tip))
+            ->when($deLa !== null, fn ($builder) => $builder->whereDate('created_at', '>=', $deLa))
+            ->when($panaLa !== null, fn ($builder) => $builder->whereDate('created_at', '<=', $panaLa))
+            ->reorder('created_at', $sort);
+
+        $paginator = $query->paginate(25)->withQueryString();
+
+        /** @var Collection<int, DatabaseNotification> $records */
+        $records = $paginator->getCollection();
+
+        return [
+            'archive' => [
+                'items' => $this->present($records),
+                'page' => $paginator->currentPage(),
+                'lastPage' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+                'prev' => $paginator->previousPageUrl(),
+                'next' => $paginator->nextPageUrl(),
+            ],
+            'archiveFilters' => [
+                'q' => $q,
+                'tip' => $tip,
+                'de_la' => $deLa,
+                'pana_la' => $panaLa,
+                'sort' => $sort === 'asc' ? 'vechi' : 'recente',
+            ],
+            // Doar tipurile PREZENTE în arhiva utilizatorului — un filtru cu 21 de opțiuni goale
+            // ar fi zgomot; etichetele vin traduse în limba interfeței. Distincția se face în PHP
+            // (arhiva unui user e mică), nu prin extract JSON în SQL — portabil MySQL/SQLite.
+            'archiveTypes' => $user->notifications()
+                ->archived()
+                ->reorder()
+                ->get()
+                ->map(fn (DatabaseNotification $n): mixed => $n->data['type'] ?? null)
+                ->filter(fn ($value): bool => is_string($value) && $value !== '')
+                ->unique()
+                ->sort()
+                ->values()
+                ->mapWithKeys(fn (string $value): array => [
+                    $value => NotificationType::tryFrom($value)?->label() ?? $value,
+                ])
+                ->all(),
+        ];
+    }
+
+    /** Data „Y-m-d" validă sau null — filtrele nu aruncă niciodată pe input stricat. */
+    private static function validDate(mixed $value): ?string
+    {
+        return (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1) ? $value : null;
+    }
+
+    /**
+     * Forma de afișare a unei liste de notificări (comună filelor Recente/Arhivă): payload aplatizat,
+     * URL-uri moarte neutralizate, momente pe ora școlii + eticheta lunii (gruparea din arhivă).
+     *
+     * Elevii care NU mai există (fișă arhivată) → link-urile „cabinet/elev/{id}" din notificările
+     * vechi ar da 404 (binding-ul implicit exclude soft-deleted). Neutralizăm URL-ul pentru ei ca
+     * să nu trimitem familia spre pagini moarte (#37).
+     *
+     * @param  Collection<int, DatabaseNotification>  $records
+     * @return array<int, array<string, mixed>>
+     */
+    private function present(Collection $records): array
+    {
         $missingStudentIds = self::referencedMissingStudentIds($records);
 
-        $notifications = $records
+        return $records
             ->map(function (DatabaseNotification $notification) use ($missingStudentIds): array {
                 $url = $notification->data['url'] ?? null;
                 $studentId = self::studentIdFromUrl(is_string($url) ? $url : null);
+                $localCreated = SchoolCalendar::local($notification->created_at);
 
                 return [
                     'id' => $notification->id,
@@ -44,16 +163,13 @@ class NotificationsController extends Controller
                     'body' => $notification->data['body'] ?? '',
                     'url' => ($studentId !== null && in_array($studentId, $missingStudentIds, true)) ? null : $url,
                     'read' => $notification->read_at !== null,
-                    'at' => SchoolCalendar::local($notification->created_at)?->format('d.m.Y H:i'),
+                    'at' => $localCreated?->format('d.m.Y H:i'),
+                    // Eticheta lunii în limba interfeței (SetUserLocale a setat deja locale-ul
+                    // Carbon) — antetele de grupare din arhivă.
+                    'month' => $localCreated !== null ? Str::ucfirst($localCreated->translatedFormat('F Y')) : null,
+                    'archivedAt' => SchoolCalendar::local($notification->archived_at)?->format('d.m.Y'),
                 ];
-            })->all();
-
-        return Inertia::render('cabinet/notifications', [
-            'notifications' => $notifications,
-            // Totalul REAL de necitite (badge-ul din header) — lista de mai sus e plafonată la 50, deci
-            // butonul „Marchează tot" se afișează după acest total, nu după cele 50 afișate (#37).
-            'unreadTotal' => $user->unreadNotifications()->count(),
-        ]);
+            })->values()->all();
     }
 
     /**

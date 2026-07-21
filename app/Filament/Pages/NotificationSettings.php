@@ -26,7 +26,8 @@ class NotificationSettings extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBellAlert;
 
-    protected static ?int $navigationSort = 2;
+    // După „Notificările mele" (sort 2) — întâi inboxul, apoi preferințele lui.
+    protected static ?int $navigationSort = 3;
 
     public static function getNavigationGroup(): ?string
     {

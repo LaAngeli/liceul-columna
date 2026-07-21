@@ -9,6 +9,7 @@ use App\Http\Middleware\EnsureAccountActive;
 use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\EnsureTwoFactorEnrolled;
 use App\Http\Middleware\SetUserLocale;
+use App\Livewire\PanelNotifications;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -53,8 +54,11 @@ class AdminPanelProvider extends PanelProvider
             // Pagina Profil (nume/email/parolă/2FA), în layout cu sidebar (isSimple: false).
             ->profile(EditProfile::class, isSimple: false)
             // Clopoțelul de notificări din panou (spec §5): personalul își primește notificările „de
-            // nișă" (database) chiar în dashboard, ca structură proprie de recepție.
+            // nișă" (database) chiar în dashboard, ca structură proprie de recepție. Componenta
+            // PROPRIE (retenție 2026-07-21): fără ștergere per notificare / „Șterge tot" — doar
+            // active; arhiva e pe pagina „Notificările mele".
             ->databaseNotifications()
+            ->databaseNotificationsLivewireComponent(PanelNotifications::class)
             ->databaseNotificationsPolling('30s')
             // Brand (§11): navy #0f4d77 = PRIMAR; verdele #9bc31e = ACCENT, înregistrat ca o
             // culoare custom „brand-green" pentru folosire țintită (badge-uri/butoane secundare).
@@ -130,6 +134,11 @@ class AdminPanelProvider extends PanelProvider
                     .'.cal-tab:not([aria-pressed="true"]):hover,.cal-chip[aria-pressed="false"]:hover,.cal-chip-all:hover{opacity:1}'
                     .'.cal-pill:hover{filter:brightness(.94)}.dark .cal-pill:hover{filter:brightness(1.15)}'
                     .'.cal-daybar:hover{background:color-mix(in srgb,currentColor 4%,transparent)}'
+                    // Retenție notificări (2026-07-21): X-ul per notificare din CLOPOȚEL ștergea din
+                    // bază — ascuns doar în modalul clopoțelului (.fi-no-database); toast-urile
+                    // efemere își păstrează închiderea. Serverul e oricum neutralizat
+                    // (PanelNotifications) — CSS-ul doar aliniază UI-ul cu realitatea.
+                    .'.fi-no-database .fi-no-notification-close-btn{display:none}'
                     .'</style>',
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')

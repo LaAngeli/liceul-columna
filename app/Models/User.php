@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -469,6 +470,18 @@ class User extends Authenticatable implements Auditable, FilamentUser
     public function canManageInfrastructure(): bool
     {
         return $this->hasAnyRole([UserRole::Admin->value, UserRole::AdministratorTehnic->value]);
+    }
+
+    /**
+     * Relația de notificări, legată de modelul PROPRIU {@see DatabaseNotification} (nu cel din
+     * framework): aduce starea de arhivă (`archived_at` + scope-urile active/archived) în inboxul
+     * cabinetului, în clopoțelul Filament și în paginile de notificări — retenția 2026-07-21.
+     *
+     * @return MorphMany<DatabaseNotification, $this>
+     */
+    public function notifications(): MorphMany
+    {
+        return $this->morphMany(DatabaseNotification::class, 'notifiable')->latest();
     }
 
     /**
