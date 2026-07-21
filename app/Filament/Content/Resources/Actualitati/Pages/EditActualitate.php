@@ -29,6 +29,15 @@ class EditActualitate extends BaseEditArticle
                 ->url(url('/articol/'.$record->slug), shouldOpenInNewTab: true)
                 // Doar dacă e cu adevărat public (nu ciornă, nu programat în viitor).
                 ->visible($record->published_at !== null && ! $record->published_at->isFuture()),
+        ];
+    }
+
+    /**
+     * @return array<int, Action>
+     */
+    protected function getRecordActions(): array
+    {
+        return [
             DeleteAction::make(),
         ];
     }

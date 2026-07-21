@@ -1146,3 +1146,21 @@ html:root.dark {
 html.fi {
     overflow-x: clip;
 }
+
+/* ==========================================================================
+   ACȚIUNILE DE ÎNREGISTRARE PE RÂNDUL FORMULARULUI (Ștergere & co.)
+   Butoanele care operează pe fișă (Ștergere / Ștergere definitivă / Restaurare)
+   au coborât din antetul paginii pe rândul „Salvare / Anulare"
+   ({@see App\Filament\Concerns\PlacesRecordActionsWithForm}). Aici le împingem
+   la marginea din DREAPTA a rândului: primul buton marcat primește marja auto,
+   următoarele se lipesc de el. `.fi-ac` e flex-wrap → dacă rândul nu încape
+   (fișă în coș: „Ștergere definitivă" + „Restaurare"), grupul trece pe linia
+   următoare tot aliniat la dreapta, fără scroll orizontal.
+   ========================================================================== */
+.fi-ac > .fi-form-record-action {
+    margin-inline-start: auto;
+}
+
+.fi-ac > .fi-form-record-action + .fi-form-record-action {
+    margin-inline-start: 0;
+}

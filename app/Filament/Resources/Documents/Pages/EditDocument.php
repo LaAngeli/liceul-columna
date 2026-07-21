@@ -2,14 +2,17 @@
 
 namespace App\Filament\Resources\Documents\Pages;
 
+use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Resources\Documents\Concerns\HandlesDocumentFileMetadata;
 use App\Filament\Resources\Documents\DocumentResource;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditDocument extends EditRecord
 {
     use HandlesDocumentFileMetadata;
+    use PlacesRecordActionsWithForm;
 
     protected static string $resource = DocumentResource::class;
 
@@ -18,7 +21,10 @@ class EditDocument extends EditRecord
         return static::getResource()::getUrl('index');
     }
 
-    protected function getHeaderActions(): array
+    /**
+     * @return array<int, Action>
+     */
+    protected function getRecordActions(): array
     {
         return [
             DeleteAction::make(),

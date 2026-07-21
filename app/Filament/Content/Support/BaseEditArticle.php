@@ -3,6 +3,7 @@
 namespace App\Filament\Content\Support;
 
 use App\Actions\Cms\SanitizeHtml;
+use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Content\Concerns\HandlesPublishDate;
 use App\Filament\Content\Concerns\ManagesArticleTranslations;
 use App\Models\Post;
@@ -17,6 +18,7 @@ abstract class BaseEditArticle extends EditRecord
 {
     use HandlesPublishDate;
     use ManagesArticleTranslations;
+    use PlacesRecordActionsWithForm;
 
     /**
      * @param  array<string, mixed>  $data

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Content\Resources\Library\Pages;
 
+use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Content\Resources\Library\LibraryCategoryResource;
 use App\Models\LibraryCategory;
 use Filament\Actions\Action;
@@ -11,6 +12,8 @@ use Filament\Support\Icons\Heroicon;
 
 class EditLibraryCategory extends EditRecord
 {
+    use PlacesRecordActionsWithForm;
+
     protected static string $resource = LibraryCategoryResource::class;
 
     /**
@@ -28,6 +31,15 @@ class EditLibraryCategory extends EditRecord
                 ->color('gray')
                 ->url(url('/biblioteca-online'), shouldOpenInNewTab: true)
                 ->visible($record->published_at !== null),
+        ];
+    }
+
+    /**
+     * @return array<int, Action>
+     */
+    protected function getRecordActions(): array
+    {
+        return [
             DeleteAction::make(),
         ];
     }

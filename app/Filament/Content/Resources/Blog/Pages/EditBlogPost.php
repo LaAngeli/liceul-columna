@@ -30,6 +30,15 @@ class EditBlogPost extends BaseEditArticle
                 // Doar dacă e cu adevărat public (nu ciornă, nu programat în viitor) — altfel butonul
                 // ar deschide un URL care dă 404 pe site.
                 ->visible($record->published_at !== null && ! $record->published_at->isFuture()),
+        ];
+    }
+
+    /**
+     * @return array<int, Action>
+     */
+    protected function getRecordActions(): array
+    {
+        return [
             DeleteAction::make(),
         ];
     }

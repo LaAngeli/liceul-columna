@@ -2,16 +2,23 @@
 
 namespace App\Filament\Resources\ExamCommissions\Pages;
 
+use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Resources\ExamCommissions\ExamCommissionResource;
 use App\Models\ExamCommission;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditExamCommission extends EditRecord
 {
+    use PlacesRecordActionsWithForm;
+
     protected static string $resource = ExamCommissionResource::class;
 
-    protected function getHeaderActions(): array
+    /**
+     * @return array<int, Action>
+     */
+    protected function getRecordActions(): array
     {
         return [
             DeleteAction::make(),

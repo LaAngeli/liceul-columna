@@ -2,6 +2,7 @@
 
 namespace App\Filament\Content\Resources\Gallery\Pages;
 
+use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Content\Resources\Gallery\GalleryAlbumResource;
 use App\Models\GalleryAlbum;
 use Filament\Actions\Action;
@@ -11,6 +12,8 @@ use Filament\Support\Icons\Heroicon;
 
 class EditGalleryAlbum extends EditRecord
 {
+    use PlacesRecordActionsWithForm;
+
     protected static string $resource = GalleryAlbumResource::class;
 
     /**
@@ -30,6 +33,15 @@ class EditGalleryAlbum extends EditRecord
                 // Doar dacă albumul apare efectiv pe /galerie: publicat ȘI cu cel puțin o imagine
                 // (albumele goale sunt sărite de pagina publică).
                 ->visible($record->published_at !== null && $record->images()->exists()),
+        ];
+    }
+
+    /**
+     * @return array<int, Action>
+     */
+    protected function getRecordActions(): array
+    {
+        return [
             DeleteAction::make(),
         ];
     }

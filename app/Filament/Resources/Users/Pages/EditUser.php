@@ -4,8 +4,10 @@ namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Concerns\EnforcesManageableRole;
 use App\Filament\Concerns\ManagesAccountForm;
+use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
@@ -13,10 +15,14 @@ class EditUser extends EditRecord
 {
     use EnforcesManageableRole;
     use ManagesAccountForm;
+    use PlacesRecordActionsWithForm;
 
     protected static string $resource = UserResource::class;
 
-    protected function getHeaderActions(): array
+    /**
+     * @return array<int, Action>
+     */
+    protected function getRecordActions(): array
     {
         return [
             DeleteAction::make(),

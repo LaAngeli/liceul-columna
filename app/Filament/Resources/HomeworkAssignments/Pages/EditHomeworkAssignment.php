@@ -3,8 +3,10 @@
 namespace App\Filament\Resources\HomeworkAssignments\Pages;
 
 use App\Filament\Concerns\EnforcesHomeworkScope;
+use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Resources\HomeworkAssignments\HomeworkAssignmentResource;
 use App\Models\SchoolClass;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -13,10 +15,14 @@ use Filament\Resources\Pages\EditRecord;
 class EditHomeworkAssignment extends EditRecord
 {
     use EnforcesHomeworkScope;
+    use PlacesRecordActionsWithForm;
 
     protected static string $resource = HomeworkAssignmentResource::class;
 
-    protected function getHeaderActions(): array
+    /**
+     * @return array<int, Action>
+     */
+    protected function getRecordActions(): array
     {
         return [
             DeleteAction::make(),

@@ -3,9 +3,11 @@
 namespace App\Filament\Resources\Absences\Pages;
 
 use App\Filament\Concerns\EnforcesAbsenceScope;
+use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Resources\Absences\AbsenceResource;
 use App\Models\Absence;
 use App\Support\WorkingDays;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -15,10 +17,14 @@ use Illuminate\Support\Carbon;
 class EditAbsence extends EditRecord
 {
     use EnforcesAbsenceScope;
+    use PlacesRecordActionsWithForm;
 
     protected static string $resource = AbsenceResource::class;
 
-    protected function getHeaderActions(): array
+    /**
+     * @return array<int, Action>
+     */
+    protected function getRecordActions(): array
     {
         return [
             DeleteAction::make(),

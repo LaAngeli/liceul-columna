@@ -31,6 +31,7 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\User;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
@@ -154,11 +155,24 @@ it('acțiunile de ștergere forțată și restaurare nu apar profesorului pe pag
     $absence = auditAbsence($this, $this->teacher->id);
     $absence->delete();
 
+    // Acțiunile de înregistrare stau pe rândul butoanelor formularului, nu în antet
+    // ({@see App\Filament\Concerns\PlacesRecordActionsWithForm}) → localizare prin schemaComponent.
+    // Într-o schemă, componenta ASCUNSĂ nici nu se montează, deci proba are două jumătăți:
+    // acțiunile există (administrația le vede) și îi lipsesc profesorului.
+    $forceDelete = fn (): TestAction => TestAction::make('forceDelete')->schemaComponent('form-actions', schema: 'content');
+    $restore = fn (): TestAction => TestAction::make('restore')->schemaComponent('form-actions', schema: 'content');
+
+    actingAs($this->director);
+
+    Livewire::test(EditAbsence::class, ['record' => $absence->getKey()])
+        ->assertActionExists($forceDelete())
+        ->assertActionExists($restore());
+
     actingAs($this->profesor);
 
     Livewire::test(EditAbsence::class, ['record' => $absence->getKey()])
-        ->assertActionHidden('forceDelete')
-        ->assertActionHidden('restore');
+        ->assertActionDoesNotExist($forceDelete())
+        ->assertActionDoesNotExist($restore());
 });
 
 it('administrația academică poate șterge definitiv și restaura o absență', function () {
