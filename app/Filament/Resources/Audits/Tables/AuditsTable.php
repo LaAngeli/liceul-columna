@@ -2,20 +2,22 @@
 
 namespace App\Filament\Resources\Audits\Tables;
 
+use App\Filament\Resources\Audits\AuditResource;
 use App\Filament\Resources\Audits\Pages\ListAudits;
 use App\Models\Audit;
 use App\Support\AuditCategories;
 use App\Support\SchoolCalendar;
-use Filament\Actions\ViewAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Tabelul jurnalului — trăiește în contextul categoriei din navigator, deci filtrul de tip
- * oferă DOAR tipurile categoriei curente (etichetate complet, nu 5 tipuri hardcodate ca înainte).
- * Read-only: singura acțiune e vizualizarea detaliilor (valori vechi/noi).
+ * Tabelul jurnalului — instrument de INVESTIGARE, nu meniu: rândul deschide FIȘA intrării
+ * (tot contextul pe loc), nu duce nicăieri altundeva. Filtre de investigare: utilizator,
+ * acțiune, tip de date, severitate, interval de timp; căutare pe autor și IP. Read-only.
  */
 class AuditsTable
 {
@@ -26,6 +28,7 @@ class AuditsTable
                 ? $livewire->applyAuditContext($query)
                 : $query)
             ->defaultSort('created_at', 'desc')
+            ->recordUrl(fn (Audit $record): string => AuditResource::getUrl('view', ['record' => $record]))
             ->columns([
                 // Data compactă cu ora dedesubt — rândul jurnalului rămâne îngust pe mobil.
                 TextColumn::make('created_at')
@@ -47,7 +50,7 @@ class AuditsTable
                     ->color(fn (string $state): string => match ($state) {
                         'created' => 'success',
                         'updated' => 'warning',
-                        'deleted' => 'danger',
+                        'deleted', 'forceDeleted' => 'danger',
                         'viewed', 'exported' => 'info',
                         default => 'gray',
                     }),
@@ -63,9 +66,15 @@ class AuditsTable
                     ->visibleFrom('md'),
                 TextColumn::make('ip_address')
                     ->label(__('panel.forms.consent.ip'))
+                    ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // Investigare pe ACTOR: „ce a făcut X?" — searchable, nu preîncărcat (594 de conturi).
+                SelectFilter::make('user_id')
+                    ->label(__('panel.fields.author'))
+                    ->relationship('user', 'name')
+                    ->searchable(),
                 SelectFilter::make('event')
                     ->label(__('panel.tables.audits.action'))
                     ->options([
@@ -79,11 +88,31 @@ class AuditsTable
                 SelectFilter::make('auditable_type')
                     ->label(__('panel.tables.audits.data_type'))
                     ->options(fn ($livewire): array => self::typeOptions($livewire)),
-            ])
-            ->recordActions([
-                // Icon-button: jurnalul e read-only, iar eticheta „Vizualizare" lățea fiecare rând.
-                ViewAction::make()
-                    ->iconButton(),
+                // Severitatea DERIVATĂ (aceeași hartă ca badge-ul fișei — Audit::severityMap).
+                SelectFilter::make('severity')
+                    ->label(__('panel.audit_view.severity_label'))
+                    ->options([
+                        'danger' => __('panel.audit_view.severity.danger'),
+                        'warning' => __('panel.audit_view.severity.warning'),
+                        'info' => __('panel.audit_view.severity.info'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        return is_string($value) && $value !== ''
+                            ? $query->whereIn('event', Audit::severityMap()[$value] ?? [])
+                            : $query;
+                    }),
+                // Investigare pe INTERVAL: „ce s-a întâmplat între X și Y?".
+                Filter::make('perioada')
+                    ->label(__('panel.audit_view.period'))
+                    ->schema([
+                        DatePicker::make('de_la')->label(__('panel.audit_view.from')),
+                        DatePicker::make('pana_la')->label(__('panel.audit_view.until')),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when($data['de_la'] ?? null, fn (Builder $q, $date) => $q->whereDate('created_at', '>=', $date))
+                        ->when($data['pana_la'] ?? null, fn (Builder $q, $date) => $q->whereDate('created_at', '<=', $date))),
             ]);
     }
 

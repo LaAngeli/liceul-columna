@@ -2,14 +2,20 @@
 
 namespace App\Models;
 
+use Database\Factories\TeachingAssignmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class TeachingAssignment extends Model
+class TeachingAssignment extends Model implements Auditable
 {
-    /** @use HasFactory<\Database\Factories\TeachingAssignmentFactory> */
+    // Alocarea (profesor×clasă×disciplină) = cine POATE scrie note unde — schimbările ei sunt de audit.
+    use AuditableTrait;
+
+    /** @use HasFactory<TeachingAssignmentFactory> */
     use HasFactory, SoftDeletes;
 
     protected $fillable = [

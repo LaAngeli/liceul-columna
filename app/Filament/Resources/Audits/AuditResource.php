@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Audits;
 
 use App\Filament\Resources\Audits\Pages\ListAudits;
-use App\Filament\Resources\Audits\Schemas\AuditInfolist;
+use App\Filament\Resources\Audits\Pages\ViewAudit;
 use App\Filament\Resources\Audits\Tables\AuditsTable;
 use App\Models\Absence;
 use App\Models\AcademicRecord;
@@ -14,7 +14,6 @@ use App\Models\TermAverage;
 use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
-use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -66,11 +65,6 @@ class AuditResource extends Resource
         return false;
     }
 
-    public static function infolist(Schema $schema): Schema
-    {
-        return AuditInfolist::configure($schema);
-    }
-
     public static function table(Table $table): Table
     {
         return AuditsTable::configure($table);
@@ -104,6 +98,9 @@ class AuditResource extends Resource
     {
         return [
             'index' => ListAudits::route('/'),
+            // Fișa de INVESTIGARE a unei intrări — rândul tabelului o deschide (recordUrl);
+            // moștenește scoping-ul resursei (AT nu deschide intrări academice → 404).
+            'view' => ViewAudit::route('/{record}'),
         ];
     }
 }

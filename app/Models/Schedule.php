@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * Un tabel de orar publicabil (spec §2.1). Sursa UNICĂ: editat în panou, citit read-only pe site.
@@ -22,8 +24,11 @@ use Illuminate\Support\Facades\Cache;
  * @property array<int, array<int, string>> $rows
  * @property bool $is_public
  */
-class Schedule extends Model
+class Schedule extends Model implements Auditable
 {
+    // Orarele publicabile: ce vede publicul/familia — modificările jurnalizate.
+    use AuditableTrait;
+
     /** @use HasFactory<ScheduleFactory> */
     use HasFactory, SoftDeletes;
 

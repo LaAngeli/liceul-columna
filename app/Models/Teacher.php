@@ -10,12 +10,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * @property Sex|null $sex
  */
-class Teacher extends Model
+class Teacher extends Model implements Auditable
 {
+    // Fișa profesorului (registru de personal): modificările jurnalizate (L133 §7).
+    use AuditableTrait;
+
     /** @use HasFactory<TeacherFactory> */
     use HasFactory, SoftDeletes;
 

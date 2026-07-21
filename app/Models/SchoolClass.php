@@ -13,13 +13,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * @method static Builder<SchoolClass> withoutHomeroom()
  */
 #[ObservedBy(SchoolClassObserver::class)]
-class SchoolClass extends Model
+class SchoolClass extends Model implements Auditable
 {
+    // Clasa: schimbarea dirigintelui mută drepturi de validare; redenumirile ating toate afișările — jurnalizat.
+    use AuditableTrait;
+
     /** @use HasFactory<SchoolClassFactory> */
     use HasFactory, SoftDeletes;
 

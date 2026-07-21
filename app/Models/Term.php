@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * @property int $academic_year_id
@@ -23,8 +25,11 @@ use Illuminate\Validation\ValidationException;
  * @property bool $is_current
  */
 #[ObservedBy(TermObserver::class)]
-class Term extends Model
+class Term extends Model implements Auditable
 {
+    // Structura anului: mutarea granițelor unui semestru REALINIAZĂ catalogul — cine/când/vechi→nou trebuie reconstruibil.
+    use AuditableTrait;
+
     /** @use HasFactory<TermFactory> */
     use EnsuresSingleCurrent, HasFactory, SoftDeletes;
 

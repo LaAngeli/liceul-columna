@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * Temă academică dată unei clase (treaptă + literă) la o disciplină.
@@ -36,8 +38,11 @@ use Illuminate\Support\Facades\DB;
  * @property array<int, string>|null $links
  */
 #[ObservedBy(HomeworkAssignmentObserver::class)]
-class HomeworkAssignment extends Model
+class HomeworkAssignment extends Model implements Auditable
 {
+    // Teme: creare/modificare/ștergere jurnalizate (L133 §7) — conținutul văzut de familii trebuie să fie trasabil.
+    use AuditableTrait;
+
     /** @use HasFactory<HomeworkAssignmentFactory> */
     use HasFactory, SoftDeletes;
 

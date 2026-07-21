@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
 use App\Models\AcademicRecord;
+use App\Models\AcademicYear;
 use App\Models\AdmissionRequest;
 use App\Models\Audit;
 use App\Models\CalendarEvent;
@@ -19,13 +20,20 @@ use App\Models\GalleryAlbum;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
 use App\Models\Holiday;
+use App\Models\HomeworkAssignment;
 use App\Models\HomeworkCorrection;
 use App\Models\LibraryCategory;
 use App\Models\Post;
+use App\Models\Schedule;
+use App\Models\SchoolClass;
 use App\Models\SemesterValidation;
 use App\Models\StatusAcknowledgement;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\SummativeDesignation;
+use App\Models\Teacher;
+use App\Models\TeachingAssignment;
+use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -62,7 +70,20 @@ class AuditCategories
                 CorigentaExam::class,
                 ExamCommission::class,
                 HomeworkCorrection::class,
+                HomeworkAssignment::class,
                 GradeCorrection::class,
+            ],
+            // Structura școlii — coloana vertebrală a configurării: ani, semestre, clase,
+            // discipline, alocări, orare, fișe de profesori. Schimbările de aici mută DREPTURI
+            // (dirigenție, alocări) și guvernează catalogul (acoperire unificată, 2026-07-21).
+            'scoala' => [
+                AcademicYear::class,
+                Term::class,
+                SchoolClass::class,
+                Subject::class,
+                TeachingAssignment::class,
+                Schedule::class,
+                Teacher::class,
             ],
             'elevi' => [
                 Student::class,

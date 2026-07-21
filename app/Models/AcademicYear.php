@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * @property string $name
@@ -20,8 +22,11 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $closed_at
  * @property int|null $closed_by_user_id
  */
-class AcademicYear extends Model
+class AcademicYear extends Model implements Auditable
 {
+    // Anul școlar: deschiderea/închiderea (closed_at) guvernează scrierile întregului catalog — jurnalizat.
+    use AuditableTrait;
+
     /** @use HasFactory<AcademicYearFactory> */
     use EnsuresSingleCurrent, HasFactory, SoftDeletes;
 

@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * @property string $name
@@ -17,8 +19,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property GradingType $grading_type
  * @property int|null $report_order
  */
-class Subject extends Model
+class Subject extends Model implements Auditable
 {
+    // Disciplina: redenumirea/plaja de note ating cataloagele și mediile — jurnalizat.
+    use AuditableTrait;
+
     /** @use HasFactory<SubjectFactory> */
     use HasFactory, SoftDeletes;
 
