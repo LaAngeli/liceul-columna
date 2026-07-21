@@ -1132,6 +1132,30 @@ html:root.dark {
         white-space: nowrap;
     }
 
+    /* ⚠️ Butonul „⋮" al rândului: vendorul îl face `.fi-icon-btn` = `size-9` (36px) cu `-m-2`
+       (marjă NEGATIVĂ de 8px) — ținta tactilă e mai mare decât locul ocupat în flux, deci
+       butonul REVARSĂ 8px în afara containerului. Pe desktop îi absoarbe paddingul celulei
+       (12px); pe mobil, unde l-am strâns la 6px, ieșea 2px peste marginea tabelului → scroller
+       intern de ~2px pe TOATE listele cu meniu de rând (măsurat: Cereri, Teme ș.a.).
+       Fixul nu adaugă padding (ar lăți tabelul cu aceiași 2px, doar din altă parte): butonul
+       revine la dimensiunea lui reală în flux, iar suprafața de atingere se extinde la 36px
+       printr-un pseudo-element absolut, care NU ocupă spațiu și nu poate naște scroll. */
+    .fi-ta-table .fi-ta-actions .fi-icon-btn {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin: 0;
+    }
+
+    /* Aria de atingere crește spre INTERIORUL rândului (sus/jos/stânga) și doar cât încape în
+       paddingul celulei spre dreapta — un pseudo-element care ar depăși marginea tabelului
+       reintroduce exact scrollul pe care îl eliminăm (contează în scrollWidth ca orice element). */
+    .fi-ta-table .fi-ta-actions .fi-icon-btn::after {
+        content: '';
+        position: absolute;
+        inset-block: -0.5rem;
+        inset-inline: -0.5rem -0.25rem;
+    }
+
     /* Săgeata de sortare coboară sub etichetă când coloana e strâmtă. */
     .fi-ta-table thead .fi-ta-cell button {
         flex-wrap: wrap;
