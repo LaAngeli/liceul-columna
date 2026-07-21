@@ -688,6 +688,7 @@ return [
             'sex_short' => 'Sex',
             'second_language_short' => 'Limba 2',
             'english_group_short' => 'Gr. engleză',
+            'english_group_value' => 'Grupa :group',
             'account_short' => 'Cont',
             'section_personal' => 'Date personale',
             'section_personal_hint' => 'Identitatea elevului din registrul matricol. Câmpurile marcate cu * sunt obligatorii.',

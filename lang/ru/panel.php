@@ -673,6 +673,7 @@ return [
             'sex_short' => 'Пол',
             'second_language_short' => 'Язык 2',
             'english_group_short' => 'Гр. англ.',
+            'english_group_value' => 'Группа :group',
             'account_short' => 'Учётная запись',
             'section_personal' => 'Личные данные',
             'section_personal_hint' => 'Идентичность ученика из школьного реестра. Поля со * обязательны.',

@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Students\Schemas;
 use App\Actions\DetermineStudentStatus;
 use App\Enums\StudentStatus;
 use App\Filament\Concerns\ManagedByConfigurators;
-use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Term;
 use App\Models\TermAverage;
@@ -13,6 +12,7 @@ use App\Support\ContentTranslator;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 
 /**
  * Fișa READ-ONLY a elevului (pagina View). Pentru diriginți/profesori care nu au drept de
@@ -33,29 +33,31 @@ class StudentInfolist
     {
         return $schema
             ->components([
+                // IDENTITATEA ca bandă (avatar cu inițiale + nume + chip-uri clasă/matricol), nu
+                // rânduri seci etichetă/valoare; sub ea, grila compactă cu iconițe pentru restul.
                 Section::make(__('panel.forms.student.section_personal'))
+                    ->icon(Heroicon::OutlinedIdentification)
                     ->columns(3)
                     ->schema([
-                        TextEntry::make('full_name')
-                            ->label(__('panel.fields.full_name')),
-                        TextEntry::make('register_number')
-                            ->label(__('panel.fields.register_number'))
-                            ->placeholder(__('panel.common.dash')),
-                        TextEntry::make('currentClass')
-                            ->label(__('panel.fields.class'))
-                            ->state(function (Student $record): string {
-                                $class = $record->currentSchoolClass();
-
-                                return $class instanceof SchoolClass ? $class->name : (string) __('panel.common.dash');
-                            }),
+                        TextEntry::make('identity')
+                            ->hiddenLabel()
+                            ->columnSpanFull()
+                            ->view('filament.catalog.partials.student-identity'),
                         TextEntry::make('sex')
                             ->label(__('panel.fields.sex'))
+                            ->icon(Heroicon::OutlinedUser)
                             ->badge(),
                         TextEntry::make('second_language')
                             ->label(__('panel.forms.student.second_language_short'))
-                            ->badge(),
+                            ->icon(Heroicon::OutlinedLanguage)
+                            ->badge()
+                            ->color('info'),
                         TextEntry::make('english_group')
                             ->label(__('panel.forms.student.english_group_short'))
+                            ->icon(Heroicon::OutlinedUserGroup)
+                            ->formatStateUsing(fn (int|string $state): string => __('panel.forms.student.english_group_value', ['group' => $state]))
+                            ->badge()
+                            ->color('gray')
                             ->placeholder(__('panel.common.dash')),
                     ]),
 

@@ -675,6 +675,7 @@ return [
             'sex_short' => 'Sex',
             'second_language_short' => 'Lang 2',
             'english_group_short' => 'Eng. grp.',
+            'english_group_value' => 'Group :group',
             'account_short' => 'Account',
             'section_personal' => 'Personal details',
             'section_personal_hint' => 'The student identity in the school register. Fields marked * are required.',
