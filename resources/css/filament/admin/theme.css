@@ -1098,3 +1098,43 @@ html:root.dark {
         scroll-padding-inline: 2.25rem;
     }
 }
+
+/* ==========================================================================
+   TABELE PE MOBIL (programul responsive, LOT R2 — 2026-07-22). Sub `sm`,
+   conținutul celulelor Filament stă pe UN rând (whitespace-nowrap) și fiecare
+   strat interior (.fi-ta-text / antetul) cară px-3 → tabele de 3 coloane
+   depășeau ecranul (Note: 428px pe 343; Teme: 415) chiar când informația
+   încăpea. Pe telefon: textul se ÎNFĂȘOARĂ (cuvintele prea late se frâng doar
+   la nevoie), paddingurile interioare se strâng, iar săgeata de sortare poate
+   coborî sub etichetă (flex-ul antetului era bloc nefrângibil = lățimea minimă
+   a coloanei). Scrollul orizontal rămâne DOAR pentru tabelele cu adevărat late
+   (fallback-ul overflow-x al vendorului e neatins).
+   ========================================================================== */
+@media (max-width: 639.98px) {
+    .fi-ta-table .fi-ta-cell {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    /* Paddingul REAL stă pe straturile interioare (TD-ul vendor e p-0). */
+    .fi-ta-table .fi-ta-cell .fi-ta-text:not(.fi-inline) {
+        padding-inline: 0.375rem;
+    }
+
+    .fi-ta-table .fi-ta-header-cell {
+        padding-inline: 0.375rem;
+    }
+
+    /* Celulele de acțiuni/bife cară px-3 chiar pe TD — strâns și acolo. */
+    .fi-ta-table .fi-ta-cell:has(.fi-ta-actions),
+    .fi-ta-table .fi-ta-cell:has(.fi-ta-record-checkbox) {
+        padding-inline: 0.375rem;
+        white-space: nowrap;
+    }
+
+    /* Săgeata de sortare coboară sub etichetă când coloana e strâmtă. */
+    .fi-ta-table thead .fi-ta-cell button {
+        flex-wrap: wrap;
+        row-gap: 0;
+    }
+}
