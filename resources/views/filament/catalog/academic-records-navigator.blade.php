@@ -64,19 +64,19 @@
                             <table class="w-full text-sm">
                                 <thead>
                                     <tr class="text-start text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                                        <th class="px-4 py-2 text-start font-medium">{{ __('panel.fields.subject') }}</th>
-                                        <th class="w-28 px-4 py-2 text-end font-medium">{{ __('enums.academic_record_period.1') }}</th>
-                                        <th class="w-28 px-4 py-2 text-end font-medium">{{ __('enums.academic_record_period.2') }}</th>
-                                        <th class="w-28 px-4 py-2 text-end font-medium">{{ __('enums.academic_record_period.3') }}</th>
+                                        <th class="px-2 py-2 text-start font-medium sm:px-4">{{ __('panel.fields.subject') }}</th>
+                                        <th class="w-16 px-2 py-2 text-end font-medium sm:w-28 sm:px-4">{{ __('enums.academic_record_period.1') }}</th>
+                                        <th class="w-16 px-2 py-2 text-end font-medium sm:w-28 sm:px-4">{{ __('enums.academic_record_period.2') }}</th>
+                                        <th class="w-16 px-2 py-2 text-end font-medium sm:w-28 sm:px-4">{{ __('enums.academic_record_period.3') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-950/5 dark:divide-white/10">
                                     @foreach ($level['rows'] as $row)
                                         <tr>
-                                            <td class="px-4 py-2 text-gray-950 dark:text-white">{{ $row['subject'] }}</td>
-                                            <td class="px-4 py-2 text-end tabular-nums text-gray-700 dark:text-gray-200">{{ $row['sem1'] ?? __('panel.common.dash') }}</td>
-                                            <td class="px-4 py-2 text-end tabular-nums text-gray-700 dark:text-gray-200">{{ $row['sem2'] ?? __('panel.common.dash') }}</td>
-                                            <td class="px-4 py-2 text-end font-medium tabular-nums text-gray-950 dark:text-white">{{ $row['annual'] ?? __('panel.common.dash') }}</td>
+                                            <td class="px-2 py-2 text-gray-950 sm:px-4 dark:text-white">{{ $row['subject'] }}</td>
+                                            <td class="px-2 py-2 text-end tabular-nums text-gray-700 sm:px-4 dark:text-gray-200">{{ $row['sem1'] ?? __('panel.common.dash') }}</td>
+                                            <td class="px-2 py-2 text-end tabular-nums text-gray-700 sm:px-4 dark:text-gray-200">{{ $row['sem2'] ?? __('panel.common.dash') }}</td>
+                                            <td class="px-2 py-2 text-end font-medium tabular-nums text-gray-950 sm:px-4 dark:text-white">{{ $row['annual'] ?? __('panel.common.dash') }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>

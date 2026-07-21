@@ -28,7 +28,9 @@ class CorigentaExamsTable
                 TextColumn::make('subject.name')->label(__('panel.fields.subject'))
                     ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state)),
                 TextColumn::make('season')->label(__('panel.forms.corigenta_session.season'))->badge()->visibleFrom('sm'),
-                TextColumn::make('scheduled_on')->label(__('panel.forms.corigenta_exam.scheduled_on'))->date('d.m.Y')->placeholder(__('panel.forms.corigenta_exam.unscheduled')),
+                TextColumn::make('scheduled_on')->label(__('panel.forms.corigenta_exam.scheduled_on'))->date('d.m.Y')->placeholder(__('panel.forms.corigenta_exam.unscheduled'))
+                    // Mobil: esența = elev + disciplină + rezultat; data intră de la sm în sus.
+                    ->visibleFrom('sm'),
                 TextColumn::make('commission.name')->label(__('panel.forms.corigenta_exam.commission'))->placeholder(__('panel.common.dash'))->toggleable()->visibleFrom('md'),
                 TextColumn::make('mark')->label(__('panel.forms.corigenta_exam.mark'))->numeric()->badge()
                     ->color(fn (?string $state): string => $state === null ? 'gray' : ((float) $state >= 5 ? 'success' : 'danger'))
