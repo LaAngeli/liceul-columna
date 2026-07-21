@@ -242,12 +242,24 @@ class TermForm
             ]);
     }
 
-    /** Începutul: limitat la perioada anului chiar în calendar; propus automat la alegerea numărului. */
+    /**
+     * Începutul: limitat la perioada anului chiar în calendar; propus automat la alegerea
+     * numărului. LIVE: mutarea începutului DUPĂ sfârșitul deja ales golește sfârșitul — un
+     * interval răsturnat nu poate nici măcar rămâne selectat în formular.
+     */
     public static function startsOnField(): DatePicker
     {
         return DatePicker::make('starts_on')
             ->label(__('panel.fields.starts_on'))
             ->required()
+            ->live()
+            ->afterStateUpdated(static function (mixed $state, Get $get, Set $set): void {
+                $endsOn = $get('ends_on');
+
+                if (is_string($state) && $state !== '' && is_string($endsOn) && $endsOn !== '' && $endsOn < $state) {
+                    $set('ends_on', null);
+                }
+            })
             ->minDate(fn (Get $get): ?Carbon => self::yearBound($get, 'start'))
             ->maxDate(fn (Get $get): ?Carbon => self::yearBound($get, 'end'));
     }
@@ -262,7 +274,9 @@ class TermForm
             ->label(__('panel.fields.ends_on'))
             ->required()
             ->afterOrEqual('starts_on')
-            ->minDate(fn (Get $get): ?Carbon => self::yearBound($get, 'start'))
+            // Calendarul sfârșitului începe de la ÎNCEPUTUL ales (nu doar de la granița anului) —
+            // o zi dinaintea începutului nu se mai poate selecta deloc.
+            ->minDate(fn (Get $get): ?Carbon => self::endsOnMinDate($get))
             ->maxDate(fn (Get $get): ?Carbon => self::yearBound($get, 'end'))
             ->rules([
                 static fn (Get $get, ?Model $record): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
@@ -379,6 +393,20 @@ class TermForm
         [$spanStart] = SchoolCalendar::yearSpan($year);
 
         return Carbon::parse($spanStart);
+    }
+
+    /**
+     * Limita de jos a sfârșitului: începutul ALES (dacă există), altfel granița anului.
+     */
+    private static function endsOnMinDate(Get $get): ?Carbon
+    {
+        $startsOn = $get('starts_on');
+
+        if (is_string($startsOn) && $startsOn !== '') {
+            return Carbon::parse($startsOn);
+        }
+
+        return self::yearBound($get, 'start');
     }
 
     /** Granița anului ales (minDate/maxDate) — null când anul nu are interval definit. */

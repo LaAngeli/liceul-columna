@@ -153,6 +153,35 @@ it('anul are exact DOUĂ semestre: numărul 3 e respins, iar anul plin nu mai of
     expect(Term::query()->where('academic_year_id', $this->year->id)->count())->toBe(2);
 });
 
+it('intervalul răsturnat nu poate fi nici SELECTAT, nici SALVAT', function () {
+    // UI: mutarea începutului DUPĂ sfârșitul deja ales golește sfârșitul pe loc (live).
+    $component = Livewire::test(CreateTerm::class)
+        ->fillForm([
+            'academic_year_id' => $this->year->id,
+            'number' => 1,
+            'ends_on' => '2026-06-01',
+        ])
+        ->fillForm(['starts_on' => '2026-06-08']);
+
+    expect($component->instance()->form->getRawState()['ends_on'])->toBeNull();
+
+    // Server: un POST forjat cu ambele date răsturnate (ocolind reactivitatea) e respins,
+    // nimic nu ajunge în bază — raportat de beneficiar pe 21.07 (06.08 → 01.06).
+    Livewire::test(CreateTerm::class)
+        ->fillForm([
+            'academic_year_id' => $this->year->id,
+            'number' => 1,
+            'name' => 'Semestrul I',
+            'starts_on' => '2026-06-08',
+            'ends_on' => '2026-06-01',
+        ])
+        ->goToWizardStep(3)
+        ->call('create')
+        ->assertHasFormErrors(['ends_on']);
+
+    expect(Term::query()->where('academic_year_id', $this->year->id)->exists())->toBeFalse();
+});
+
 it('gărzile de model prind orice cale: număr în afara plajei, interval răsturnat, an închis', function () {
     expect(fn () => Term::factory()->create(['academic_year_id' => $this->year->id, 'number' => 5]))
         ->toThrow(ValidationException::class);
