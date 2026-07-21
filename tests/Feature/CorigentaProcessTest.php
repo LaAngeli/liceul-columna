@@ -146,13 +146,14 @@ it('sesiunea își adună examenele nelegate din același an și sezon, nu pe al
         'corigenta_session_id' => null,
     ]);
 
-    // Deja legat de altă sesiune — nu se re-atribuie.
+    // Deja legat de altă sesiune — nu se re-atribuie. Tip DIFERIT + interval disjunct:
+    // gărzile modelului (2026-07-21) interzic dublura (an, sezon, tip) și suprapunerea.
     $altaSesiune = CorigentaSession::create([
         'academic_year_id' => $this->year->id,
         'season' => CorigentaSeason::Vara,
-        'type' => CorigentaSessionType::Baza,
-        'starts_on' => '2027-06-10',
-        'ends_on' => '2027-06-20',
+        'type' => CorigentaSessionType::Repetata,
+        'starts_on' => '2027-05-10',
+        'ends_on' => '2027-05-15',
         'status' => CorigentaSessionStatus::Approved,
     ]);
     $legatDeja = CorigentaExam::create([

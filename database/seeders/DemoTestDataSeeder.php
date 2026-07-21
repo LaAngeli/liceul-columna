@@ -161,16 +161,21 @@ class DemoTestDataSeeder extends Seeder
             return;
         }
 
-        // Sesiunea-suport (publicată — examenele ei sunt „în lucru", nu ipotetice).
-        $session = CorigentaSession::query()->create([
-            'academic_year_id' => $yearId,
-            'season' => CorigentaSeason::cases()[0]->value,
-            'type' => CorigentaSessionType::cases()[0]->value,
-            'starts_on' => Carbon::now()->addDays(10)->toDateString(),
-            'ends_on' => Carbon::now()->addDays(17)->toDateString(),
-            'status' => CorigentaSessionStatus::Published->value,
-            'order_reference' => self::COMMISSION_SESSION,
-        ]);
+        // Sesiunea-suport: REFOLOSEȘTE orice sesiune existentă a anului (gărzile modelului
+        // interzic dubluri și suprapuneri — crearea necondiționată producea exact asta lângă
+        // sesiunea din CalendarDemoSeeder); doar un an fără nicio sesiune primește una nouă.
+        $session = CorigentaSession::query()
+            ->where('academic_year_id', $yearId)
+            ->orderByRaw("CASE WHEN status = 'published' THEN 0 ELSE 1 END")
+            ->first() ?? CorigentaSession::query()->create([
+                'academic_year_id' => $yearId,
+                'season' => CorigentaSeason::cases()[0]->value,
+                'type' => CorigentaSessionType::cases()[0]->value,
+                'starts_on' => Carbon::now()->addDays(10)->toDateString(),
+                'ends_on' => Carbon::now()->addDays(17)->toDateString(),
+                'status' => CorigentaSessionStatus::Published->value,
+                'order_reference' => self::COMMISSION_SESSION,
+            ]);
 
         [$first, $second] = [$students[0], $students[1]];
         $season = $session->season->value;

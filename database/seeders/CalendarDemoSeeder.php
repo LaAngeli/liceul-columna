@@ -195,15 +195,22 @@ class CalendarDemoSeeder extends Seeder
         $season = CorigentaSeason::cases()[0];
         $type = CorigentaSessionType::cases()[0];
 
-        $session = CorigentaSession::create([
-            'academic_year_id' => $year,
-            'season' => $season->value,
-            'type' => $type->value,
-            'starts_on' => $on(22),
-            'ends_on' => $on(27),
-            'status' => CorigentaSessionStatus::Published->value,
-            'order_reference' => '[DEMO]',
-        ]);
+        // REFOLOSEȘTE sesiunea existentă a combinației: gărzile modelului (2026-07-21) interzic
+        // două sesiuni (an, sezon, tip) — exact dublura pe care acest create o producea la
+        // re-seedare (sesiunile #2/#6 de pe prod vin de aici + din DemoTestDataSeeder).
+        $session = CorigentaSession::query()
+            ->where('academic_year_id', $year)
+            ->where('season', $season->value)
+            ->where('type', $type->value)
+            ->first() ?? CorigentaSession::create([
+                'academic_year_id' => $year,
+                'season' => $season->value,
+                'type' => $type->value,
+                'starts_on' => $on(22),
+                'ends_on' => $on(27),
+                'status' => CorigentaSessionStatus::Published->value,
+                'order_reference' => '[DEMO]',
+            ]);
 
         CorigentaExam::create([
             'student_id' => $student->id,
