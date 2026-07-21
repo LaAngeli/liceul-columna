@@ -1188,6 +1188,7 @@ return [
         'enrollment' => [
             'duplicate' => 'Acest elev este deja înmatriculat în anul școlar selectat.',
             'archived_duplicate' => 'Există o înmatriculare ARHIVATĂ pentru acest elev în anul selectat — restaureaz-o (filtrul „Șterse") în loc să creezi una nouă.',
+            'delete_with_history' => 'Elevul are note sau absențe în acest an școlar — rândul de registru nu se șterge; marcați plecarea (data plecării).',
             'class_year_mismatch' => 'Clasa selectată aparține altui an școlar decât cel ales.',
         ],
         'school_class' => [
@@ -1302,6 +1303,27 @@ return [
         'homeroom' => 'Diriginte',
         'student_archived' => 'elev arhivat',
         'back' => 'Înapoi la motivări',
+    ],
+
+    'enrollments_nav' => [
+        'no_homeroom' => 'fără diriginte',
+        'transfer' => [
+            'label' => 'Transferă în altă clasă',
+            'heading' => 'Transfer — :student',
+            'description' => 'Elevul trece în altă clasă din ACELAȘI an școlar. Notele și absențele deja consemnate rămân pe clasa veche (istoricul corect); catalogul de aici înainte curge pe clasa nouă. Transferul rămâne în jurnalul de audit.',
+            'target' => 'Clasa nouă',
+            'success' => 'Transferat: :from → :to.',
+        ],
+        'unassigned' => [
+            'title' => '{1}Un elev fără înmatriculare în anul activ|[2,*]:count elevi fără înmatriculare în anul activ',
+            'enroll' => 'Înmatriculează',
+            'more' => '… și încă :count — lista se scurtează pe măsură ce îi înmatriculați pe cei afișați.',
+        ],
+        'integrity' => [
+            'unassigned' => '{1}Un elev activ nu are nicio înmatriculare în anul activ — nu apare în niciun catalog (lista e mai jos).|[2,*]:count elevi activi nu au nicio înmatriculare în anul activ — nu apar în niciun catalog (lista e mai jos).',
+            'archived' => '{1}O înmatriculare ARHIVATĂ în anul activ — restaurați-o din registrul clasei (filtrul „Șterse"), nu recreați alta.|[2,*]:count înmatriculări ARHIVATE în anul activ — restaurați-le din registrul clasei (filtrul „Șterse"), nu recreați altele.',
+            'broken_interval' => '{1}O înmatriculare are plecarea ÎNAINTEA înscrierii (moștenire) — corectați datele din Editare.|[2,*]:count înmatriculări au plecarea ÎNAINTEA înscrierii (moștenire) — corectați datele din Editare.',
+        ],
     ],
 
     'terms_axis' => [
@@ -1661,6 +1683,7 @@ return [
 
     'audit_types' => [
         'Grade' => 'Notă',
+        'Enrollment' => 'Înmatriculare',
         'Absence' => 'Absență',
         'TermAverage' => 'Medie semestrială',
         'AcademicRecord' => 'Foaie matricolă',

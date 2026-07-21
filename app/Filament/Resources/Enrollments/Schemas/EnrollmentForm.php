@@ -92,6 +92,10 @@ class EnrollmentForm
                 Select::make('student_id')
                     ->label(__('panel.fields.student'))
                     ->options(fn (Get $get, ?Model $record): array => self::studentOptions($get, $record))
+                    // Din lista „Neînmatriculați" a navigatorului, elevul sosește pre-completat
+                    // (`?elev=`) — validat (id existent), nu preluat orbește; regulile formularului
+                    // rămân stratul final.
+                    ->default(fn (): ?int => self::defaultStudentId())
                     ->searchable()
                     ->required()
                     ->helperText(__('panel.forms.enrollment.student_hint')),
@@ -212,5 +216,16 @@ class EnrollmentForm
         }
 
         return (int) $class->getKey();
+    }
+
+    private static function defaultStudentId(): ?int
+    {
+        $raw = request()->query('elev');
+
+        if (is_string($raw) && ctype_digit($raw) && Student::query()->whereKey((int) $raw)->exists()) {
+            return (int) $raw;
+        }
+
+        return null;
     }
 }

@@ -6,6 +6,7 @@ use App\Filament\Resources\Enrollments\EnrollmentResource;
 use App\Filament\Resources\Enrollments\Pages\ListEnrollments;
 use App\Filament\Resources\Students\StudentResource;
 use App\Models\Enrollment;
+use App\Models\SchoolClass;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
@@ -14,6 +15,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
@@ -102,12 +104,68 @@ class EnrollmentsTable
                                 ->title(__('panel.tables.enrollments.departure_success'))
                                 ->send();
                         }),
+                    // TRANSFERUL între clase (același an): operațiunea reală de registru — până
+                    // acum se „rezolva" editând clasa pe rând, fără nume și fără explicație.
+                    // Modelul e auditabil → vechi→nou rămâne în jurnal; notele deja consemnate
+                    // păstrează clasa VECHE (snapshot istoric corect), catalogul viitor curge pe
+                    // clasa nouă (alocările profesorilor ei).
+                    Action::make('transfer')
+                        ->label(__('panel.enrollments_nav.transfer.label'))
+                        ->icon('heroicon-o-arrows-right-left')
+                        ->color('info')
+                        ->visible(fn (Enrollment $record): bool => $record->left_on === null
+                            && ! $record->trashed()
+                            && EnrollmentResource::canEdit($record))
+                        ->modalHeading(fn (Enrollment $record): string => __('panel.enrollments_nav.transfer.heading', [
+                            'student' => $record->student->full_name ?? '—',
+                        ]))
+                        ->modalDescription(__('panel.enrollments_nav.transfer.description'))
+                        ->modalSubmitActionLabel(__('panel.enrollments_nav.transfer.label'))
+                        ->schema([
+                            Select::make('school_class_id')
+                                ->label(__('panel.enrollments_nav.transfer.target'))
+                                ->options(fn (Enrollment $record): array => self::transferTargets($record))
+                                ->searchable()
+                                ->required(),
+                        ])
+                        ->action(function (Enrollment $record, array $data): void {
+                            $target = SchoolClass::query()->whereKey((int) ($data['school_class_id'] ?? 0))->first();
+
+                            // Centura de server (POST meșterit): ținta există, e ALTĂ clasă și
+                            // aparține ACELUIAȘI an — transferul între ani nu există (acela e
+                            // promovarea/arhivarea, alt proces).
+                            if ($target === null
+                                || (int) $target->getKey() === (int) $record->school_class_id
+                                || (int) $target->academic_year_id !== (int) $record->academic_year_id) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title(__('panel.validation.enrollment.class_year_mismatch'))
+                                    ->send();
+
+                                return;
+                            }
+
+                            $from = $record->schoolClass;
+                            $record->update(['school_class_id' => $target->getKey()]);
+
+                            Notification::make()
+                                ->success()
+                                ->title(__('panel.enrollments_nav.transfer.success', [
+                                    'from' => $from !== null ? trim($from->name.' '.($from->section ?? '')) : '—',
+                                    'to' => trim($target->name.' '.($target->section ?? '')),
+                                ]))
+                                ->send();
+                        }),
                     EditAction::make(),
                 ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        // Gardul per-rând și la soft-delete în masă: politica refuză rândul cu
+                        // istoric academic (rândurile protejate sunt sărite, nu aruncate în
+                        // excepția gărzii de model).
+                        ->authorizeIndividualRecords('delete'),
                     ForceDeleteBulkAction::make()
                         // Filament autorizează BULK prin `forceDeleteAny()`; gardul per-rând
                         // (istoric academic dependent) se aplică doar cu asta.
@@ -115,5 +173,29 @@ class EnrollmentsTable
                     RestoreBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * Clasele-țintă ale transferului: ale ACELUIAȘI an școlar, fără clasa curentă.
+     *
+     * @return array<int, string>
+     */
+    private static function transferTargets(Enrollment $record): array
+    {
+        $options = [];
+
+        $classes = SchoolClass::query()
+            ->where('academic_year_id', $record->academic_year_id)
+            ->whereKeyNot($record->school_class_id)
+            ->orderBy('grade_level')
+            ->orderBy('name')
+            ->orderBy('section')
+            ->get();
+
+        foreach ($classes as $class) {
+            $options[(int) $class->getKey()] = trim($class->name.' '.($class->section ?? ''));
+        }
+
+        return $options;
     }
 }

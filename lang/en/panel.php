@@ -1173,6 +1173,7 @@ return [
         'enrollment' => [
             'duplicate' => 'This student is already enrolled for the selected academic year.',
             'archived_duplicate' => 'An ARCHIVED enrollment exists for this student in the selected year — restore it (the "Trashed" filter) instead of creating a new one.',
+            'delete_with_history' => 'The student has grades or absences in this academic year — the register row cannot be deleted; mark the departure instead.',
             'class_year_mismatch' => 'The selected class belongs to a different academic year.',
         ],
         'school_class' => [
@@ -1286,6 +1287,27 @@ return [
         'homeroom' => 'Homeroom teacher',
         'student_archived' => 'archived student',
         'back' => 'Back to excuse requests',
+    ],
+
+    'enrollments_nav' => [
+        'no_homeroom' => 'no homeroom teacher',
+        'transfer' => [
+            'label' => 'Transfer to another class',
+            'heading' => 'Transfer — :student',
+            'description' => 'The student moves to another class of the SAME academic year. Grades and absences already recorded stay with the old class (correct history); the catalogue flows into the new class from here on. The transfer is kept in the audit log.',
+            'target' => 'New class',
+            'success' => 'Transferred: :from → :to.',
+        ],
+        'unassigned' => [
+            'title' => '{1}One student without an enrolment in the active year|[2,*]:count students without an enrolment in the active year',
+            'enroll' => 'Enrol',
+            'more' => '… and :count more — the list shrinks as you enrol the ones shown.',
+        ],
+        'integrity' => [
+            'unassigned' => '{1}One active student has no enrolment in the active year — they appear in no catalogue (list below).|[2,*]:count active students have no enrolment in the active year — they appear in no catalogue (list below).',
+            'archived' => '{1}One ARCHIVED enrolment in the active year — restore it from the class register (the "Trashed" filter) instead of creating a new one.|[2,*]:count ARCHIVED enrolments in the active year — restore them from the class register (the "Trashed" filter) instead of creating new ones.',
+            'broken_interval' => '{1}One enrolment has the departure BEFORE the enrolment date (legacy) — fix the dates in Edit.|[2,*]:count enrolments have the departure BEFORE the enrolment date (legacy) — fix the dates in Edit.',
+        ],
     ],
 
     'terms_axis' => [
@@ -1645,6 +1667,7 @@ return [
 
     'audit_types' => [
         'Grade' => 'Grade',
+        'Enrollment' => 'Enrolment',
         'Absence' => 'Absence',
         'TermAverage' => 'Term average',
         'AcademicRecord' => 'Academic record',

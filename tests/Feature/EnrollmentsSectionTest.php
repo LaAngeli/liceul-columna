@@ -13,10 +13,14 @@ use App\Filament\Resources\Enrollments\Pages\CreateEnrollment;
 use App\Filament\Resources\Enrollments\Pages\ListEnrollments;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
+use App\Models\Grade;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -179,4 +183,93 @@ it('prim-vicedirectorul consultă registrul, dar nu operează în el', function 
         ->assertActionHidden('create')
         ->assertTableActionHidden('departure', $this->activeEnrollment)
         ->assertTableActionHidden('edit', $this->activeEnrollment);
+});
+
+// ─── Maturizarea registrului (2026-07-21): transfer, gărzi de ștergere, neînmatriculați ──
+
+it('transferul mută elevul în altă clasă din același an, lasă urmă în audit și nu atinge notele vechi', function () {
+    config(['audit.console' => true]);
+
+    $classB = SchoolClass::factory()->for($this->year)->create(['name' => 'VII', 'grade_level' => 7, 'section' => 'B']);
+    $term = Term::query()->where('is_current', true)->firstOrFail();
+
+    // Notă consemnată în clasa VECHE — snapshot istoric care NU se rescrie la transfer.
+    $grade = Grade::factory()->create([
+        'student_id' => $this->ana->id,
+        'subject_id' => Subject::factory()->create()->id,
+        'school_class_id' => $this->classA->id,
+        'term_id' => $term->id,
+        'value' => 9,
+    ]);
+
+    Livewire::withQueryParams(['clasa' => (string) $this->classA->id])
+        ->test(ListEnrollments::class)
+        ->callTableAction('transfer', $this->activeEnrollment, ['school_class_id' => $classB->id])
+        ->assertNotified();
+
+    expect($this->activeEnrollment->fresh()->school_class_id)->toBe($classB->id)
+        // Anul rămâne același; nota veche rămâne pe clasa veche.
+        ->and($this->activeEnrollment->fresh()->academic_year_id)->toBe($this->year->id)
+        ->and($grade->fresh()->school_class_id)->toBe($this->classA->id)
+        // Transferul e reconstruibil din jurnal: vechi→nou pe school_class_id.
+        ->and(DB::table('audits')
+            ->where('auditable_type', Enrollment::class)
+            ->where('auditable_id', $this->activeEnrollment->id)
+            ->where('event', 'updated')
+            ->exists())->toBeTrue();
+});
+
+it('transferul refuză o clasă din ALT an școlar (POST meșterit) și pe elevul plecat nu apare deloc', function () {
+    Livewire::withQueryParams(['clasa' => (string) $this->classA->id])
+        ->test(ListEnrollments::class)
+        ->assertTableActionHidden('transfer', $this->departedEnrollment)
+        ->callTableAction('transfer', $this->activeEnrollment, ['school_class_id' => $this->oldClass->id]);
+
+    // Ținta din alt an e respinsă de centura de server — nimic nu s-a schimbat.
+    expect($this->activeEnrollment->fresh()->school_class_id)->toBe($this->classA->id);
+});
+
+it('rândul de registru cu istoric academic nu se șterge (policy + model); cel fără istoric, da', function () {
+    $term = Term::query()->where('is_current', true)->firstOrFail();
+
+    Grade::factory()->create([
+        'student_id' => $this->ana->id,
+        'subject_id' => Subject::factory()->create()->id,
+        'school_class_id' => $this->classA->id,
+        'term_id' => $term->id,
+    ]);
+
+    expect($this->activeEnrollment->fresh()->hasAcademicHistory())->toBeTrue()
+        ->and($this->director->can('delete', $this->activeEnrollment))->toBeFalse()
+        ->and(fn () => $this->activeEnrollment->delete())
+        ->toThrow(ValidationException::class);
+
+    // Ion (plecat, fără note/absențe) rămâne curățabil — rând creat din greșeală.
+    expect($this->director->can('delete', $this->departedEnrollment))->toBeTrue();
+    $this->departedEnrollment->delete();
+    expect($this->departedEnrollment->fresh()->trashed())->toBeTrue();
+});
+
+it('elevii fără NICIO înmatriculare în anul activ apar în lista de lucru; cei cu înmatriculare arhivată — în semnalul dedicat', function () {
+    $orfan = Student::factory()->create(['last_name' => 'EN-Zugrav', 'first_name' => 'Radu']);
+
+    $cuArhivata = Student::factory()->create(['last_name' => 'EN-Vulpe', 'first_name' => 'Dan']);
+    Enrollment::factory()->for($cuArhivata)->for($this->classA)->for($this->year)
+        ->create(['enrolled_on' => '2025-09-01'])
+        ->delete();
+
+    $page = Livewire::test(ListEnrollments::class)->instance();
+    $unassigned = $page->unassigned();
+    $names = collect($unassigned['students'])->pluck('name')->all();
+
+    expect($names)->toContain('EN-Zugrav Radu')
+        // Înmatriculat activ / cu rând arhivat → NU în lista „de înmatriculat".
+        ->not->toContain('EN-Anghel Ana')
+        ->not->toContain('EN-Vulpe Dan');
+
+    $signals = collect($page->integrity());
+
+    expect($signals->firstWhere('level', 'warning'))->not->toBeNull()
+        // Rândul arhivat al lui Dan → semnalul „restaurați, nu recreați".
+        ->and($signals->firstWhere('level', 'info'))->not->toBeNull();
 });
