@@ -200,11 +200,12 @@ it('orarul structurat: ani → clase (cu „fără orar" semnalat) → lecțiile
     $component->call('openListView')
         ->assertCanSeeTableRecords([$lesson]);
 
-    // Adăugarea din context vine pre-completată (an + clasă).
+    // Adăugarea din context vine pre-completată cu clasa; anul NU mai e câmp de formular —
+    // e derivat din clasă (observer) și afișat doar informativ (standardizarea 2026-07-21).
     Livewire::withQueryParams(['an' => (string) $this->year->id, 'clasa' => (string) $classA->id])
         ->test(CreateLesson::class)
         ->assertFormSet([
-            'academic_year_id' => $this->year->id,
             'school_class_id' => $classA->id,
-        ]);
+        ])
+        ->assertFormFieldDoesNotExist('academic_year_id');
 });

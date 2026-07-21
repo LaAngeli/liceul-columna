@@ -249,8 +249,8 @@ it('formularul de creare preia ziua și lecția din celula aleasă, dar refuză 
     Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'zi' => '3', 'lectie' => '5'])
         ->test(CreateLesson::class)
         ->assertSchemaStateSet([
-            // Selectul cu opțiuni-enum ține starea ca enum, nu ca int brut.
-            'day_of_week' => Weekday::Wednesday,
+            // Opțiunile zilei sunt acum listă filtrată (lu–vi), nu enum-class → starea rămâne scalar.
+            'day_of_week' => Weekday::Wednesday->value,
             'lesson_number' => 5,
         ]);
 

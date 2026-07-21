@@ -120,7 +120,12 @@ it('widgetul semnalează anul fără semestre în fereastra de rollover, nu tot 
         'ends_on' => Carbon::today()->addMonths(6)->toDateString(),
     ]);
     Term::factory()->for($curent)->create(['is_current' => true]);
-    AcademicYear::factory()->create(['starts_on' => Carbon::today()->addYear()->toDateString()]);
+    // Ambele date suprascrise COERENT: doar starts_on lăsa ends_on-ul aleator al factory-ului,
+    // care putea cădea înaintea începutului → garda de interval a modelului (corect) aruncă.
+    AcademicYear::factory()->create([
+        'starts_on' => Carbon::today()->addYear()->toDateString(),
+        'ends_on' => Carbon::today()->addYear()->addMonths(10)->toDateString(),
+    ]);
 
     AcademicYearNeedsTerms::flushCache();
     expect(AcademicYearNeedsTerms::canView())->toBeFalse();
@@ -184,7 +189,11 @@ it('nota datată după finalul anului curent e refuzată când anul nou n-are se
 });
 
 it('widgetul e doar pentru configuratori', function () {
-    $an = AcademicYear::factory()->create(['ends_on' => Carbon::today()->addDays(5)->toDateString()]);
+    // Ambele date suprascrise coerent (vezi nota din testul ferestrei de rollover).
+    $an = AcademicYear::factory()->create([
+        'starts_on' => Carbon::today()->subMonths(10)->toDateString(),
+        'ends_on' => Carbon::today()->addDays(5)->toDateString(),
+    ]);
     Term::factory()->for($an)->create(['is_current' => true]);
     AcademicYear::factory()->create(); // an gol, în fereastră
 

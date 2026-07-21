@@ -213,8 +213,16 @@ it('formularul oferă doar disciplinele treptei clasei, iar suprapunerea de slot
     $component->assertHasFormErrors(['lesson_number']);
 
     // Doar fișa treptei apare în listă — altfel greșeala reparată la import se reintroduce manual.
+    // Opțiunile pot fi GRUPATE (alocările didactice în frunte) — se aplatizează cu UNIUNE (+),
+    // nu cu flatMap/array_merge, care ar renumerota cheile numerice (id-urile).
     $component->assertFormFieldExists('subject_id', function (Select $field) use ($gimnaziu, $primar): bool {
-        $options = array_keys($field->getOptions());
+        $flat = [];
+
+        foreach ($field->getOptions() as $key => $value) {
+            is_array($value) ? $flat += $value : $flat[$key] = $value;
+        }
+
+        $options = array_keys($flat);
 
         // Și calea de CĂUTARE nu are voie să scoată la iveală o fișă din afara treptei: cu
         // `relationship()` pe un câmp searchable, Filament rezolvă opțiunile din relație și

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Un slot din orarul structurat al unei clase (spec §2.1): o disciplină, ținută de un profesor,
@@ -31,6 +32,71 @@ class Lesson extends Model
 {
     /** @use HasFactory<LessonFactory> */
     use HasFactory;
+
+    /**
+     * Gărzi ABSOLUTE de consistență (standardizarea 2026-07-21), sub ORICE cale de scriere prin
+     * model: numărul lecției rămâne în plaja zilei (1–8), un slot (clasă, zi, nr.) nu se poate
+     * dubla (altfel indexul unic ieșea ca eroare de constrângere — pagină de eroare, nu mesaj),
+     * iar orarul unei clase dintr-un an ÎNCHIS e structură arhivată: nu se mai scrie și nu se mai
+     * șterge. Importul legacy prin query builder rămâne deliberat în afara gărzilor.
+     */
+    protected static function booted(): void
+    {
+        static::saving(static function (self $lesson): void {
+            $number = $lesson->getAttribute('lesson_number');
+
+            if ($number !== null && (! is_numeric($number) || (int) $number < 1 || (int) $number > 8)) {
+                throw ValidationException::withMessages([
+                    'lesson_number' => __('panel.validation.lesson.number_out_of_range'),
+                ]);
+            }
+
+            $classId = $lesson->getAttribute('school_class_id');
+            $day = $lesson->getAttribute('day_of_week');
+
+            if ($classId !== null && $day !== null && $number !== null) {
+                $duplicate = self::query()
+                    ->where('school_class_id', $classId)
+                    ->where('day_of_week', $day)
+                    ->where('lesson_number', (int) $number)
+                    ->when($lesson->exists, fn ($query) => $query->whereKeyNot($lesson->getKey()))
+                    ->exists();
+
+                if ($duplicate) {
+                    throw ValidationException::withMessages([
+                        'lesson_number' => __('panel.forms.lesson.slot_taken'),
+                    ]);
+                }
+            }
+
+            if (self::classYearClosed($classId) || ($lesson->isDirty('school_class_id') && self::classYearClosed($lesson->getOriginal('school_class_id')))) {
+                throw ValidationException::withMessages([
+                    'school_class_id' => __('panel.validation.lesson.class_year_closed'),
+                ]);
+            }
+        });
+
+        static::deleting(static function (self $lesson): void {
+            if (self::classYearClosed($lesson->getAttribute('school_class_id'))) {
+                throw ValidationException::withMessages([
+                    'school_class_id' => __('panel.validation.lesson.class_year_closed'),
+                ]);
+            }
+        });
+    }
+
+    /** Anul școlar al clasei date e închis (structură arhivată)? */
+    private static function classYearClosed(mixed $classId): bool
+    {
+        if (! is_numeric($classId)) {
+            return false;
+        }
+
+        return SchoolClass::query()
+            ->whereKey((int) $classId)
+            ->whereHas('academicYear', fn ($query) => $query->whereNotNull('closed_at'))
+            ->exists();
+    }
 
     protected $fillable = [
         'academic_year_id',
