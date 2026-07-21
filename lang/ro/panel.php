@@ -783,6 +783,15 @@ return [
             'section' => 'Litera/secția',
             'section_placeholder' => 'ex: A / 1',
             'homeroom_help' => 'Obligatoriu la creare. Poate fi schimbat sau retras ulterior de administrația responsabilă (vacanță).',
+            'section_identity' => 'Identitatea clasei',
+            'section_identity_hint' => 'O clasă este anul școlar + treapta + secția. Denumirea se generează automat din treaptă. Câmpurile marcate cu * sunt obligatorii.',
+            'section_homeroom' => 'Îndrumarea clasei',
+            'section_homeroom_hint' => 'Dirigintele validează motivările absențelor și vede întreaga clasă în catalog.',
+            'name_generated' => 'se generează automat din treaptă',
+            'name_custom_kept' => 'denumire istorică, păstrată (canonic ar fi :canonical)',
+            'name_pending' => 'Alege treapta — denumirea se generează automat.',
+            'section_hint' => 'Codul secției la această treaptă (sugestiile arată ce se folosește deja: R/U la liceu, 1/2 la gimnaziu, litere la primar). Se salvează cu majusculă.',
+            'homeroom_already' => 'deja diriginte la: :classes',
         ],
         'academic_record' => [
             'value' => 'Media',
@@ -1228,6 +1237,8 @@ return [
         ],
         'school_class' => [
             'duplicate' => 'Există deja o clasă cu această treaptă și literă în anul selectat.',
+            'grade_out_of_structure' => 'Treapta aleasă nu există în structura școlii (clasele I–XII).',
+            'year_closed' => 'Anul școlar ales este ÎNCHIS — clasele noi se creează doar în ani deschiși.',
             'archived_duplicate' => 'Există o clasă ARHIVATĂ identică (an, treaptă, literă) — restaureaz-o (filtrul „Șterse") în loc să creezi una nouă.',
         ],
         'subject' => [

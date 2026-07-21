@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ScheduleType;
+use App\Enums\SchoolCycle;
 use App\Observers\SchoolClassObserver;
 use Database\Factories\SchoolClassFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -27,6 +29,53 @@ class SchoolClass extends Model implements Auditable
 
     /** @use HasFactory<SchoolClassFactory> */
     use HasFactory, SoftDeletes;
+
+    /**
+     * Gărzi ABSOLUTE de consistență (standardizarea 2026-07-21), sub ORICE cale de model:
+     * treapta doar I–XII; secția normalizată (spații, MAJUSCULE — istoricul avea „w1"/„a7");
+     * numele ține pasul cu treapta CÂT TIMP e cel canonic (cifra romană a treptei — convenția
+     * tuturor claselor reale; clasele „V" pe treapta 9 de pe anii-fantomă au nume custom și NU
+     * sunt atinse); clasele noi nu se nasc în ani ÎNCHIȘI. Importul legacy + zona demo scriu
+     * prin query builder — deliberat neatinse.
+     */
+    protected static function booted(): void
+    {
+        static::saving(static function (self $class): void {
+            $grade = $class->getAttribute('grade_level');
+
+            if ($grade !== null && ((int) $grade < SchoolCycle::MIN_GRADE_LEVEL || (int) $grade > SchoolCycle::MAX_GRADE_LEVEL)) {
+                throw ValidationException::withMessages([
+                    'grade_level' => __('panel.validation.school_class.grade_out_of_structure'),
+                ]);
+            }
+
+            $section = $class->getAttribute('section');
+
+            if (is_string($section)) {
+                $normalized = mb_strtoupper(trim($section));
+                $class->setAttribute('section', $normalized === '' ? null : $normalized);
+            }
+
+            if ($grade !== null) {
+                $name = $class->getAttribute('name');
+                $canonicalForOldGrade = SchoolCycle::romanNumeral((int) $class->getOriginal('grade_level'));
+
+                if (! is_string($name) || trim($name) === '' || $name === $canonicalForOldGrade) {
+                    $class->setAttribute('name', SchoolCycle::romanNumeral((int) $grade));
+                }
+            }
+        });
+
+        static::creating(static function (self $class): void {
+            $closedAt = AcademicYear::query()->whereKey($class->getAttribute('academic_year_id'))->value('closed_at');
+
+            if ($closedAt !== null) {
+                throw ValidationException::withMessages([
+                    'academic_year_id' => __('panel.validation.school_class.year_closed'),
+                ]);
+            }
+        });
+    }
 
     protected $fillable = [
         'academic_year_id',
