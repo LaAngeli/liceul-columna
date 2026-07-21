@@ -813,13 +813,6 @@ return [
             'is_current' => 'Semestru curent',
             'is_current_hint' => 'Se stabilește automat după intervalele de date (sincronizarea nocturnă sau butonul „Sincronizează" din Semestre); nu se editează manual.',
             'number_short' => 'Nr.',
-            'section_identity' => 'Identitatea semestrului',
-            'section_identity_hint' => 'Un semestru este anul școlar + numărul lui. Denumirea se generează automat. Câmpurile marcate cu * sunt obligatorii.',
-            'section_interval' => 'Intervalul calendaristic',
-            'section_interval_hint' => 'Din interval se derivă semestrul fiecărei note și absențe; limitele anului sunt impuse chiar în calendar.',
-            'name_generated' => 'se generează automat din număr',
-            'name_custom_kept' => 'denumire istorică, păstrată (canonic ar fi :canonical)',
-            'name_pending' => 'Alege numărul — denumirea se generează automat.',
         ],
         'holiday' => [
             'name' => 'Denumire',
@@ -1231,8 +1224,6 @@ return [
         'term' => [
             'outside_year' => 'Intervalul semestrului trebuie să se încadreze în anul școlar selectat.',
             'overlap' => 'Intervalul se suprapune cu alt semestru existent.',
-            'number_out_of_range' => 'Numărul semestrului poate fi doar 1–4.',
-            'dates_inverted' => 'Sfârșitul semestrului nu poate fi înaintea începutului.',
             'number_taken' => 'Anul selectat are deja un semestru cu acest număr.',
             'year_closed' => 'Anul școlar este închis — structura lui de semestre e înghețată.',
             'delete_current' => 'Semestrul curent nu poate fi șters: tot catalogul se raportează la el.',

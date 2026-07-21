@@ -800,13 +800,6 @@ return [
             'is_current' => 'Current term',
             'is_current_hint' => 'Set automatically from the date ranges (nightly sync or the "Sync" button in Terms); not edited manually.',
             'number_short' => 'No.',
-            'section_identity' => 'Term identity',
-            'section_identity_hint' => 'A term is the academic year + its number. The name is generated automatically. Fields marked * are required.',
-            'section_interval' => 'Calendar interval',
-            'section_interval_hint' => 'The interval derives the term of every grade and absence; the year bounds are enforced right in the calendar.',
-            'name_generated' => 'generated automatically from the number',
-            'name_custom_kept' => 'historical name, kept (canonical would be :canonical)',
-            'name_pending' => 'Pick the number - the name is generated automatically.',
         ],
         'holiday' => [
             'name' => 'Name',
@@ -1216,8 +1209,6 @@ return [
         'term' => [
             'outside_year' => 'The term dates must fall within the selected academic year.',
             'overlap' => 'The dates overlap another existing term.',
-            'number_out_of_range' => 'The term number can only be 1-4.',
-            'dates_inverted' => 'The term end cannot be before its start.',
             'number_taken' => 'The selected year already has a term with this number.',
             'year_closed' => 'The academic year is closed — its term structure is frozen.',
             'delete_current' => 'The current term cannot be deleted: the whole catalogue is anchored to it.',
