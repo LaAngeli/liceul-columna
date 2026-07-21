@@ -91,4 +91,66 @@ class RealignTermAssignments
 
         return self::$lastRun = ['grades' => $movedGrades, 'absences' => $movedAbsences];
     }
+
+    /**
+     * Ce AR muta {@see run()} — fără nicio scriere (dry-run pentru comanda `app:realign-terms`).
+     * `*_no_target` = rânduri datate în afara oricărui semestru definit: run() le LASĂ pe loc,
+     * deci rămân „drift" și după realiniere (anomalii reale de dată, de revizuit uman).
+     *
+     * @return array{grades: int, absences: int, grades_no_target: int, absences_no_target: int}
+     */
+    public function preview(Term $term): array
+    {
+        $moveGrades = 0;
+        $moveAbsences = 0;
+        $noTargetGrades = 0;
+        $noTargetAbsences = 0;
+
+        $siblingTerms = Term::query()
+            ->where('academic_year_id', $term->academic_year_id)
+            ->whereNotNull('starts_on')
+            ->whereNotNull('ends_on')
+            ->get();
+
+        foreach ($siblingTerms as $candidate) {
+            Grade::query()
+                ->where('term_id', $candidate->id)
+                ->where(fn (Builder $query) => $query
+                    ->whereDate('graded_on', '<', $candidate->starts_on)
+                    ->orWhereDate('graded_on', '>', $candidate->ends_on))
+                ->get()
+                ->each(function (Grade $grade) use (&$moveGrades, &$noTargetGrades): void {
+                    $correct = Term::forDate($grade->graded_on);
+
+                    if ($correct === null) {
+                        $noTargetGrades++;
+                    } elseif ((int) $correct->id !== (int) $grade->term_id) {
+                        $moveGrades++;
+                    }
+                });
+
+            Absence::query()
+                ->where('term_id', $candidate->id)
+                ->where(fn (Builder $query) => $query
+                    ->whereDate('occurred_on', '<', $candidate->starts_on)
+                    ->orWhereDate('occurred_on', '>', $candidate->ends_on))
+                ->get()
+                ->each(function (Absence $absence) use (&$moveAbsences, &$noTargetAbsences): void {
+                    $correct = Term::forDate($absence->occurred_on);
+
+                    if ($correct === null) {
+                        $noTargetAbsences++;
+                    } elseif ((int) $correct->id !== (int) $absence->term_id) {
+                        $moveAbsences++;
+                    }
+                });
+        }
+
+        return [
+            'grades' => $moveGrades,
+            'absences' => $moveAbsences,
+            'grades_no_target' => $noTargetGrades,
+            'absences_no_target' => $noTargetAbsences,
+        ];
+    }
 }
