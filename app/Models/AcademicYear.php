@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Filament\Concerns\RejectsClosedYearWrites;
 use App\Models\Concerns\EnsuresSingleCurrent;
+use App\Support\SchoolCalendar;
 use Database\Factories\AcademicYearFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -29,6 +31,79 @@ class AcademicYear extends Model implements Auditable
 
     /** @use HasFactory<AcademicYearFactory> */
     use EnsuresSingleCurrent, HasFactory, SoftDeletes;
+
+    /**
+     * Gărzi ABSOLUTE de consistență (standardizarea 2026-07-21), sub ORICE cale de model:
+     * denumirea respectă FORMATUL CANONIC „2026–2027" (doi ani calendaristici CONSECUTIVI,
+     * cu cratimă en-dash — convenția tuturor datelor reale), iar intervalul nu poate fi
+     * răsturnat. Apartenența datelor la anii calendaristici ai denumirii se impune în formular
+     * (regulă server) — nu aici, ca importul legacy și fixture-urile istorice să rămână valide.
+     */
+    protected static function booted(): void
+    {
+        static::saving(static function (self $year): void {
+            $name = $year->getAttribute('name');
+
+            if (is_string($name) && $name !== '' && self::startYearFromName($name) === null) {
+                throw ValidationException::withMessages([
+                    'name' => __('panel.validation.academic_year.name_not_canonical'),
+                ]);
+            }
+
+            $startsOn = $year->getAttribute('starts_on');
+            $endsOn = $year->getAttribute('ends_on');
+
+            if ($startsOn !== null && $endsOn !== null && $endsOn < $startsOn) {
+                throw ValidationException::withMessages([
+                    'ends_on' => __('panel.validation.academic_year.dates_inverted'),
+                ]);
+            }
+        });
+    }
+
+    /** Denumirea CANONICĂ a anului școlar care începe în anul calendaristic dat: „2026–2027". */
+    public static function canonicalName(int $startYear): string
+    {
+        return $startYear.'–'.($startYear + 1);
+    }
+
+    /**
+     * Anul calendaristic de START din denumirea canonică — null când denumirea nu e canonică
+     * (format străin sau ani neconsecutivi).
+     */
+    public static function startYearFromName(?string $name): ?int
+    {
+        if (! is_string($name) || preg_match('/^(\d{4})–(\d{4})$/u', $name, $m) !== 1) {
+            return null;
+        }
+
+        return ((int) $m[2] === (int) $m[1] + 1) ? (int) $m[1] : null;
+    }
+
+    /**
+     * CANDIDAȚII pentru un an școlar nou: următoarele denumiri canonice DISPONIBILE (cei deja
+     * definiți — inclusiv arhivați, indexul unic îi vede — sunt excluși), pornind din urmă cu un
+     * an față de anul calendaristic curent. Primul candidat = propunerea implicită.
+     *
+     * @return array<string, string>
+     */
+    public static function candidateNames(int $count = 6): array
+    {
+        $existing = self::withTrashed()->pluck('name')->all();
+        $base = SchoolCalendar::localNow()->year - 1;
+
+        $candidates = [];
+
+        for ($start = $base; count($candidates) < $count && $start < $base + $count + 20; $start++) {
+            $name = self::canonicalName($start);
+
+            if (! in_array($name, $existing, true)) {
+                $candidates[$name] = $name;
+            }
+        }
+
+        return $candidates;
+    }
 
     protected $fillable = [
         'name',

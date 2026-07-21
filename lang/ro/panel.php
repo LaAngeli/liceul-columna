@@ -799,9 +799,13 @@ return [
         ],
         'academic_year' => [
             'name' => 'Denumire',
-            'name_placeholder' => 'ex: 2025–2026',
-            'is_current' => 'An curent',
-            'is_current_hint' => 'Se stabilește automat din semestrul curent (comanda zilnică de sincronizare) — nu se bifează manual.',
+            'section_identity' => 'Anul școlar',
+            'section_identity_hint' => 'Denumirea se generează automat — alegeți dintre următorii ani disponibili; anii deja definiți nu mai apar în listă.',
+            'section_period' => 'Perioada',
+            'section_period_hint' => 'Anul calendaristic al fiecărei date este fixat de denumirea aleasă — ajustați doar ziua și luna.',
+            'convention_info' => 'Începutul aparține primului an calendaristic, sfârșitul celui de-al doilea. Propunerea implicită urmează convenția școlii: 1 septembrie – 30 iunie.',
+            'no_years_info' => 'Niciun an școlar definit încă — acesta va fi primul din sistem.',
+            'latest_year_info' => 'Ultimul an definit: :year (:from – :to).',
         ],
         'term' => [
             'number' => 'Numărul semestrului',
@@ -1231,6 +1235,11 @@ return [
         ],
         'academic_year' => [
             'overlap' => 'Intervalul se suprapune cu alt an școlar existent.',
+            'name_not_canonical' => 'Denumirea anului școlar trebuie să aibă forma „2026–2027" — doi ani calendaristici consecutivi.',
+            'name_taken' => 'Acest an școlar este deja definit.',
+            'starts_outside_first_year' => 'Data de început trebuie să aparțină primului an calendaristic al anului școlar ales.',
+            'ends_outside_second_year' => 'Data de sfârșit trebuie să aparțină celui de-al doilea an calendaristic al anului școlar ales.',
+            'dates_inverted' => 'Sfârșitul anului școlar nu poate fi înaintea începutului.',
         ],
         'term' => [
             'outside_year' => 'Intervalul semestrului trebuie să se încadreze în anul școlar selectat.',

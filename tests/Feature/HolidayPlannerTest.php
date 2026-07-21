@@ -42,7 +42,7 @@ function plannerUser(UserRole $role = UserRole::AdministratorOperational): User
 function plannerYear(): AcademicYear
 {
     $year = AcademicYear::factory()->create([
-        'name' => '2025-2026',
+        'name' => '2025–2026',
         'starts_on' => '2025-09-01',
         'ends_on' => '2026-08-31',
     ]);
@@ -116,7 +116,7 @@ it('planificatorul arată vacanța în calendar și cronologie și filtrează pe
 
     // Alt an școlar, cu propria zi liberă — nu are ce căuta în planificatorul lui 2025-2026.
     AcademicYear::factory()->create([
-        'name' => '2024-2025',
+        'name' => '2024–2025',
         'starts_on' => '2024-09-01',
         'ends_on' => '2025-08-31',
     ]);

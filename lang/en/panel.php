@@ -786,9 +786,13 @@ return [
         ],
         'academic_year' => [
             'name' => 'Name',
-            'name_placeholder' => 'e.g.: 2025–2026',
-            'is_current' => 'Current year',
-            'is_current_hint' => 'Set automatically from the current term (daily sync) — not toggled by hand.',
+            'section_identity' => 'Academic year',
+            'section_identity_hint' => 'The name is generated automatically — pick one of the next available years; years already defined no longer appear in the list.',
+            'section_period' => 'Period',
+            'section_period_hint' => 'The calendar year of each date is fixed by the chosen name — adjust only the day and month.',
+            'convention_info' => 'The start belongs to the first calendar year, the end to the second. The default proposal follows the school convention: 1 September – 30 June.',
+            'no_years_info' => 'No academic year defined yet — this will be the first in the system.',
+            'latest_year_info' => 'Latest defined year: :year (:from – :to).',
         ],
         'term' => [
             'number' => 'Term number',
@@ -1216,6 +1220,11 @@ return [
         ],
         'academic_year' => [
             'overlap' => 'The dates overlap another existing academic year.',
+            'name_not_canonical' => 'The academic year name must have the form “2026–2027” — two consecutive calendar years.',
+            'name_taken' => 'This academic year is already defined.',
+            'starts_outside_first_year' => 'The start date must belong to the first calendar year of the chosen academic year.',
+            'ends_outside_second_year' => 'The end date must belong to the second calendar year of the chosen academic year.',
+            'dates_inverted' => 'The academic year cannot end before it starts.',
         ],
         'term' => [
             'outside_year' => 'The term dates must fall within the selected academic year.',

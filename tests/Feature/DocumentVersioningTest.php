@@ -261,7 +261,7 @@ it('dosarul elevului combină situația semestrului cu evoluția pe ani și se g
 // ─── Raportul absențelor — anul curent, pe date (Faza 5) ─────────────────────────────────
 
 it('raportul absențelor grupează pe semestre, etichetează ziua întreagă și numără motivarea', function () {
-    $year = AcademicYear::factory()->create(['name' => '2025-2026']);
+    $year = AcademicYear::factory()->create(['name' => '2025–2026']);
     $term1 = Term::factory()->for($year)->create(['number' => 1, 'is_current' => false]);
     $term2 = Term::factory()->for($year)->create(['number' => 2, 'is_current' => true]);
     $class = SchoolClass::factory()->for($year)->create();
@@ -286,7 +286,7 @@ it('raportul absențelor grupează pe semestre, etichetează ziua întreagă și
     $method = new ReflectionMethod(CabinetController::class, 'generatedDocumentData');
     $data = $method->invoke(app(CabinetController::class), GeneratedDocumentType::AbsenceReport, $student);
 
-    expect($data['yearLabel'])->toBe('2025-2026')
+    expect($data['yearLabel'])->toBe('2025–2026')
         ->and($data['total'])->toBe(2)
         ->and($data['totalMotivated'])->toBe(1)
         ->and($data['totalUnmotivated'])->toBe(1)
@@ -298,7 +298,7 @@ it('raportul absențelor grupează pe semestre, etichetează ziua întreagă și
     $html = view(GeneratedDocumentType::AbsenceReport->blade(), $data)->render();
     expect($html)
         ->toContain('Raportul absențelor')
-        ->toContain('Anul școlar 2025-2026')
+        ->toContain('Anul școlar 2025–2026')
         ->toContain('Zi întreagă');
 
     // Fluxul complet prin ruta gardată.
