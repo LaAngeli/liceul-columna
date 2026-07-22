@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FilterPills } from '@/components/cabinet/catalog/filter-pills';
 import { isUrl } from '@/components/cabinet/student-profile/helpers';
 import { useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -87,6 +88,9 @@ export function HomeworkByDay({ homework }: { homework: HomeworkItem[] }) {
         }
     }
 
+    // Cele mai voluminoase discipline întâi — la pliere, pastilele vizibile sunt cele relevante.
+    subjects.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+
     const visible = activeSubject === 'all' ? homework : homework.filter((h) => h.subject === activeSubject);
     const upcoming = visible.filter((h) => h.status !== 'past');
     const past = visible.filter((h) => h.status === 'past');
@@ -99,65 +103,16 @@ export function HomeworkByDay({ homework }: { homework: HomeworkItem[] }) {
     const days = groupByDay(upcoming, t('cabinet.homework_today'), t('cabinet.homework_tomorrow'), tomorrowIso);
     const pastDays = groupByDay(past, t('cabinet.homework_today'), t('cabinet.homework_tomorrow'), tomorrowIso);
 
-    const pillClass = (active: boolean) =>
-        cn(
-            'inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
-            'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-            active
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground',
-        );
-
     return (
         <div className="flex flex-col gap-4">
-            {/* Filtrul pe discipline — doar când există ce filtra (2+ discipline). */}
-            {subjects.length > 1 && (
-                <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label={t('cabinet.subject')}>
-                    <button
-                        type="button"
-                        onClick={() => setActiveSubject('all')}
-                        aria-pressed={activeSubject === 'all'}
-                        className={pillClass(activeSubject === 'all')}
-                    >
-                        {t('cabinet.reg_all')}
-                        <span
-                            className={cn(
-                                'inline-flex min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold',
-                                activeSubject === 'all' ? 'bg-primary-foreground/20' : 'bg-muted',
-                            )}
-                        >
-                            {homework.length}
-                        </span>
-                    </button>
-                    {subjects.map((s) => {
-                        const active = activeSubject === s.name;
-
-                        return (
-                            <button
-                                key={s.name}
-                                type="button"
-                                onClick={() => setActiveSubject(s.name)}
-                                aria-pressed={active}
-                                className={pillClass(active)}
-                            >
-                                <span className="max-w-44 truncate">{s.name}</span>
-                                {/* Punct: disciplina are temă DE PREDAT azi. */}
-                                {s.hasToday && (
-                                    <span className={cn('size-1.5 rounded-full', active ? 'bg-primary-foreground' : 'bg-primary')} aria-hidden />
-                                )}
-                                <span
-                                    className={cn(
-                                        'inline-flex min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold',
-                                        active ? 'bg-primary-foreground/20' : 'bg-muted',
-                                    )}
-                                >
-                                    {s.total}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
+            {/* Filtrul pe discipline — pastile care se înfășoară (fără scroll orizontal). */}
+            <FilterPills
+                options={subjects.map((s) => ({ key: s.name, label: s.name, count: s.total, dot: s.hasToday }))}
+                active={activeSubject}
+                onChange={(key) => setActiveSubject(key === 'all' ? 'all' : String(key))}
+                allCount={homework.length}
+                ariaLabel={t('cabinet.subject')}
+            />
 
             {days.length === 0 && (
                 <p className="rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">

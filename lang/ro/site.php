@@ -736,6 +736,9 @@ return [
         // Registrul absențelor (modulul Absențe) + fișa detaliată a cererii de motivare.
         'reg_title' => 'Registrul absențelor',
         'reg_all' => 'Toate',
+        // Filtrul pe discipline (Teme / Absențe): butonul care pliază restul pastilelor.
+        'filter_more' => 'discipline în plus — arată toate',
+        'filter_less' => 'Mai puține',
         'reg_recorded' => 'Consemnată',
         'reg_deadline' => 'Termen de motivare',
         'reg_deadline_passed' => 'Termen depășit',

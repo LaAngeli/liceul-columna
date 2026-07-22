@@ -1,6 +1,7 @@
 import { Form } from '@inertiajs/react';
 import { CalendarRange, FileText, Lock, Paperclip } from 'lucide-react';
 import { useState } from 'react';
+import { FilterPills } from '@/components/cabinet/catalog/filter-pills';
 import { localIso } from '@/components/cabinet/catalog/homework-views';
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { gradeLabel } from '@/components/cabinet/student-profile/helpers';
@@ -244,63 +245,22 @@ export function AbsenceRegister({ register }: { register: AbsenceRegisterData })
             ? register.absences
             : register.absences.filter((a) => a.subjectId === activeSubject);
 
-    const pillClass = (active: boolean) =>
-        cn(
-            'inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            active
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground',
-        );
-
     return (
         <div className="flex flex-col gap-3">
-            {/* Selectorul de disciplină — rând orizontal scrollabil (multe discipline → scroll, nu wrap haotic). */}
-            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label={t('cabinet.subject')}>
-                <button
-                    type="button"
-                    onClick={() => setActiveSubject('all')}
-                    aria-pressed={activeSubject === 'all'}
-                    className={pillClass(activeSubject === 'all')}
-                >
-                    {t('cabinet.reg_all')}
-                    <span
-                        className={cn(
-                            'inline-flex min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold',
-                            activeSubject === 'all' ? 'bg-primary-foreground/20' : 'bg-muted',
-                        )}
-                    >
-                        {register.absences.length}
-                    </span>
-                </button>
-                {register.subjects.map((s) => {
-                    const active = activeSubject === s.id;
-
-                    return (
-                        <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => setActiveSubject(s.id)}
-                            aria-pressed={active}
-                            className={pillClass(active)}
-                        >
-                            <span className="max-w-44 truncate">{s.name}</span>
-                            <span
-                                className={cn(
-                                    'inline-flex min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold',
-                                    active
-                                        ? 'bg-primary-foreground/20'
-                                        : s.unmotivated > 0
-                                          ? 'bg-destructive/10 text-destructive'
-                                          : 'bg-muted',
-                                )}
-                            >
-                                {s.total}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
+            {/* Selectorul de disciplină — pastile care se ÎNFĂȘOARĂ, fără scroll orizontal
+                (aceeași componentă ca filtrul din modulul „Teme"). */}
+            <FilterPills
+                options={register.subjects.map((s) => ({
+                    key: s.id,
+                    label: s.name,
+                    count: s.total,
+                    danger: s.unmotivated > 0,
+                }))}
+                active={activeSubject}
+                onChange={(key) => setActiveSubject(key === 'all' ? 'all' : Number(key))}
+                allCount={register.absences.length}
+                ariaLabel={t('cabinet.subject')}
+            />
 
             {/* Lista absențelor disciplinei active — cronologic descrescător. */}
             <ul className="divide-y overflow-hidden rounded-xl border bg-card">

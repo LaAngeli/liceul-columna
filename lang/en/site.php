@@ -736,6 +736,9 @@ return [
         // The absence register (Absences module) + the excuse-request detail sheet.
         'reg_title' => 'Absence register',
         'reg_all' => 'All',
+        // Subject filter (Homework / Absences): the button that unfolds the remaining pills.
+        'filter_more' => 'more subjects — show all',
+        'filter_less' => 'Show less',
         'reg_recorded' => 'Recorded',
         'reg_deadline' => 'Excusal deadline',
         'reg_deadline_passed' => 'Deadline passed',
