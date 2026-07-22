@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { BookOpen, ClipboardList, FileText, History, LayoutDashboard } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import type { HomeworkItem } from '@/components/cabinet/catalog/homework-views';
 import type { WeeklyData } from '@/components/cabinet/catalog/schedule-views';
 import type { AbsenceRegisterData, MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
 import { ProfileHeader } from '@/components/cabinet/student-profile/header';
@@ -85,19 +86,7 @@ interface Props {
     subjects?: { subject: string; average: number | null; mc?: number | null; summative?: number | null; items: GradeItem[] }[];
     absenceRegister?: AbsenceRegisterData;
     transcript?: { grade_level: number; subjects: { subject: string; sem1: string | null; sem2: string | null; annual: string | null }[] }[];
-    homework?: {
-        id: number;
-        date: string;
-        due: string | null;
-        effectiveDate: string;
-        dayLabel: string;
-        status: 'today' | 'upcoming' | 'past';
-        subject: string;
-        topic: string | null;
-        required: string | null;
-        optional: string | null;
-        links: string[];
-    }[];
+    homework?: HomeworkItem[];
     dynamics?: Dynamics;
     // Orarul săptămânal NORMALIZAT (publicat/structurat, o singură formă — App\Support\WeeklySchedule).
     weekly?: WeeklyData | null;

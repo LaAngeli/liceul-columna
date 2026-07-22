@@ -688,12 +688,18 @@ class DemoTestDataSeeder extends Seeder
 
         $today = SchoolCalendar::localNow()->startOfDay();
 
-        // Sarcini generice, plauzibile pe ORICE disciplină — seeder-ul nu inventează conținut
-        // didactic specific (ar arăta credibil, dar ar fi fals).
-        $tasks = [
-            ['Recapitulare pentru ora de azi', 'Ex. 3–5, pag. 48', null],
-            ['Fișă de lucru', 'Fișa nr. 2, itemii 1–4', 'Itemul 5 — pentru cei care doresc'],
-            ['Pregătire pentru evaluarea de mâine', 'Repetarea temelor din unitatea curentă', null],
+        // Poveștile acoperă TOATE orizonturile fluxului (2026-07-23): două AZI (una cu LINKURI —
+        // un URL real + o referință-text, ca ambele randări să fie vizibile), mâine, poimâine,
+        // săptămâna viitoare și IERI (istoric proaspăt, ca plierea „Teme anterioare" să aibă și
+        // conținut [DEMO], nu doar teme legacy). Sarcinile sunt generice, plauzibile pe orice
+        // disciplină — seeder-ul nu inventează conținut didactic specific.
+        $stories = [
+            ['Recapitulare pentru ora de azi', 'Ex. 3–5, pag. 48', null, [], 0],
+            ['Fișă de lucru cu resurse online', 'Fișa nr. 2, itemii 1–4', 'Itemul 5 — pentru cei care doresc', ['https://www.digitaliada.ro/', 'Manualul digital, cap. 4'], 0],
+            ['Pregătire pentru evaluarea de mâine', 'Repetarea temelor din unitatea curentă', null, [], 1],
+            ['Lectură suplimentară', 'Textul de la pag. 60, cu fișă de idei', null, [], 2],
+            ['Proiect în echipă', 'Prezentare de 5 minute (în perechi)', 'Poster A3 — opțional', [], 7],
+            ['Exerciții de consolidare', 'Ex. 1–2, pag. 44', null, [], -1],
         ];
 
         $created = 0;
@@ -716,7 +722,10 @@ class DemoTestDataSeeder extends Seeder
                 continue;
             }
 
-            foreach ($assignments as $index => $assignment) {
+            foreach ($stories as $index => [$topic, $required, $optional, $links, $dueOffset]) {
+                // Disciplinele se rotesc pe alocările REALE ale clasei — filtrul pe discipline
+                // din modul are astfel mai multe pastile cu contoare diferite.
+                $assignment = $assignments[$index % $assignments->count()];
                 $subject = $assignment->subject;
                 $teacher = $assignment->teacher;
 
@@ -724,10 +733,7 @@ class DemoTestDataSeeder extends Seeder
                     continue;
                 }
 
-                [$topic, $required, $optional] = $tasks[$index % count($tasks)];
-                // Ultima temă a clasei are termenul MÂINE — fereastra zilei se poate compara cu
-                // ziua următoare (navigarea ◀ ▶ din Programul zilei).
-                $due = $index === 2 ? $today->copy()->addDay() : $today;
+                $due = $today->copy()->addDays($dueOffset);
 
                 HomeworkAssignment::query()->create([
                     'subject_id' => $subject->id,
@@ -736,17 +742,18 @@ class DemoTestDataSeeder extends Seeder
                     'author_name' => $teacher->full_name,
                     'grade_level' => $class->grade_level,
                     'section' => $class->section,
-                    'assigned_on' => $today->copy()->subDays(2)->toDateString(),
+                    'assigned_on' => $due->copy()->subDays(3)->toDateString(),
                     'due_on' => $due->toDateString(),
                     'topic' => self::MARKER.' '.$topic,
                     'required_task' => $required,
                     'optional_task' => $optional,
+                    'links' => $links,
                 ]);
                 $created++;
             }
         }
 
-        $this->command->info("Teme demo cu termen azi/mâine: {$created} (pe ".count($doneClasses).' clase).');
+        $this->command->info("Teme demo (azi×2 cu linkuri, mâine, poimâine, +7 zile, ieri): {$created} (pe ".count($doneClasses).' clase).');
     }
 
     private function seedMotivations(): void

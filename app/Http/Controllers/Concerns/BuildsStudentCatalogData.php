@@ -402,6 +402,9 @@ trait BuildsStudentCatalogData
                         default => 'past',
                     },
                     'subject' => ContentTranslator::subject((string) $homework->subject_name),
+                    // Cine a dat tema — author_name e snapshot-ul textual de la creare (rămâne
+                    // valabil și dacă fișa profesorului dispare), aceeași logică ca subject_name.
+                    'teacher' => $homework->author_name,
                     'topic' => $homework->topic,
                     'required' => $homework->required_task,
                     'optional' => $homework->optional_task,

@@ -231,7 +231,9 @@ it('tema cu termen AZI e „today" și noaptea, când ziua UTC e încă cea prec
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('homework.0.status', 'today')
-            ->where('homework.0.effectiveDate', '2026-03-12'));
+            ->where('homework.0.effectiveDate', '2026-03-12')
+            // Cine a dat tema — snapshot-ul author_name, vizibil familiei pe card.
+            ->where('homework.0.teacher', 'Damian Iu.'));
 
     Carbon::setTestNow();
 });
