@@ -275,6 +275,29 @@ it('evenimentele TRECUTE nu notifică pe nimeni (bookkeeping, nu anunț)', funct
     Notification::assertNothingSentTo($family);
 });
 
+it('comutatorul „Anunță familiile" OPRIT tace și la creare, și la anulare', function () {
+    $family = User::factory()->create();
+    $family->assignRole(UserRole::Elev->value);
+    $student = Student::factory()->create(['user_id' => $family->id]);
+    Enrollment::factory()->for($student)->for($this->class)->for($this->year)->create();
+
+    Notification::fake();
+
+    // Eveniment viitor, în scope-ul familiei, dar creat FĂRĂ notificare → doar apare în calendar.
+    $event = CalendarEvent::factory()->silent()->create([
+        'visibility_scope' => CalendarEventScope::SchoolClass,
+        'school_class_id' => $this->class->id,
+        'starts_on' => today()->addWeek(),
+    ]);
+
+    Notification::assertNothingSentTo($family);
+
+    // Anularea unui eveniment tăcut rămâne tăcută.
+    $event->delete();
+
+    Notification::assertNothingSentTo($family);
+});
+
 // ─── Zilele libere au policy ─────────────────────────────────────────────────────────────
 
 it('zilele libere se scriu doar de configuratorii de orare (policy, nu doar resursă)', function () {

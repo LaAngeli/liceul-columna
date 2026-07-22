@@ -19,6 +19,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -126,6 +127,13 @@ class CalendarEventForm
                         $get('students'),
                         $get('audience_reach'),
                     )),
+
+                // Comutatorul de notificare (implicit pornit): oprit → evenimentul doar apare în
+                // calendar, fără să anunțe familiile. Util pentru intrări de rutină deja știute.
+                Toggle::make('notify_families')
+                    ->label(__('panel.forms.calendar_event.notify_families'))
+                    ->default(true)
+                    ->helperText(__('panel.forms.calendar_event.notify_families_hint')),
 
                 TextInput::make('title')
                     ->label(__('panel.forms.calendar_event.title_ro'))

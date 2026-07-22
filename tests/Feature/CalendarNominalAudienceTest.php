@@ -205,3 +205,25 @@ it('observerul `created` NU notifică nominalul (pivotul e gol la acel moment)',
 
     Notification::assertNothingSent();
 });
+
+it('un nominal cu „Anunță familiile" OPRIT nu notifică, dar RĂMÂNE vizibil în calendar', function () {
+    Notification::fake();
+
+    [$student, , $parent] = nominalStudent($this);
+
+    // Dată VIITOARE — ca tăcerea să fie a comutatorului, nu a regulii „evenimentele trecute nu notifică".
+    $start = today()->addWeek();
+    $event = CalendarEvent::factory()->forStudents()->silent()->create(['starts_on' => $start->toDateString()]);
+    $event->students()->attach($student->id);
+    app(CalendarEventObserver::class)->notifyNominalCreation($event);
+
+    // Tăcut la notificare...
+    Notification::assertNothingSent();
+
+    // ...dar tot apare în calendarul familiei (vizibilitatea NU depinde de notificare).
+    $access = new CalendarAccess;
+    $scope = new CalendarScope($parent, collect([$student->load('enrollments')]));
+    $items = (new ManualEventProjector($access))->project($scope, $start->copy()->startOfMonth(), $start->copy()->endOfMonth());
+
+    expect($items)->toHaveCount(1);
+});

@@ -994,6 +994,8 @@ return [
             'summary_all_classes' => '{1}toate clasele (:count)|[2,*]toate cele :count de clase',
             'summary_audience' => '{0}Vor vedea: elevii și părinții din :classes (niciun elev înmatriculat încă).|{1}Vor vedea: elevii și părinții din :classes — un elev.|[2,19]Vor vedea: elevii și părinții din :classes — :students elevi.|[20,*]Vor vedea: elevii și părinții din :classes — :students de elevi.',
             'summary_staff_note' => 'Personalul îl vede în panou indiferent de audiență.',
+            'notify_families' => 'Anunță familiile',
+            'notify_families_hint' => 'Pornit: familiile vizate primesc o notificare la creare și la anulare. Oprit: evenimentul doar apare în calendar, fără notificare.',
             'past_date' => 'Data este în trecut. Evenimentele noi se programează de azi înainte; înregistrarea retroactivă e rezervată conducerii.',
             'past_time' => 'Ora a trecut deja pentru ziua de azi. Alege o oră viitoare sau o altă zi.',
             'backdate_allowed' => 'Poți înregistra și retroactiv (drept al conducerii) — datele trecute rămân deschise.',

@@ -981,6 +981,8 @@ return [
             'summary_all_classes' => '{1}all classes (:count)|[2,*]all :count classes',
             'summary_audience' => '{0}Will see it: students and parents of :classes (no students enrolled yet).|{1}Will see it: students and parents of :classes — one student.|[2,*]Will see it: students and parents of :classes — :students students.',
             'summary_staff_note' => 'Staff can see the event in the panel regardless of audience.',
+            'notify_families' => 'Notify families',
+            'notify_families_hint' => 'On: the targeted families get a notification on creation and cancellation. Off: the event just appears in the calendar, with no notification.',
             'past_date' => 'The date is in the past. New events are scheduled from today onward; backdating is reserved for leadership.',
             'past_time' => 'That time has already passed today. Pick a future time or another day.',
             'backdate_allowed' => 'You may also record retroactively (a leadership right) — past dates remain open.',

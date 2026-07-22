@@ -54,6 +54,13 @@ class CalendarEventObserver
 
     private function notifyFamilies(CalendarEvent $event, NotificationType $type): void
     {
+        // Comutatorul „Anunță familiile" (implicit pornit): oprit → evenimentul doar apare în
+        // calendar, fără notificare nici la creare, nici la anulare. Un singur punct de gardă,
+        // deci acoperă și audiențele largi, și nominalele.
+        if (! $event->notify_families) {
+            return;
+        }
+
         // Seederele/comenzile de consolă nu declanșează valul de notificări (ca importul legacy);
         // în producție evenimentele se creează din panou (web). Testele rămân acoperite.
         if (app()->runningInConsole() && ! app()->runningUnitTests()) {

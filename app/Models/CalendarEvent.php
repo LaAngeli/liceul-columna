@@ -30,6 +30,7 @@ use OwenIt\Auditing\Contracts\Auditable;
  * @property int|null $grade_level
  * @property int|null $school_class_id
  * @property CalendarAudienceReach|null $audience_reach
+ * @property bool $notify_families
  * @property string $title
  * @property string|null $description
  * @property Carbon $starts_on
@@ -51,6 +52,7 @@ class CalendarEvent extends Model implements Auditable
         'grade_level',
         'school_class_id',
         'audience_reach',
+        'notify_families',
         'title',
         'description',
         'starts_on',
@@ -65,6 +67,7 @@ class CalendarEvent extends Model implements Auditable
             'type' => CalendarEventType::class,
             'visibility_scope' => CalendarEventScope::class,
             'audience_reach' => CalendarAudienceReach::class,
+            'notify_families' => 'boolean',
             'grade_level' => 'integer',
             'starts_on' => 'date',
             'ends_on' => 'date',

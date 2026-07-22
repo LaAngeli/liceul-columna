@@ -30,8 +30,15 @@ class CalendarEventFactory extends Factory
             'starts_on' => fake()->dateTimeBetween('-1 week', '+3 weeks')->format('Y-m-d'),
             'ends_on' => null,
             'start_time' => null,
+            'notify_families' => true,
             'created_by' => null,
         ];
+    }
+
+    /** Eveniment creat FĂRĂ notificare — doar apare în calendar. */
+    public function silent(): static
+    {
+        return $this->state(fn (): array => ['notify_families' => false]);
     }
 
     public function forGrade(int $grade): static
