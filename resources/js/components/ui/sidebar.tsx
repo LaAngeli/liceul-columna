@@ -1,3 +1,4 @@
+import { router } from "@inertiajs/react"
 import { Slot } from "@radix-ui/react-slot"
 import type { VariantProps} from "class-variance-authority";
 import { cva } from "class-variance-authority"
@@ -6,6 +7,7 @@ import * as React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { MenuToggle } from "@/components/ui/menu-toggle"
 import { Separator } from "@/components/ui/separator"
 import {
   Sheet,
@@ -21,12 +23,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useTranslations } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
-const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
@@ -90,6 +92,12 @@ function SidebarProvider({
   const toggleSidebar = React.useCallback(() => {
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
   }, [isMobile, setOpen, setOpenMobile])
+
+  // Layout-ul e persistent între vizitele Inertia, deci starea `openMobile` ar supraviețui
+  // navigării: fără asta, meniul mobil rămânea DESCHIS după atingerea unui link.
+  React.useEffect(() => {
+    return router.on("start", () => setOpenMobile(false))
+  }, [])
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
@@ -160,6 +168,7 @@ function Sidebar({
   collapsible?: "offcanvas" | "icon" | "none"
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const t = useTranslations()
 
   if (collapsible === "none") {
     return (
@@ -183,19 +192,34 @@ function Sidebar({
           <SheetTitle>Sidebar</SheetTitle>
           <SheetDescription>Displays the mobile sidebar.</SheetDescription>
         </SheetHeader>
+        {/* Meniul mobil ocupă TOT ecranul (100% × 100%), indiferent de orientare — nu panou
+            de 18rem. Suprafața câștigată → rânduri tactile de 44px (scoped prin selectorii
+            [data-sidebar=…], fără să atingem consumatorii) + zone sigure notch/home-indicator. */}
         <SheetContent
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
-          style={
-            {
-              "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-            } as React.CSSProperties
-          }
+          className="bg-sidebar text-sidebar-foreground w-full max-w-none p-0 sm:max-w-none [&>button]:hidden"
           side={side}
         >
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div
+            className={cn(
+              "relative flex h-full w-full flex-col",
+              "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+              "[&_[data-sidebar=menu-button]]:min-h-11",
+              "[&_[data-sidebar=menu-sub-button]]:min-h-11",
+              "[&_[data-sidebar=menu-action]]:top-0 [&_[data-sidebar=menu-action]]:right-0",
+              "[&_[data-sidebar=menu-action]]:h-11 [&_[data-sidebar=menu-action]]:w-11",
+            )}
+          >
+            <MenuToggle
+              open
+              onClick={() => setOpenMobile(false)}
+              label={t('action.close', 'Închide')}
+              className="absolute top-[calc(0.625rem+env(safe-area-inset-top))] right-2 z-20"
+            />
+            {children}
+          </div>
         </SheetContent>
       </Sheet>
     )

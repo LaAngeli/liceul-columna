@@ -11,7 +11,10 @@ export default function AppSidebarLayout({
     return (
         <AppShell variant="sidebar">
             <AppSidebar />
-            <AppContent variant="sidebar" className="overflow-x-hidden">
+            {/* `clip`, nu `hidden`: hidden creează un scroll-container care RUPE position:sticky
+                pe header (nu se mai lipește de viewport); clip taie la fel overflow-ul orizontal,
+                dar fără scroll-container — sticky funcționează. */}
+            <AppContent variant="sidebar" className="overflow-x-clip">
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
                 {children}
             </AppContent>

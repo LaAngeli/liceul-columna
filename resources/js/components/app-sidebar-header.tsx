@@ -1,13 +1,15 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { Bell } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AppClock } from '@/components/app-clock';
 import { AppUserBadge } from '@/components/app-user-badge';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { LanguageSwitcher } from '@/components/public/language-switcher';
 import { ThemeToggle } from '@/components/public/theme-toggle';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { MenuToggle } from '@/components/ui/menu-toggle';
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useTranslations } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import { notifications } from '@/routes/cabinet';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
@@ -24,6 +26,20 @@ export function AppSidebarHeader({
 }) {
     const t = useTranslations();
     const unread = Number(usePage().props.notificationsUnread ?? 0);
+    const { openMobile, toggleSidebar } = useSidebar();
+
+    // Header „dinamic la scroll": după primii pixeli derulați devine compact, cu fundal
+    // translucid + blur și umbră — rămâne lipit sus (sticky) fără să consume spațiu vertical.
+    const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 8);
+
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     // Polling natival Inertia v3: la fiecare 60s reîmprospătăm DOAR prop-ul de unread (`only:[…]`),
     // fără să refacem pagina. Pauzat când tab-ul nu e vizibil (Inertia gestionează automat).
@@ -40,11 +56,26 @@ export function AppSidebarHeader({
     }, []);
 
     return (
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/50 px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
+        <header
+            className={cn(
+                'sticky top-0 z-30 flex shrink-0 items-center gap-2 border-b px-6 md:rounded-t-xl md:px-4',
+                'transition-[height,background-color,box-shadow,border-color] duration-300 ease-out motion-reduce:transition-none',
+                'group-has-data-[collapsible=icon]/sidebar-wrapper:h-12',
+                scrolled
+                    ? 'h-14 border-sidebar-border/70 bg-background/85 shadow-[0_10px_28px_-20px_rgba(15,77,119,0.45)] backdrop-blur-md supports-[backdrop-filter]:bg-background/70'
+                    : 'h-16 border-sidebar-border/50 bg-transparent',
+            )}
+        >
             <div className="flex min-w-0 items-center gap-2">
-                {/* Pe mobil e SINGURA cale spre meniu → țintă tactilă de 44px (WCAG 2.5.5).
-                    Pe desktop rămâne compact (28px), unde ținta e mouse-ul. */}
-                <SidebarTrigger className="-ml-1 size-11 md:size-7" />
+                {/* Mobil: hamburger animat (☰→✕), singura cale spre meniu → 44px.
+                    Desktop: trigger-ul compact clasic al sidebar-ului. */}
+                <MenuToggle
+                    open={openMobile}
+                    onClick={toggleSidebar}
+                    label={openMobile ? t('action.close', 'Închide') : t('action.menu', 'Meniu')}
+                    className="-ml-2 md:hidden"
+                />
+                <SidebarTrigger className="-ml-1 hidden md:inline-flex" />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
             </div>
 
