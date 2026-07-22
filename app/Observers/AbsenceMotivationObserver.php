@@ -11,6 +11,7 @@ use App\Enums\RequestStatus;
 use App\Models\AbsenceMotivation;
 use App\Models\User;
 use App\Notifications\CatalogNotification;
+use App\Support\CabinetLinks;
 
 /**
  * La o cerere NOUĂ de motivare a absențelor, anunță VALIDATORUL ei real (spec §2.1 / §5):
@@ -85,10 +86,11 @@ class AbsenceMotivationObserver
 
         // Familia (solicitantul): verdictul, cu perioada — motivul respingerii îl citește în
         // cabinet, pe cerere (nu punem textul liber al validatorului într-un email/canal extern).
+        // Ținta = modulul Absențe › Motivări (unde e cererea), nu profilul general.
         $this->family->send($student, new CatalogNotification(
             NotificationType::AbsenceMotivationDecided,
             $params,
-            route('cabinet.student', ['student' => $student->id], false),
+            CabinetLinks::motivations($student->id),
             meta: ['motivation_id' => $motivation->id],
         ));
 

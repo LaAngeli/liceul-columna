@@ -6,6 +6,7 @@ use App\Actions\NotifyStudentFamily;
 use App\Enums\NotificationType;
 use App\Models\Absence;
 use App\Notifications\CatalogNotification;
+use App\Support\CabinetLinks;
 use App\Support\WorkingDays;
 
 /**
@@ -47,7 +48,7 @@ class AbsenceObserver
         $this->notifier->send($student, new CatalogNotification(
             NotificationType::NewAbsence,
             ['student' => $student->full_name],
-            route('cabinet.student', ['student' => $student->id], false),
+            CabinetLinks::absenceRegister($student->id),
         ));
     }
 }

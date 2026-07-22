@@ -9,6 +9,7 @@ use App\Jobs\RecomputeTermAverage;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
 use App\Notifications\CatalogNotification;
+use App\Support\CabinetLinks;
 use App\Support\Summatives;
 use Illuminate\Validation\ValidationException;
 
@@ -60,7 +61,7 @@ class GradeObserver
                 'student' => $student->full_name,
                 'subject' => $grade->subject->name,
             ],
-            route('cabinet.student', ['student' => $student->id], false),
+            CabinetLinks::grades($student->id),
         ));
     }
 
@@ -95,7 +96,7 @@ class GradeObserver
                 'subject' => $grade->subject->name,
                 'reason' => $grade->annulment_reason ?? __('grading.annul.no_reason'),
             ],
-            route('cabinet.student', ['student' => $student->id], false),
+            CabinetLinks::grades($student->id),
         ));
     }
 

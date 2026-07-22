@@ -1,7 +1,9 @@
 <?php
 
 use App\Enums\NotificationType;
+use App\Enums\RequestStatus;
 use App\Enums\UserRole;
+use App\Models\AbsenceMotivation;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\Grade;
@@ -72,7 +74,31 @@ it('o notă nouă notifică familia elevului', function () {
 
     Notification::assertSentTo(
         $parent,
-        fn (CatalogNotification $n): bool => $n->type === NotificationType::NewGrade,
+        // Ținta = modulul Note (`?copil=`), nu profilul general — click-ul aterizează pe notă.
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::NewGrade
+            && $n->url === "/cabinet/note?copil={$student->id}",
+    );
+});
+
+it('verdictul la o motivare duce în modulul Absențe › Motivări, nu pe profilul general', function () {
+    Notification::fake();
+
+    $student = Student::factory()->create();
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+
+    $reviewer = User::factory()->create();
+    $motivation = AbsenceMotivation::factory()->create([
+        'student_id' => $student->id,
+        'status' => RequestStatus::Pending,
+    ]);
+    $motivation->approve($reviewer->id, 'Justificat.');
+
+    Notification::assertSentTo(
+        $parent,
+        fn (CatalogNotification $n): bool => $n->type === NotificationType::AbsenceMotivationDecided
+            && $n->url === "/cabinet/absente?copil={$student->id}&sectiune=motivari",
     );
 });
 

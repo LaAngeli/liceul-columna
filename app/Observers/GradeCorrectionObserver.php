@@ -9,6 +9,7 @@ use App\Enums\NotificationType;
 use App\Enums\UserRole;
 use App\Models\GradeCorrection;
 use App\Notifications\CatalogNotification;
+use App\Support\CabinetLinks;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -79,11 +80,11 @@ class GradeCorrectionObserver
         $student = $grade?->student;
 
         if ($correction->status === CorrectionStatus::Approved && $grade !== null && $student !== null) {
-            // Valoarea notei tocmai s-a schimbat → familia află (eveniment de notă).
+            // Valoarea notei tocmai s-a schimbat → familia află (eveniment de notă) → modulul Note.
             $this->family->send($student, new CatalogNotification(
                 NotificationType::GradeCorrected,
                 ['student' => $student->full_name, 'subject' => $grade->subject->name],
-                route('cabinet.student', ['student' => $student->id], false),
+                CabinetLinks::grades($student->id),
             ));
 
             return;
@@ -104,10 +105,11 @@ class GradeCorrectionObserver
             // familiei (fluxul contestație→corecție, #36) — familia A inițiat reexaminarea, deci
             // primește rezultatul și la respingere (la aprobare primește deja „notă corectată").
             if ($correction->document_request_id !== null && $student !== null) {
+                // Contestația familiei trăiește pe tabul „Cereri" al fișei (nu are modul propriu).
                 $this->family->send($student, new CatalogNotification(
                     NotificationType::ContestationRejected,
                     ['student' => $student->full_name],
-                    route('cabinet.student', ['student' => $student->id], false),
+                    CabinetLinks::requests($student->id),
                 ));
             }
         }

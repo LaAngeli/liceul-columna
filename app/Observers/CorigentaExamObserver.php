@@ -9,6 +9,7 @@ use App\Models\AcademicRecord;
 use App\Models\CorigentaExam;
 use App\Models\Enrollment;
 use App\Notifications\CatalogNotification;
+use App\Support\CabinetLinks;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 
@@ -69,13 +70,14 @@ class CorigentaExamObserver
             return;
         }
 
+        // Corigența (lichidare, rezultat) e planificare familie↔administrație pe tabul „Cereri".
         $this->notifier->send($student, new CatalogNotification(
             NotificationType::CorigentaResult,
             [
                 'subject' => (string) $exam->subject?->name,
                 'mark' => (string) $exam->mark,
             ],
-            route('cabinet.student', ['student' => $student->id], false),
+            CabinetLinks::requests($student->id),
         ));
     }
 

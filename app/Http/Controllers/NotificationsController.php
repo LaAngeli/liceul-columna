@@ -181,7 +181,15 @@ class NotificationsController extends Controller
             return null;
         }
 
-        return preg_match('#/cabinet/elev/(\d+)#', $url, $m) === 1 ? (int) $m[1] : null;
+        // Id-ul elevului apare fie în CALE (`/cabinet/elev/{id}` — taburile fișei), fie ca
+        // `?copil={id}` (modulele de catalog — vezi CabinetLinks). Ambele forme trebuie recunoscute
+        // ca null-out-ul pentru elevii arhivați ȘI verificarea de existență din open() să acopere
+        // și notificările rutate spre module.
+        if (preg_match('#/cabinet/elev/(\d+)#', $url, $m) === 1) {
+            return (int) $m[1];
+        }
+
+        return preg_match('#[?&]copil=(\d+)#', $url, $m) === 1 ? (int) $m[1] : null;
     }
 
     /**
