@@ -5,6 +5,7 @@ import { cva } from "class-variance-authority"
 import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react"
 import * as React from "react"
 
+import { NotificationBell } from "@/components/notification-bell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { MenuToggle } from "@/components/ui/menu-toggle"
@@ -194,12 +195,20 @@ function Sidebar({
         </SheetHeader>
         {/* Meniul mobil ocupă TOT ecranul (100% × 100%), indiferent de orientare — nu panou
             de 18rem. Suprafața câștigată → rânduri tactile de 44px (scoped prin selectorii
-            [data-sidebar=…], fără să atingem consumatorii) + zone sigure notch/home-indicator. */}
+            [data-sidebar=…], fără să atingem consumatorii) + zone sigure notch/home-indicator.
+            `onInteractOutside` e blocat: meniul e full-screen, deci singurele „exterioare" sunt
+            straturile portalate (ex. dropdown-ul de utilizator) — închiderea lor NU trebuie să
+            închidă și meniul. Ieșirea = ✕, un link sau Escape. Animația: 300ms la deschidere /
+            220ms la închidere cu curbă tip iOS — sincronă cu morfarea hamburgerului (300ms). */}
         <SheetContent
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-full max-w-none p-0 sm:max-w-none [&>button]:hidden"
+          onInteractOutside={(event) => event.preventDefault()}
+          className={cn(
+            "bg-sidebar text-sidebar-foreground w-full max-w-none p-0 sm:max-w-none [&>button]:hidden",
+            "ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=closed]:duration-[220ms] data-[state=open]:duration-300",
+          )}
           side={side}
         >
           <div
@@ -210,8 +219,13 @@ function Sidebar({
               "[&_[data-sidebar=menu-sub-button]]:min-h-11",
               "[&_[data-sidebar=menu-action]]:top-0 [&_[data-sidebar=menu-action]]:right-0",
               "[&_[data-sidebar=menu-action]]:h-11 [&_[data-sidebar=menu-action]]:w-11",
+              // Linkul „logo" din antetul meniului se restrânge la conținut: doar atingerea PE logo
+              // navighează, nu întreaga lățime a rândului.
+              "[&_[data-sidebar=header]_[data-sidebar=menu-button]]:mx-auto [&_[data-sidebar=header]_[data-sidebar=menu-button]]:w-fit [&_[data-sidebar=header]_[data-sidebar=menu-button]]:px-4",
             )}
           >
+            {/* Oglinda navbar-ului: clopoțel STÂNGA · logo centrat · ✕ DREAPTA. */}
+            <NotificationBell className="absolute top-[calc(0.625rem+env(safe-area-inset-top))] left-2 z-20" />
             <MenuToggle
               open
               onClick={() => setOpenMobile(false)}
@@ -261,7 +275,11 @@ function Sidebar({
       >
         <div
           data-sidebar="sidebar"
-          className="bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          className={cn(
+            "bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm",
+            // Ca și pe mobil: linkul „logo" din antet navighează DOAR la click pe logo, nu pe tot rândul.
+            "[&_[data-sidebar=header]_[data-sidebar=menu-button]]:mx-auto [&_[data-sidebar=header]_[data-sidebar=menu-button]]:w-fit [&_[data-sidebar=header]_[data-sidebar=menu-button]]:px-3",
+          )}
         >
           {children}
         </div>

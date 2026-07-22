@@ -1,16 +1,15 @@
-import { Link, router, usePage } from '@inertiajs/react';
-import { Bell } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { AppClock } from '@/components/app-clock';
 import { AppUserBadge } from '@/components/app-user-badge';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { NotificationBell } from '@/components/notification-bell';
 import { LanguageSwitcher } from '@/components/public/language-switcher';
 import { ThemeToggle } from '@/components/public/theme-toggle';
 import { MenuToggle } from '@/components/ui/menu-toggle';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
-import { useTranslations } from '@/lib/i18n';
+import { useLocale, useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { notifications } from '@/routes/cabinet';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 /**
@@ -25,7 +24,9 @@ export function AppSidebarHeader({
     breadcrumbs?: BreadcrumbItemType[];
 }) {
     const t = useTranslations();
-    const unread = Number(usePage().props.notificationsUnread ?? 0);
+    const locale = useLocale();
+    // Logo-ul din navbar duce la homepage-ul public pe limba curentă (RO la root, RU/EN cu prefix).
+    const homeHref = locale === 'ro' ? '/' : `/${locale}`;
     const { openMobile, toggleSidebar } = useSidebar();
 
     // Header „dinamic la scroll": după primii pixeli derulați devine compact, cu fundal
@@ -66,16 +67,21 @@ export function AppSidebarHeader({
                     : 'h-16 border-sidebar-border/50 bg-transparent',
             )}
         >
-            <div className="flex min-w-0 items-center gap-2">
-                {/* Mobil: hamburger animat (☰→✕), singura cale spre meniu → 44px.
-                    Desktop: trigger-ul compact clasic al sidebar-ului. */}
-                <MenuToggle
-                    open={openMobile}
-                    onClick={toggleSidebar}
-                    label={openMobile ? t('action.close', 'Închide') : t('action.menu', 'Meniu')}
-                    className="-ml-2 md:hidden"
-                />
-                <SidebarTrigger className="-ml-1 hidden md:inline-flex" />
+            {/* MOBIL — structură de app-bar: clopoțel STÂNGA · logo CENTRAT · meniu DREAPTA.
+                Logo-ul e singurul element clickabil din centru (link strict pe lockup, nu pe bară). */}
+            <NotificationBell className="-ml-2 md:hidden" />
+            <Link
+                href={homeHref}
+                aria-label="Liceul Columna"
+                className="absolute left-1/2 inline-flex -translate-x-1/2 items-center rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:hidden"
+            >
+                <img src="/images/logo/columna-horizontal.png" alt="Liceul Columna" className="h-8 w-auto dark:hidden" />
+                <img src="/images/logo/columna-horizontal-white.png" alt="Liceul Columna" className="hidden h-8 w-auto dark:block" />
+            </Link>
+
+            {/* DESKTOP — trigger-ul sidebar-ului + breadcrumbs, ca până acum. */}
+            <div className="hidden min-w-0 items-center gap-2 md:flex">
+                <SidebarTrigger className="-ml-1" />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
             </div>
 
@@ -91,19 +97,15 @@ export function AppSidebarHeader({
                 <LanguageSwitcher prefixed={false} className="hidden sm:inline-flex" />
                 <ThemeToggle variant="icon" className="hidden sm:block" />
 
-                <Link
-                    href={notifications.url()}
-                    aria-label={t('cabinet.notif_title')}
-                    title={t('cabinet.notif_title')}
-                    className="relative inline-flex size-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:size-9"
-                >
-                    <Bell className="size-4" />
-                    {unread > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
-                            {unread > 99 ? '99+' : unread}
-                        </span>
-                    )}
-                </Link>
+                <NotificationBell className="hidden md:inline-flex" />
+
+                {/* Mobil: hamburger animat (☰→✕) pe dreapta — 44px. */}
+                <MenuToggle
+                    open={openMobile}
+                    onClick={toggleSidebar}
+                    label={openMobile ? t('action.close', 'Închide') : t('action.menu', 'Meniu')}
+                    className="-mr-2 md:hidden"
+                />
             </div>
         </header>
     );
