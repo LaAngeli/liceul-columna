@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\BibliotecaController;
 use App\Http\Controllers\BlogController;
+use App\Http\Controllers\CabinetCatalogController;
 use App\Http\Controllers\CabinetController;
 use App\Http\Controllers\CabinetDocumentsController;
 use App\Http\Controllers\CalendarController;
@@ -208,6 +209,21 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
         ->middleware('throttle:20,1')->name('cabinet.requests.withdraw');
 
     // Pagina „Documente" a familiei (spec §2/§3): statice vizibile + generate per-copil + cereri.
+    // Modulele de CATALOG (Note / Absențe / Orar / Teme) — destinații directe din meniul lateral,
+    // fiecare cu comutator de copil (?copil=) + subsecțiuni (?sectiune=). Doar familie.
+    Route::get('cabinet/note', [CabinetCatalogController::class, 'grades'])
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.grades');
+    Route::get('cabinet/absente', [CabinetCatalogController::class, 'absences'])
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.absences');
+    Route::get('cabinet/orar', [CabinetCatalogController::class, 'schedule'])
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.schedule');
+    Route::get('cabinet/teme', [CabinetCatalogController::class, 'homework'])
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.homework');
+
     Route::get('cabinet/documente', [CabinetDocumentsController::class, 'index'])
         ->middleware(EnsureFamilyCabinet::class)
         ->name('cabinet.documents');
