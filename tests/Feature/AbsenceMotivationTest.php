@@ -13,6 +13,7 @@ use App\Models\Enrollment;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\Term;
 use App\Models\User;
 use App\Support\WorkingDays;
 use Illuminate\Support\Carbon;
@@ -53,6 +54,60 @@ it('familia depune o cerere de motivare din cabinet', function () {
         ->where('student_id', $student->id)
         ->where('status', RequestStatus::Pending)
         ->count())->toBe(1);
+});
+
+it('data de sfârșit înaintea celei de început e respinsă', function () {
+    $student = Student::factory()->create();
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+    Absence::factory()->create([
+        'student_id' => $student->id,
+        'occurred_on' => Carbon::yesterday()->toDateString(),
+        'is_motivated' => false,
+    ]);
+
+    $this->actingAs($parent)
+        ->post("/cabinet/elev/{$student->id}/motivare", [
+            'reason' => 'Test interval inversat',
+            'period_start' => Carbon::yesterday()->toDateString(),
+            'period_end' => Carbon::yesterday()->subDays(3)->toDateString(),
+        ])
+        ->assertSessionHasErrors(['period_end']);
+
+    expect(AbsenceMotivation::query()->count())->toBe(0);
+});
+
+it('o perioadă dinaintea anului școlar curent e respinsă (fereastra formularului = regula serverului)', function () {
+    $student = Student::factory()->create();
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->attach($student->id);
+
+    // Anul curent începe la 1 septembrie — tot ce e înainte nu mai are ce motiva în catalogul activ.
+    $yearStart = Carbon::today()->subMonths(2)->startOfMonth();
+    Term::factory()->create([
+        'is_current' => true,
+        'starts_on' => $yearStart->toDateString(),
+        'ends_on' => Carbon::today()->addMonths(2)->toDateString(),
+    ]);
+
+    $before = $yearStart->copy()->subDays(10);
+    Absence::factory()->create([
+        'student_id' => $student->id,
+        'occurred_on' => $before->toDateString(),
+        'is_motivated' => false,
+    ]);
+
+    $this->actingAs($parent)
+        ->post("/cabinet/elev/{$student->id}/motivare", [
+            'reason' => 'Perioadă din anul trecut',
+            'period_start' => $before->toDateString(),
+            'period_end' => $before->toDateString(),
+        ])
+        ->assertSessionHasErrors(['period_start']);
+
+    expect(AbsenceMotivation::query()->count())->toBe(0);
 });
 
 // ─── Robustețea depunerii motivărilor (#37) ──────────────────────────────────────────────

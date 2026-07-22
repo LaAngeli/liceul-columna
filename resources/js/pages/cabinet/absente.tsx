@@ -1,30 +1,22 @@
 import { Head } from '@inertiajs/react';
 import { ModuleShell } from '@/components/cabinet/catalog/module-shell';
 import type { ModuleContext } from '@/components/cabinet/catalog/module-shell';
-import { AbsenceTotals, AbsencesBySubjectGrid, MotivationsPanel } from '@/components/cabinet/catalog/situation-views';
-import type { MotivationItem } from '@/components/cabinet/catalog/situation-views';
+import { AbsenceRegister, AbsenceTotals, MotivationsPanel } from '@/components/cabinet/catalog/situation-views';
+import type { AbsenceRegisterData, MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
 import { SectionHeading } from '@/components/cabinet/section-heading';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 
 interface Props {
     module: ModuleContext;
-    absencesBySubject: { subject: string; count: number }[] | null;
-    absencesMotivated: number;
-    absencesUnmotivated: number;
+    register: AbsenceRegisterData | null;
     motivations: MotivationItem[] | null;
+    motivationWindow: MotivationWindow | null;
     canRequestMotivation: boolean;
 }
 
-/** Modulul „Absențe": registrul pe discipline · motivările familiei (formular + istoric). */
-export default function AbsencesModulePage({
-    module,
-    absencesBySubject,
-    absencesMotivated,
-    absencesUnmotivated,
-    motivations,
-    canRequestMotivation,
-}: Props) {
+/** Modulul „Absențe": registrul detaliat pe discipline · motivările familiei (formular + istoric). */
+export default function AbsencesModulePage({ module, register, motivations, motivationWindow, canRequestMotivation }: Props) {
     const t = useTranslations();
 
     return (
@@ -40,13 +32,13 @@ export default function AbsencesModulePage({
                     { value: 'motivari', label: t('cabinet.catalog_sec_motivations') },
                 ]}
             >
-                {module.section === 'registru' && absencesBySubject !== null && (
+                {module.section === 'registru' && register !== null && (
                     <section>
                         <SectionHeading
-                            title={t('cabinet.absences_by_subject')}
-                            actions={<AbsenceTotals motivated={absencesMotivated} unmotivated={absencesUnmotivated} />}
+                            title={t('cabinet.reg_title')}
+                            actions={<AbsenceTotals motivated={register.motivated} unmotivated={register.unmotivated} />}
                         />
-                        <AbsencesBySubjectGrid absences={absencesBySubject} />
+                        <AbsenceRegister register={register} />
                     </section>
                 )}
 
@@ -55,6 +47,7 @@ export default function AbsencesModulePage({
                         studentId={module.currentId}
                         motivations={motivations}
                         canRequest={canRequestMotivation}
+                        window={motivationWindow}
                     />
                 )}
             </ModuleShell>

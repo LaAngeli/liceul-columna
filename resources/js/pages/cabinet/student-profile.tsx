@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { BookOpen, ClipboardList, FileText, History, LayoutDashboard } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import type { AbsenceRegisterData, MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
 import { ProfileHeader } from '@/components/cabinet/student-profile/header';
 import type { Trend } from '@/components/cabinet/student-profile/helpers';
 import { HistoryTab } from '@/components/cabinet/student-profile/tabs/history-tab';
@@ -76,9 +77,12 @@ interface Props {
     // Lista copiilor părintelui (gol pentru elev/personal) — pentru switcher în header (audit #6).
     siblings: { id: number; name: string }[];
 
+    // Fereastra de depunere a motivării (anul curent → azi) — eager, pentru min/max în formular.
+    motivationWindow: MotivationWindow | null;
+
     // Defer (sosesc progresiv într-un al 2-lea request după mount)
     subjects?: { subject: string; average: number | null; mc?: number | null; summative?: number | null; items: GradeItem[] }[];
-    absencesBySubject?: { subject: string; count: number }[];
+    absenceRegister?: AbsenceRegisterData;
     transcript?: { grade_level: number; subjects: { subject: string; sem1: string | null; sem2: string | null; annual: string | null }[] }[];
     homework?: {
         id: number;
@@ -106,16 +110,7 @@ interface Props {
         rows: string[][];
     } | null;
     deferralRisk?: { risks: { subject: string; absences: number; scheduled: number }[]; undetermined: string[]; noTimetable: boolean };
-    motivations?: {
-        id: number;
-        reason: string;
-        period: string;
-        status: 'pending' | 'approved' | 'rejected';
-        statusLabel: string;
-        isException: boolean;
-        documentUrl: string | null;
-        note: string | null;
-    }[];
+    motivations?: MotivationItem[];
     corigentaExams?: {
         id: number;
         subject: string;
@@ -210,7 +205,7 @@ export default function StudentProfile(props: Props) {
 
         // Ancorele de sub „Note" se mută doar când sosesc notele și absențele (secțiunile de
         // deasupra lor) — după ambele, poziția e definitivă și intenția s-a consumat.
-        if (props.subjects !== undefined && props.absencesBySubject !== undefined) {
+        if (props.subjects !== undefined && props.absenceRegister !== undefined) {
             pendingSection.current = null;
         }
 
@@ -219,7 +214,7 @@ export default function StudentProfile(props: Props) {
         const frame = requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
 
         return () => cancelAnimationFrame(frame);
-    }, [activeTab, props.subjects, props.absencesBySubject]);
+    }, [activeTab, props.subjects, props.absenceRegister]);
 
     function changeTab(next: string) {
         const tab = (VALID_TABS as readonly string[]).includes(next) ? (next as TabValue) : 'overview';
@@ -304,10 +299,11 @@ export default function StudentProfile(props: Props) {
                     <SituationTab
                         studentId={props.student.id}
                         subjects={props.subjects}
-                        absencesBySubject={props.absencesBySubject}
+                        absenceRegister={props.absenceRegister}
                         absencesMotivated={props.absencesMotivated}
                         absencesUnmotivated={props.absencesUnmotivated}
                         motivations={props.motivations}
+                        motivationWindow={props.motivationWindow}
                         canRequestMotivation={props.canRequestMotivation}
                         onContestGrade={props.canRequestMotivation ? startContestation : undefined}
                     />

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Concerns;
 use App\Enums\SchoolCycle;
 use App\Http\Controllers\CabinetCatalogController;
 use App\Http\Controllers\CabinetController;
+use App\Models\Absence;
 use App\Models\AbsenceMotivation;
 use App\Models\Grade;
 use App\Models\HomeworkAssignment;
@@ -14,7 +15,9 @@ use App\Models\Term;
 use App\Models\TermAverage;
 use App\Support\ContentTranslator;
 use App\Support\Grades;
+use App\Support\SchoolCalendar;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -179,7 +182,110 @@ trait BuildsStudentCatalogData
     }
 
     /**
-     * Cererile de motivare ale elevului (cele mai recente), pentru afișare în cabinet.
+     * REGISTRUL absențelor: fiecare absență cu contextul ei complet (dată + zi, disciplină,
+     * profesorul care a consemnat-o, statut, termenul de motivare / consolidarea) + contoarele
+     * pe discipline pentru filtrarea client-side. Toate absențele elevului dintr-o singură
+     * încărcare (volum mic per elev) → comutarea între discipline e INSTANT, fără alt request.
+     *
+     * @return array{
+     *     subjects: array<int, array{id: int, name: string, total: int, unmotivated: int}>,
+     *     absences: array<int, array<string, mixed>>,
+     *     motivated: int,
+     *     unmotivated: int,
+     * }
+     */
+    protected function absenceRegister(Student $student): array
+    {
+        $absences = $student->absences()
+            ->with(['subject', 'teacher'])
+            ->orderByDesc('occurred_on')
+            ->orderByDesc('id')
+            ->get();
+
+        $wholeDayLabel = (string) __('site.cabinet.whole_day_absence');
+        $today = SchoolCalendar::localNow()->startOfDay();
+
+        $rows = $absences->map(function (Absence $absence) use ($wholeDayLabel, $today): array {
+            $deadline = $absence->motivation_deadline;
+
+            return [
+                'id' => $absence->id,
+                'date' => $absence->occurred_on->format('d.m.Y'),
+                // Ziua săptămânii în limba interfeței (SetUserLocale) — contextul „luni/vineri"
+                // contează pentru părinte mai mult decât cifra seacă.
+                'weekday' => $absence->occurred_on->translatedFormat('l'),
+                // Absența pe zi întreagă nu are disciplină → grup propriu, id 0.
+                'subjectId' => (int) ($absence->subject_id ?? 0),
+                'subject' => $absence->subject?->name !== null
+                    ? ContentTranslator::subject((string) $absence->subject->name)
+                    : $wholeDayLabel,
+                'teacher' => $absence->teacher?->full_name,
+                'motivated' => $absence->is_motivated,
+                // Momentul consemnării în sistem (ora absenței în sine nu se stochează — schema
+                // ține doar ZIUA) — pe ora școlii, nu UTC.
+                'recordedAt' => SchoolCalendar::local($absence->created_at)?->format('d.m.Y, H:i'),
+                // Contextul termenului contează DOAR cât absența e nemotivată.
+                'deadline' => ! $absence->is_motivated && $deadline !== null ? $deadline->format('d.m.Y') : null,
+                'deadlinePassed' => ! $absence->is_motivated && $deadline !== null && $deadline->lt($today),
+                'locked' => ! $absence->is_motivated && $absence->motivation_locked_at !== null,
+            ];
+        })->values()->all();
+
+        $subjects = [];
+        foreach ($absences->groupBy(fn (Absence $absence): int => (int) ($absence->subject_id ?? 0)) as $subjectId => $items) {
+            $name = $items->first()->subject?->name;
+            $subjects[] = [
+                'id' => (int) $subjectId,
+                'name' => $name !== null ? ContentTranslator::subject((string) $name) : $wholeDayLabel,
+                'total' => $items->count(),
+                'unmotivated' => $items->where('is_motivated', false)->count(),
+            ];
+        }
+        usort($subjects, fn (array $a, array $b): int => $b['total'] <=> $a['total']);
+
+        return [
+            'subjects' => $subjects,
+            'absences' => $rows,
+            'motivated' => $absences->where('is_motivated', true)->count(),
+            'unmotivated' => $absences->where('is_motivated', false)->count(),
+        ];
+    }
+
+    /**
+     * Fereastra de depunere a unei motivări: de la începutul anului școlar CURENT până azi
+     * (se motivează absențe deja petrecute — regula there din {@see CabinetController::requestMotivation}).
+     * null când nu există an activ (vacanța dintre ani, mediu gol) — atunci rămâne doar limita „azi".
+     *
+     * @return array{min: string, max: string}|null
+     */
+    protected function motivationWindow(): ?array
+    {
+        $current = Term::query()->where('is_current', true)->first();
+
+        if ($current === null) {
+            return null;
+        }
+
+        $yearStart = Term::query()
+            ->where('academic_year_id', $current->academic_year_id)
+            ->min('starts_on');
+
+        if ($yearStart === null) {
+            return null;
+        }
+
+        return [
+            'min' => Carbon::parse((string) $yearStart)->toDateString(),
+            'max' => SchoolCalendar::localNow()->toDateString(),
+        ];
+    }
+
+    /**
+     * Cererile de motivare ale elevului, cu tot ce-i trebuie familiei ca să înțeleagă UNDE e
+     * cererea: cine a depus-o și când, termenul de validare al dirigintelui, cine a decis și
+     * când, nota deciziei, justificativul și IMPACTUL (câte absențe acoperă perioada).
+     * Cronologia din fișa cererii se derivă din aceste câmpuri — aceleași date pe care le vede
+     * și administrația (sursa: modelul, nu o copie).
      *
      * @return array<int, array<string, mixed>>
      */
@@ -187,23 +293,39 @@ trait BuildsStudentCatalogData
     {
         return AbsenceMotivation::query()
             ->where('student_id', $student->id)
+            ->with(['requestedBy', 'reviewedBy'])
             ->latest()
-            ->limit(10)
+            ->limit(25)
             ->get()
-            ->map(fn (AbsenceMotivation $motivation): array => [
-                'id' => $motivation->id,
-                'reason' => $motivation->reason,
-                'period' => $motivation->period_start->format('d.m.Y').' – '.$motivation->period_end->format('d.m.Y'),
-                'status' => $motivation->status->value,
-                'statusLabel' => $motivation->status->label(),
-                'isException' => $motivation->is_exception,
-                'documentUrl' => $motivation->document_path !== null
-                    ? route('cabinet.motivation.document', ['absenceMotivation' => $motivation->id], false)
-                    : null,
-                // Nota validatorului (obligatorie la respingere) — familia vede DE CE,
-                // nu doar un badge „Respinsă" (§4 transparență).
-                'note' => $motivation->review_note,
-            ])
+            ->map(function (AbsenceMotivation $motivation): array {
+                $deadline = $motivation->isPending() ? $motivation->validationDeadline() : null;
+
+                return [
+                    'id' => $motivation->id,
+                    'reason' => $motivation->reason,
+                    'period' => $motivation->period_start->format('d.m.Y').' – '.$motivation->period_end->format('d.m.Y'),
+                    'status' => $motivation->status->value,
+                    'statusLabel' => $motivation->status->label(),
+                    'isException' => $motivation->is_exception,
+                    'submittedAt' => SchoolCalendar::local($motivation->created_at)?->format('d.m.Y, H:i'),
+                    'submittedBy' => $motivation->requestedBy?->name,
+                    // Termenul de validare (depunere + 2 zile lucrătoare) — doar cât cererea e
+                    // în așteptare; după decizie devine irelevant.
+                    'reviewDeadline' => $deadline?->format('d.m.Y'),
+                    'reviewOverdue' => $motivation->isOverdue(),
+                    'decidedAt' => SchoolCalendar::local($motivation->reviewed_at)?->format('d.m.Y, H:i'),
+                    'decidedBy' => $motivation->reviewedBy?->name,
+                    // Nota validatorului (obligatorie la respingere) — familia vede DE CE,
+                    // nu doar un badge „Respinsă" (§4 transparență).
+                    'note' => $motivation->review_note,
+                    'documentUrl' => $motivation->document_path !== null
+                        ? route('cabinet.motivation.document', ['absenceMotivation' => $motivation->id], false)
+                        : null,
+                    // Impactul perioadei — aceeași sursă ca efectul aprobării (absencesInPeriod).
+                    'absencesTotal' => $motivation->absencesInPeriod()->count(),
+                    'absencesUnmotivated' => $motivation->absencesInPeriod()->where('is_motivated', false)->count(),
+                ];
+            })
             ->all();
     }
 

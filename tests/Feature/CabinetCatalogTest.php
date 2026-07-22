@@ -1,11 +1,18 @@
 <?php
 
+use App\Enums\RequestStatus;
 use App\Enums\UserRole;
+use App\Models\Absence;
+use App\Models\AbsenceMotivation;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
+use App\Models\Teacher;
+use App\Models\Term;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 
@@ -50,7 +57,7 @@ it('modulul Note se randează pentru părinte cu datele DOAR ale modulului', fun
             // Modulul încarcă DOAR datele lui — nimic din celelalte module.
             ->missing('homework')
             ->missing('timetable')
-            ->missing('absencesBySubject'));
+            ->missing('register'));
 });
 
 it('secțiunea „medii" încarcă matricea și NU notele curente', function () {
@@ -80,7 +87,8 @@ it('modulul Absențe: registru implicit, motivările în secțiunea lor', functi
         ->assertInertia(fn (Assert $page) => $page
             ->component('cabinet/absente')
             ->where('module.section', 'registru')
-            ->has('absencesBySubject')
+            ->has('register.subjects')
+            ->has('register.absences')
             ->where('motivations', null));
 
     $this->actingAs($parent)->get(route('cabinet.absences', ['sectiune' => 'motivari']))
@@ -89,7 +97,86 @@ it('modulul Absențe: registru implicit, motivările în secțiunea lor', functi
             ->where('module.section', 'motivari')
             ->has('motivations')
             ->where('canRequestMotivation', true)
-            ->where('absencesBySubject', null));
+            ->where('register', null));
+});
+
+it('registrul expune contextul complet al absenței: profesor, statut, termen, disciplină', function () {
+    [$parent, $student] = catalogFamily();
+
+    $subject = Subject::factory()->create(['name' => 'Matematica']);
+    $teacher = Teacher::factory()->create(['last_name' => 'Popescu', 'first_name' => 'Ion']);
+    Absence::factory()->create([
+        'student_id' => $student->id,
+        'subject_id' => $subject->id,
+        'teacher_id' => $teacher->id,
+        'occurred_on' => Carbon::yesterday()->toDateString(),
+        'is_motivated' => false,
+        'motivation_deadline' => Carbon::tomorrow()->toDateString(),
+    ]);
+
+    $this->actingAs($parent)->get(route('cabinet.absences'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('register.absences.0.subject', 'Matematica')
+            ->where('register.absences.0.teacher', 'Popescu Ion')
+            ->where('register.absences.0.motivated', false)
+            ->where('register.absences.0.date', Carbon::yesterday()->format('d.m.Y'))
+            ->where('register.absences.0.deadline', Carbon::tomorrow()->format('d.m.Y'))
+            ->where('register.absences.0.deadlinePassed', false)
+            ->where('register.absences.0.locked', false)
+            ->where('register.subjects.0.name', 'Matematica')
+            ->where('register.subjects.0.unmotivated', 1)
+            ->where('register.unmotivated', 1));
+});
+
+it('cererea de motivare poartă cronologia completă: depunere, decizie, impact', function () {
+    [$parent, $student] = catalogFamily();
+
+    $reviewer = User::factory()->create(['name' => 'Diriginte Demo']);
+    Absence::factory()->create([
+        'student_id' => $student->id,
+        'occurred_on' => Carbon::yesterday()->toDateString(),
+        'is_motivated' => true,
+    ]);
+    $motivation = AbsenceMotivation::create([
+        'student_id' => $student->id,
+        'requested_by_user_id' => $parent->id,
+        'reason' => 'Consultație medicală',
+        'period_start' => Carbon::yesterday()->toDateString(),
+        'period_end' => Carbon::yesterday()->toDateString(),
+        'status' => RequestStatus::Pending,
+    ]);
+    $motivation->approve($reviewer->id, 'Justificat.');
+
+    $this->actingAs($parent)->get(route('cabinet.absences', ['sectiune' => 'motivari']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('motivations.0.status', 'approved')
+            ->where('motivations.0.submittedBy', $parent->name)
+            ->where('motivations.0.decidedBy', 'Diriginte Demo')
+            ->whereNot('motivations.0.decidedAt', null)
+            ->whereNot('motivations.0.submittedAt', null)
+            ->where('motivations.0.note', 'Justificat.')
+            ->where('motivations.0.absencesTotal', 1)
+            ->where('motivations.0.absencesUnmotivated', 0));
+});
+
+it('fereastra de motivare urmează anul școlar curent', function () {
+    [$parent] = catalogFamily();
+
+    $year = AcademicYear::factory()->create();
+    Term::factory()->create([
+        'academic_year_id' => $year->id,
+        'is_current' => true,
+        'starts_on' => '2025-09-01',
+        'ends_on' => '2026-01-31',
+    ]);
+
+    $this->actingAs($parent)->get(route('cabinet.absences', ['sectiune' => 'motivari']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('motivationWindow.min', '2025-09-01')
+            ->whereNot('motivationWindow.max', null));
 });
 
 it('modulul Orar aduce temele DOAR în secțiunea „Ziua mea"', function () {

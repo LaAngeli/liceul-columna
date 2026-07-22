@@ -1,10 +1,10 @@
 import {
+    AbsenceRegister,
     AbsenceTotals,
-    AbsencesBySubjectGrid,
     GradesTable,
     MotivationsPanel,
 } from '@/components/cabinet/catalog/situation-views';
-import type { MotivationItem, SubjectGrades } from '@/components/cabinet/catalog/situation-views';
+import type { AbsenceRegisterData, MotivationItem, MotivationWindow, SubjectGrades } from '@/components/cabinet/catalog/situation-views';
 import { SectionHeading } from '@/components/cabinet/section-heading';
 import { SkeletonGrid, SkeletonTable } from '@/components/cabinet/student-profile/skeletons';
 import { useTranslations } from '@/lib/i18n';
@@ -12,24 +12,26 @@ import { useTranslations } from '@/lib/i18n';
 /**
  * Tab Situație — note + absențe + motivări. COMPUS din vederile partajate `catalog/situation-views`
  * (aceleași componente ca modulele „Note"/„Absențe" din meniu → design garantat identic).
- * Prop-urile defer (subjects, absencesBySubject, motivations) sosesc progresiv; skeleton până atunci.
+ * Prop-urile defer (subjects, absenceRegister, motivations) sosesc progresiv; skeleton până atunci.
  */
 export function SituationTab({
     studentId,
     subjects,
-    absencesBySubject,
+    absenceRegister,
     absencesMotivated,
     absencesUnmotivated,
     motivations,
+    motivationWindow,
     canRequestMotivation,
     onContestGrade,
 }: {
     studentId: number;
     subjects?: SubjectGrades[];
-    absencesBySubject?: { subject: string; count: number }[];
+    absenceRegister?: AbsenceRegisterData;
     absencesMotivated: number;
     absencesUnmotivated: number;
     motivations?: MotivationItem[];
+    motivationWindow: MotivationWindow | null;
     canRequestMotivation: boolean;
     /** Familia poate porni o contestație direct din chip-ul notei (pre-completează cererea). */
     onContestGrade?: (gradeId: number) => void;
@@ -60,7 +62,7 @@ export function SituationTab({
             {/* === ABSENȚE === */}
             <section id="sectiune-absente" className="scroll-mt-20">
                 <SectionHeading
-                    title={t('cabinet.absences_by_subject')}
+                    title={t('cabinet.reg_title')}
                     actions={<AbsenceTotals motivated={absencesMotivated} unmotivated={absencesUnmotivated} />}
                 />
                 <details className="mb-3 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
@@ -70,10 +72,10 @@ export function SituationTab({
                     <p className="mt-1.5 text-muted-foreground">{t('cabinet.extract_absences')}</p>
                 </details>
 
-                {absencesBySubject === undefined ? (
+                {absenceRegister === undefined ? (
                     <SkeletonGrid count={6} columns={3} />
                 ) : (
-                    <AbsencesBySubjectGrid absences={absencesBySubject} />
+                    <AbsenceRegister register={absenceRegister} />
                 )}
             </section>
 
@@ -84,7 +86,12 @@ export function SituationTab({
                     {motivations === undefined ? (
                         <SkeletonTable rows={3} />
                     ) : (
-                        <MotivationsPanel studentId={studentId} motivations={motivations} canRequest={canRequestMotivation} />
+                        <MotivationsPanel
+                            studentId={studentId}
+                            motivations={motivations}
+                            canRequest={canRequestMotivation}
+                            window={motivationWindow}
+                        />
                     )}
                 </section>
             )}

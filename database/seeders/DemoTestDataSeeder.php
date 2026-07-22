@@ -636,32 +636,38 @@ class DemoTestDataSeeder extends Seeder
         $studentUser = User::query()->where('email', 'elev@columna.test')->first();
         $profUser = User::query()->where('email', 'profesor@columna.test')->first();
 
-        /** @var Collection<int, Student> $targets */
-        $targets = collect();
+        // Elevii FAMILIEI demo (copiii părintelui + elevul cu cont propriu) primesc FIECARE setul
+        // complet de stări — părintele cu un singur copil altfel ar vedea o singură poveste și nu
+        // ar putea evalua interfața (2026-07-22). Elevii clasei dirigintelui rămân pe spread
+        // (o cerere fiecare) — acolo se testează COADA de validare, nu fișa familiei.
+        /** @var Collection<int, Student> $familyTargets */
+        $familyTargets = collect();
 
         if ($parent !== null) {
-            $targets = $targets->merge($parent->students()->get());
+            $familyTargets = $familyTargets->merge($parent->students()->get());
         }
 
         if ($studentUser !== null) {
             $own = Student::query()->where('user_id', $studentUser->id)->first();
             if ($own !== null) {
-                $targets->push($own);
+                $familyTargets->push($own);
             }
         }
 
+        $familyTargets = $familyTargets->unique('id')->values();
+
+        /** @var Collection<int, Student> $classTargets */
+        $classTargets = collect();
         $homeroomClass = $profUser?->teacher?->homeroomClasses()->first();
         if ($homeroomClass !== null) {
-            $classStudents = Student::query()
+            $classTargets = Student::query()
                 ->whereHas('enrollments', fn ($q) => $q->where('school_class_id', $homeroomClass->id))
+                ->whereNotIn('id', $familyTargets->pluck('id'))
                 ->limit(6)
                 ->get();
-            $targets = $targets->merge($classStudents);
         }
 
-        $targets = $targets->unique('id')->values();
-
-        if ($targets->isEmpty()) {
+        if ($familyTargets->isEmpty() && $classTargets->isEmpty()) {
             $this->command->warn('Fără elevi-țintă pentru motivări demo (rulează DemoAccountsSeeder).');
 
             return;
@@ -686,48 +692,62 @@ class DemoTestDataSeeder extends Seeder
 
         $documentPath = $this->storeDemoJustificativ();
 
-        $i = 0;
-        foreach ($targets as $student) {
-            $pending = in_array($i % 4, [1, 3], true);
+        $seedStory = function (Student $student, int $story, int $offset) use ($requester, $reviewer, $reasons, $documentPath): void {
+            $pending = in_array($story, [1, 3], true);
 
             // Cererile care RĂMÂN în așteptare se ancorează pe o absență REALĂ a elevului, ca
             // fișa să arate impact adevărat („N absențe vor fi motivate"). Cele judecate de
-            // seeder păstrează perioade de vară FĂRĂ absențe: approve() de la seeding nu are
+            // seeder păstrează perioade FĂRĂ absențe: approve() de la seeding nu are
             // voie să motiveze absențe reale (datele de catalog nu se ating).
             $anchor = $pending
                 ? Absence::query()
                     ->where('student_id', $student->id)
                     ->where('is_motivated', false)
                     ->latest('occurred_on')
+                    // Poveștile pending ale ACELUIAȘI elev țintesc absențe diferite — perioade
+                    // variate, fără cereri suprapuse pe fișă.
+                    ->skip($story === 3 ? 1 : 0)
                     ->value('occurred_on')
                 : null;
 
             $start = $anchor !== null
                 ? Carbon::parse((string) $anchor)->subDay()
-                : Carbon::now()->subDays(($i * 5) % 60 + 3);
-            $end = $start->copy()->addDays($anchor !== null ? 2 : $i % 3);
+                : Carbon::now()->subDays(($offset * 5) % 60 + 3);
+            $end = $start->copy()->addDays($anchor !== null ? 2 : $offset % 3);
 
             $motivation = AbsenceMotivation::create([
                 'student_id' => $student->id,
                 'requested_by_user_id' => $requester->id,
-                'reason' => self::MARKER.' '.$reasons[$i % count($reasons)],
+                'reason' => self::MARKER.' '.$reasons[$story],
                 'period_start' => $start->toDateString(),
                 'period_end' => $end->toDateString(),
                 'status' => RequestStatus::Pending,
-                'document_path' => $i % 4 === 1 ? $documentPath : null,
-                'is_exception' => $i % 4 === 3,
+                'document_path' => $story === 1 ? $documentPath : null,
+                'is_exception' => $story === 3,
             ]);
 
-            if ($reviewer !== null && $i % 4 === 0) {
+            if ($reviewer !== null && $story === 0) {
                 $motivation->approve($reviewer->id, self::MARKER.' Justificat.');
-            } elseif ($reviewer !== null && $i % 4 === 2) {
+            } elseif ($reviewer !== null && $story === 2) {
                 $motivation->reject($reviewer->id, self::MARKER.' Lipsă document — diploma nu a fost anexată.');
             }
+        };
 
-            $i++;
+        $offset = 0;
+        foreach ($familyTargets as $student) {
+            foreach ([0, 1, 2, 3] as $story) {
+                $seedStory($student, $story, $offset);
+                $offset++;
+            }
         }
 
-        $this->command->info("Cereri de motivare demo: {$targets->count()} (statusuri mixte + justificativ + excepție).");
+        foreach ($classTargets as $student) {
+            $seedStory($student, $offset % 4, $offset);
+            $offset++;
+        }
+
+        $total = $familyTargets->count() * 4 + $classTargets->count();
+        $this->command->info("Cereri de motivare demo: {$total} (setul complet per copil de familie + spread pe clasă).");
     }
 
     /**

@@ -50,24 +50,21 @@ class CabinetCatalogController extends Controller
 
         $props = [
             'module' => $module,
-            'absencesBySubject' => null,
-            'absencesMotivated' => 0,
-            'absencesUnmotivated' => 0,
+            'register' => null,
             'motivations' => null,
+            'motivationWindow' => null,
             // Pagina e gardată pe familie (EnsureFamilyCabinet) + copilul e validat la familie —
             // deci formularul de motivare e mereu permis aici (POST-ul re-verifică oricum).
             'canRequestMotivation' => $student !== null,
         ];
 
         if ($student !== null && $module['section'] === 'registru') {
-            $student->load(['absences.subject']);
-            $props['absencesBySubject'] = $this->absencesBySubject($student);
-            $props['absencesMotivated'] = $student->absences->where('is_motivated', true)->count();
-            $props['absencesUnmotivated'] = $student->absences->where('is_motivated', false)->count();
+            $props['register'] = $this->absenceRegister($student);
         }
 
         if ($student !== null && $module['section'] === 'motivari') {
             $props['motivations'] = $this->motivations($student);
+            $props['motivationWindow'] = $this->motivationWindow();
         }
 
         return Inertia::render('cabinet/absente', $props);

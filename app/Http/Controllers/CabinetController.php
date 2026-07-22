@@ -407,10 +407,14 @@ class CabinetController extends Controller
             'canRequestMotivation' => $canRequestMotivation,
             'siblings' => $siblings,
 
+            // Fereastra de depunere a motivării (anul școlar curent → azi) — mică, vine eager
+            // ca formularul să aibă min/max din prima randare.
+            'motivationWindow' => $canRequestMotivation ? $this->motivationWindow() : null,
+
             // === Defer (vin progresiv într-un al 2-lea request după mount) ===
             // Tab „Situație" — note + absențe + motivări
             'subjects' => Inertia::defer(fn (): array => $this->gradesBySubject($student)),
-            'absencesBySubject' => Inertia::defer(fn (): array => $this->absencesBySubject($student)),
+            'absenceRegister' => Inertia::defer(fn (): array => $this->absenceRegister($student)),
             'deferralRisk' => Inertia::defer(fn (): array => app(ComputeDeferralRisk::class)->for($student)),
             'motivations' => Inertia::defer(fn (): array => $canSeeSensitive ? $this->motivations($student) : []),
 
@@ -460,10 +464,17 @@ class CabinetController extends Controller
         abort_unless($user instanceof User && $this->isFamilyOf($user, $student), 403);
 
         // Se motivează absențe DEJA petrecute → perioada nu poate fi în viitor (audit M-10, aliniat cu
-        // garda de dată-viitoare de la consemnarea absenței/notei).
+        // garda de dată-viitoare de la consemnarea absenței/notei). Limita de JOS = începutul anului
+        // școlar curent (aceeași fereastră pe care o afișează și formularul) — o perioadă din anul
+        // trecut nu mai are ce motiva în catalogul activ.
+        $window = $this->motivationWindow();
+
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:1000'],
-            'period_start' => ['required', 'date', 'before_or_equal:today'],
+            'period_start' => array_filter([
+                'required', 'date', 'before_or_equal:today',
+                $window !== null ? 'after_or_equal:'.$window['min'] : null,
+            ]),
             'period_end' => ['required', 'date', 'after_or_equal:period_start', 'before_or_equal:today'],
             'document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ]);
