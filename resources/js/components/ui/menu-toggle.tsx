@@ -32,26 +32,28 @@ export function MenuToggle({
                 className,
             )}
         >
-            <span aria-hidden="true" className="relative block h-[14px] w-[18px]">
+            {/* Cutia liniilor: 21×16px (+15% față de 18×14). Liniile la 0 / 7 / 14 → la deschidere
+                cele extreme se întâlnesc la centru (±7px) și se încrucișează. */}
+            <span aria-hidden="true" className="relative block h-4 w-[21px]">
                 <span
                     className={cn(
                         'absolute top-0 left-0 h-[2px] w-full rounded-full bg-current',
                         'transition-transform duration-300 ease-out motion-reduce:transition-none',
-                        open && 'translate-y-[6px] rotate-45',
+                        open && 'translate-y-[7px] rotate-45',
                     )}
                 />
                 <span
                     className={cn(
-                        'absolute top-[6px] left-0 h-[2px] w-full rounded-full bg-current',
+                        'absolute top-[7px] left-0 h-[2px] w-full rounded-full bg-current',
                         'transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none',
                         open && '-translate-x-1 opacity-0',
                     )}
                 />
                 <span
                     className={cn(
-                        'absolute top-[12px] left-0 h-[2px] w-full rounded-full bg-current',
+                        'absolute top-[14px] left-0 h-[2px] w-full rounded-full bg-current',
                         'transition-transform duration-300 ease-out motion-reduce:transition-none',
-                        open && '-translate-y-[6px] -rotate-45',
+                        open && '-translate-y-[7px] -rotate-45',
                     )}
                 />
             </span>

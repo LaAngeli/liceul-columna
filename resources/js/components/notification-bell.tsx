@@ -23,7 +23,7 @@ export function NotificationBell({ className }: { className?: string }) {
                 className,
             )}
         >
-            <Bell className="size-4" />
+            <Bell className="size-[18px]" />
             {unread > 0 && (
                 <span className="absolute top-1 right-1 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white md:-top-0.5 md:-right-0.5">
                     {unread > 99 ? '99+' : unread}
