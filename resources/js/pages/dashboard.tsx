@@ -63,7 +63,8 @@ function AttentionPill({
     );
 
     const className = cn(
-        'inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-colors',
+        // `min-h-11` pe mobil: pastilele sunt linkuri, deci au nevoie de 44px de țintă tactilă.
+        'inline-flex min-h-11 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-colors md:min-h-0',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         toneClass,
     );

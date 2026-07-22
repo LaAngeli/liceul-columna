@@ -36,7 +36,12 @@ export function Breadcrumbs({
                                             </BreadcrumbPage>
                                         ) : (
                                             <BreadcrumbLink asChild>
-                                                <Link href={item.href}>
+                                                {/* Zonă tactilă de 44px pe mobil (textul rămâne
+                                                    la aceeași mărime — doar aria de atingere crește). */}
+                                                <Link
+                                                    href={item.href}
+                                                    className="inline-flex min-h-11 items-center md:min-h-0"
+                                                >
                                                     {t(item.title)}
                                                 </Link>
                                             </BreadcrumbLink>

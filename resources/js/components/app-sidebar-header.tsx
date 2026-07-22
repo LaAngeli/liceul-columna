@@ -42,7 +42,9 @@ export function AppSidebarHeader({
     return (
         <header className="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/50 px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 items-center gap-2">
-                <SidebarTrigger className="-ml-1" />
+                {/* Pe mobil e SINGURA cale spre meniu → țintă tactilă de 44px (WCAG 2.5.5).
+                    Pe desktop rămâne compact (28px), unde ținta e mouse-ul. */}
+                <SidebarTrigger className="-ml-1 size-11 md:size-7" />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
             </div>
 
@@ -62,7 +64,7 @@ export function AppSidebarHeader({
                     href={notifications.url()}
                     aria-label={t('cabinet.notif_title')}
                     title={t('cabinet.notif_title')}
-                    className="relative inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="relative inline-flex size-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:size-9"
                 >
                     <Bell className="size-4" />
                     {unread > 0 && (
