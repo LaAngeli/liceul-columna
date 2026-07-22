@@ -955,8 +955,43 @@ html:root.dark {
     .cx-folder { border-radius: 9999px; min-height: 2.75rem; }
     .cx-row__who { flex-basis: 7.5rem; }
     .cx-row__snippet { display: none; }
-    .cx-composer { inset: 0; width: auto; max-height: none; border-radius: 0; }
-    .cx-composer__bar { border-radius: 0; }
+    /* Compunerea pe mobil = FOAIE ancorată jos, nu ecran plin (cerința userului 2026-07-22:
+       „navbar-ul dispărea"). Motivele, în ordine: (1) `inset: 0` acoperea bara de sus cu tot
+       cu meniu — scriai fără nicio ieșire în afară de X; (2) întinsă pe toată înălțimea pentru
+       un formular de ~230px, fereastra arăta ca o pagină pe jumătate goală. Acum înălțimea o dă
+       conținutul, plafonată sub bara de sus, iar lista rămâne vizibilă deasupra. */
+    .cx-composer {
+        inset: auto 0 0 0;
+        width: auto;
+        height: auto;
+        max-height: calc(100dvh - 4.5rem);
+        border-radius: 0.875rem 0.875rem 0 0;
+        /* Sub sidebar-ul mobil (z-30): meniul deschis peste compunere, nu invers. */
+        z-index: 20;
+    }
+
+    /* Copil de flex care derulează: fără min-height:0 nu se strânge sub conținut. */
+    .cx-composer__body {
+        min-height: 0;
+    }
+
+    /* „Expediați" rămâne pe ecran și când formularul depășește foaia (atașamente multiple). */
+    .cx-composer__foot {
+        position: sticky;
+        bottom: 0;
+        padding-top: 0.5rem;
+        background: #fff;
+    }
+
+    .dark .cx-composer__foot {
+        background: rgb(24 24 27);
+    }
+
+    /* Fundalul nu derulează cât foaia e deschisă — altfel bara de sus ar putea fi împinsă
+       în afara ecranului tocmai când o ținem vizibilă. */
+    body:has(.cx-composer) {
+        overflow: hidden;
+    }
 }
 
 /* ==========================================================================

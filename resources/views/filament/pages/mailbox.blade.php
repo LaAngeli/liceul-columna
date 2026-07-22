@@ -244,9 +244,19 @@
             @endif
         </section>
 
-        {{-- COMPUNERE — card-overlay (jos-dreapta pe desktop, tot ecranul pe mobil) --}}
+        {{-- COMPUNERE — card-overlay (jos-dreapta pe desktop, foaie ancorată jos pe mobil).
+             Pe mobil urcăm pagina la deschidere: foaia se oprește sub bara de sus, deci bara
+             trebuie să fie efectiv acolo (dacă lista era derulată, ea ieșise din ecran). --}}
         @if ($composeOpen)
-            <div class="cx-composer" wire:key="composer-{{ $composeKey }}" role="dialog" aria-modal="true" aria-label="{{ __('panel.mailbox.compose') }}">
+            <div
+                class="cx-composer"
+                wire:key="composer-{{ $composeKey }}"
+                role="dialog"
+                aria-modal="true"
+                aria-label="{{ __('panel.mailbox.compose') }}"
+                x-data="{}"
+                x-init="if (window.matchMedia('(max-width: 768px)').matches) window.scrollTo({ top: 0, behavior: 'smooth' })"
+            >
                 <header class="cx-composer__bar">
                     <span>{{ __('panel.mailbox.compose') }}</span>
                     <button type="button" class="cx-composer__close" wire:click="closeCompose" title="{{ __('panel.mailbox.close') }}">
