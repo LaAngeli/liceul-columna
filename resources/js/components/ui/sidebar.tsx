@@ -215,6 +215,12 @@ function Sidebar({
             className={cn(
               "relative flex h-full w-full flex-col",
               "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+              // Rezervă permanent spațiul barei de scroll: în fereastră de browser desktop îngustă
+              // (unde se randează acest meniu), extinderea unei categorii făcea să APARĂ bara clasică
+              // → conținutul se reașeza (reflow) → repaint care făcea iconițele (margini ascuțite) să
+              // pâlpâie, textul (hinting) rămânând stabil. Cu gutter stabil, bara apare în spațiul deja
+              // rezervat — zero reflow. Pe telefon real (overlay scrollbar) e oricum inofensiv.
+              "[&_[data-sidebar=content]]:[scrollbar-gutter:stable]",
               "[&_[data-sidebar=menu-button]]:min-h-11",
               "[&_[data-sidebar=menu-sub-button]]:min-h-11",
               "[&_[data-sidebar=menu-action]]:top-0 [&_[data-sidebar=menu-action]]:right-0",
