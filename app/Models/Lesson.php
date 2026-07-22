@@ -4,7 +4,7 @@ namespace App\Models;
 
 use App\Enums\Weekday;
 use App\Observers\LessonObserver;
-use App\Support\Timetable;
+use App\Support\WeeklySchedule;
 use Database\Factories\LessonFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Un slot din orarul structurat al unei clase (spec §2.1): o disciplină, ținută de un profesor,
- * într-o zi + nr. de lecție, opțional într-o sală. Vezi {@see Timetable}.
+ * într-o zi + nr. de lecție, opțional într-o sală. Vezi {@see WeeklySchedule}.
  *
  * FĂRĂ SoftDeletes, deliberat. Slotul e configurare, nu act academic: nicio tabelă nu-l referă
  * (notele și absențele se leagă de disciplină, nu de lecție), deci ștergerea lui nu rupe nimic și

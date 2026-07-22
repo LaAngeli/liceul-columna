@@ -641,6 +641,10 @@ return [
         'catalog_sec_register' => 'Реестр',
         'catalog_sec_motivations' => 'Мотивировки',
         'catalog_sec_week' => 'Недельное расписание',
+        // Нормализованное недельное расписание (модуль «Расписание»).
+        'sched_room' => 'каб.',
+        'sched_view_table' => 'Таблица',
+        'sched_view_days' => 'По дням',
         'catalog_grades_hint' => 'Оценки по предметам и семестровые средние.',
         'catalog_absences_hint' => 'Пропуски по предметам и их мотивирование.',
         'catalog_schedule_hint' => 'Уроки дня и недельное расписание класса.',

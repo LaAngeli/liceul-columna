@@ -641,6 +641,10 @@ return [
         'catalog_sec_register' => 'Register',
         'catalog_sec_motivations' => 'Excuse notes',
         'catalog_sec_week' => 'Weekly schedule',
+        // The normalized weekly schedule (Schedule module).
+        'sched_room' => 'room',
+        'sched_view_table' => 'Table',
+        'sched_view_days' => 'By day',
         'catalog_grades_hint' => 'Grades by subject and semester averages.',
         'catalog_absences_hint' => 'Absences by subject and their excusal.',
         'catalog_schedule_hint' => 'Today’s lessons and the weekly class schedule.',

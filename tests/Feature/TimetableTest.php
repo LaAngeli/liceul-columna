@@ -43,7 +43,7 @@ it('resursa „Orar structurat": profesorul o VEDE, dar gestionarea rămâne a a
     $this->actingAs($ao)->get('/admin/lessons/create')->assertOk();
 });
 
-it('cabinetul afișează orarul structurat al clasei elevului', function () {
+it('cabinetul afișează orarul structurat al clasei elevului (fallback fără orar publicat)', function () {
     $year = AcademicYear::factory()->create();
     $class = SchoolClass::factory()->for($year)->create();
     $subject = Subject::factory()->create(['name' => 'Matematică']);
@@ -62,14 +62,17 @@ it('cabinetul afișează orarul structurat al clasei elevului', function () {
     $parent->assignRole(UserRole::Parinte->value);
     $parent->students()->attach($student->id);
 
-    // `timetable` e prop defer — partial reload (JSON).
+    // `weekly` e prop defer — partial reload (JSON). Fără orar publicat → sursa = structurat.
     $this->actingAs($parent)
         ->get(
             "/cabinet/elev/{$student->id}",
-            inertiaPartialHeaders('cabinet/student-profile', 'timetable'),
+            inertiaPartialHeaders('cabinet/student-profile', 'weekly'),
         )
         ->assertOk()
-        ->assertJsonStructure(['props' => ['timetable' => ['days', 'grid']]]);
+        ->assertJsonPath('props.weekly.source', 'structured')
+        ->assertJsonPath('props.weekly.slots.0.number', 1)
+        ->assertJsonPath('props.weekly.slots.0.cells.1.segments.0.subject', 'Matematică')
+        ->assertJsonStructure(['props' => ['weekly' => ['days', 'slots']]]);
 });
 
 it('riscul de amânare apare la disciplina cu ≤1 notă și >50% absențe din lecțiile programate', function () {

@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { BookOpen, ClipboardList, FileText, History, LayoutDashboard } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import type { WeeklyData } from '@/components/cabinet/catalog/schedule-views';
 import type { AbsenceRegisterData, MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
 import { ProfileHeader } from '@/components/cabinet/student-profile/header';
 import type { Trend } from '@/components/cabinet/student-profile/helpers';
@@ -98,17 +99,8 @@ interface Props {
         links: string[];
     }[];
     dynamics?: Dynamics;
-    timetable?: {
-        days: { value: number; label: string; short: string }[];
-        maxLesson: number;
-        grid: Record<string, { subject: string; teacher: string | null; room: string | null }>;
-    } | null;
-    // Orarul PUBLICAT al clasei — tabel generic, forma serverului (label + headers + rânduri).
-    lessonsSchedule?: {
-        label: string;
-        headers: string[];
-        rows: string[][];
-    } | null;
+    // Orarul săptămânal NORMALIZAT (publicat/structurat, o singură formă — App\Support\WeeklySchedule).
+    weekly?: WeeklyData | null;
     deferralRisk?: { risks: { subject: string; absences: number; scheduled: number }[]; undetermined: string[]; noTimetable: boolean };
     motivations?: MotivationItem[];
     corigentaExams?: {
@@ -310,11 +302,7 @@ export default function StudentProfile(props: Props) {
                 </TabPanel>
 
                 <TabPanel value="schedule" active={activeTab}>
-                    <ScheduleTab
-                        timetable={props.timetable}
-                        lessonsSchedule={props.lessonsSchedule}
-                        homework={props.homework}
-                    />
+                    <ScheduleTab weekly={props.weekly} homework={props.homework} />
                 </TabPanel>
 
                 <TabPanel value="history" active={activeTab}>

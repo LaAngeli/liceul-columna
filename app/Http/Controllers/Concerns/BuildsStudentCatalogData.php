@@ -16,6 +16,7 @@ use App\Models\TermAverage;
 use App\Support\ContentTranslator;
 use App\Support\Grades;
 use App\Support\SchoolCalendar;
+use App\Support\WeeklySchedule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -330,35 +331,14 @@ trait BuildsStudentCatalogData
     }
 
     /**
-     * Orarul PUBLICAT al clasei (Schedule „orarul-lecțiilor"), tradus pentru cabinet.
+     * Orarul săptămânal NORMALIZAT al clasei (sloturi + celule cu segmente structurate) — sursa
+     * publicată preferată, structuratul ca fallback. Detalii: {@see WeeklySchedule}.
      *
-     * @return array{label: string, headers: array<int, string>, rows: array<int, array<int, string>>}|null
+     * @return array<string, mixed>|null
      */
-    protected function lessonsSchedule(?SchoolClass $class): ?array
+    protected function weeklySchedule(?SchoolClass $class): ?array
     {
-        $schedule = $class?->lessonsSchedule;
-
-        if ($schedule === null || ! $schedule->is_public) {
-            return null;
-        }
-
-        // Tradus ca pe site-ul public (ContentTranslator, fallback RO): eticheta și zilele
-        // săptămânii prin chei exacte; celulele compuse prin {@see ContentTranslator::scheduleCell}
-        // (prefix-disciplină + eticheta „Lecția") — profesorul/sala rămân textul original.
-        return [
-            'label' => ContentTranslator::string($schedule->label),
-            'headers' => array_map(
-                static fn (string $header): string => ContentTranslator::string($header),
-                array_values($schedule->headers),
-            ),
-            'rows' => array_values(array_map(
-                static fn (array $row): array => array_map(
-                    static fn (string $cell): string => ContentTranslator::scheduleCell($cell),
-                    array_values($row),
-                ),
-                $schedule->rows,
-            )),
-        ];
+        return $class !== null ? app(WeeklySchedule::class)->forClass($class) : null;
     }
 
     /**

@@ -56,7 +56,7 @@ it('modulul Note se randează pentru părinte cu datele DOAR ale modulului', fun
             ->has('subjects')
             // Modulul încarcă DOAR datele lui — nimic din celelalte module.
             ->missing('homework')
-            ->missing('timetable')
+            ->missing('weekly')
             ->missing('register'));
 });
 

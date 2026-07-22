@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\BuildsStudentCatalogData;
 use App\Models\Student;
-use App\Support\Timetable;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -75,12 +74,10 @@ class CabinetCatalogController extends Controller
     {
         [$module, $student] = $this->moduleContext($request, ['zi', 'saptamana']);
 
-        $class = $student?->currentSchoolClass();
-
         return Inertia::render('cabinet/orar', [
             'module' => $module,
-            'timetable' => $class !== null ? app(Timetable::class)->forClass($class) : null,
-            'lessonsSchedule' => $this->lessonsSchedule($class),
+            // O SINGURĂ formă pentru ambele surse (publicat/structurat) — vezi WeeklySchedule.
+            'weekly' => $this->weeklySchedule($student?->currentSchoolClass()),
             // Temele intră DOAR în vederea „Ziua mea" (planificatorul zilei le fuzionează cu lecțiile);
             // săptămânalul rămâne strict orar — modulul Teme e destinația lor dedicată.
             'homework' => $student !== null && $module['section'] === 'zi'

@@ -8,11 +8,13 @@ use App\Models\Schedule;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\WeeklySchedule;
 use Spatie\Permission\Models\Role;
 
 /**
  * Canonizare orar (O2): cabinetul primește orarul „lecții" PUBLIC al clasei elevului prin FK-ul de
- * canonizare (doar dacă e publicat). Conectează cabinetul la orarul public bogat.
+ * canonizare (doar dacă e publicat), NORMALIZAT în forma `weekly` (sloturi + segmente —
+ * {@see WeeklySchedule}).
  */
 beforeEach(function () {
     foreach (UserRole::cases() as $role) {
@@ -33,7 +35,7 @@ function childWithClassSchedule(bool $public): array
         'school_class_id' => $class->id,
         'is_public' => $public,
         'headers' => ['', 'Luni'],
-        'rows' => [['Lecția 1', 'Matematică']],
+        'rows' => [['Lecția 1 08.00 – 08.45', 'Matematică Damian Iu.']],
     ]);
 
     $parent = User::factory()->create();
@@ -43,20 +45,26 @@ function childWithClassSchedule(bool $public): array
     return [$parent, $student];
 }
 
-it('cabinetul primește orarul public al clasei când e legat și publicat', function () {
+it('cabinetul primește orarul public al clasei, normalizat pe sloturi și segmente', function () {
     $this->withoutVite();
     [$parent, $student] = childWithClassSchedule(true);
 
-    // `lessonsSchedule` e prop defer — partial reload (JSON).
+    // `weekly` e prop defer — partial reload (JSON).
     $this->actingAs($parent)
         ->get(
             route('cabinet.student', $student),
-            inertiaPartialHeaders('cabinet/student-profile', 'lessonsSchedule'),
+            inertiaPartialHeaders('cabinet/student-profile', 'weekly'),
         )
         ->assertOk()
-        ->assertJsonPath('props.lessonsSchedule.label', 'Clasa IX 2')
-        ->assertJsonPath('props.lessonsSchedule.headers.1', 'Luni')
-        ->assertJsonPath('props.lessonsSchedule.rows.0.1', 'Matematică');
+        ->assertJsonPath('props.weekly.source', 'published')
+        ->assertJsonPath('props.weekly.label', 'Clasa IX 2')
+        ->assertJsonPath('props.weekly.days.0.value', 1)
+        ->assertJsonPath('props.weekly.slots.0.number', 1)
+        ->assertJsonPath('props.weekly.slots.0.time', '08.00–08.45')
+        ->assertJsonPath('props.weekly.slots.0.kind', 'lesson')
+        // Celula „Matematică Damian Iu." e SEGMENTATĂ: disciplină + profesor separate.
+        ->assertJsonPath('props.weekly.slots.0.cells.1.segments.0.subject', 'Matematică')
+        ->assertJsonPath('props.weekly.slots.0.cells.1.segments.0.teacher', 'Damian Iu.');
 });
 
 it('orarul nepublicat (draft) nu ajunge în cabinet', function () {
@@ -66,8 +74,9 @@ it('orarul nepublicat (draft) nu ajunge în cabinet', function () {
     $this->actingAs($parent)
         ->get(
             route('cabinet.student', $student),
-            inertiaPartialHeaders('cabinet/student-profile', 'lessonsSchedule'),
+            inertiaPartialHeaders('cabinet/student-profile', 'weekly'),
         )
         ->assertOk()
-        ->assertJsonPath('props.lessonsSchedule', null);
+        // Fără orar publicat și fără orar structurat → nimic (EmptyState în UI).
+        ->assertJsonPath('props.weekly', null);
 });

@@ -641,6 +641,10 @@ return [
         'catalog_sec_register' => 'Registru',
         'catalog_sec_motivations' => 'Motivări',
         'catalog_sec_week' => 'Orarul săptămânal',
+        // Orarul săptămânal normalizat (modulul Orar).
+        'sched_room' => 'sala',
+        'sched_view_table' => 'Tabel',
+        'sched_view_days' => 'Pe zile',
         'catalog_grades_hint' => 'Notele pe discipline și mediile semestriale.',
         'catalog_absences_hint' => 'Absențele pe discipline și motivarea lor.',
         'catalog_schedule_hint' => 'Lecțiile zilei și orarul săptămânal al clasei.',

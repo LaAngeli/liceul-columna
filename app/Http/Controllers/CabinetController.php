@@ -31,7 +31,6 @@ use App\Models\User;
 use App\Support\ContentTranslator;
 use App\Support\Grades;
 use App\Support\SchoolCalendar;
-use App\Support\Timetable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -418,12 +417,8 @@ class CabinetController extends Controller
             'deferralRisk' => Inertia::defer(fn (): array => app(ComputeDeferralRisk::class)->for($student)),
             'motivations' => Inertia::defer(fn (): array => $canSeeSensitive ? $this->motivations($student) : []),
 
-            // Tab „Orar & teme"
-            'timetable' => Inertia::defer(fn (): ?array => $class !== null
-                ? app(Timetable::class)->forClass($class)
-                : null
-            ),
-            'lessonsSchedule' => Inertia::defer(fn (): ?array => $this->lessonsSchedule($class)),
+            // Tab „Orar & teme" — o singură formă normalizată (publicat/structurat), vezi WeeklySchedule.
+            'weekly' => Inertia::defer(fn (): ?array => $this->weeklySchedule($class)),
             'homework' => Inertia::defer(fn (): array => $this->homeworkForStudent($student)),
 
             // Tab „Istoric" — dinamică multi-an + foaia matricolă

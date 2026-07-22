@@ -2,21 +2,21 @@ import { Head } from '@inertiajs/react';
 import type { HomeworkItem } from '@/components/cabinet/catalog/homework-views';
 import { ModuleShell } from '@/components/cabinet/catalog/module-shell';
 import type { ModuleContext } from '@/components/cabinet/catalog/module-shell';
-import { MyDay, WeeklySchedule } from '@/components/cabinet/catalog/schedule-views';
-import type { LessonsSchedule, TimetableData } from '@/components/cabinet/catalog/schedule-views';
+import { MyDay, WeeklyScheduleView } from '@/components/cabinet/catalog/schedule-views';
+import type { WeeklyData } from '@/components/cabinet/catalog/schedule-views';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 
 interface Props {
     module: ModuleContext;
-    timetable: TimetableData | null;
-    lessonsSchedule: LessonsSchedule | null;
+    /** Orarul normalizat (publicat/structurat) — o singură formă, vezi App\Support\WeeklySchedule. */
+    weekly: WeeklyData | null;
     /** Doar în secțiunea „Ziua mea" (planificatorul fuzionează lecțiile cu temele zilei). */
     homework: HomeworkItem[] | null;
 }
 
-/** Modulul „Orar": „Ziua mea" (lecțiile + temele zilei) · orarul săptămânal al clasei. */
-export default function ScheduleModulePage({ module, timetable, lessonsSchedule, homework }: Props) {
+/** Modulul „Orar": „Ziua mea" (programul + temele zilei) · orarul săptămânal al clasei. */
+export default function ScheduleModulePage({ module, weekly, homework }: Props) {
     const t = useTranslations();
 
     return (
@@ -32,12 +32,8 @@ export default function ScheduleModulePage({ module, timetable, lessonsSchedule,
                     { value: 'saptamana', label: t('cabinet.catalog_sec_week') },
                 ]}
             >
-                {module.section === 'zi' && (
-                    <MyDay timetable={timetable} lessonsSchedule={lessonsSchedule} homework={homework ?? []} />
-                )}
-                {module.section === 'saptamana' && (
-                    <WeeklySchedule timetable={timetable} lessonsSchedule={lessonsSchedule} />
-                )}
+                {module.section === 'zi' && <MyDay weekly={weekly} homework={homework ?? []} />}
+                {module.section === 'saptamana' && <WeeklyScheduleView weekly={weekly} />}
             </ModuleShell>
         </>
     );
