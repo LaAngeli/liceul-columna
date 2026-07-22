@@ -115,8 +115,12 @@ export function StandingCard({ student }: { student: CockpitChild }) {
                 student.isAtRisk && 'border-destructive/40',
             )}
         >
-            {/* Identitate — numele poartă linkul întins peste tot cardul */}
-            <div className="flex items-center gap-3">
+            {/* Identitate — numele poartă linkul întins peste tot cardul.
+                Pe mobil badge-ul de status trece pe rândul lui (`order-last w-full`): eticheta e lungă
+                („Promovabil (situație curentă)") și, nefiind comprimabilă, storcea coloana cu numele
+                până la „L…". Identitatea elevului primește lățimea, statusul coboară. De la sm în sus
+                revine inline, între nume și săgeată, ca înainte. */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
                 <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary ring-1 ring-primary/10">
                     {getInitials(student.name)}
                 </span>
@@ -137,7 +141,9 @@ export function StandingCard({ student }: { student: CockpitChild }) {
                     <p className="text-sm text-muted-foreground">{student.class ?? t('cabinet.class_unassigned')}</p>
                 </div>
                 {student.statusValue !== null && (
-                    <StudentStatusBadge status={student.statusValue as StudentStatusValue} />
+                    <div className="order-last w-full sm:order-none sm:w-auto">
+                        <StudentStatusBadge status={student.statusValue as StudentStatusValue} />
+                    </div>
                 )}
                 <ArrowUpRight className="size-5 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-primary" />
             </div>
