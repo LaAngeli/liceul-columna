@@ -21,9 +21,10 @@
     @endphp
 
     <div class="cal space-y-4">
-        {{-- Bara de instrumente --}}
-        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;">
-            <div style="display:flex;align-items:center;gap:6px;">
+        {{-- Bara de instrumente. Layout pe CLASE (nu stiluri inline) — pe mobil rândurile se
+             restructurează din CSS: navigare+titlu / buton lat / taburi late (.cal-toolbar*). --}}
+        <div class="cal-toolbar">
+            <div class="cal-toolbar__nav">
                 <x-filament::button color="gray" size="sm" icon="heroicon-m-chevron-left" wire:click="previous">
                     <span class="sr-only">{{ trans('panel.pages.calendar.back') }}</span>
                 </x-filament::button>
@@ -31,9 +32,9 @@
                 <x-filament::button color="gray" size="sm" icon="heroicon-m-chevron-right" wire:click="next">
                     <span class="sr-only">{{ trans('panel.pages.calendar.next') }}</span>
                 </x-filament::button>
-                <span style="margin-inline-start:6px;font-size:16px;font-weight:600;text-transform:capitalize;">{{ $this->periodTitle() }}</span>
+                <span class="cal-title">{{ $this->periodTitle() }}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div class="cal-toolbar__actions">
                 @if ($this->canAddEvent())
                     <a href="{{ $this->addEventUrl() }}" wire:navigate class="cal-add">
                         <svg style="width:14px;height:14px;" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/></svg>
@@ -51,22 +52,25 @@
         </div>
 
         {{-- Filtru pe categorii (chip-uri toggle). Starea = aria-pressed (CSS o reflectă vizual).
-             „Afișează tot" reaprinde toate; byDay() filtrează server-side după $visibleCategories. --}}
+             „Afișează tot" reaprinde toate; byDay() filtrează server-side după $visibleCategories.
+             Pe mobil chip-urile stau pe UN rând derulabil (etichetă fixă) — nu înfășurate zdrențuit. --}}
         @php($chips = $this->categoryChips())
         @php($allActive = collect($chips)->every(fn ($c) => $c['isActive']))
-        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;">
-            <span style="font-weight:600;opacity:.65;margin-inline-end:4px;">{{ trans('panel.pages.calendar.filter_label') }}</span>
-            @foreach ($chips as $chip)
-                <button type="button" class="cal-chip cal-cat-{{ $chip['color'] }}" aria-pressed="{{ $chip['isActive'] ? 'true' : 'false' }}" wire:click="toggleCategory('{{ $chip['key'] }}')">
-                    <span class="cal-chip__dot" aria-hidden="true"></span>
-                    {{ $chip['label'] }}
-                </button>
-            @endforeach
-            @if (! $allActive)
-                <button type="button" class="cal-chip-all" wire:click="showAllCategories">
-                    {{ trans('panel.pages.calendar.filter_all') }}
-                </button>
-            @endif
+        <div class="cal-filter">
+            <span class="cal-filter__label">{{ trans('panel.pages.calendar.filter_label') }}</span>
+            <div class="cal-filter__chips">
+                @foreach ($chips as $chip)
+                    <button type="button" class="cal-chip cal-cat-{{ $chip['color'] }}" aria-pressed="{{ $chip['isActive'] ? 'true' : 'false' }}" wire:click="toggleCategory('{{ $chip['key'] }}')">
+                        <span class="cal-chip__dot" aria-hidden="true"></span>
+                        {{ $chip['label'] }}
+                    </button>
+                @endforeach
+                @if (! $allActive)
+                    <button type="button" class="cal-chip-all" wire:click="showAllCategories">
+                        {{ trans('panel.pages.calendar.filter_all') }}
+                    </button>
+                @endif
+            </div>
         </div>
 
         {{-- LUNĂ --}}
@@ -103,9 +107,9 @@
             </div>
         @endif
 
-        {{-- SĂPTĂMÂNĂ --}}
+        {{-- SĂPTĂMÂNĂ: 7 coloane pe desktop, LISTĂ verticală de zile pe mobil (.cal-week). --}}
         @if ($mode === 'week')
-            <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;">
+            <div class="cal-week">
                 @foreach ($this->weekDays() as $day)
                     <div class="cal-card {{ $day['isToday'] ? 'cal-card--today' : '' }}">
                         <button type="button" class="cal-daynum" style="width:100%;justify-content:space-between;border-radius:8px;padding:0 6px;background:transparent;"

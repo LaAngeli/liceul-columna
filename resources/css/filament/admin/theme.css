@@ -488,6 +488,22 @@ html:root.dark {
     outline-offset: 2px;
 }
 
+/* Bara de instrumente + filtrul pe categorii — layout pe clase (blade-ul avea stiluri INLINE,
+   imposibil de rearanjat din media queries; restructurat 2026-07-22 la cererea userului). */
+.cal-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.cal-toolbar__nav { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cal-title {
+    margin-inline-start: 6px; font-size: 16px; font-weight: 600; text-transform: capitalize;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cal-toolbar__actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cal-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.cal-filter__label { font-weight: 600; opacity: 0.65; flex: none; }
+.cal-filter__chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+
+/* Săptămâna: 7 coloane pe desktop (clasa înlocuiește gridul inline din blade). */
+.cal-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+
 /* Taburi de vedere (Lună/Săptămână/Zi/Agendă). Starea = aria-pressed (sursă unică). */
 .cal-tabs { display: inline-flex; border: 1px solid var(--cal-border); border-radius: 8px; overflow: hidden; }
 .cal-tab {
@@ -586,11 +602,46 @@ html:root.dark {
    (titlul ascuns) — vedere „dots" de tip mobil; tap pe cifra zilei → vederea Zi. */
 @media (max-width: 767px) {
     .cal-cell { min-height: 58px; }
-    .cal-pill { min-height: 16px; padding: 1px; gap: 0; justify-content: center; }
-    .cal-pill__title, .cal-pill__time { display: none; }
-    .cal-pill__dot { width: 8px; height: 8px; }
+    /* Colapsul la puncte DOAR în celulele grilei lunii — în lista verticală a săptămânii
+       (.cal-card, sub 640px) pastila are loc de titlu și rămâne întreagă. */
+    .cal-cell .cal-pill { min-height: 16px; padding: 1px; gap: 0; justify-content: center; }
+    .cal-cell .cal-pill__title, .cal-cell .cal-pill__time { display: none; }
+    .cal-cell .cal-pill__dot { width: 8px; height: 8px; }
     .cal-more { padding: 0 2px; }
     .cal-weekhead { font-size: 10px; }
+}
+
+/* ARANJAREA pe telefon (cerința userului 2026-07-22 — „elementele nu au o aranjare ordinată"):
+   fiecare grup de comenzi devine un RÂND plin, aliniat, în ordinea folosirii:
+   (1) navigare ‹ Azi › + perioada pe același rând (perioada împinsă la dreapta);
+   (2) „Adaugă eveniment" — buton lat, centrat;
+   (3) taburile de vedere — segmented control pe toată lățimea, 4 celule egale;
+   (4) chip-urile de categorii — UN rând derulabil orizontal (nu înfășurare zdrențuită),
+       cu eticheta „Categorii:" fixă în stânga;
+   (5) legenda dispare — dublează 1:1 chip-urile de mai sus (aceleași culori + etichete). */
+@media (max-width: 639.98px) {
+    .cal-toolbar__nav { width: 100%; }
+    .cal-title { margin-inline-start: auto; font-size: 15px; }
+
+    .cal-toolbar__actions { width: 100%; flex-direction: column; align-items: stretch; }
+    .cal-add { justify-content: center; min-height: 44px; }
+    .cal-tabs { display: flex; width: 100%; }
+    .cal-tab { flex: 1 1 0; padding: 8px 4px; min-height: 44px; text-align: center; }
+
+    .cal-filter__chips {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding-block: 2px;
+    }
+    .cal-filter__chips::-webkit-scrollbar { display: none; }
+    .cal-filter__chips > * { flex: none; }
+    .cal-chip, .cal-chip-all { min-height: 32px; }
+
+    .cal-legend { display: none; }
+
+    /* Săptămâna pe telefon = listă verticală de zile (7 coloane × ~45px = carduri strivite). */
+    .cal-week { grid-template-columns: 1fr; }
 }
 
 /* ============================================================================
