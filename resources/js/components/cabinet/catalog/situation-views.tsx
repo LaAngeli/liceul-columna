@@ -608,9 +608,14 @@ export function MotivationForm({ studentId, window: motivationWindow }: { studen
                         <p className="text-[11px] text-muted-foreground">{t('cabinet.motivation_required_mark')}</p>
                     </div>
 
-                    {/* 1. PERIOADA — esența cererii; restul câmpurilor o explică. */}
-                    <fieldset className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-1.5">
+                    {/* 1. PERIOADA — esența cererii; restul câmpurilor o explică.
+                        `min-w-0` pe fieldset: implicit are `min-inline-size: min-content`, iar
+                        inputurile `type=date` au lățime intrinsecă mare → coloanele s-ar lăți peste
+                        card. Coloanele sunt `flex flex-col` (NU grid): într-un grid, celulele se
+                        întind la înălțimea rândului, iar coloana cu mai puține elemente își mărea
+                        inputul și îl cobora — de aici dezalinierea celor două câmpuri. */}
+                    <fieldset className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="flex min-w-0 flex-col gap-1.5">
                             <label htmlFor="period_start" className="text-xs text-muted-foreground">
                                 {t('cabinet.motivation_from')} *
                             </label>
@@ -623,11 +628,11 @@ export function MotivationForm({ studentId, window: motivationWindow }: { studen
                                 min={minDate}
                                 max={maxDate}
                                 onChange={(e) => onStartChange(e.target.value)}
-                                className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:outline-none"
+                                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-ring focus:outline-none"
                             />
                             {errors.period_start && <p className="text-xs text-destructive">{errors.period_start}</p>}
                         </div>
-                        <div className="grid gap-1.5">
+                        <div className="flex min-w-0 flex-col gap-1.5">
                             <label htmlFor="period_end" className="text-xs text-muted-foreground">
                                 {t('cabinet.motivation_to')} *
                             </label>
@@ -647,7 +652,7 @@ export function MotivationForm({ studentId, window: motivationWindow }: { studen
                                     setEnd(e.target.value);
                                     setEndCleared(false);
                                 }}
-                                className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-ring focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                             />
                             {start === '' && <p className="text-[11px] text-muted-foreground">{t('cabinet.motivation_pick_start')}</p>}
                             {endCleared && (
@@ -657,7 +662,7 @@ export function MotivationForm({ studentId, window: motivationWindow }: { studen
                             )}
                             {errors.period_end && <p className="text-xs text-destructive">{errors.period_end}</p>}
                         </div>
-                        <p className="col-span-2 text-[11px] text-muted-foreground">{t('cabinet.motivation_window_hint')}</p>
+                        <p className="text-[11px] text-muted-foreground sm:col-span-2">{t('cabinet.motivation_window_hint')}</p>
                     </fieldset>
 
                     {/* 2. MOTIVUL */}

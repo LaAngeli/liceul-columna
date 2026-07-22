@@ -636,21 +636,29 @@ class DemoTestDataSeeder extends Seeder
         $studentUser = User::query()->where('email', 'elev@columna.test')->first();
         $profUser = User::query()->where('email', 'profesor@columna.test')->first();
 
-        // Elevii FAMILIEI demo (copiii părintelui + elevul cu cont propriu) primesc FIECARE setul
-        // complet de stări — părintele cu un singur copil altfel ar vedea o singură poveste și nu
-        // ar putea evalua interfața (2026-07-22). Elevii clasei dirigintelui rămân pe spread
-        // (o cerere fiecare) — acolo se testează COADA de validare, nu fișa familiei.
+        // Elevii FAMILIEI demo primesc FIECARE setul complet de stări — un cont demo cu un singur
+        // copil ar vedea altfel o singură poveste și nu ar putea evalua interfața (2026-07-22).
+        // Conturile se descoperă după ROL + marcaj [DEMO], nu pe e-mailuri hardcodate: `elev2@`
+        // exista în DemoAccountsSeeder, dar rămăsese pe dinafară (cabinet gol la „Motivări").
+        // Elevii clasei dirigintelui rămân pe spread (o cerere fiecare) — acolo se testează COADA.
+        $familyUsers = User::query()
+            ->where('name', 'like', self::MARKER.'%')
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', [UserRole::Elev->value, UserRole::Parinte->value]))
+            ->get();
+
         /** @var Collection<int, Student> $familyTargets */
         $familyTargets = collect();
+        /** @var array<int, User> $requesterFor Cine depune cererea pentru fiecare elev (părintele lui / el însuși). */
+        $requesterFor = [];
 
-        if ($parent !== null) {
-            $familyTargets = $familyTargets->merge($parent->students()->get());
-        }
+        foreach ($familyUsers as $familyUser) {
+            $own = Student::query()->where('user_id', $familyUser->id)->first();
 
-        if ($studentUser !== null) {
-            $own = Student::query()->where('user_id', $studentUser->id)->first();
-            if ($own !== null) {
-                $familyTargets->push($own);
+            foreach ($familyUser->students()->get()->when($own !== null, fn ($c) => $c->push($own)) as $child) {
+                if (! isset($requesterFor[$child->id])) {
+                    $requesterFor[$child->id] = $familyUser;
+                    $familyTargets->push($child);
+                }
             }
         }
 
@@ -692,7 +700,7 @@ class DemoTestDataSeeder extends Seeder
 
         $documentPath = $this->storeDemoJustificativ();
 
-        $seedStory = function (Student $student, int $story, int $offset) use ($requester, $reviewer, $reasons, $documentPath): void {
+        $seedStory = function (Student $student, int $story, int $offset, User $by) use ($reviewer, $reasons, $documentPath): void {
             $pending = in_array($story, [1, 3], true);
 
             // Cererile care RĂMÂN în așteptare se ancorează pe o absență REALĂ a elevului, ca
@@ -717,7 +725,9 @@ class DemoTestDataSeeder extends Seeder
 
             $motivation = AbsenceMotivation::create([
                 'student_id' => $student->id,
-                'requested_by_user_id' => $requester->id,
+                // Depunătorul REAL al familiei (părintele copilului / elevul însuși) — „Depusă de"
+                // din cabinet trebuie să arate o persoană plauzibilă, nu un cont străin.
+                'requested_by_user_id' => $by->id,
                 'reason' => self::MARKER.' '.$reasons[$story],
                 'period_start' => $start->toDateString(),
                 'period_end' => $end->toDateString(),
@@ -736,13 +746,13 @@ class DemoTestDataSeeder extends Seeder
         $offset = 0;
         foreach ($familyTargets as $student) {
             foreach ([0, 1, 2, 3] as $story) {
-                $seedStory($student, $story, $offset);
+                $seedStory($student, $story, $offset, $requesterFor[$student->id]);
                 $offset++;
             }
         }
 
         foreach ($classTargets as $student) {
-            $seedStory($student, $offset % 4, $offset);
+            $seedStory($student, $offset % 4, $offset, $requester);
             $offset++;
         }
 
