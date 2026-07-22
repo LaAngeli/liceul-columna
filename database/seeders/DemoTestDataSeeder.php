@@ -30,6 +30,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Term;
 use App\Models\User;
+use App\Support\SchoolCalendar;
 use Illuminate\Database\Seeder;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
@@ -105,6 +106,7 @@ class DemoTestDataSeeder extends Seeder
         $this->seedLessons();
         $this->seedAnnouncements();
         $this->seedHomeworkCorrections();
+        $this->seedTodayHomework();
         $this->seedExamCommissions();
     }
 
@@ -630,25 +632,24 @@ class DemoTestDataSeeder extends Seeder
      * Cereri de motivare pentru copiii contului-părinte demo, elevul demo și elevii clasei
      * dirigintelui demo (ca panoul „Motivări absențe" să aibă ce valida).
      */
-    private function seedMotivations(): void
+    /**
+     * Elevii conturilor de FAMILIE demo + cine depune pentru fiecare (părintele lui / el însuși).
+     * Conturile se descoperă după ROL + marcaj [DEMO], nu pe e-mailuri hardcodate: `elev2@` exista
+     * în DemoAccountsSeeder, dar rămăsese pe dinafară din listele hardcodate — cabinetul lui apărea
+     * gol la „Motivări" (2026-07-23). Sursă UNICĂ pentru toate seedările care alimentează cabinetul.
+     *
+     * @return array{0: Collection<int, Student>, 1: array<int, User>}
+     */
+    private function demoFamilyStudents(): array
     {
-        $parent = User::query()->where('email', 'parinte@columna.test')->first();
-        $studentUser = User::query()->where('email', 'elev@columna.test')->first();
-        $profUser = User::query()->where('email', 'profesor@columna.test')->first();
-
-        // Elevii FAMILIEI demo primesc FIECARE setul complet de stări — un cont demo cu un singur
-        // copil ar vedea altfel o singură poveste și nu ar putea evalua interfața (2026-07-22).
-        // Conturile se descoperă după ROL + marcaj [DEMO], nu pe e-mailuri hardcodate: `elev2@`
-        // exista în DemoAccountsSeeder, dar rămăsese pe dinafară (cabinet gol la „Motivări").
-        // Elevii clasei dirigintelui rămân pe spread (o cerere fiecare) — acolo se testează COADA.
         $familyUsers = User::query()
             ->where('name', 'like', self::MARKER.'%')
             ->whereHas('roles', fn ($q) => $q->whereIn('name', [UserRole::Elev->value, UserRole::Parinte->value]))
             ->get();
 
-        /** @var Collection<int, Student> $familyTargets */
-        $familyTargets = collect();
-        /** @var array<int, User> $requesterFor Cine depune cererea pentru fiecare elev (părintele lui / el însuși). */
+        /** @var Collection<int, Student> $students */
+        $students = collect();
+        /** @var array<int, User> $requesterFor */
         $requesterFor = [];
 
         foreach ($familyUsers as $familyUser) {
@@ -657,12 +658,107 @@ class DemoTestDataSeeder extends Seeder
             foreach ($familyUser->students()->get()->when($own !== null, fn ($c) => $c->push($own)) as $child) {
                 if (! isset($requesterFor[$child->id])) {
                     $requesterFor[$child->id] = $familyUser;
-                    $familyTargets->push($child);
+                    $students->push($child);
                 }
             }
         }
 
-        $familyTargets = $familyTargets->unique('id')->values();
+        return [$students->unique('id')->values(), $requesterFor];
+    }
+
+    /**
+     * TEME cu termen ASTĂZI (și una mâine) pentru clasele copiilor demo — fereastra „De predat în
+     * această zi" din Programul zilei era goală în afara perioadei de școală, deci nu se putea
+     * evalua. Temele reale importate au termene din anul trecut; acestea sunt marcate [DEMO] în
+     * `topic` → curățate integral de `app:purge-demo-data` ȘI la re-seedare (vezi §curățare, unde
+     * se face forceDelete pe `topic LIKE '[DEMO]%'`).
+     *
+     * Ziua = ora ȘCOLII ({@see SchoolCalendar}), nu UTC: altfel, între 00:00 și 03:00, temele ar
+     * primi termenul zilei precedente.
+     */
+    private function seedTodayHomework(): void
+    {
+        [$students] = $this->demoFamilyStudents();
+
+        if ($students->isEmpty()) {
+            $this->command->warn('Fără elevi demo — sar peste temele de azi.');
+
+            return;
+        }
+
+        $today = SchoolCalendar::localNow()->startOfDay();
+
+        // Sarcini generice, plauzibile pe ORICE disciplină — seeder-ul nu inventează conținut
+        // didactic specific (ar arăta credibil, dar ar fi fals).
+        $tasks = [
+            ['Recapitulare pentru ora de azi', 'Ex. 3–5, pag. 48', null],
+            ['Fișă de lucru', 'Fișa nr. 2, itemii 1–4', 'Itemul 5 — pentru cei care doresc'],
+            ['Pregătire pentru evaluarea de mâine', 'Repetarea temelor din unitatea curentă', null],
+        ];
+
+        $created = 0;
+        /** @var array<int, bool> $doneClasses */
+        $doneClasses = [];
+
+        foreach ($students as $student) {
+            $class = $student->currentSchoolClass();
+
+            // O singură dată per CLASĂ: temele se leagă de (treaptă, secție), deci doi frați din
+            // aceeași clasă ar primi setul de două ori.
+            if ($class === null || isset($doneClasses[$class->id])) {
+                continue;
+            }
+            $doneClasses[$class->id] = true;
+
+            $assignments = $class->teachingAssignments()->with(['subject', 'teacher'])->limit(3)->get();
+
+            if ($assignments->isEmpty()) {
+                continue;
+            }
+
+            foreach ($assignments as $index => $assignment) {
+                $subject = $assignment->subject;
+                $teacher = $assignment->teacher;
+
+                if ($subject === null || $teacher === null) {
+                    continue;
+                }
+
+                [$topic, $required, $optional] = $tasks[$index % count($tasks)];
+                // Ultima temă a clasei are termenul MÂINE — fereastra zilei se poate compara cu
+                // ziua următoare (navigarea ◀ ▶ din Programul zilei).
+                $due = $index === 2 ? $today->copy()->addDay() : $today;
+
+                HomeworkAssignment::query()->create([
+                    'subject_id' => $subject->id,
+                    'teacher_id' => $teacher->id,
+                    'subject_name' => $subject->name,
+                    'author_name' => $teacher->full_name,
+                    'grade_level' => $class->grade_level,
+                    'section' => $class->section,
+                    'assigned_on' => $today->copy()->subDays(2)->toDateString(),
+                    'due_on' => $due->toDateString(),
+                    'topic' => self::MARKER.' '.$topic,
+                    'required_task' => $required,
+                    'optional_task' => $optional,
+                ]);
+                $created++;
+            }
+        }
+
+        $this->command->info("Teme demo cu termen azi/mâine: {$created} (pe ".count($doneClasses).' clase).');
+    }
+
+    private function seedMotivations(): void
+    {
+        $parent = User::query()->where('email', 'parinte@columna.test')->first();
+        $studentUser = User::query()->where('email', 'elev@columna.test')->first();
+        $profUser = User::query()->where('email', 'profesor@columna.test')->first();
+
+        // Elevii FAMILIEI demo primesc FIECARE setul complet de stări — un cont demo cu un singur
+        // copil ar vedea altfel o singură poveste și nu ar putea evalua interfața (2026-07-22).
+        // Elevii clasei dirigintelui rămân pe spread (o cerere fiecare) — acolo se testează COADA.
+        [$familyTargets, $requesterFor] = $this->demoFamilyStudents();
 
         /** @var Collection<int, Student> $classTargets */
         $classTargets = collect();

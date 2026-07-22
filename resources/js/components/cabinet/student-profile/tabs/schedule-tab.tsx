@@ -1,6 +1,6 @@
 import { HomeworkByDay } from '@/components/cabinet/catalog/homework-views';
 import type { HomeworkItem } from '@/components/cabinet/catalog/homework-views';
-import { MyDay, WeeklyScheduleView } from '@/components/cabinet/catalog/schedule-views';
+import { DayPlan, WeeklyScheduleView } from '@/components/cabinet/catalog/schedule-views';
 import type { WeeklyData } from '@/components/cabinet/catalog/schedule-views';
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { SectionHeading } from '@/components/cabinet/section-heading';
@@ -23,9 +23,9 @@ export function ScheduleTab({
 
     return (
         <div className="flex flex-col gap-6">
-            {/* === ZIUA MEA — programul + temele „pentru ziua" aleasă, într-o singură vedere === */}
+            {/* === PROGRAMUL ZILEI — lecțiile + temele „pentru ziua" aleasă, într-o singură vedere === */}
             {((weekly && weekly.slots.length > 0) || (homework && homework.length > 0)) && (
-                <MyDay weekly={weekly ?? null} homework={homework ?? []} />
+                <DayPlan weekly={weekly ?? null} homework={homework ?? []} />
             )}
 
             {/* === ORARUL SĂPTĂMÂNAL === (skeleton cât timp prop-ul defer e pe drum) */}

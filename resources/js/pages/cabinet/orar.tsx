@@ -2,7 +2,7 @@ import { Head } from '@inertiajs/react';
 import type { HomeworkItem } from '@/components/cabinet/catalog/homework-views';
 import { ModuleShell } from '@/components/cabinet/catalog/module-shell';
 import type { ModuleContext } from '@/components/cabinet/catalog/module-shell';
-import { MyDay, WeeklyScheduleView } from '@/components/cabinet/catalog/schedule-views';
+import { DayPlan, WeeklyScheduleView } from '@/components/cabinet/catalog/schedule-views';
 import type { WeeklyData } from '@/components/cabinet/catalog/schedule-views';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
@@ -28,11 +28,11 @@ export default function ScheduleModulePage({ module, weekly, homework }: Props) 
                 hint={t('cabinet.catalog_schedule_hint')}
                 module={module}
                 sections={[
-                    { value: 'zi', label: t('cabinet.my_day') },
+                    { value: 'zi', label: t('cabinet.day_plan') },
                     { value: 'saptamana', label: t('cabinet.catalog_sec_week') },
                 ]}
             >
-                {module.section === 'zi' && <MyDay weekly={weekly} homework={homework ?? []} />}
+                {module.section === 'zi' && <DayPlan weekly={weekly} homework={homework ?? []} />}
                 {module.section === 'saptamana' && <WeeklyScheduleView weekly={weekly} />}
             </ModuleShell>
         </>

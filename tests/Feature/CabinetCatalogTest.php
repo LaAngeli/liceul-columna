@@ -6,12 +6,14 @@ use App\Models\Absence;
 use App\Models\AbsenceMotivation;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
+use App\Models\HomeworkAssignment;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Term;
 use App\Models\User;
+use App\Support\SchoolCalendar;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
@@ -204,6 +206,34 @@ it('modulul Teme se randează cu lista temelor', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('cabinet/teme')
             ->has('homework'));
+});
+
+it('tema cu termen AZI e „today" și noaptea, când ziua UTC e încă cea precedentă', function () {
+    [$parent, $student] = catalogFamily();
+    $class = $student->currentSchoolClass();
+
+    // 01:30 ora Chișinăului = 22:30 UTC în ziua PRECEDENTĂ. Cu `today()` (UTC), tema de azi
+    // cădea în „upcoming", iar fereastra „De predat în această zi" rămânea goală.
+    Carbon::setTestNow(Carbon::parse('2026-03-12 01:30', SchoolCalendar::TIMEZONE));
+
+    HomeworkAssignment::query()->create([
+        'subject_name' => 'Matematică',
+        'author_name' => 'Damian Iu.',
+        'grade_level' => $class->grade_level,
+        'section' => $class->section,
+        'assigned_on' => '2026-03-10',
+        'due_on' => '2026-03-12',
+        'topic' => 'Recapitulare',
+        'required_task' => 'Ex. 1–3',
+    ]);
+
+    $this->actingAs($parent)->get(route('cabinet.homework'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('homework.0.status', 'today')
+            ->where('homework.0.effectiveDate', '2026-03-12'));
+
+    Carbon::setTestNow();
 });
 
 it('elevul își vede propriile module (un singur „copil": el însuși)', function () {

@@ -19,6 +19,8 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\User;
+use App\Support\SchoolCalendar;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -207,14 +209,20 @@ it('navigarea pe perioadă: ◀ ▶ mută referința cu pasul modului, „Azi" o
 });
 
 it('cabinetul livrează temele cronologic: azi+viitoare ASC întâi (cu status), apoi istoricul DESC', function () {
+    // Moment FIX, la mijlocul zilei școlii: „azi" din cabinet e ziua Chișinăului, nu cea UTC
+    // (2–3 ore în urmă). Fără ancoră, testul pica singur când rula între 00:00 și 03:00 local —
+    // aceeași cauză pentru care fereastra „De predat în această zi" apărea goală noaptea.
+    Carbon::setTestNow(Carbon::parse('2026-03-12 12:00', SchoolCalendar::TIMEZONE));
+
     $elev = User::factory()->create();
     $elev->assignRole(UserRole::Elev->value);
     $student = Student::factory()->create(['user_id' => $elev->id]);
     Enrollment::factory()->for($student)->for($this->classA)->for($this->year)->create();
 
-    $today = now()->toDateString();
-    hwFor(7, 'A', $this->subject, on: now()->subDays(10)->toDateString(), due: now()->subDays(3)->toDateString());
-    hwFor(7, 'A', $this->subject, on: now()->subDay()->toDateString(), due: now()->addDays(2)->toDateString());
+    $school = SchoolCalendar::localNow();
+    $today = $school->toDateString();
+    hwFor(7, 'A', $this->subject, on: $school->copy()->subDays(10)->toDateString(), due: $school->copy()->subDays(3)->toDateString());
+    hwFor(7, 'A', $this->subject, on: $school->copy()->subDay()->toDateString(), due: $school->copy()->addDays(2)->toDateString());
     hwFor(7, 'A', $this->subject, on: $today, due: $today);
 
     $items = actingAs($elev)
@@ -225,8 +233,10 @@ it('cabinetul livrează temele cronologic: azi+viitoare ASC întâi (cu status),
 
     expect(collect($items)->pluck('status')->all())->toBe(['today', 'upcoming', 'past'])
         ->and($items[0]['effectiveDate'])->toBe($today)
-        ->and($items[0]['due'])->toBe(now()->format('d.m.Y'))
-        ->and($items[2]['due'])->toBe(now()->subDays(3)->format('d.m.Y'));
+        ->and($items[0]['due'])->toBe($school->format('d.m.Y'))
+        ->and($items[2]['due'])->toBe($school->copy()->subDays(3)->format('d.m.Y'));
+
+    Carbon::setTestNow();
 });
 
 it('cronologia implicită: temele se ordonează pe data efectivă (termenul primează asupra atribuirii)', function () {

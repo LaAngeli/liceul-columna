@@ -51,9 +51,9 @@ function todayIsoWeekday(): number {
 }
 
 /** Coloana de timp a unui slot: numărul lecției + intervalul orar (ce există din ele). */
-function SlotTime({ slot }: { slot: WeeklySlot }) {
+function SlotTime({ slot, align = 'start' }: { slot: WeeklySlot; align?: 'start' | 'end' }) {
     return (
-        <div className="flex flex-col items-start gap-0.5">
+        <div className={cn('flex flex-col gap-0.5', align === 'end' ? 'items-end' : 'items-start')}>
             {slot.number !== null && (
                 <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
                     {slot.number}
@@ -69,20 +69,24 @@ function CellContent({ cell, muted = false }: { cell: WeeklyCell; muted?: boolea
     const t = useTranslations();
 
     return (
-        <div className="flex flex-col gap-1.5" title={cell.raw}>
-            {cell.segments.map((seg, i) => (
-                <div key={i} className={cn('min-w-0', cell.segments.length > 1 && 'border-l-2 border-primary/25 pl-1.5')}>
-                    <div className={cn('text-[13px] leading-snug font-medium', muted && 'font-normal text-muted-foreground italic')}>
-                        {seg.subject}
-                        {seg.group && (
-                            <span className="ml-1 rounded bg-primary/10 px-1 py-px align-middle text-[10px] font-semibold text-primary">
-                                {seg.group}
-                            </span>
-                        )}
+        <div className="flex flex-col gap-1" title={cell.raw}>
+            {/* Grupele paralele: separate printr-o linie orizontală (într-o coloană îngustă
+                citește mai bine decât bara verticală). */}
+            <div className={cn('flex flex-col', cell.segments.length > 1 && 'divide-y divide-border/70')}>
+                {cell.segments.map((seg, i) => (
+                    <div key={i} className={cn('min-w-0', cell.segments.length > 1 && (i === 0 ? 'pb-1' : 'pt-1'))}>
+                        <div className={cn('text-[13px] leading-snug font-medium', muted && 'font-normal text-muted-foreground italic')}>
+                            {seg.subject}
+                            {seg.group && (
+                                <span className="ml-1 rounded bg-primary/10 px-1 py-px align-middle text-[10px] font-semibold text-primary">
+                                    {seg.group}
+                                </span>
+                            )}
+                        </div>
+                        {seg.teacher && <div className="truncate text-[11px] text-muted-foreground">{seg.teacher}</div>}
                     </div>
-                    {seg.teacher && <div className="truncate text-[11px] text-muted-foreground">{seg.teacher}</div>}
-                </div>
-            ))}
+                ))}
+            </div>
             {cell.room && (
                 <span className="w-fit rounded bg-muted px-1 py-px text-[10px] text-muted-foreground">
                     {t('cabinet.sched_room')} {cell.room}
@@ -92,24 +96,39 @@ function CellContent({ cell, muted = false }: { cell: WeeklyCell; muted?: boolea
     );
 }
 
-/** Vederea TABEL (desktop): coloane = zile, rânduri = sloturi; ziua curentă evidențiată. */
+/**
+ * Vederea TABEL (desktop) — GRILĂ de casete, nu tabel clasic: `table-fixed` (coloane egale, textele
+ * lungi se sparg în loc să lățească ziua) + `border-separate` cu spațiere, astfel încât FIECARE
+ * celulă e propria casetă. Înălțimile se aliniază automat pe rând (celula ESTE cardul), deci un
+ * slot cu două grupe nu mai dezechilibrează rândul — exact ce făcea grila veche să pară haotică.
+ */
 function WeekTable({ weekly }: { weekly: WeeklyData }) {
     const t = useTranslations();
     const today = todayIsoWeekday();
 
     return (
-        <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-left text-muted-foreground">
+        <div className="overflow-x-auto">
+            {/* min-w: sub ~52rem coloanele ar deveni ilizibile — pe mobil vederea implicită e „Pe zile". */}
+            <table className="w-full min-w-[52rem] table-fixed border-separate border-spacing-1 text-sm">
+                <colgroup>
+                    <col className="w-20" />
+                    {weekly.days.map((d) => (
+                        <col key={d.value} />
+                    ))}
+                </colgroup>
+                <thead>
                     <tr>
-                        <th scope="col" className="w-24 px-3 py-2 font-medium">
+                        <th scope="col" className="px-1 pb-1 text-right text-[11px] font-normal text-muted-foreground">
                             {t('cabinet.timetable_lesson')}
                         </th>
                         {weekly.days.map((d) => (
                             <th
                                 key={d.value}
                                 scope="col"
-                                className={cn('px-3 py-2 text-left font-medium', d.value === today && 'text-primary')}
+                                className={cn(
+                                    'rounded-lg px-2 py-1.5 text-center text-[13px] font-semibold',
+                                    d.value === today ? 'bg-primary/10 text-primary' : 'bg-muted/60 text-muted-foreground',
+                                )}
                             >
                                 <span className="inline-flex items-center gap-1.5">
                                     {d.label}
@@ -121,27 +140,38 @@ function WeekTable({ weekly }: { weekly: WeeklyData }) {
                 </thead>
                 <tbody>
                     {weekly.slots.map((slot, i) => (
-                        <tr key={i} className={cn('border-t align-top', slot.kind === 'activity' && 'bg-muted/20')}>
-                            <th scope="row" className="px-3 py-2.5 text-left">
-                                <SlotTime slot={slot} />
+                        <tr key={i}>
+                            <th scope="row" className="px-1 py-1 text-right align-top">
+                                <SlotTime slot={slot} align="end" />
                             </th>
                             {slot.uniform !== null ? (
-                                <td colSpan={weekly.days.length} className="px-3 py-2.5 text-center">
-                                    <span className="text-[13px] text-muted-foreground italic" title={slot.uniform.raw}>
-                                        {slot.uniform.raw}
-                                    </span>
+                                <td
+                                    colSpan={weekly.days.length}
+                                    className="rounded-lg bg-muted/40 px-3 py-1.5 text-center text-[12px] text-muted-foreground italic"
+                                    title={slot.uniform.raw}
+                                >
+                                    {slot.uniform.raw}
                                 </td>
                             ) : (
                                 weekly.days.map((d) => {
                                     const cell = slot.cells[d.value] ?? null;
 
+                                    // Celula goală rămâne GOALĂ (fundal discret) — „—" adăuga zgomot
+                                    // pe fiecare fereastră liberă din săptămână.
+                                    if (cell === null) {
+                                        return <td key={d.value} className="rounded-lg bg-muted/15" />;
+                                    }
+
                                     return (
-                                        <td key={d.value} className={cn('px-3 py-2.5', d.value === today && 'bg-primary/[0.04]')}>
-                                            {cell ? (
-                                                <CellContent cell={cell} muted={slot.kind === 'activity'} />
-                                            ) : (
-                                                <span className="text-muted-foreground/40">—</span>
+                                        <td
+                                            key={d.value}
+                                            className={cn(
+                                                'rounded-lg border px-2.5 py-2 align-top',
+                                                slot.kind === 'activity' ? 'border-transparent bg-muted/40' : 'border-border/60 bg-card',
+                                                d.value === today && slot.kind !== 'activity' && 'border-primary/30 bg-primary/[0.04]',
                                             )}
+                                        >
+                                            <CellContent cell={cell} muted={slot.kind === 'activity'} />
                                         </td>
                                     );
                                 })
@@ -198,7 +228,7 @@ function DayCards({ weekly }: { weekly: WeeklyData }) {
 
             {daySlots.length === 0 ? (
                 <p className="rounded-xl border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-                    {t('cabinet.my_day_no_lessons')}
+                    {t('cabinet.day_plan_no_lessons')}
                 </p>
             ) : (
                 <ul className="divide-y overflow-hidden rounded-xl border bg-card">
@@ -276,7 +306,7 @@ export function WeeklyScheduleView({ weekly }: { weekly: WeeklyData | null }) {
  * „Ziua mea" — vederea zilnică a elevului: programul zilei (sloturile parse-ate ale serverului)
  * și temele DE PREDAT în acea zi, cu navigare ◀ Azi ▶.
  */
-export function MyDay({ weekly, homework }: { weekly: WeeklyData | null; homework: HomeworkItem[] }) {
+export function DayPlan({ weekly, homework }: { weekly: WeeklyData | null; homework: HomeworkItem[] }) {
     const t = useTranslations();
     const todayIso = localIso(new Date());
     const [selectedIso, setSelectedIso] = useState(todayIso);
@@ -305,7 +335,7 @@ export function MyDay({ weekly, homework }: { weekly: WeeklyData | null; homewor
         <section className="rounded-xl border bg-card p-4 shadow-sm">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="flex items-center gap-2 text-base font-semibold">
-                    {t('cabinet.my_day')}
+                    {t('cabinet.day_plan')}
                     {selectedIso === todayIso && (
                         <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
                             {t('cabinet.homework_today')}
@@ -316,7 +346,7 @@ export function MyDay({ weekly, homework }: { weekly: WeeklyData | null; homewor
                     <button
                         type="button"
                         onClick={() => shiftDay(-1)}
-                        aria-label={t('cabinet.my_day_prev')}
+                        aria-label={t('cabinet.day_plan_prev')}
                         className="inline-flex size-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                         ‹
@@ -325,7 +355,7 @@ export function MyDay({ weekly, homework }: { weekly: WeeklyData | null; homewor
                     <button
                         type="button"
                         onClick={() => shiftDay(1)}
-                        aria-label={t('cabinet.my_day_next')}
+                        aria-label={t('cabinet.day_plan_next')}
                         className="inline-flex size-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                         ›
@@ -336,7 +366,7 @@ export function MyDay({ weekly, homework }: { weekly: WeeklyData | null; homewor
                             onClick={() => setSelectedIso(todayIso)}
                             className="ml-1 inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium hover:bg-muted"
                         >
-                            {t('cabinet.my_day_today')}
+                            {t('cabinet.day_plan_today')}
                         </button>
                     )}
                 </div>
@@ -346,11 +376,11 @@ export function MyDay({ weekly, homework }: { weekly: WeeklyData | null; homewor
                 {/* Programul zilei */}
                 <div>
                     <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                        {t('cabinet.my_day_lessons')}
+                        {t('cabinet.day_plan_lessons')}
                     </p>
                     {daySlots.length === 0 ? (
                         <p className="rounded-lg bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                            {t('cabinet.my_day_no_lessons')}
+                            {t('cabinet.day_plan_no_lessons')}
                         </p>
                     ) : (
                         <ul className="divide-y rounded-lg border">
@@ -374,11 +404,11 @@ export function MyDay({ weekly, homework }: { weekly: WeeklyData | null; homewor
                 {/* Temele „pentru" ziua aleasă */}
                 <div>
                     <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                        {t('cabinet.my_day_homework')}
+                        {t('cabinet.day_plan_homework')}
                     </p>
                     {dueToday.length === 0 ? (
                         <p className="rounded-lg bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                            {t('cabinet.my_day_no_homework')}
+                            {t('cabinet.day_plan_no_homework')}
                         </p>
                     ) : (
                         <ul className="flex flex-col gap-2">

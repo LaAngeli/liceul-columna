@@ -70,7 +70,7 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
                         <select
                             value={form.data.notification_locale}
                             onChange={(e) => form.setData('notification_locale', e.target.value)}
-                            className="mt-3 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm sm:w-auto"
+                            className="mt-3 min-h-11 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm sm:w-auto md:min-h-0"
                         >
                             {Object.entries(locales).map(([value, label]) => (
                                 <option key={value} value={value}>
@@ -100,7 +100,7 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
                                     value={form.data.email}
                                     onChange={(e) => form.setData('email', e.target.value)}
                                     placeholder={t('cabinet.notif_email_add_placeholder')}
-                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm read-only:cursor-not-allowed read-only:opacity-60"
+                                    className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm read-only:cursor-not-allowed read-only:opacity-60 md:min-h-0"
                                     maxLength={255}
                                     autoComplete="email"
                                     readOnly={!emailEditable}
@@ -134,7 +134,7 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
                                             onChange={(e) =>
                                                 form.setData('contacts', { ...form.data.contacts, [channel]: e.target.value })
                                             }
-                                            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                            className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm md:min-h-0"
                                             maxLength={120}
                                         />
                                         <span className="min-h-4 text-[11px] text-muted-foreground/80">
@@ -208,7 +208,7 @@ export default function NotificationSettingsPage({ contacts, preferences, types,
                     <button
                         type="submit"
                         disabled={form.processing}
-                        className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                        className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 md:min-h-0"
                     >
                         {t('cabinet.notif_save')}
                     </button>

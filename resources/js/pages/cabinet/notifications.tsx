@@ -121,7 +121,7 @@ export default function NotificationsPage({
     }
 
     const tabClass = (active: boolean) =>
-        `inline-flex min-h-9 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        `inline-flex min-h-11 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-9 ${
             active
                 ? 'bg-primary text-primary-foreground'
                 : 'border border-sidebar-border/70 text-muted-foreground hover:bg-muted dark:border-sidebar-border'
@@ -135,7 +135,7 @@ export default function NotificationsPage({
                     <h1 className="text-xl font-semibold">{t('cabinet.notif_title')}</h1>
                     <Link
                         href={notificationSettings().url}
-                        className="ml-auto inline-flex items-center rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
+                        className="ml-auto inline-flex min-h-11 items-center rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted md:min-h-0 dark:border-sidebar-border"
                     >
                         {t('cabinet.notif_settings')}
                     </Link>
@@ -143,7 +143,7 @@ export default function NotificationsPage({
                         <button
                             type="button"
                             onClick={markAll}
-                            className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                            className="inline-flex min-h-11 items-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 md:min-h-0"
                         >
                             {t('cabinet.notif_mark_all')}
                         </button>
@@ -258,7 +258,7 @@ function ArchiveTab({
     const items = archive?.items ?? [];
 
     const inputClass =
-        'min-h-9 rounded-md border border-sidebar-border/70 bg-background px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-sidebar-border';
+        'min-h-11 rounded-md border border-sidebar-border/70 bg-background px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-9 dark:border-sidebar-border';
 
     return (
         <section className="flex flex-col gap-4" aria-label={t('cabinet.notif_tab_archive')}>
@@ -310,7 +310,7 @@ function ArchiveTab({
                 <button
                     type="button"
                     onClick={() => applyFilters({ sort: current.sort === 'vechi' ? 'recente' : 'vechi' })}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted md:min-h-9 dark:border-sidebar-border"
                     aria-pressed={current.sort === 'vechi'}
                 >
                     {current.sort === 'vechi' ? (
@@ -373,7 +373,7 @@ function ArchiveTab({
                             href={archive.prev}
                             preserveScroll
                             preserveState
-                            className="inline-flex min-h-9 items-center rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
+                            className="inline-flex min-h-11 items-center rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted md:min-h-9 dark:border-sidebar-border"
                         >
                             {t('cabinet.notif_prev')}
                         </Link>
@@ -388,7 +388,7 @@ function ArchiveTab({
                             href={archive.next}
                             preserveScroll
                             preserveState
-                            className="inline-flex min-h-9 items-center rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
+                            className="inline-flex min-h-11 items-center rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted md:min-h-9 dark:border-sidebar-border"
                         >
                             {t('cabinet.notif_next')}
                         </Link>

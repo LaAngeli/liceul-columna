@@ -89,7 +89,7 @@ export function AppSidebar() {
             path: '/cabinet/orar',
             icon: Clock3,
             subs: [
-                { title: t('cabinet.my_day', 'Ziua mea'), section: 'zi' },
+                { title: t('cabinet.day_plan', 'Ziua mea'), section: 'zi' },
                 { title: t('cabinet.catalog_sec_week', 'Orarul săptămânal'), section: 'saptamana' },
             ],
         },

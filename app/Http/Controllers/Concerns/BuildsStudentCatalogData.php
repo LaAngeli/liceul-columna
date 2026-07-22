@@ -366,7 +366,10 @@ trait BuildsStudentCatalogData
             });
 
         $expression = HomeworkAssignment::effectiveOnExpression();
-        $today = today()->toDateString();
+        // Ziua ȘCOLII, nu UTC (regula de fus a proiectului): `today()` e cu 2–3 ore în urmă, deci
+        // între 00:00 și 03:00 ora Chișinăului temele DE AZI cădeau în „viitor", iar fereastra
+        // „De predat în această zi" apărea goală. Prins pe date demo, 2026-07-23.
+        $today = SchoolCalendar::localNow()->toDateString();
 
         $upcoming = $base()
             ->where($expression, '>=', $today)
@@ -379,8 +382,9 @@ trait BuildsStudentCatalogData
             ->get();
 
         return $upcoming->concat($past)
-            ->map(function (HomeworkAssignment $homework): array {
+            ->map(function (HomeworkAssignment $homework) use ($today): array {
                 $effective = $homework->effectiveOn();
+                $effectiveDate = $effective->toDateString();
 
                 return [
                     'id' => $homework->id,
@@ -388,11 +392,13 @@ trait BuildsStudentCatalogData
                     'due' => $homework->due_on?->format('d.m.Y'),
                     // Cheia de GRUPARE pe zile (stabilă, sortabilă) + eticheta zilei tradusă în
                     // limba interfeței (serverul cunoaște locale-ul; frontend-ul n-are formatter).
-                    'effectiveDate' => $effective->toDateString(),
+                    'effectiveDate' => $effectiveDate,
                     'dayLabel' => ucfirst($effective->translatedFormat('l, j F')),
+                    // Comparație pe ZIUA ȘCOLII (`$today`), nu `isToday()/isFuture()` — acelea se
+                    // raportează la UTC și mutau temele de azi în „viitor" noaptea.
                     'status' => match (true) {
-                        $effective->isToday() => 'today',
-                        $effective->isFuture() => 'upcoming',
+                        $effectiveDate === $today => 'today',
+                        $effectiveDate > $today => 'upcoming',
                         default => 'past',
                     },
                     'subject' => ContentTranslator::subject((string) $homework->subject_name),
