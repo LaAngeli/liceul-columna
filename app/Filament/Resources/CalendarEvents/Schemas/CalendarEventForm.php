@@ -2,11 +2,14 @@
 
 namespace App\Filament\Resources\CalendarEvents\Schemas;
 
+use App\Enums\CalendarAudienceReach;
 use App\Enums\CalendarEventScope;
 use App\Enums\CalendarEventType;
+use App\Filament\Resources\CalendarEvents\CalendarEventResource;
 use App\Models\CalendarEvent;
 use App\Models\Enrollment;
 use App\Models\SchoolClass;
+use App\Models\Student;
 use App\Models\User;
 use App\Support\SchoolCalendar;
 use Closure;
@@ -41,11 +44,13 @@ class CalendarEventForm
                     ->native(false)
                     ->live()
                     ->required()
-                    // Alegerea îngustă golește selecțiile largi rămase în urmă — altfel un
-                    // grade_level ales anterior ar supraviețui invizibil în payload.
+                    // Alegerea unei audiențe golește selecțiile celorlalte rămase în urmă — altfel
+                    // un grade_level (sau o listă de elevi) ales anterior ar supraviețui invizibil.
                     ->afterStateUpdated(function (Set $set): void {
                         $set('grade_level', null);
                         $set('school_class_id', null);
+                        $set('students', []);
+                        $set('audience_reach', CalendarAudienceReach::Both->value);
                     }),
 
                 Select::make('grade_level')
@@ -65,6 +70,50 @@ class CalendarEventForm
                     ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::SchoolClass->value)
                     ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::SchoolClass->value),
 
+                // Elevi ANUME: unul sau mai mulți, aleși nominal. Salvarea relației (pivot) se face
+                // în paginile Create/Edit ({@see CalendarEventResource::syncStudents}) — câmpul nu e
+                // coloană. Conducerea alege dintre elevii anului curent; dirigintele doar ai lui.
+                Select::make('students')
+                    ->label(__('panel.forms.calendar_event.students'))
+                    ->options(fn (): array => self::studentOptions())
+                    ->getOptionLabelsUsing(fn (array $values): array => self::studentLabels($values))
+                    ->multiple()
+                    ->searchable()
+                    ->native(false)
+                    ->live()
+                    ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
+                    ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
+                    // Gardă de SERVER înainte de persistare: dirigintele nu poate ținti elevi din
+                    // afara claselor lui (un POST fabricat nu trebuie să creeze evenimentul întâi și
+                    // să pice abia la sincronizare). Conducerea nu e restrânsă.
+                    ->rule(fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
+                        $user = auth('web')->user();
+
+                        if (! $user instanceof User || $user->canPublishContent()) {
+                            return;
+                        }
+
+                        $ids = array_values(array_filter(array_map('intval', is_array($value) ? $value : [])));
+                        $allowed = CalendarEventResource::homeroomStudentIds($user);
+
+                        if (array_diff($ids, $allowed) !== []) {
+                            $fail((string) __('panel.forms.calendar_event.students_out_of_scope'));
+                        }
+                    })
+                    ->helperText(__('panel.forms.calendar_event.students_hint')),
+
+                // Cine, din familia fiecărui elev vizat, vede evenimentul: elevul singur, părinții
+                // sau ambii. Se aplică DOAR audienței nominale.
+                Select::make('audience_reach')
+                    ->label(__('panel.forms.calendar_event.reach'))
+                    ->options(CalendarAudienceReach::options())
+                    ->default(CalendarAudienceReach::Both->value)
+                    ->native(false)
+                    ->live()
+                    ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
+                    ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
+                    ->helperText(__('panel.forms.calendar_event.reach_hint')),
+
                 // CONFIRMAREA audienței, înainte de salvare: cine anume va vedea evenimentul, cu
                 // clasele enumerate și numărul de elevi. Eticheta unei opțiuni descrie o INTENȚIE;
                 // rezumatul arată CONSECINȚA — pe el se prinde alegerea greșită.
@@ -74,6 +123,8 @@ class CalendarEventForm
                         $get('visibility_scope'),
                         $get('grade_level'),
                         $get('school_class_id'),
+                        $get('students'),
+                        $get('audience_reach'),
                     )),
 
                 TextInput::make('title')
@@ -226,8 +277,13 @@ class CalendarEventForm
     {
         $user = auth('web')->user();
 
+        // Dirigintele nu publică pe toată școala, dar poate ținti clasa lui SAU elevi anume din
+        // clasele lui (audiența nominală, gardată în {@see CalendarEventPolicy}).
         if ($user instanceof User && ! $user->canPublishContent()) {
-            return [CalendarEventScope::SchoolClass->value => CalendarEventScope::SchoolClass->getLabel()];
+            return [
+                CalendarEventScope::SchoolClass->value => CalendarEventScope::SchoolClass->getLabel(),
+                CalendarEventScope::Students->value => CalendarEventScope::Students->getLabel(),
+            ];
         }
 
         return CalendarEventScope::options();
@@ -268,11 +324,19 @@ class CalendarEventForm
     }
 
     /**
-     * „Vor vedea: …" — audiența REZOLVATĂ: clasele vizate + numărul de elevi înmatriculați.
-     * Public și static, ca fraza să fie testabilă direct, nu doar prin randarea formularului.
+     * „Vor vedea: …" — audiența REZOLVATĂ: clasele vizate + numărul de elevi înmatriculați, sau,
+     * pentru audiența nominală, numărul de elevi aleși + cine din familia lor. Public și static,
+     * ca fraza să fie testabilă direct, nu doar prin randarea formularului.
+     *
+     * @param  mixed  $students  lista de id-uri de elevi (audiența nominală)
+     * @param  mixed  $reach  {@see CalendarAudienceReach} value (elev/părinți/ambii)
      */
-    public static function audienceSummary(mixed $scope, mixed $gradeLevel, mixed $classId): string
+    public static function audienceSummary(mixed $scope, mixed $gradeLevel, mixed $classId, mixed $students = null, mixed $reach = null): string
     {
+        if ($scope === CalendarEventScope::Students->value) {
+            return self::nominalSummary($students, $reach);
+        }
+
         $classes = self::currentYearClasses();
 
         if ($scope === CalendarEventScope::GradeLevel->value) {
@@ -311,6 +375,90 @@ class CalendarEventForm
 
         // Personalul vede orice eveniment în panou — familiile sunt partea care variază.
         return $summary.' '.__('panel.forms.calendar_event.summary_staff_note');
+    }
+
+    /**
+     * Rezumatul audienței nominale: câți elevi aleși + cine din familia lor îl vede.
+     */
+    private static function nominalSummary(mixed $students, mixed $reach): string
+    {
+        $ids = array_values(array_filter(is_array($students) ? $students : []));
+
+        if ($ids === []) {
+            return (string) __('panel.forms.calendar_event.summary_pick_students');
+        }
+
+        $reachCase = is_string($reach) ? CalendarAudienceReach::tryFrom($reach) : null;
+        $reachLabel = ($reachCase ?? CalendarAudienceReach::Both)->getLabel();
+
+        return (string) trans_choice('panel.forms.calendar_event.summary_students', count($ids), [
+            'count' => count($ids),
+            'reach' => mb_strtolower($reachLabel),
+        ]);
+    }
+
+    /**
+     * Opțiunile de elevi pentru audiența nominală: elevii anului curent, etichetați „Nume — Clasa".
+     * Dirigintele vede doar elevii claselor lui (aceeași gardă ca la {@see classOptions()}).
+     *
+     * @return array<int, string>
+     */
+    private static function studentOptions(): array
+    {
+        $user = auth('web')->user();
+        $classes = self::currentYearClasses();
+
+        if ($user instanceof User && ! $user->canPublishContent()) {
+            $classes = $classes->whereIn('id', $user->homeroomSchoolClassIds());
+        }
+
+        if ($classes->isEmpty()) {
+            return [];
+        }
+
+        $options = [];
+
+        Enrollment::query()
+            ->whereIn('school_class_id', $classes->pluck('id'))
+            ->with(['student', 'schoolClass'])
+            ->get()
+            ->each(function (Enrollment $enrollment) use (&$options): void {
+                if ($enrollment->student === null) {
+                    return;
+                }
+
+                $class = $enrollment->schoolClass;
+                $classLabel = $class !== null ? trim($class->name.' '.($class->section ?? '')) : '';
+                $options[$enrollment->student->id] = $classLabel !== ''
+                    ? $enrollment->student->full_name.' — '.$classLabel
+                    : $enrollment->student->full_name;
+            });
+
+        asort($options);
+
+        return $options;
+    }
+
+    /**
+     * Etichetele elevilor DEJA selectați (la editare) — pot fi în afara listei filtrate (ex. mutați
+     * între clase), deci se rezolvă direct pe id, nu doar din {@see studentOptions()}.
+     *
+     * @param  array<int, int|string>  $values
+     * @return array<int, string>
+     */
+    private static function studentLabels(array $values): array
+    {
+        $ids = array_values(array_filter(array_map('intval', $values)));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return Student::query()
+            ->whereKey($ids)
+            ->get()
+            ->mapWithKeys(fn (Student $student): array => [$student->id => $student->full_name])
+            ->all();
     }
 
     /** @return Collection<int, SchoolClass> */

@@ -10,6 +10,7 @@
  * nici clasele, nici numărul de copii vizați.
  */
 
+use App\Enums\CalendarAudienceReach;
 use App\Enums\CalendarEventScope;
 use App\Enums\CalendarEventType;
 use App\Enums\UserRole;
@@ -21,6 +22,7 @@ use App\Models\CalendarEvent;
 use App\Models\Enrollment;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Teacher;
 use App\Models\Term;
 use App\Models\User;
 use App\Support\SchoolCalendar;
@@ -243,4 +245,60 @@ it('opțiunile pe an de studiu enumeră clasele, nu mai afișează „Treapta N"
 
     expect($html)->toContain('VII 1, VII 2')
         ->and($html)->not->toContain('Treapta');
+});
+
+it('conducerea creează un eveniment nominal și pivotul de elevi se salvează', function () {
+    calendarUser(UserRole::AdministratorOperational);
+
+    $class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 8]);
+    $students = Student::factory()->count(2)->create()->each(
+        fn (Student $student) => Enrollment::factory()->for($student)->for($class)->for($this->year)->create(),
+    );
+
+    Livewire::test(CreateCalendarEvent::class)
+        ->fillForm([
+            'type' => CalendarEventType::Meeting->value,
+            'visibility_scope' => CalendarEventScope::Students->value,
+            'students' => $students->pluck('id')->all(),
+            'audience_reach' => CalendarAudienceReach::Guardians->value,
+            'title' => 'Discuție cu părinții',
+            'starts_on' => SchoolCalendar::localNow()->addWeek()->toDateString(),
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $event = CalendarEvent::query()->where('title', 'Discuție cu părinții')->firstOrFail();
+
+    expect($event->visibility_scope)->toBe(CalendarEventScope::Students)
+        ->and($event->audience_reach)->toBe(CalendarAudienceReach::Guardians)
+        ->and($event->students()->pluck('students.id')->sort()->values()->all())->toBe($students->pluck('id')->sort()->values()->all());
+});
+
+it('dirigintele nu poate ținti nominal un elev din afara claselor lui — respins pe SERVER', function () {
+    $homeroom = User::factory()->create();
+    $homeroom->assignRole(UserRole::Diriginte->value);
+    $teacher = Teacher::factory()->create(['user_id' => $homeroom->id]);
+
+    $myClass = SchoolClass::factory()->for($this->year)->create(['grade_level' => 6]);
+    $myClass->update(['homeroom_teacher_id' => $teacher->id]);
+
+    $otherClass = SchoolClass::factory()->for($this->year)->create(['grade_level' => 6]);
+    $outsider = Student::factory()->create();
+    Enrollment::factory()->for($outsider)->for($otherClass)->for($this->year)->create();
+
+    actingAs($homeroom);
+
+    Livewire::test(CreateCalendarEvent::class)
+        ->fillForm([
+            'type' => CalendarEventType::Meeting->value,
+            'visibility_scope' => CalendarEventScope::Students->value,
+            'students' => [$outsider->id],
+            'audience_reach' => CalendarAudienceReach::Both->value,
+            'title' => 'Nominal din afara sferei',
+            'starts_on' => SchoolCalendar::localNow()->addWeek()->toDateString(),
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['students']);
+
+    expect(CalendarEvent::query()->where('title', 'Nominal din afara sferei')->exists())->toBeFalse();
 });

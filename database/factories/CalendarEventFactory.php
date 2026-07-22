@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\CalendarAudienceReach;
 use App\Enums\CalendarEventScope;
 use App\Enums\CalendarEventType;
 use App\Models\CalendarEvent;
@@ -48,6 +49,20 @@ class CalendarEventFactory extends Factory
             'visibility_scope' => CalendarEventScope::SchoolClass,
             'grade_level' => null,
             'school_class_id' => $classId,
+        ]);
+    }
+
+    /**
+     * Eveniment NOMINAL (elevi anume). Atașează elevii cu `->hasAttached()` sau `->students()->attach()`
+     * după creare; `reach` implicit = ambii (elev + părinți).
+     */
+    public function forStudents(CalendarAudienceReach $reach = CalendarAudienceReach::Both): static
+    {
+        return $this->state(fn (): array => [
+            'visibility_scope' => CalendarEventScope::Students,
+            'grade_level' => null,
+            'school_class_id' => null,
+            'audience_reach' => $reach,
         ]);
     }
 }

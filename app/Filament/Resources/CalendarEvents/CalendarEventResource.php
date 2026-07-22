@@ -9,6 +9,8 @@ use App\Filament\Resources\CalendarEvents\Pages\ListCalendarEvents;
 use App\Filament\Resources\CalendarEvents\Schemas\CalendarEventForm;
 use App\Filament\Resources\CalendarEvents\Tables\CalendarEventsTable;
 use App\Models\CalendarEvent;
+use App\Models\Enrollment;
+use App\Models\Student;
 use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -18,6 +20,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Evenimente de calendar MANUALE (modul Calendar v2). Creare gated: conducerea (`canPublishContent`)
@@ -115,6 +118,8 @@ class CalendarEventResource extends Resource
 
     /**
      * Coerență scope ↔ FK: rămâne setat doar câmpul potrivit scope-ului (evită valori reziduale).
+     * `students` (pivot) și `audience_reach` trăiesc doar pe audiența nominală. Câmpul `students`
+     * nu e coloană — se scoate din payload, iar relația se sincronizează separat ({@see syncStudents}).
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -131,7 +136,65 @@ class CalendarEventResource extends Resource
             $data['school_class_id'] = null;
         }
 
+        if ($scope !== CalendarEventScope::Students->value) {
+            $data['audience_reach'] = null;
+        }
+
+        // `students` nu e coloană pe calendar_events (mass-assign l-ar ignora oricum) — scos explicit.
+        unset($data['students']);
+
         return $data;
+    }
+
+    /**
+     * Sincronizează elevii vizați (pivot). Gardă de SERVER: pentru scope != nominal, pivotul se
+     * golește; un diriginte poate ținti DOAR elevii claselor lui (un id din afara sferei = respins,
+     * nu filtrat tăcut — un POST fabricat nu trebuie să treacă). Conducerea poate ținti orice elev.
+     *
+     * @param  array<int, int|string>  $studentIds  id-urile din form state
+     */
+    public static function syncStudents(CalendarEvent $event, array $studentIds): void
+    {
+        if ($event->visibility_scope !== CalendarEventScope::Students) {
+            $event->students()->detach();
+
+            return;
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $studentIds))));
+        $user = auth('web')->user();
+
+        if ($user instanceof User && ! $user->canPublishContent()) {
+            $allowed = self::homeroomStudentIds($user);
+
+            if (array_diff($ids, $allowed) !== []) {
+                throw ValidationException::withMessages([
+                    'students' => __('panel.forms.calendar_event.students_out_of_scope'),
+                ]);
+            }
+        }
+
+        $event->students()->sync($ids);
+    }
+
+    /**
+     * Elevii înmatriculați în clasele la care userul e diriginte (sfera lui de audiență nominală).
+     * Public: formularul îl folosește pentru regula de câmp (validare ÎNAINTE de persistare).
+     *
+     * @return array<int, int>
+     */
+    public static function homeroomStudentIds(User $user): array
+    {
+        $classIds = $user->homeroomSchoolClassIds();
+
+        if ($classIds === []) {
+            return [];
+        }
+
+        return Enrollment::query()
+            ->whereIn('school_class_id', $classIds)
+            ->pluck('student_id')
+            ->all();
     }
 
     private static function canModify(Model $record): bool
@@ -146,10 +209,31 @@ class CalendarEventResource extends Resource
             return true;
         }
 
-        // Diriginte: doar evenimentele de clasă ale claselor lui.
-        return $record instanceof CalendarEvent
-            && $record->visibility_scope === CalendarEventScope::SchoolClass
-            && $record->school_class_id !== null
-            && in_array($record->school_class_id, $user->homeroomSchoolClassIds(), true);
+        if (! $record instanceof CalendarEvent) {
+            return false;
+        }
+
+        $homeroomClassIds = $user->homeroomSchoolClassIds();
+
+        if ($homeroomClassIds === []) {
+            return false;
+        }
+
+        // Diriginte: evenimentele de clasă ale claselor lui...
+        if ($record->visibility_scope === CalendarEventScope::SchoolClass) {
+            return $record->school_class_id !== null
+                && in_array($record->school_class_id, $homeroomClassIds, true);
+        }
+
+        // ...și nominalele unde toți elevii vizați sunt din clasele lui.
+        if ($record->visibility_scope === CalendarEventScope::Students) {
+            $students = $record->students;
+
+            return $students->isNotEmpty() && $students->every(
+                fn (Student $student): bool => in_array($student->currentSchoolClass()?->id, $homeroomClassIds, true),
+            );
+        }
+
+        return false;
     }
 }

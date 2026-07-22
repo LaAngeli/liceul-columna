@@ -2,12 +2,15 @@
 
 namespace App\Observers;
 
+use App\Enums\CalendarAudienceReach;
 use App\Enums\CalendarEventScope;
 use App\Enums\NotificationType;
 use App\Models\CalendarEvent;
 use App\Models\Student;
+use App\Models\User;
 use App\Notifications\CatalogNotification;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -21,6 +24,21 @@ class CalendarEventObserver
 {
     public function created(CalendarEvent $event): void
     {
+        // Audiența nominală se notifică SEPARAT, din pagina de creare, DUPĂ ce pivotul de elevi e
+        // atașat ({@see notifyNominalCreation}) — la momentul acestui `created` pivotul e încă gol.
+        if ($event->visibility_scope === CalendarEventScope::Students) {
+            return;
+        }
+
+        $this->notifyFamilies($event, NotificationType::NewCalendarEvent);
+    }
+
+    /**
+     * Notificarea de CREARE pentru audiența nominală — apelată din CreateCalendarEvent::afterCreate,
+     * după sincronizarea elevilor vizați (altfel destinatarii ar fi goi).
+     */
+    public function notifyNominalCreation(CalendarEvent $event): void
+    {
         $this->notifyFamilies($event, NotificationType::NewCalendarEvent);
     }
 
@@ -30,6 +48,7 @@ class CalendarEventObserver
             return;
         }
 
+        // La anulare (soft-delete) pivotul încă există — nominalul își găsește destinatarii.
         $this->notifyFamilies($event, NotificationType::CalendarEventCancelled);
     }
 
@@ -48,23 +67,11 @@ class CalendarEventObserver
             return;
         }
 
-        $students = Student::query()
-            ->with(['user', 'guardians'])
-            ->whereHas('enrollments', function (Builder $enrollment) use ($event): void {
-                if ($event->visibility_scope === CalendarEventScope::GradeLevel) {
-                    $enrollment->whereHas('schoolClass', fn (Builder $class): Builder => $class->where('grade_level', $event->grade_level));
-                } elseif ($event->visibility_scope === CalendarEventScope::SchoolClass) {
-                    $enrollment->where('school_class_id', $event->school_class_id);
-                }
-                // Global: orice elev înmatriculat.
-            })
-            ->get();
-
-        // Deduplicat pe utilizator: un părinte cu doi copii în scope primește O notificare.
-        $users = $students
-            ->flatMap(fn (Student $student) => $student->notifiableUsers())
-            ->unique('id')
-            ->values();
+        // Audiența nominală notifică EXACT după reach (elev / părinți / ambii); audiențele largi
+        // notifică întreaga familie a elevilor din scope, ca la restul catalogului.
+        $users = $event->visibility_scope === CalendarEventScope::Students
+            ? $this->nominalRecipients($event)
+            : $this->broadRecipients($event);
 
         if ($users->isEmpty()) {
             return;
@@ -75,5 +82,60 @@ class CalendarEventObserver
             ['title' => $event->title, 'date' => $event->starts_on->format('d.m.Y')],
             route('cabinet.calendar', absolute: false),
         ));
+    }
+
+    /**
+     * Destinatarii unei audiențe LARGI: familiile elevilor din scope (global/treaptă/clasă),
+     * deduplicate pe utilizator (un părinte cu doi copii în scope primește O notificare).
+     *
+     * @return Collection<int, User>
+     */
+    private function broadRecipients(CalendarEvent $event): Collection
+    {
+        return Student::query()
+            ->with(['user', 'guardians'])
+            ->whereHas('enrollments', function (Builder $enrollment) use ($event): void {
+                if ($event->visibility_scope === CalendarEventScope::GradeLevel) {
+                    $enrollment->whereHas('schoolClass', fn (Builder $class): Builder => $class->where('grade_level', $event->grade_level));
+                } elseif ($event->visibility_scope === CalendarEventScope::SchoolClass) {
+                    $enrollment->where('school_class_id', $event->school_class_id);
+                }
+                // Global: orice elev înmatriculat.
+            })
+            ->get()
+            ->flatMap(fn (Student $student): Collection => $student->notifiableUsers())
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Destinatarii unei audiențe NOMINALE: pentru fiecare elev vizat, doar cei pe care reach-ul îi
+     * include — elevul însuși (contul lui) și/sau părinții. Deduplicat pe utilizator.
+     *
+     * @return Collection<int, User>
+     */
+    private function nominalRecipients(CalendarEvent $event): Collection
+    {
+        $reach = $event->audience_reach ?? CalendarAudienceReach::Both;
+
+        return $event->students()
+            ->with(['user', 'guardians'])
+            ->get()
+            ->flatMap(function (Student $student) use ($reach): Collection {
+                /** @var Collection<int, User> $recipients */
+                $recipients = collect();
+
+                if ($reach->includesStudent() && $student->user !== null) {
+                    $recipients->push($student->user);
+                }
+
+                if ($reach->includesGuardians()) {
+                    $recipients = $recipients->concat($student->guardians);
+                }
+
+                return $recipients;
+            })
+            ->unique('id')
+            ->values();
     }
 }

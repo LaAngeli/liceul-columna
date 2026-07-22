@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Enums\CalendarEventScope;
 use App\Models\CalendarEvent;
+use App\Models\Student;
 use App\Models\User;
 
 /**
@@ -69,8 +70,28 @@ class CalendarEventPolicy
             return true;
         }
 
-        return $event->visibility_scope === CalendarEventScope::SchoolClass
-            && $event->school_class_id !== null
-            && in_array($event->school_class_id, $user->homeroomSchoolClassIds(), true);
+        $homeroomClassIds = $user->homeroomSchoolClassIds();
+
+        if ($homeroomClassIds === []) {
+            return false;
+        }
+
+        // Dirigintele: evenimentele de clasă ale claselor lui...
+        if ($event->visibility_scope === CalendarEventScope::SchoolClass) {
+            return $event->school_class_id !== null
+                && in_array($event->school_class_id, $homeroomClassIds, true);
+        }
+
+        // ...și evenimentele nominale unde TOȚI elevii vizați sunt din clasele lui (un eveniment
+        // cu elevi din afara sferei rămâne al conducerii — nu-l atinge dirigintele parțial vizat).
+        if ($event->visibility_scope === CalendarEventScope::Students) {
+            $students = $event->students;
+
+            return $students->isNotEmpty() && $students->every(
+                fn (Student $student): bool => in_array($student->currentSchoolClass()?->id, $homeroomClassIds, true),
+            );
+        }
+
+        return false;
     }
 }

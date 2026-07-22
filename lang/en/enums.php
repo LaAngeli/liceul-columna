@@ -97,6 +97,12 @@ return [
         'global' => 'Whole school — all students and parents',
         'grade_level' => 'One year of study — all parallel classes',
         'school_class' => 'A single class',
+        'students' => 'Specific students — chosen by name',
+    ],
+    'calendar_audience_reach' => [
+        'student' => 'Student only',
+        'guardians' => 'Parents only',
+        'both' => 'Student and parents',
     ],
     'audience_domain' => [
         'instruire' => 'Instruction',

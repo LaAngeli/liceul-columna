@@ -100,6 +100,12 @@ return [
         'global' => 'Toată școala — toți elevii și părinții',
         'grade_level' => 'Un an de studiu — toate clasele paralele',
         'school_class' => 'O singură clasă',
+        'students' => 'Elevi anume — aleși nominal',
+    ],
+    'calendar_audience_reach' => [
+        'student' => 'Doar elevul',
+        'guardians' => 'Doar părinții',
+        'both' => 'Elevul și părinții',
     ],
     'audience_domain' => [
         'instruire' => 'Instruire',
