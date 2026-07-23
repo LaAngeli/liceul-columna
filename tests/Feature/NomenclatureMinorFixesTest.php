@@ -124,7 +124,7 @@ it('redenumirea literei clasei poartă temele ei; temele pe treaptă și alte ge
 
 // ─── 3. Contul elevului: doar useri cu rol elev, încă nelegați ───────────────────────────
 
-it('selectul de cont al fișei de elev oferă doar conturi de ELEV nelegate (plus contul propriu)', function () {
+it('legarea unui cont ORFAN oferă doar conturi de ELEV nelegate — și doar pe o fișă fără cont', function () {
     $fx = minorFixesFixture();
 
     $free = User::factory()->create(['name' => 'Elev Liber']);
@@ -137,23 +137,31 @@ it('selectul de cont al fișei de elev oferă doar conturi de ELEV nelegate (plu
     $director = User::factory()->create(['name' => 'Director']);
     $director->assignRole(UserRole::Director->value);
 
+    $admin = User::factory()->create();
+    $admin->assignRole(UserRole::Admin->value);
+
+    // Fișa e FĂRĂ cont → supapa de legare e disponibilă, dar numai către conturi de elev libere.
+    $fx['student']->update(['user_id' => null]);
+
+    Livewire::actingAs($admin)
+        ->test(EditStudent::class, ['record' => $fx['student']->getRouteKey()])
+        ->assertFormFieldExists('user_id', function (Select $field) use ($free, $taken, $director): bool {
+            $options = array_keys($field->getOptions());
+
+            return in_array($free->id, $options, false)
+                && ! in_array($taken->id, $options, false)
+                && ! in_array($director->id, $options, false);
+        });
+
+    // Fișa CU cont nu mai oferă re-legarea (2026-07-24): contul se administrează din secțiunea
+    // Utilizatori, iar un select mereu deschis permitea repointarea cabinetului unui minor.
     $own = User::factory()->create(['name' => 'Elev Propriu']);
     $own->assignRole(UserRole::Elev->value);
     $fx['student']->update(['user_id' => $own->id]);
 
-    $admin = User::factory()->create();
-    $admin->assignRole(UserRole::Admin->value);
-
     Livewire::actingAs($admin)
         ->test(EditStudent::class, ['record' => $fx['student']->getRouteKey()])
-        ->assertFormFieldExists('user_id', function (Select $field) use ($free, $own, $taken, $director): bool {
-            $options = array_keys($field->getOptions());
-
-            return in_array($free->id, $options, false)
-                && in_array($own->id, $options, false)
-                && ! in_array($taken->id, $options, false)
-                && ! in_array($director->id, $options, false);
-        });
+        ->assertFormFieldHidden('user_id');
 });
 
 // ─── 4. Gruparea cabinetului pe subject_id (duplicatele legacy nu se contopesc) ──────────

@@ -82,6 +82,21 @@ trait ManagesAccountForm
 
         $this->linkedTeacherId = filled($data['teacher_id'] ?? null) ? (int) $data['teacher_id'] : null;
         $this->linkedStudentId = filled($data['student_id'] ?? null) ? (int) $data['student_id'] : null;
+
+        // FIȘĂ EXISTENTĂ: identitatea vine DIN REGISTRU, nu din formular — câmpurile de nume nici
+        // nu se mai afișează (cerința beneficiarului 2026-07-24). Fișa e sursa de adevăr a
+        // persoanei; contul nu poate ajunge cu alt nume decât fișa lui.
+        if (blank($data['name'] ?? null)) {
+            $fiche = $this->linkedTeacherId !== null
+                ? Teacher::query()->find($this->linkedTeacherId)
+                : ($this->linkedStudentId !== null ? Student::query()->find($this->linkedStudentId) : null);
+
+            if ($fiche !== null) {
+                $this->accountLastName = (string) $fiche->last_name;
+                $this->accountFirstName = (string) $fiche->first_name;
+                $data['name'] = (string) $fiche->full_name;
+            }
+        }
         $this->guardianStudentIds = isset($data['guardian_student_ids']) && is_array($data['guardian_student_ids'])
             ? array_map(intval(...), $data['guardian_student_ids'])
             : null;

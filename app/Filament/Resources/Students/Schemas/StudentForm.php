@@ -5,7 +5,7 @@ namespace App\Filament\Resources\Students\Schemas;
 use App\Enums\SchoolCycle;
 use App\Enums\SecondLanguage;
 use App\Enums\Sex;
-use App\Enums\UserRole;
+use App\Filament\Schemas\FicheAccountSection;
 use App\Models\Student;
 use Closure;
 use Filament\Forms\Components\Placeholder;
@@ -15,8 +15,6 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Support\HtmlString;
 
 /**
  * Fișa elevului, RESTRUCTURATĂ (cerința beneficiarului, 2026-07-21): trei secțiuni logice
@@ -138,59 +136,10 @@ class StudentForm
                             ]),
                     ]),
 
-                Section::make(__('panel.forms.student.section_account'))
-                    ->description(__('panel.forms.student.section_account_hint'))
-                    ->schema([
-                        // Fișă CU cont: legătura e a SISTEMULUI — se afișează, nu se editează.
-                        // Orice schimbare de cont trece prin secțiunea Utilizatori (onboarding,
-                        // suspendare, re-legare) — un select mereu editabil permitea REPOINTAREA
-                        // accidentală a cabinetului unui minor către alt cont.
-                        Placeholder::make('cont_legat')
-                            ->label(__('panel.forms.student.account'))
-                            ->content(static function (?Model $record): HtmlString|string {
-                                $user = $record instanceof Student ? $record->user : null;
-
-                                if ($user === null) {
-                                    return (string) __('panel.forms.student.account_missing');
-                                }
-
-                                $status = $user->suspended_at !== null
-                                    ? __('panel.forms.student.account_suspended')
-                                    : __('panel.forms.student.account_active');
-
-                                return new HtmlString(
-                                    e($user->name).' <span class="text-gray-400">('.e((string) $user->username).')</span> — '.e((string) $status)
-                                );
-                            })
-                            ->helperText(__('panel.forms.student.account_managed_hint'))
-                            ->visible(static fn (?Model $record): bool => $record instanceof Student && $record->user_id !== null),
-                        // Fișă FĂRĂ cont (starea de excepție): legarea rămâne posibilă, DOAR
-                        // pentru rolurile care administrează conturi și DOAR către conturi de
-                        // elev încă nelegate — supapa pentru fișele orfane (import/istoric).
-                        Select::make('user_id')
-                            ->label(__('panel.forms.student.account_link'))
-                            ->relationship(
-                                'user',
-                                'name',
-                                modifyQueryUsing: fn (Builder $query, ?Student $record): Builder => $query
-                                    ->whereHas('roles', fn (Builder $roles) => $roles->where('name', UserRole::Elev->value))
-                                    ->whereNotExists(function (QueryBuilder $sub) use ($record): void {
-                                        $sub->selectRaw('1')
-                                            ->from('students')
-                                            ->whereColumn('students.user_id', 'users.id')
-                                            ->whereNull('students.deleted_at');
-
-                                        if ($record !== null) {
-                                            $sub->where('students.id', '!=', $record->getKey());
-                                        }
-                                    }),
-                            )
-                            ->searchable()
-                            ->preload()
-                            ->helperText(__('panel.forms.student.account_link_hint'))
-                            ->visible(static fn (?Model $record): bool => ($record === null || ($record instanceof Student && $record->user_id === null))
-                                && (auth('web')->user()?->canManageAccounts() ?? false)),
-                    ]),
+                // Contul fișei: aceeași secțiune ca la profesor — starea la vedere, crearea
+                // contului DIN fișă (fără re-tastarea datelor personale) și, ca supapă, legarea
+                // unui cont orfan doar când există chiar unul potrivit.
+                FicheAccountSection::make(),
             ]);
     }
 

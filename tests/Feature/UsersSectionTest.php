@@ -76,15 +76,21 @@ it('directorul creează conturi pentru fiecare rol pe care îl poate atribui', f
     foreach ($this->director->manageableRoleValues() as $index => $role) {
         // Onboarding unificat: rolurile cu fișă (profesor/diriginte/elev) CER fișa la creare —
         // aici legăm fișe existente (modul „link"); fluxul „fișă nouă" are testele lui dedicate.
+        $ficheName = null;
+
         $fiche = match ($role) {
-            UserRole::Profesor->value, UserRole::Diriginte->value => [
-                'teacher_fiche_mode' => 'link',
-                'teacher_id' => Teacher::factory()->create()->id,
-            ],
-            UserRole::Elev->value => [
-                'student_fiche_mode' => 'link',
-                'student_id' => Student::factory()->create()->id,
-            ],
+            UserRole::Profesor->value, UserRole::Diriginte->value => (function () use (&$ficheName): array {
+                $record = Teacher::factory()->create();
+                $ficheName = $record->full_name;
+
+                return ['teacher_fiche_mode' => 'link', 'teacher_id' => $record->id];
+            })(),
+            UserRole::Elev->value => (function () use (&$ficheName): array {
+                $record = Student::factory()->create();
+                $ficheName = $record->full_name;
+
+                return ['student_fiche_mode' => 'link', 'student_id' => $record->id];
+            })(),
             default => [],
         };
 
@@ -103,8 +109,10 @@ it('directorul creează conturi pentru fiecare rol pe care îl poate atribui', f
         $user = User::query()->where('username', 'cont-'.$role)->sole();
 
         expect($user->getRoleNames()->all())->toBe([$role])
-            // Nume + Prenume (câmpuri separate) recompuse în numele complet, pentru catalog.
-            ->and($user->name)->toBe('Cont '.$role)
+            // Numele contului: la FIȘĂ EXISTENTĂ vine DIN REGISTRU (cerința beneficiarului
+            // 2026-07-24 — identitatea nu se re-tastează, deci nici nu poate diverge de fișă);
+            // la rolurile fără fișă (părinte, administrație) rămâne cel din câmpurile de nume.
+            ->and($user->name)->toBe($ficheName ?? 'Cont '.$role)
             ->and($user->must_change_password)->toBeTrue()
             ->and(Hash::check('Parola-Temp-'.$index, $user->password))->toBeTrue()
             ->and($user->isSuspended())->toBeFalse();

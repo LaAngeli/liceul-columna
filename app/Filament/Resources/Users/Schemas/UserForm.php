@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Actions\CreateAccountForFiche;
 use App\Enums\AudienceDomain;
 use App\Enums\SecondLanguage;
 use App\Enums\Sex;
@@ -25,6 +26,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -57,54 +59,6 @@ class UserForm
             // câmpurile primesc lățime reală (feedback beneficiar, 2026-07-16).
             ->columns(1)
             ->components([
-                Section::make(__('panel.forms.user.section_identity'))
-                    // Grilă 2×2 (feedback beneficiar): Nume | Prenume pe primul rând,
-                    // Utilizator | Email pe al doilea. Câmpurile separate se recompun în
-                    // users.name („Nume Prenume") la salvare — catalogul vede numele întreg.
-                    ->columns(2)
-                    ->schema([
-                        TextInput::make('last_name')
-                            ->label(__('panel.forms.user.name'))
-                            ->required()
-                            // Doar litere (cu diacritice), spații, cratime, apostrof — fără cifre.
-                            ->regex("/^[\pL\pM'’ \\-\\.]+$/u")
-                            ->validationMessages(['regex' => __('panel.forms.user.name_letters')])
-                            // Pre-completare din alt modul (ex. o cerere de admitere înmatriculată
-                            // trimite numele copilului) — doar sugestie, validată oricum la salvare.
-                            ->default(fn (): ?string => self::requestedNameDefault('nume'))
-                            ->maxLength(120),
-                        TextInput::make('first_name')
-                            ->label(__('panel.forms.user.first_name'))
-                            ->required()
-                            ->regex("/^[\pL\pM'’ \\-\\.]+$/u")
-                            ->validationMessages(['regex' => __('panel.forms.user.name_letters')])
-                            ->default(fn (): ?string => self::requestedNameDefault('prenume'))
-                            ->maxLength(120),
-                        TextInput::make('username')
-                            ->label(__('panel.forms.user.username'))
-                            // Identificatorul stabil de autentificare (mulți elevi/părinți nu au e-mail).
-                            ->required()
-                            ->regex('/^[A-Za-z0-9._\-]+$/')
-                            ->validationMessages(['regex' => __('panel.forms.user.username_format')])
-                            ->unique(ignoreRecord: true)
-                            ->maxLength(60)
-                            ->helperText(__('panel.forms.user.username_hint')),
-                        TextInput::make('email')
-                            ->label(__('panel.forms.user.email'))
-                            ->email()
-                            ->unique(ignoreRecord: true)
-                            // Opțional (autentificarea merge pe utilizator), dar OBLIGATORIU când
-                            // se trimit credențialele pe e-mail (required condiționat = regulă
-                            // implicită — rulează și pe câmp gol, spre deosebire de un closure).
-                            ->required(fn (Get $get): bool => (bool) $get('send_credentials'))
-                            ->validationMessages([
-                                'required' => __('panel.forms.user.email_required_for_credentials'),
-                            ])
-                            // Câmp gol → NULL (nu ''), ca să nu intre în coliziune cu indexul unique pe e-mail.
-                            ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? $state : null)
-                            ->maxLength(255),
-                    ]),
-
                 Section::make(__('panel.forms.user.section_role'))
                     ->columns(2)
                     ->schema([
@@ -148,6 +102,9 @@ class UserForm
                             ->inline()
                             ->inlineLabel(false)
                             ->columnSpanFull()
+                            // Schimbarea modului curăță fișa aleasă: altfel o fișă rămasă selectată
+                            // ar continua să dea numele contului, deși ecranul cere date noi.
+                            ->afterStateUpdated(fn (Set $set) => $set('teacher_id', null))
                             ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
                                 && self::isPedagogicRole($get)),
                         Select::make('teacher_fiche_sex')
@@ -161,12 +118,24 @@ class UserForm
                             ->helperText(__('panel.forms.user.teacher_link_hint'))
                             ->options(fn (?Model $record): array => self::teacherOptions($record))
                             ->searchable()
+                            ->live()
                             ->visible(fn (Get $get, string $operation): bool => self::isPedagogicRole($get)
                                 && ($operation !== 'create' || $get('teacher_fiche_mode') === self::FICHE_LINK))
                             // Fluxul unificat: la creare, fișa e OBLIGATORIE (nouă sau existentă).
                             ->required(fn (Get $get, string $operation): bool => $operation === 'create'
                                 && self::isPedagogicRole($get)
-                                && $get('teacher_fiche_mode') === self::FICHE_LINK),
+                                && $get('teacher_fiche_mode') === self::FICHE_LINK)
+                            // La alegerea fișei, utilizatorul propus se derivă din numele ei —
+                            // operatorul îl vede în „Acces" și îl poate schimba, dar nu-l tastează.
+                            ->afterStateUpdated(function (Get $get, Set $set, mixed $state): void {
+                                self::suggestUsernameFromFiche($get, $set, self::findTeacher($state));
+                            }),
+
+                        // Fișa aleasă, CITITĂ din registru: datele personale nu se mai cer a doua
+                        // oară (cerința beneficiarului 2026-07-24) — se arată pentru verificare.
+                        Text::make(fn (Get $get): string => self::ficheSummary($get))
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get, string $operation): bool => self::usesExistingFiche($get, $operation)),
                         Repeater::make('teaching_pairs')
                             ->label(__('panel.forms.user.assignments'))
                             ->helperText(__('panel.forms.user.assignments_hint'))
@@ -243,6 +212,7 @@ class UserForm
                             ->inline()
                             ->inlineLabel(false)
                             ->columnSpanFull()
+                            ->afterStateUpdated(fn (Set $set) => $set('student_id', null))
                             ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
                                 && $get('role') === UserRole::Elev->value),
                         Select::make('student_fiche_sex')
@@ -267,11 +237,15 @@ class UserForm
                             ->helperText(__('panel.forms.user.student_link_hint'))
                             ->options(fn (?Model $record): array => self::studentOptions($record))
                             ->searchable()
+                            ->live()
                             ->visible(fn (Get $get, string $operation): bool => $get('role') === UserRole::Elev->value
                                 && ($operation !== 'create' || $get('student_fiche_mode') === self::FICHE_LINK))
                             ->required(fn (Get $get, string $operation): bool => $operation === 'create'
                                 && $get('role') === UserRole::Elev->value
-                                && $get('student_fiche_mode') === self::FICHE_LINK),
+                                && $get('student_fiche_mode') === self::FICHE_LINK)
+                            ->afterStateUpdated(function (Get $get, Set $set, mixed $state): void {
+                                self::suggestUsernameFromFiche($get, $set, self::findStudent($state));
+                            }),
                         Select::make('enroll_class_id')
                             ->label(__('panel.forms.user.enroll_class'))
                             ->helperText(__('panel.forms.user.enroll_class_hint'))
@@ -313,9 +287,62 @@ class UserForm
                             ->visible(fn (Get $get): bool => $get('role') === UserRole::Parinte->value),
                     ]),
 
+                // PERSOANA: numele se cere DOAR când chiar e nevoie de el — adică pentru o fișă
+                // nouă sau pentru un rol fără fișă (părinte, administrație). La „fișă existentă"
+                // identitatea vine din registru, iar rezumatul de mai sus o arată pentru verificare.
+                Section::make(__('panel.forms.user.section_identity'))
+                    ->columns(2)
+                    ->visible(fn (Get $get, string $operation): bool => ! self::usesExistingFiche($get, $operation))
+                    ->schema([
+                        TextInput::make('last_name')
+                            ->label(__('panel.forms.user.name'))
+                            ->required(fn (Get $get, string $operation): bool => ! self::usesExistingFiche($get, $operation))
+                            // Doar litere (cu diacritice), spații, cratime, apostrof — fără cifre.
+                            ->regex("/^[\pL\pM'’ \\-\\.]+$/u")
+                            ->validationMessages(['regex' => __('panel.forms.user.name_letters')])
+                            // Pre-completare din alt modul (ex. o cerere de admitere înmatriculată
+                            // trimite numele copilului) — doar sugestie, validată oricum la salvare.
+                            ->default(fn (): ?string => self::requestedNameDefault('nume'))
+                            ->maxLength(120),
+                        TextInput::make('first_name')
+                            ->label(__('panel.forms.user.first_name'))
+                            ->required(fn (Get $get, string $operation): bool => ! self::usesExistingFiche($get, $operation))
+                            ->regex("/^[\pL\pM'’ \\-\\.]+$/u")
+                            ->validationMessages(['regex' => __('panel.forms.user.name_letters')])
+                            ->default(fn (): ?string => self::requestedNameDefault('prenume'))
+                            ->maxLength(120),
+                    ]),
+
                 Section::make(__('panel.forms.user.section_access'))
+                    ->description(__('panel.forms.user.section_access_hint'))
                     ->columns(2)
                     ->schema([
+                        // Utilizatorul și e-mailul aparțin CONTULUI, nu persoanei — stăteau în
+                        // „Identitate" și dispăreau odată cu ea la fișă existentă, exact zona pe
+                        // care beneficiarul o semnala ca ambiguă.
+                        TextInput::make('username')
+                            ->label(__('panel.forms.user.username'))
+                            // Identificatorul stabil de autentificare (mulți elevi/părinți nu au e-mail).
+                            ->required()
+                            ->regex('/^[A-Za-z0-9._\-]+$/')
+                            ->validationMessages(['regex' => __('panel.forms.user.username_format')])
+                            ->unique(ignoreRecord: true)
+                            ->maxLength(60)
+                            ->helperText(__('panel.forms.user.username_hint')),
+                        TextInput::make('email')
+                            ->label(__('panel.forms.user.email'))
+                            ->email()
+                            ->unique(ignoreRecord: true)
+                            // Opțional (autentificarea merge pe utilizator), dar OBLIGATORIU când
+                            // se trimit credențialele pe e-mail (required condiționat = regulă
+                            // implicită — rulează și pe câmp gol, spre deosebire de un closure).
+                            ->required(fn (Get $get): bool => (bool) $get('send_credentials'))
+                            ->validationMessages([
+                                'required' => __('panel.forms.user.email_required_for_credentials'),
+                            ])
+                            // Câmp gol → NULL (nu ''), ca să nu intre în coliziune cu indexul unique pe e-mail.
+                            ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? $state : null)
+                            ->maxLength(255),
                         TextInput::make('password')
                             ->label(__('panel.forms.user.temp_password'))
                             ->helperText(__('panel.forms.user.temp_password_hint'))
@@ -366,6 +393,77 @@ class UserForm
     private static function isPedagogicRole(Get $get): bool
     {
         return in_array($get('role'), [UserRole::Profesor->value, UserRole::Diriginte->value], true);
+    }
+
+    /**
+     * Contul se face pentru o fișă care EXISTĂ deja în registru → identitatea nu se mai cere.
+     * Doar la creare: la editare, numele contului rămâne editabil (o corectură e legitimă).
+     */
+    public static function usesExistingFiche(Get $get, string $operation): bool
+    {
+        if ($operation !== 'create') {
+            return false;
+        }
+
+        if (self::isPedagogicRole($get)) {
+            return $get('teacher_fiche_mode') === self::FICHE_LINK && filled($get('teacher_id'));
+        }
+
+        if ($get('role') === UserRole::Elev->value) {
+            return $get('student_fiche_mode') === self::FICHE_LINK && filled($get('student_id'));
+        }
+
+        return false;
+    }
+
+    /** Datele fișei alese, pentru VERIFICARE (nu pentru editare). */
+    private static function ficheSummary(Get $get): string
+    {
+        $fiche = self::isPedagogicRole($get)
+            ? self::findTeacher($get('teacher_id'))
+            : self::findStudent($get('student_id'));
+
+        if ($fiche === null) {
+            return '';
+        }
+
+        /** @var array<int, string> $details */
+        $details = array_values(array_filter([
+            $fiche->sex instanceof Sex ? $fiche->sex->label() : null,
+            $fiche instanceof Student && filled($fiche->register_number)
+                ? (string) __('panel.restore.register_number', ['number' => $fiche->register_number])
+                : null,
+            $fiche instanceof Teacher && filled($fiche->email) ? (string) $fiche->email : null,
+        ]));
+
+        return (string) __('panel.forms.user.fiche_summary', [
+            'name' => $fiche->full_name,
+            'details' => $details === [] ? '—' : implode(' · ', $details),
+        ]);
+    }
+
+    /** Fișa după id-ul din starea formularului (mixed: poate fi null, string sau int). */
+    private static function findTeacher(mixed $id): ?Teacher
+    {
+        return filled($id) && is_scalar($id) ? Teacher::query()->find((int) $id) : null;
+    }
+
+    private static function findStudent(mixed $id): ?Student
+    {
+        return filled($id) && is_scalar($id) ? Student::query()->find((int) $id) : null;
+    }
+
+    /**
+     * Propune utilizatorul din numele fișei alese — DOAR pe câmp gol: o sugestie care suprascrie
+     * ce a tastat operatorul nu e ajutor, e pierdere de date (prins de testele de onboarding).
+     */
+    private static function suggestUsernameFromFiche(Get $get, Set $set, Teacher|Student|null $fiche): void
+    {
+        if ($fiche === null || filled($get('username'))) {
+            return;
+        }
+
+        $set('username', CreateAccountForFiche::suggestUsername($fiche));
     }
 
     private static function creatingTeacherFiche(Get $get, string $operation): bool
