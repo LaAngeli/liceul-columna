@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import MessagesPage from './messages';
+import MessagesPage from '@/pages/cabinet/messages';
 
 /**
  * Sincronizarea deep-link-ului `?fir=` (venit din notificări) cu firul deschis în poștă —

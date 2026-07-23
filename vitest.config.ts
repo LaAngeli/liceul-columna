@@ -11,6 +11,12 @@ import { defineConfig } from 'vitest/config';
  *
  * Rulare: `npm run test:js` (o dată) / `npm run test:js:watch` (în timpul lucrului).
  * Suita PHP (Pest) rămâne separată — vezi `php artisan test`.
+ *
+ * 🔴 UN TEST NU SE PUNE NICIODATĂ ÎN `resources/js/pages/**`: pluginul Inertia globează acel
+ * director ca PAGINI (`pages/**\/*.tsx`, tipar hardcodat, fără excludere) → fișierul de test intră
+ * în bundle-ul de producție și build-ul CADE la `@testing-library/*` (devDependency, absentă pe
+ * server). S-a întâmplat la deploy-ul din 2026-07-23. Testele paginilor stau aici, sub
+ * `__tests__/pages/…`, și importă componenta prin aliasul `@/`.
  */
 export default defineConfig({
     // Fără babel-plugin-react-compiler aici: compilatorul doar memoizează (semantica se păstrează),
