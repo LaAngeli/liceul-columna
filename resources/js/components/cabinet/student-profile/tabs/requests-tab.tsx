@@ -161,7 +161,7 @@ export function RequestsTab({
                                                 required
                                                 value={requestType}
                                                 onChange={(e) => setRequestType(e.target.value)}
-                                                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm md:min-h-0"
                                             >
                                                 <option value="">—</option>
                                                 {Object.entries(requestTypes).map(([value, label]) => (
@@ -187,7 +187,7 @@ export function RequestsTab({
                                                     required
                                                     value={gradeId}
                                                     onChange={(e) => setGradeId(e.target.value)}
-                                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                    className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm md:min-h-0"
                                                 >
                                                     <option value="">—</option>
                                                     {(contestableGrades ?? []).map((g) => (
@@ -216,7 +216,7 @@ export function RequestsTab({
                                                         type="date"
                                                         required
                                                         min={today}
-                                                        className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                        className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm md:min-h-0"
                                                     />
                                                     {errors.period_start && (
                                                         <p className="text-xs text-destructive">{errors.period_start}</p>
@@ -232,7 +232,7 @@ export function RequestsTab({
                                                         type="date"
                                                         required
                                                         min={today}
-                                                        className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                        className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm md:min-h-0"
                                                     />
                                                     {errors.period_end && (
                                                         <p className="text-xs text-destructive">{errors.period_end}</p>
@@ -253,7 +253,7 @@ export function RequestsTab({
                                                 required={requestType !== ''}
                                                 placeholder={detailPlaceholders[requestType] ?? t('cabinet.requests_details_ph')}
                                                 maxLength={1500}
-                                                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm md:min-h-0"
                                             />
                                             {errors.details && <p className="text-xs text-destructive">{errors.details}</p>}
                                         </div>
@@ -267,7 +267,7 @@ export function RequestsTab({
                                                 name="attachment"
                                                 type="file"
                                                 accept=".pdf,.jpg,.jpeg,.png"
-                                                className="rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
+                                                className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs md:min-h-0"
                                             />
                                             {errors.attachment && <p className="text-xs text-destructive">{errors.attachment}</p>}
                                         </div>
@@ -275,7 +275,7 @@ export function RequestsTab({
                                         <button
                                             type="submit"
                                             disabled={processing || requestType === ''}
-                                            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                                            className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 md:h-10 md:min-h-0"
                                         >
                                             {processing ? t('cabinet.motivation_sending') : t('cabinet.requests_submit')}
                                         </button>
@@ -321,7 +321,7 @@ export function RequestsTab({
                                                             href={r.pdfUrl}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="inline-flex min-h-7 items-center rounded-md bg-muted px-2.5 text-xs font-medium text-primary hover:underline"
+                                                            className="inline-flex min-h-11 items-center rounded-md bg-muted px-2.5 text-xs font-medium text-primary hover:underline md:min-h-7"
                                                         >
                                                             PDF
                                                         </a>
@@ -331,7 +331,7 @@ export function RequestsTab({
                                                             href={r.attachmentUrl}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="inline-flex min-h-7 items-center rounded-md bg-muted px-2.5 text-xs font-medium text-primary hover:underline"
+                                                            className="inline-flex min-h-11 items-center rounded-md bg-muted px-2.5 text-xs font-medium text-primary hover:underline md:min-h-7"
                                                         >
                                                             📎 {t('cabinet.requests_attachment_view')}
                                                         </a>
@@ -340,7 +340,7 @@ export function RequestsTab({
                                                         <button
                                                             type="button"
                                                             onClick={() => withdrawRequest(r.id)}
-                                                            className="inline-flex min-h-7 items-center rounded-md px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10"
+                                                            className="inline-flex min-h-11 items-center rounded-md px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 md:min-h-7"
                                                         >
                                                             {t('cabinet.requests_withdraw')}
                                                         </button>
