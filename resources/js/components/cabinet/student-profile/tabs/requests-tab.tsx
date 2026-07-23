@@ -1,5 +1,5 @@
 import { Form, router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { SectionHeading } from '@/components/cabinet/section-heading';
 import { motivationStatusClass } from '@/components/cabinet/student-profile/helpers';
@@ -64,12 +64,17 @@ export function RequestsTab({
     const [requestType, setRequestType] = useState('');
     const [gradeId, setGradeId] = useState('');
 
-    useEffect(() => {
-        if (contestIntent) {
-            setRequestType('contestatie');
-            setGradeId(String(contestIntent.gradeId));
-        }
-    }, [contestIntent]);
+    // Pre-completarea venită din chip-ul unei note se aplică ÎN TIMPUL RANDĂRII (tiparul oficial
+    // React „adjusting state when a prop changes"), nu într-un efect: React reia randarea imediat,
+    // fără să comită un frame intermediar cu formularul gol. Criteriul e `token`-ul (crește la
+    // FIECARE click, deci re-aplică și pe aceeași notă), nu identitatea obiectului.
+    const [appliedIntent, setAppliedIntent] = useState<number | null>(null);
+
+    if (contestIntent && contestIntent.token !== appliedIntent) {
+        setAppliedIntent(contestIntent.token);
+        setRequestType('contestatie');
+        setGradeId(String(contestIntent.gradeId));
+    }
 
     // Placeholderele ghidează CE se scrie la fiecare tip — detaliile sunt obligatorii peste tot
     // (o cerere fără motiv/destinație/temă e neprocesabilă).

@@ -86,30 +86,31 @@ export function LeadershipGrid({ members }: { members: LeadershipMember[] }) {
     const director = members[0];
     const pool = members.slice(1);
 
-    // Init determinist (SSR-safe); randomizăm după montare ca să evităm hydration mismatch.
-    const [shown, setShown] = useState<LeadershipMember[]>(() => pool.slice(0, ROTATE_SLOTS));
+    // Amestecul se face O SINGURĂ DATĂ, în inițializatorul lazy — nu într-un efect cu setState
+    // sincron (care ar declanșa o a doua randare și ar arăta un frame cu ordinea neamestecată).
+    // Același `deck` alimentează și ce se vede, și „sacul", exact ca înainte.
+    // ⚠️ SSR nu e operațional azi (fără entry `ssr.tsx` / bundle în `bootstrap/ssr`). Dacă se
+    // activează, amestecul din inițializator diferă server↔client → readu-l în efect (sau
+    // trimite ordinea de pe server ca prop).
+    const [deck] = useState<LeadershipMember[]>(() => shuffle(pool));
+    const [shown, setShown] = useState<LeadershipMember[]>(() => deck.slice(0, ROTATE_SLOTS));
     const [frames, setFrames] = useState<Frame[]>(() => Array.from({ length: ROTATE_SLOTS }, () => ({ opacity: 1, phase: 'in' as const })));
-    const shownRef = useRef<LeadershipMember[]>(pool.slice(0, ROTATE_SLOTS));
+    const shownRef = useRef<LeadershipMember[]>(deck.slice(0, ROTATE_SLOTS));
     // „Sac" de membri de introdus în ciclul curent = cei care NU sunt vizibili acum. Nimeni nu
     // reapare până nu a fost afișată toată echipa; la golirea sacului se reumple (ciclu nou).
-    const bagRef = useRef<LeadershipMember[]>([]);
+    const bagRef = useRef<LeadershipMember[]>(deck.slice(ROTATE_SLOTS));
     const pausedRef = useRef(false);
     const inViewRef = useRef(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Primul amestec: 3 vizibili + restul în „sac" (de introdus în ciclul curent, fără repetare).
-        const deck = shuffle(pool);
-        const first = deck.slice(0, ROTATE_SLOTS);
-        shownRef.current = first;
-        setShown(first);
-        bagRef.current = deck.slice(ROTATE_SLOTS);
-
+        // Amestecul inițial (3 vizibili + restul în „sac") s-a făcut deja în inițializatori;
+        // efectul se ocupă DOAR de rotație: observator de vizibilitate + temporizatoare.
         const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         if (reduce || pool.length <= ROTATE_SLOTS) {
-return;
-}
+            return;
+        }
 
         const el = rootRef.current;
         let io: IntersectionObserver | undefined;

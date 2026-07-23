@@ -352,21 +352,30 @@ function CountUp({ value, className }: { value: string; className?: string }) {
     // Anii (ex. „2019") nu fac count-up de la 0 — doar contoarele reale (27, 3).
     const isYear = /^(19|20)\d{2}$/.test(value);
     const numeric = !isYear && /^\d+$/.test(value) ? parseInt(value, 10) : null;
-    const [display, setDisplay] = useState(numeric === null ? value : '0');
+    // Valoarea de START se decide la montare, în inițializatorul lazy — nu printr-un setState
+    // sincron în efect: la `prefers-reduced-motion` numeralul apare DIRECT final (fără animație
+    // și fără frame-ul intermediar cu „0"), iar altfel pornește de la 0 și urcă la intrarea în
+    // viewport. setDisplay-urile rămase sunt în callback-uri (RAF), permise de regulă.
+    const [display, setDisplay] = useState(() => {
+        if (numeric === null) {
+            return value;
+        }
+
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? String(numeric) : '0';
+    });
     useEffect(() => {
         if (numeric === null) {
-return;
-}
+            return;
+        }
 
         const el = ref.current;
 
         if (!el) {
-return;
-}
+            return;
+        }
 
+        // Reduced-motion: valoarea finală e deja afișată din inițializator — nu pornim observatorul.
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            setDisplay(String(numeric));
-
             return;
         }
 

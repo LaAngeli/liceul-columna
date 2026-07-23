@@ -108,6 +108,9 @@ export default [
             'node_modules',
             'public',
             'bootstrap/ssr',
+            // Worktree-urile de sesiune (copii ale proiectului) — `eslint .` le scana și raporta
+            // zeci de mii de erori duplicate, făcând `lint:check` inutilizabil.
+            '.claude',
             'tailwind.config.js',
             'vite.config.ts',
             'resources/js/actions/**',

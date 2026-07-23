@@ -167,13 +167,16 @@ export default function MessagesPage({ folder, q, threads, counts, compose, open
     const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // O navigare NOUĂ spre pagină cu alt `?fir` nu remontează componenta (Inertia păstrează
-    // instanța) — sincronizăm selecția când se schimbă firul deep-linkat.
+    // instanța) — sincronizăm selecția când se schimbă firul deep-linkat. Ajustarea se face ÎN
+    // TIMPUL RANDĂRII (tiparul oficial React „adjusting state when a prop changes"), nu într-un
+    // efect: React reia randarea imediat, fără frame-ul în care e deschis firul VECHI.
     const deepLinkedThreadId = deepLinkedThread?.id ?? null;
-    useEffect(() => {
-        if (deepLinkedThreadId !== null) {
-            setSelectedId(deepLinkedThreadId);
-        }
-    }, [deepLinkedThreadId]);
+    const [appliedDeepLink, setAppliedDeepLink] = useState<number | null>(deepLinkedThreadId);
+
+    if (deepLinkedThreadId !== null && deepLinkedThreadId !== appliedDeepLink) {
+        setAppliedDeepLink(deepLinkedThreadId);
+        setSelectedId(deepLinkedThreadId);
+    }
 
     const [composeState, setComposeState] = useState<{ open: boolean; studentId: number | ''; recipientId: number | ''; audience: boolean }>({
         open: false,

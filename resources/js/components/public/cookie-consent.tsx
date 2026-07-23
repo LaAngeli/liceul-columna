@@ -66,21 +66,25 @@ function Toggle({ checked, onChange, disabled, label }: { checked: boolean; onCh
 
 export function CookieConsent() {
     const t = useTranslations();
-    const [open, setOpen] = useState(false);
+    // Deschis DIN PRIMA randare când nu există consimțământ salvat: citirea se face în
+    // inițializatorul lazy (rulează o singură dată, la montare), nu într-un efect — fără setState
+    // sincron în efect și fără frame-ul în care bannerul lipsește.
+    // ⚠️ Dacă se activează vreodată SSR (azi nu e operațional — nu există entry `ssr.tsx` și nici
+    // bundle în `bootstrap/ssr`), `getCookieConsent()` întoarce null pe server, deci bannerul ar
+    // apărea în HTML-ul SSR: atunci treci pe `useSyncExternalStore` cu `getServerSnapshot`.
+    const [open, setOpen] = useState(() => !getCookieConsent());
     const [showPrefs, setShowPrefs] = useState(false);
     const [prefs, setPrefs] = useState({ preferences: true, analytics: false, marketing: false });
 
     useEffect(() => {
-        if (!getCookieConsent()) {
-setOpen(true);
-}
-
+        // setState-urile de aici sunt în CALLBACK-ul unui eveniment (nu în corpul efectului):
+        // sincronizarea cu un sistem extern, exact ce permite regula.
         const reopen = () => {
             const c = getCookieConsent();
 
             if (c) {
-setPrefs({ preferences: c.preferences, analytics: c.analytics, marketing: c.marketing });
-}
+                setPrefs({ preferences: c.preferences, analytics: c.analytics, marketing: c.marketing });
+            }
 
             setShowPrefs(true);
             setOpen(true);
