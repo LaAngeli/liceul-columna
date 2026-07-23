@@ -9,8 +9,6 @@ use App\Notifications\TemporaryCredentials;
 use App\Support\TemporaryPassword;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -22,8 +20,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 
 /**
  * Lista conturilor unui rol (tabelul se randează în contextul navigatorului pe roluri):
@@ -214,48 +210,12 @@ class UsersTable
                         }),
                 ]),
             ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    // Filament NU aplică ierarhia per-rând la acțiunile în masă (spre deosebire de
-                    // DeleteAction, care respectă canDelete → canManageUser). Fără garda de mai jos,
-                    // un director/AO poate bulk-șterge un super-admin (cont break-glass, HARD delete,
-                    // User n-are SoftDeletes) sau administratorul tehnic → blocare totală. Audit C-1/#01.
-                    DeleteBulkAction::make()
-                        ->deselectRecordsAfterCompletion()
-                        ->action(function (Collection $records): void {
-                            $viewer = auth('web')->user();
-
-                            if (! $viewer instanceof User) {
-                                return;
-                            }
-
-                            // Doar conturile pe care actorul le poate administra (ierarhia manageableRoleValues),
-                            // niciodată propriul cont. Restul rămân neatinse, cu raport în notificare.
-                            [$deletable, $blocked] = $records->partition(
-                                fn (Model $record): bool => $record instanceof User
-                                    && $record->getKey() !== $viewer->getKey()
-                                    && $viewer->canManageUser($record),
-                            );
-
-                            $deletable->each->delete();
-
-                            if ($blocked->isNotEmpty()) {
-                                Notification::make()->warning()
-                                    ->title(__('panel.forms.user.bulk_delete_partial', [
-                                        'deleted' => $deletable->count(),
-                                        'blocked' => $blocked->count(),
-                                    ]))
-                                    ->send();
-
-                                return;
-                            }
-
-                            Notification::make()->success()
-                                ->title(__('panel.forms.user.bulk_delete_success', ['count' => $deletable->count()]))
-                                ->send();
-                        }),
-                ]),
-            ]);
+            // FĂRĂ acțiuni în masă: singura care exista era ștergerea, iar conturile nu se mai
+            // șterg din panou (decizia beneficiarului 2026-07-23) — `User` n-are soft delete, deci
+            // ștergerea era definitivă și lua cu ea legăturile părinte–copil prin cascada FK.
+            // Reversibilul e SUSPENDAREA, care e per-cont și rămâne pe rândul din listă;
+            // ștergerea reală (dreptul la ștergere, L133) trece prin `app:delete-account`.
+            ->toolbarActions([]);
     }
 
     /** Operațiile de cont: doar pe rolurile administrabile de actor și niciodată pe propriul cont. */

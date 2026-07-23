@@ -8,6 +8,7 @@ use App\Filament\Resources\Grades\GradeResource;
 use App\Filament\Resources\Students\StudentResource;
 use App\Filament\Resources\Teachers\TeacherResource;
 use App\Filament\Resources\Users\Pages\ListUsers;
+use App\Filament\Resources\Users\UserResource;
 use App\Models\Teacher;
 use App\Models\User;
 use Livewire\Livewire;
@@ -29,35 +30,35 @@ function lotARoleUser(string $role): User
     return $user;
 }
 
-// ─── C-1: bulk-delete Utilizatori respectă ierarhia manageableRoleValues ────────────────
+// ─── C-1: conturile NU se șterg din panou (decizia beneficiarului 2026-07-23) ───────────
+//
+// Testele anterioare pineau ierarhia bulk-delete-ului (directorul să nu poată șterge un
+// super-admin). Ștergerea de conturi a fost ELIMINATĂ din panou — `User` n-are soft delete, deci
+// era definitivă și lua cu ea legăturile părinte–copil prin cascada FK. Intenția de securitate se
+// păstrează, dar acum e garantată mai tare: nimeni nu poate șterge niciun cont, indiferent de rol.
+// Reversibilul e suspendarea; ștergerea legală trece prin `app:delete-account` (consolă).
 
-it('bulk-delete Utilizatori: directorul NU șterge super-admin/AT/propriul cont; șterge rolurile administrabile', function () {
-    $director = lotARoleUser(UserRole::Director->value);
-    $super = lotARoleUser(UserRole::Admin->value);
-    $tehnic = lotARoleUser(UserRole::AdministratorTehnic->value);
-    $parinte = lotARoleUser(UserRole::Parinte->value);
+it('Utilizatori: nu mai există ștergere în masă — acțiunea a dispărut din tabel', function () {
+    actingAs(lotARoleUser(UserRole::Director->value));
 
-    actingAs($director);
-
-    Livewire::test(ListUsers::class)
-        ->callTableBulkAction('delete', [$super, $tehnic, $parinte, $director]);
-
-    expect(User::find($super->id))->not->toBeNull()      // super-admin break-glass protejat
-        ->and(User::find($tehnic->id))->not->toBeNull()  // AT în afara ierarhiei directorului
-        ->and(User::find($director->id))->not->toBeNull() // propriul cont
-        ->and(User::find($parinte->id))->toBeNull();      // rol administrabil → șters
+    Livewire::test(ListUsers::class)->assertTableBulkActionDoesNotExist('delete');
 });
 
-it('bulk-delete Utilizatori: super-adminul șterge orice cont, dar nu al său', function () {
-    $super = lotARoleUser(UserRole::Admin->value);
-    $other = lotARoleUser(UserRole::Admin->value);
+it('nimeni nu poate șterge un cont din panou — nici directorul, nici super-adminul', function () {
+    $parinte = lotARoleUser(UserRole::Parinte->value);
+    $tehnic = lotARoleUser(UserRole::AdministratorTehnic->value);
 
-    actingAs($super);
+    foreach ([UserRole::Director, UserRole::Admin] as $role) {
+        actingAs(lotARoleUser($role->value));
 
-    Livewire::test(ListUsers::class)->callTableBulkAction('delete', [$other, $super]);
+        expect(UserResource::canDelete($parinte))->toBeFalse()
+            ->and(UserResource::canDelete($tehnic))->toBeFalse()
+            ->and(UserResource::canDeleteAny())->toBeFalse();
+    }
 
-    expect(User::find($other->id))->toBeNull()
-        ->and(User::find($super->id))->not->toBeNull();
+    // Conturile rămân intacte: nicio cale din panou nu le atinge.
+    expect(User::find($parinte->id))->not->toBeNull()
+        ->and(User::find($tehnic->id))->not->toBeNull();
 });
 
 // ─── Î-1: registrul de consimțăminte (PII minori) ascuns administratorului tehnic ───────

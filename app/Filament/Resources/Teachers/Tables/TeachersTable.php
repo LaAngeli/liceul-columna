@@ -16,6 +16,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -99,6 +100,12 @@ class TeachersTable
                     ->label(__('panel.fields.sex'))
                     ->badge()
                     ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            // Fără acest filtru, acțiunea de restaurare de mai jos era COD MORT: un profesor șters
+            // nu putea fi listat niciodată, deci nici selectat. (Locul canonic pentru recuperare
+            // rămâne pagina „Restaurare"; aici e recuperarea în context.)
+            ->filters([
+                TrashedFilter::make(),
             ])
             ->recordActions([
                 EditAction::make(),

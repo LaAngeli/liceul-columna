@@ -64,10 +64,22 @@ class UserResource extends Resource
             && (auth('web')->user()?->canManageUser($record) ?? false);
     }
 
+    /**
+     * CONTURILE NU SE ȘTERG DIN PANOU (decizia beneficiarului 2026-07-23). `User` n-are soft
+     * delete, deci ștergerea era definitivă, iar `guardian_student` cascadează pe părinte: odată cu
+     * contul dispăreau și legăturile lui cu copiii, fără nicio cale de restaurare — nici măcar
+     * recreând contul. Calea reversibilă e SUSPENDAREA (`suspended_at`, acțiune pe rândul din
+     * listă), iar ștergerea reală, la cererea explicită a persoanei (dreptul la ștergere, L133),
+     * trece prin `app:delete-account` — cu confirmare și urmă în jurnal.
+     */
     public static function canDelete(Model $record): bool
     {
-        return $record instanceof User
-            && (auth('web')->user()?->canManageUser($record) ?? false);
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return false;
     }
 
     public static function form(Schema $schema): Schema

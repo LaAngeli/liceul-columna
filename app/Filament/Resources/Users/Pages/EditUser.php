@@ -7,8 +7,6 @@ use App\Filament\Concerns\ManagesAccountForm;
 use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
-use Filament\Actions\Action;
-use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditUser extends EditRecord
@@ -19,15 +17,10 @@ class EditUser extends EditRecord
 
     protected static string $resource = UserResource::class;
 
-    /**
-     * @return array<int, Action>
-     */
-    protected function getRecordActions(): array
-    {
-        return [
-            DeleteAction::make(),
-        ];
-    }
+    // FĂRĂ acțiune de ștergere (decizia beneficiarului 2026-07-23): contul nu are soft delete, deci
+    // ștergerea lui era HARD și lua cu ea, prin cascadă, legăturile părinte–copil — irecuperabile.
+    // Calea din panou e SUSPENDAREA (reversibilă, pe rândul din listă). Ștergerea reală, la
+    // cererea explicită a persoanei (dreptul la ștergere, L133), se face cu `app:delete-account`.
 
     /**
      * Populează câmpurile care nu sunt coloane pe users: rolul curent + asocierile + starea.
