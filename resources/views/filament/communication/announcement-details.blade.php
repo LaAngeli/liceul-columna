@@ -1,11 +1,19 @@
 {{-- Fișa anunțului: conținutul INTEGRAL (recitit înainte de „Publică" — butonul stă în header,
      doar pe ciorne) + pentru publicate pâlnia difuzării (programate → livrate → citite),
-     bara de progres și defalcarea pe elevi/părinți. --}}
+     bara de progres și defalcarea pe elevi/părinți.
+
+     Cele două panouri sunt celule ale ACELEIAȘI grile (nu carduri în secțiuni separate, fiecare
+     dimensionată de conținutul ei) → se întind egal și marginile de jos rămân aliniate, indiferent
+     care are mai mult text. Subsolul repetă aceeași grilă, ca nota ciornei să cadă sub conținut
+     și întoarcerea la listă sub panoul de difuzare. --}}
 <x-filament-panels::page>
-    <div class="grid gap-6 lg:grid-cols-3">
-        {{-- Conținutul --}}
-        <section class="lg:col-span-2" aria-label="{{ __('panel.forms.announcement.body') }}">
-            <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+    <div class="flex flex-col gap-3">
+        <div class="grid gap-6 lg:grid-cols-3">
+            {{-- Conținutul --}}
+            <section
+                class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-950/5 lg:col-span-2 dark:bg-gray-900 dark:ring-white/10"
+                aria-label="{{ __('panel.forms.announcement.body') }}"
+            >
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 dark:text-gray-500">
                     @if ($this->record->isPublished())
                         <x-filament::badge color="success" size="sm">
@@ -34,20 +42,15 @@
                 </div>
 
                 <div class="mt-4 whitespace-pre-line text-sm leading-relaxed text-gray-950 dark:text-white">{{ $this->record->body }}</div>
-            </div>
+            </section>
 
-            @if (! $this->record->isPublished())
-                <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                    {{ __('panel.announcements.draft_hint') }}
-                </p>
-            @endif
-        </section>
+            {{-- Difuzarea & citirea --}}
+            <section
+                class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10"
+                aria-label="{{ __('panel.announcements.broadcast') }}"
+            >
+                @php($funnel = $this->broadcastFunnel())
 
-        {{-- Difuzarea & citirea --}}
-        <section aria-label="{{ __('panel.announcements.broadcast') }}">
-            @php($funnel = $this->broadcastFunnel())
-
-            <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
                 <h2 class="text-sm font-semibold text-gray-950 dark:text-white">
                     {{ __('panel.announcements.broadcast') }}
                 </h2>
@@ -127,15 +130,28 @@
                         </div>
                     @endif
                 @endif
+            </section>
+        </div>
+
+        {{-- Subsol, pe aceleași coloane: starea ciornei sub conținut, întoarcerea sub difuzare. --}}
+        <div class="grid gap-x-6 gap-y-3 lg:grid-cols-3">
+            <div class="lg:col-span-2">
+                @if (! $this->record->isPublished())
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        {{ __('panel.announcements.draft_hint') }}
+                    </p>
+                @endif
             </div>
 
-            <a
-                href="{{ \App\Filament\Resources\Announcements\AnnouncementResource::getUrl() }}"
-                class="mt-3 inline-flex min-h-9 items-center gap-1 text-sm font-medium text-gray-500 hover:text-primary-600 hover:underline dark:text-gray-400 dark:hover:text-primary-400"
-            >
-                <x-filament::icon icon="heroicon-o-arrow-uturn-left" class="h-4 w-4" />
-                {{ __('panel.announcements.back') }}
-            </a>
-        </section>
+            <div>
+                <a
+                    href="{{ \App\Filament\Resources\Announcements\AnnouncementResource::getUrl() }}"
+                    class="inline-flex min-h-9 items-center gap-1 text-sm font-medium text-gray-500 hover:text-primary-600 hover:underline dark:text-gray-400 dark:hover:text-primary-400"
+                >
+                    <x-filament::icon icon="heroicon-o-arrow-uturn-left" class="h-4 w-4" />
+                    {{ __('panel.announcements.back') }}
+                </a>
+            </div>
+        </div>
     </div>
 </x-filament-panels::page>
