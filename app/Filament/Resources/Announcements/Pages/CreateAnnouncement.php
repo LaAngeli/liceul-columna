@@ -29,13 +29,13 @@ class CreateAnnouncement extends CreateRecord
         $record = $this->getRecord();
 
         if ($record instanceof Announcement) {
-            AnnouncementResource::syncAudience(
-                $record,
-                is_array($this->data['school_classes'] ?? null) ? $this->data['school_classes'] : [],
-                is_array($this->data['students'] ?? null) ? $this->data['students'] : [],
-                is_array($this->data['users'] ?? null) ? $this->data['users'] : [],
-                is_array($this->data['guardians'] ?? null) ? $this->data['guardians'] : [],
-            );
+            AnnouncementResource::syncAudience($record, [
+                'school_classes' => is_array($this->data['school_classes'] ?? null) ? $this->data['school_classes'] : [],
+                'students' => is_array($this->data['students'] ?? null) ? $this->data['students'] : [],
+                'users' => is_array($this->data['users'] ?? null) ? $this->data['users'] : [],
+                'guardians' => is_array($this->data['guardians'] ?? null) ? $this->data['guardians'] : [],
+                'families' => is_array($this->data['families'] ?? null) ? $this->data['families'] : [],
+            ]);
         }
     }
 

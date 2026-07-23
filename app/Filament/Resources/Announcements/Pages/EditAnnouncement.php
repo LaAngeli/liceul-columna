@@ -7,6 +7,7 @@ use App\Enums\AudienceReach;
 use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Models\Announcement;
+use App\Support\FamilyTokens;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
@@ -28,7 +29,9 @@ class EditAnnouncement extends EditRecord
     }
 
     /**
-     * Pre-populează selecțiile pivot (clase/elevi/conturi) — nu sunt coloane, Filament nu le umple.
+     * Pre-populează selecțiile pivot (clase/elevi/părinți/familii/conturi) — nu sunt coloane,
+     * Filament nu le umple. Audiența nominală umple câmpul MODULUI ei de reach: elevii la „doar
+     * elevul", conturile la „doar părinții", token-urile de familie (pe elevii vizați) la „ambii".
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -39,13 +42,18 @@ class EditAnnouncement extends EditRecord
 
         if ($record instanceof Announcement) {
             $data['school_classes'] = $record->schoolClasses()->pluck('school_classes.id')->all();
-            $data['students'] = $record->students()->pluck('students.id')->all();
 
-            // Pivotul de conturi are DOUĂ roluri: „Conturi anume" (users) sau părinții aleși
-            // direct la „Elevi/Părinți — doar părinții" (guardians). Se umple câmpul potrivit.
+            $pivotStudents = $record->students()->pluck('students.id')->all();
             $accounts = $record->users()->pluck('users.id')->all();
-            $guardiansMode = $record->audience === AnnouncementAudience::Students
-                && $record->audience_reach === AudienceReach::Guardians;
+
+            $nominal = $record->audience === AnnouncementAudience::Students;
+            $reach = $record->audience_reach;
+            $guardiansMode = $nominal && $reach === AudienceReach::Guardians;
+
+            $data['students'] = $nominal && $reach === AudienceReach::Student ? $pivotStudents : [];
+            $data['families'] = $nominal && ! $guardiansMode && $reach !== AudienceReach::Student
+                ? array_map(fn (int $id): string => FamilyTokens::student($id), $pivotStudents)
+                : [];
             $data['guardians'] = $guardiansMode ? $accounts : [];
             $data['users'] = $guardiansMode ? [] : $accounts;
         }
@@ -67,13 +75,13 @@ class EditAnnouncement extends EditRecord
         $record = $this->getRecord();
 
         if ($record instanceof Announcement) {
-            AnnouncementResource::syncAudience(
-                $record,
-                is_array($this->data['school_classes'] ?? null) ? $this->data['school_classes'] : [],
-                is_array($this->data['students'] ?? null) ? $this->data['students'] : [],
-                is_array($this->data['users'] ?? null) ? $this->data['users'] : [],
-                is_array($this->data['guardians'] ?? null) ? $this->data['guardians'] : [],
-            );
+            AnnouncementResource::syncAudience($record, [
+                'school_classes' => is_array($this->data['school_classes'] ?? null) ? $this->data['school_classes'] : [],
+                'students' => is_array($this->data['students'] ?? null) ? $this->data['students'] : [],
+                'users' => is_array($this->data['users'] ?? null) ? $this->data['users'] : [],
+                'guardians' => is_array($this->data['guardians'] ?? null) ? $this->data['guardians'] : [],
+                'families' => is_array($this->data['families'] ?? null) ? $this->data['families'] : [],
+            ]);
         }
     }
 

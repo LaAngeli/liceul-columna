@@ -25,6 +25,7 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\User;
 use App\Notifications\CatalogNotification;
+use App\Support\FamilyTokens;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -219,7 +220,7 @@ it('schimbarea audienței pe ciornă golește pivotul vechi la salvare', functio
 
     // Autorul se răzgândește: audiența devine „toate familiile" → elevii aleși nu mai au sens.
     $announcement->update(['audience' => AnnouncementAudience::Families, 'audience_reach' => null]);
-    AnnouncementResource::syncAudience($announcement, [], [$student->id], []);
+    AnnouncementResource::syncAudience($announcement, ['students' => [$student->id]]);
 
     expect($announcement->students()->count())->toBe(0);
 });
@@ -242,7 +243,7 @@ it('reach „doar părinții" cu PĂRINȚI ALEȘI DIRECT: exact conturile alese 
         'audience_reach' => AudienceReach::Guardians,
     ]);
     // Fluxul nou: părinții aleși pe nume, stocați în pivotul de conturi.
-    AnnouncementResource::syncAudience($announcement, [], [], [], [$parent->id]);
+    AnnouncementResource::syncAudience($announcement, ['guardians' => [$parent->id]]);
 
     $ids = app(BroadcastAnnouncement::class)->resolveRecipients($announcement)->pluck('id');
 
@@ -278,6 +279,50 @@ it('conducerea creează PRIN FORMULAR un anunț „doar părinții" cu părinți
         ->toBe([$parent->id]);
 });
 
+it('modul „familii": un PĂRINTE ales ca token vizează întreaga familie a copiilor lui', function () {
+    [$student, $studentUser, $parent] = audienceStudent($this);
+    // Al doilea părinte al aceluiași copil, NEales: primește totuși — familia e ținta, nu contul.
+    $otherParent = User::factory()->create();
+    $otherParent->assignRole(UserRole::Parinte->value);
+    $otherParent->students()->attach($student->id);
+
+    $announcement = Announcement::factory()->create([
+        'audience' => AnnouncementAudience::Students,
+        'audience_reach' => AudienceReach::Both,
+    ]);
+
+    AnnouncementResource::syncAudience($announcement, ['families' => [FamilyTokens::guardian($parent->id)]]);
+
+    $ids = app(BroadcastAnnouncement::class)->resolveRecipients($announcement)->pluck('id');
+
+    expect($announcement->students()->pluck('students.id')->all())->toBe([$student->id])
+        ->and($ids)->toContain($studentUser->id)
+        ->and($ids)->toContain($parent->id)
+        ->and($ids)->toContain($otherParent->id);
+});
+
+it('backend-ul refuză destinatari INCOMPATIBILI cu audiența: un profesor nu trece drept părinte', function () {
+    $ao = User::factory()->create();
+    $ao->assignRole(UserRole::AdministratorOperational->value);
+    actingAs($ao);
+
+    $teacher = User::factory()->create();
+    $teacher->assignRole(UserRole::Profesor->value);
+
+    Livewire::test(CreateAnnouncement::class)
+        ->fillForm([
+            'title' => 'Țintă cu rol greșit',
+            'body' => 'Nu trebuie să treacă.',
+            'audience' => AnnouncementAudience::Students->value,
+            'audience_reach' => AudienceReach::Guardians->value,
+            'guardians' => [$teacher->id],
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['guardians']);
+
+    expect(Announcement::query()->where('title', 'Țintă cu rol greșit')->exists())->toBeFalse();
+});
+
 it('căutarea pe server întoarce potriviri exacte, în zona corectă (elevi / părinți / conturi)', function () {
     [$student, , $parent] = audienceStudent($this);
     $student->update(['last_name' => 'Frunz- Unicat', 'first_name' => 'Mirel']);
@@ -289,6 +334,7 @@ it('căutarea pe server întoarce potriviri exacte, în zona corectă (elevi / p
     $students = AnnouncementForm::searchStudents('Frunz');
     $guardians = AnnouncementForm::searchGuardians('Frunza');
     $users = AnnouncementForm::searchUsers('Frunza-Prof');
+    $families = AnnouncementForm::searchFamilies('Frunz');
 
     // Elevii: doar elevul, cu clasa în etichetă; NU părintele, NU profesorul.
     expect($students)->toHaveKey($student->id)
@@ -296,6 +342,12 @@ it('căutarea pe server întoarce potriviri exacte, în zona corectă (elevi / p
         ->and($guardians)->toHaveKey($parent->id)
         ->and($guardians)->not->toHaveKey($teacherUser->id)
         ->and($users)->toHaveKey($teacherUser->id);
+
+    // Modul „familii": căutarea mixtă întoarce ȘI elevul, ȘI părintele, ca token-uri — dar NU
+    // profesorul (nu e membru de familie).
+    expect($families)->toHaveKey(FamilyTokens::student($student->id))
+        ->and($families)->toHaveKey(FamilyTokens::guardian($parent->id))
+        ->and($families)->not->toHaveKey(FamilyTokens::guardian($teacherUser->id));
 
     // Sub 2 caractere → nicio interogare, listă goală (nu toată școala).
     expect(AnnouncementForm::searchStudents('F'))->toBe([]);

@@ -5,12 +5,14 @@ namespace App\Filament\Resources\CalendarEvents\Schemas;
 use App\Enums\AudienceReach;
 use App\Enums\CalendarEventScope;
 use App\Enums\CalendarEventType;
+use App\Enums\UserRole;
 use App\Filament\Resources\CalendarEvents\CalendarEventResource;
 use App\Models\CalendarEvent;
 use App\Models\Enrollment;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\FamilyTokens;
 use App\Support\SchoolCalendar;
 use Closure;
 use Filament\Forms\Components\DatePicker;
@@ -51,6 +53,8 @@ class CalendarEventForm
                         $set('grade_level', null);
                         $set('school_class_id', null);
                         $set('students', []);
+                        $set('guardians', []);
+                        $set('families', []);
                         $set('audience_reach', AudienceReach::Both->value);
                     }),
 
@@ -71,11 +75,9 @@ class CalendarEventForm
                     ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::SchoolClass->value)
                     ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::SchoolClass->value),
 
-                // Cine, din familia fiecărui elev vizat, VEDE evenimentul — pus ÎNAINTEA selecției:
-                // alegerea lui schimbă instrucțiunile de mai jos. (În calendar se aleg mereu ELEVI,
-                // fiindcă evenimentul trăiește pe calendarul copilului; reach-ul decide cine din
-                // familie îl vede — spre deosebire de Anunțuri, unde la „doar părinții" se aleg
-                // părinți concreți.)
+                // Cine, din familia vizată, VEDE evenimentul — pus ÎNAINTEA selecției: alegerea lui
+                // decide și CE cauți mai jos (elevi / părinți / familii întregi), cu etichete și
+                // instrucțiuni care urmează audiența activă.
                 Select::make('audience_reach')
                     ->label(__('panel.forms.calendar_event.reach'))
                     ->options(AudienceReach::options())
@@ -84,21 +86,31 @@ class CalendarEventForm
                     ->live()
                     ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
                     ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
+                    // Comutarea între moduri golește selecțiile celorlalte două.
+                    ->afterStateUpdated(function (Set $set): void {
+                        $set('students', []);
+                        $set('guardians', []);
+                        $set('families', []);
+                    })
                     ->helperText(__('panel.forms.calendar_event.reach_hint')),
 
-                // Elevii vizați — căutare pe SERVER, pe nume (nu listă statică de sute de opțiuni).
+                // Elevii vizați (reach = DOAR elevul) — căutare pe SERVER, exclusiv printre elevi.
                 // Salvarea relației (pivot) se face în paginile Create/Edit
-                // ({@see CalendarEventResource::syncStudents}) — câmpul nu e coloană.
+                // ({@see CalendarEventResource::syncNominalAudience}) — câmpul nu e coloană.
                 Select::make('students')
                     ->label(__('panel.forms.calendar_event.students'))
+                    ->placeholder(__('panel.forms.calendar_event.students_placeholder'))
                     ->getSearchResultsUsing(fn (string $search): array => self::searchStudents($search))
                     ->getOptionLabelsUsing(fn (array $values): array => self::studentLabels($values))
                     ->multiple()
                     ->searchable()
+                    ->searchPrompt(__('panel.forms.calendar_event.search_prompt'))
                     ->native(false)
                     ->live()
-                    ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
-                    ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
+                    ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value
+                        && $get('audience_reach') === AudienceReach::Student->value)
+                    ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value
+                        && $get('audience_reach') === AudienceReach::Student->value)
                     // Gardă de SERVER înainte de persistare: dirigintele nu poate ținti elevi din
                     // afara claselor lui (un POST fabricat nu trebuie să creeze evenimentul întâi și
                     // să pice abia la sincronizare). Conducerea nu e restrânsă.
@@ -116,12 +128,55 @@ class CalendarEventForm
                             $fail((string) __('panel.forms.calendar_event.students_out_of_scope'));
                         }
                     })
-                    // Instrucțiunea urmează reach-ul ales mai sus (elev / părinți / ambii).
-                    ->helperText(fn (Get $get): string => match ($get('audience_reach')) {
-                        AudienceReach::Student->value => (string) __('panel.forms.calendar_event.students_hint_student'),
-                        AudienceReach::Guardians->value => (string) __('panel.forms.calendar_event.students_hint_guardians'),
-                        default => (string) __('panel.forms.calendar_event.students_hint_both'),
-                    }),
+                    ->helperText(__('panel.forms.calendar_event.students_hint_student')),
+
+                // Părinții vizați (reach = DOAR părinții): se caută exclusiv conturi de PĂRINTE.
+                // Evenimentul se leagă de copiii lor (calendarul e al elevului) și îl văd doar
+                // părinții — selecția aleasă e memorată ca atare pentru editare.
+                Select::make('guardians')
+                    ->label(__('panel.forms.calendar_event.guardians'))
+                    ->placeholder(__('panel.forms.calendar_event.guardians_placeholder'))
+                    ->getSearchResultsUsing(fn (string $search): array => self::searchGuardians($search))
+                    ->getOptionLabelsUsing(fn (array $values): array => self::guardianLabels($values))
+                    ->multiple()
+                    ->searchable()
+                    ->searchPrompt(__('panel.forms.calendar_event.search_prompt'))
+                    ->native(false)
+                    ->live()
+                    ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value
+                        && $get('audience_reach') === AudienceReach::Guardians->value)
+                    ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value
+                        && $get('audience_reach') === AudienceReach::Guardians->value)
+                    ->rule(fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
+                        self::validateGuardianIds(
+                            array_values(array_filter(array_map('intval', is_array($value) ? $value : []))),
+                            $fail,
+                        );
+                    })
+                    ->helperText(__('panel.forms.calendar_event.guardians_hint')),
+
+                // Familiile vizate (reach = elevul ȘI părinții): căutarea acceptă ORICE membru al
+                // familiei — un elev sau un părinte — și vizează întreaga lui familie.
+                Select::make('families')
+                    ->label(__('panel.forms.calendar_event.families'))
+                    ->placeholder(__('panel.forms.calendar_event.families_placeholder'))
+                    ->getSearchResultsUsing(fn (string $search): array => self::searchFamilies($search))
+                    ->getOptionLabelsUsing(fn (array $values): array => self::familyLabels($values))
+                    ->multiple()
+                    ->searchable()
+                    ->searchPrompt(__('panel.forms.calendar_event.search_prompt'))
+                    ->native(false)
+                    ->live()
+                    ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value
+                        && $get('audience_reach') !== AudienceReach::Student->value
+                        && $get('audience_reach') !== AudienceReach::Guardians->value)
+                    ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value
+                        && $get('audience_reach') !== AudienceReach::Student->value
+                        && $get('audience_reach') !== AudienceReach::Guardians->value)
+                    ->rule(fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
+                        self::validateFamilyTokens(is_array($value) ? $value : [], $fail);
+                    })
+                    ->helperText(__('panel.forms.calendar_event.families_hint')),
 
                 // CONFIRMAREA audienței, înainte de salvare: cine anume va vedea evenimentul, cu
                 // clasele enumerate și numărul de elevi. Eticheta unei opțiuni descrie o INTENȚIE;
@@ -134,6 +189,8 @@ class CalendarEventForm
                         $get('school_class_id'),
                         $get('students'),
                         $get('audience_reach'),
+                        $get('guardians'),
+                        $get('families'),
                     )),
 
                 // Comutatorul de notificare (implicit pornit): oprit → evenimentul doar apare în
@@ -341,16 +398,18 @@ class CalendarEventForm
 
     /**
      * „Vor vedea: …" — audiența REZOLVATĂ: clasele vizate + numărul de elevi înmatriculați, sau,
-     * pentru audiența nominală, numărul de elevi aleși + cine din familia lor. Public și static,
-     * ca fraza să fie testabilă direct, nu doar prin randarea formularului.
+     * pentru audiența nominală, selecția modului activ (elevi / părinți / familii). Public și
+     * static, ca fraza să fie testabilă direct, nu doar prin randarea formularului.
      *
-     * @param  mixed  $students  lista de id-uri de elevi (audiența nominală)
+     * @param  mixed  $students  lista de id-uri de elevi (reach = doar elevul)
      * @param  mixed  $reach  {@see AudienceReach} value (elev/părinți/ambii)
+     * @param  mixed  $guardians  lista de conturi de părinte (reach = doar părinții)
+     * @param  mixed  $families  token-urile de familie (reach = ambii)
      */
-    public static function audienceSummary(mixed $scope, mixed $gradeLevel, mixed $classId, mixed $students = null, mixed $reach = null): string
+    public static function audienceSummary(mixed $scope, mixed $gradeLevel, mixed $classId, mixed $students = null, mixed $reach = null, mixed $guardians = null, mixed $families = null): string
     {
         if ($scope === CalendarEventScope::Students->value) {
-            return self::nominalSummary($students, $reach);
+            return self::nominalSummary($students, $reach, $guardians, $families);
         }
 
         $classes = self::currentYearClasses();
@@ -394,22 +453,42 @@ class CalendarEventForm
     }
 
     /**
-     * Rezumatul audienței nominale: câți elevi aleși + cine din familia lor îl vede.
+     * Rezumatul audienței nominale, pe modul de reach activ: elevii aleși (doar elevul), părinții
+     * aleși (doar părinții — evenimentul apare pe calendarele copiilor lor) sau familiile vizate.
      */
-    private static function nominalSummary(mixed $students, mixed $reach): string
+    private static function nominalSummary(mixed $students, mixed $reach, mixed $guardians = null, mixed $families = null): string
     {
+        $reachCase = is_string($reach) ? AudienceReach::tryFrom($reach) : null;
+
+        if ($reachCase === AudienceReach::Guardians) {
+            $ids = array_values(array_filter(is_array($guardians) ? $guardians : []));
+
+            if ($ids === []) {
+                return (string) __('panel.forms.calendar_event.summary_pick_guardians');
+            }
+
+            return (string) trans_choice('panel.forms.calendar_event.summary_guardians', count($ids), ['count' => count($ids)]);
+        }
+
+        if ($reachCase === null || $reachCase === AudienceReach::Both) {
+            $tokens = array_values(array_filter(is_array($families) ? $families : []));
+
+            if ($tokens === []) {
+                return (string) __('panel.forms.calendar_event.summary_pick_families');
+            }
+
+            return (string) trans_choice('panel.forms.calendar_event.summary_families', count($tokens), ['count' => count($tokens)]);
+        }
+
         $ids = array_values(array_filter(is_array($students) ? $students : []));
 
         if ($ids === []) {
             return (string) __('panel.forms.calendar_event.summary_pick_students');
         }
 
-        $reachCase = is_string($reach) ? AudienceReach::tryFrom($reach) : null;
-        $reachLabel = ($reachCase ?? AudienceReach::Both)->getLabel();
-
         return (string) trans_choice('panel.forms.calendar_event.summary_students', count($ids), [
             'count' => count($ids),
-            'reach' => mb_strtolower($reachLabel),
+            'reach' => mb_strtolower($reachCase->getLabel()),
         ]);
     }
 
@@ -474,7 +553,7 @@ class CalendarEventForm
 
     /**
      * Etichetele elevilor DEJA selectați (la editare) — pot fi în afara listei filtrate (ex. mutați
-     * între clase), deci se rezolvă direct pe id, nu doar din {@see studentOptions()}.
+     * între clase), deci se rezolvă direct pe id, nu doar din {@see searchStudents()}.
      *
      * @param  array<int, int|string>  $values
      * @return array<int, string>
@@ -492,6 +571,201 @@ class CalendarEventForm
             ->get()
             ->mapWithKeys(fn (Student $student): array => [$student->id => $student->full_name])
             ->all();
+    }
+
+    /**
+     * Căutare pe SERVER a PĂRINȚILOR (exclusiv conturi active cu rol de părinte), cu copiii în
+     * etichetă. Dirigintele caută doar printre părinții elevilor claselor lui — zona de căutare
+     * urmează drepturile, ca la elevi.
+     *
+     * @return array<int, string>
+     */
+    public static function searchGuardians(string $search): array
+    {
+        $search = trim($search);
+
+        if (mb_strlen($search) < 2) {
+            return [];
+        }
+
+        $query = User::query()
+            ->whereNull('suspended_at')
+            ->whereHas('roles', fn ($q) => $q->where('name', UserRole::Parinte->value))
+            ->where('name', 'like', "%{$search}%")
+            ->with('students');
+
+        $user = auth('web')->user();
+
+        if ($user instanceof User && ! $user->canPublishContent()) {
+            $allowed = CalendarEventResource::homeroomStudentIds($user);
+
+            if ($allowed === []) {
+                return [];
+            }
+
+            $query->whereHas('students', fn ($q) => $q->whereKey($allowed));
+        }
+
+        $options = [];
+
+        $query->orderBy('name')
+            ->limit(50)
+            ->get()
+            ->each(function (User $guardian) use (&$options): void {
+                $children = $guardian->students->map(fn (Student $student): string => $student->full_name)->implode(', ');
+                $options[$guardian->id] = $children !== ''
+                    ? $guardian->name.' — '.__('panel.forms.calendar_event.guardian_of', ['children' => $children])
+                    : $guardian->name;
+            });
+
+        return $options;
+    }
+
+    /**
+     * @param  array<int, int|string>  $values
+     * @return array<int, string>
+     */
+    private static function guardianLabels(array $values): array
+    {
+        $ids = array_values(array_filter(array_map('intval', $values)));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return User::query()
+            ->whereKey($ids)
+            ->get()
+            ->mapWithKeys(fn (User $user): array => [$user->id => $user->name])
+            ->all();
+    }
+
+    /**
+     * Căutare MIXTĂ pentru modul „familii întregi": elevii ȘI părinții (fiecare scoped pe
+     * drepturile celui care caută), cu chei-token {@see FamilyTokens}.
+     *
+     * @return array<string, string>
+     */
+    public static function searchFamilies(string $search): array
+    {
+        $options = [];
+
+        foreach (self::searchStudents($search) as $id => $label) {
+            $options[FamilyTokens::student($id)] = $label;
+        }
+
+        foreach (self::searchGuardians($search) as $id => $label) {
+            $options[FamilyTokens::guardian($id)] = $label;
+        }
+
+        return $options;
+    }
+
+    /**
+     * @param  array<int, mixed>  $values
+     * @return array<string, string>
+     */
+    private static function familyLabels(array $values): array
+    {
+        $parsed = FamilyTokens::parse($values);
+
+        $labels = [];
+
+        foreach (self::studentLabels($parsed['students']) as $id => $label) {
+            $labels[FamilyTokens::student($id)] = $label;
+        }
+
+        foreach (self::guardianLabels($parsed['guardians']) as $id => $label) {
+            $labels[FamilyTokens::guardian($id)] = $label;
+        }
+
+        return $labels;
+    }
+
+    /**
+     * Compatibilitatea selecției de părinți, pe SERVER: doar conturi active de PĂRINTE, fiecare cu
+     * cel puțin un copil (altfel evenimentul n-ar avea niciun calendar pe care să apară), iar
+     * pentru diriginte — cel puțin un copil în clasele lui.
+     *
+     * @param  array<int, int>  $ids
+     */
+    private static function validateGuardianIds(array $ids, Closure $fail): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $parents = User::query()
+            ->whereKey($ids)
+            ->whereNull('suspended_at')
+            ->whereHas('roles', fn ($q) => $q->where('name', UserRole::Parinte->value))
+            ->with('students')
+            ->get();
+
+        if ($parents->count() !== count($ids)) {
+            $fail((string) __('panel.forms.calendar_event.guardians_only_parents'));
+
+            return;
+        }
+
+        if ($parents->contains(fn (User $parent): bool => $parent->students->isEmpty())) {
+            $fail((string) __('panel.forms.calendar_event.guardians_no_children'));
+
+            return;
+        }
+
+        $user = auth('web')->user();
+
+        if ($user instanceof User && ! $user->canPublishContent()) {
+            $allowed = CalendarEventResource::homeroomStudentIds($user);
+
+            foreach ($parents as $parent) {
+                if ($parent->students->pluck('id')->intersect($allowed)->isEmpty()) {
+                    $fail((string) __('panel.forms.calendar_event.guardians_out_of_scope'));
+
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Validarea token-urilor de familie: format, elevii în sfera celui care alege, părinții
+     * compatibili ({@see validateGuardianIds}).
+     *
+     * @param  array<int, mixed>  $tokens
+     */
+    private static function validateFamilyTokens(array $tokens, Closure $fail): void
+    {
+        $parsed = FamilyTokens::parse($tokens);
+
+        if ($parsed['invalid'] !== []) {
+            $fail((string) __('panel.forms.calendar_event.families_invalid'));
+
+            return;
+        }
+
+        if ($parsed['students'] !== []) {
+            if (Student::query()->whereKey($parsed['students'])->count() !== count($parsed['students'])) {
+                $fail((string) __('panel.forms.calendar_event.families_invalid'));
+
+                return;
+            }
+
+            $user = auth('web')->user();
+
+            if ($user instanceof User && ! $user->canPublishContent()) {
+                $allowed = CalendarEventResource::homeroomStudentIds($user);
+
+                if (array_diff($parsed['students'], $allowed) !== []) {
+                    $fail((string) __('panel.forms.calendar_event.students_out_of_scope'));
+
+                    return;
+                }
+            }
+        }
+
+        self::validateGuardianIds($parsed['guardians'], $fail);
     }
 
     /** @return Collection<int, SchoolClass> */

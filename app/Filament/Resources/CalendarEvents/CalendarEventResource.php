@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\CalendarEvents;
 
+use App\Enums\AudienceReach;
 use App\Enums\CalendarEventScope;
+use App\Enums\UserRole;
 use App\Filament\Resources\CalendarEvents\Pages\CreateCalendarEvent;
 use App\Filament\Resources\CalendarEvents\Pages\EditCalendarEvent;
 use App\Filament\Resources\CalendarEvents\Pages\ListCalendarEvents;
@@ -12,6 +14,7 @@ use App\Models\CalendarEvent;
 use App\Models\Enrollment;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\FamilyTokens;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -119,7 +122,8 @@ class CalendarEventResource extends Resource
     /**
      * Coerență scope ↔ FK: rămâne setat doar câmpul potrivit scope-ului (evită valori reziduale).
      * `students` (pivot) și `audience_reach` trăiesc doar pe audiența nominală. Câmpul `students`
-     * nu e coloană — se scoate din payload, iar relația se sincronizează separat ({@see syncStudents}).
+     * nu e coloană — se scoate din payload, iar relația se sincronizează separat
+     * ({@see syncNominalAudience}).
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -140,41 +144,132 @@ class CalendarEventResource extends Resource
             $data['audience_reach'] = null;
         }
 
-        // `students` nu e coloană pe calendar_events (mass-assign l-ar ignora oricum) — scos explicit.
-        unset($data['students']);
+        // `students`/`guardians`/`families` nu sunt coloane pe calendar_events — scoase explicit.
+        unset($data['students'], $data['guardians'], $data['families']);
 
         return $data;
     }
 
     /**
-     * Sincronizează elevii vizați (pivot). Gardă de SERVER: pentru scope != nominal, pivotul se
-     * golește; un diriginte poate ținti DOAR elevii claselor lui (un id din afara sferei = respins,
-     * nu filtrat tăcut — un POST fabricat nu trebuie să treacă). Conducerea poate ținti orice elev.
+     * Sincronizează audiența nominală (pivotul de elevi + memoria selecției de părinți), după
+     * reach: DOAR elevul → elevii aleși; DOAR părinții → conturile de părinte alese, expandate în
+     * copiii lor (evenimentul trăiește pe calendarul elevului, vizibil doar părinților); elevul ȘI
+     * părinții → token-uri de familie (elev/părinte). Gardă de SERVER: pentru scope != nominal,
+     * pivoturile se golesc; un diriginte rămâne în sfera claselor lui (id din afara sferei =
+     * respins, nu filtrat tăcut); doar conturi de PĂRINTE în selecția de părinți.
      *
-     * @param  array<int, int|string>  $studentIds  id-urile din form state
+     * @param  array{students?: array<int, int|string>, guardians?: array<int, int|string>, families?: array<int, mixed>}  $selection
      */
-    public static function syncStudents(CalendarEvent $event, array $studentIds): void
+    public static function syncNominalAudience(CalendarEvent $event, array $selection): void
     {
         if ($event->visibility_scope !== CalendarEventScope::Students) {
             $event->students()->detach();
+            $event->users()->detach();
 
             return;
         }
 
-        $ids = array_values(array_unique(array_filter(array_map('intval', $studentIds))));
+        $reach = $event->audience_reach ?? AudienceReach::Both;
         $user = auth('web')->user();
+        $allowed = ($user instanceof User && ! $user->canPublishContent())
+            ? self::homeroomStudentIds($user)
+            : null;
 
-        if ($user instanceof User && ! $user->canPublishContent()) {
-            $allowed = self::homeroomStudentIds($user);
+        if ($reach === AudienceReach::Guardians) {
+            $guardianIds = self::ids($selection['guardians'] ?? []);
 
-            if (array_diff($ids, $allowed) !== []) {
+            $parents = User::query()
+                ->whereKey($guardianIds)
+                ->whereHas('roles', fn ($query) => $query->where('name', UserRole::Parinte->value))
+                ->with('students')
+                ->get();
+
+            if ($parents->count() !== count($guardianIds)) {
                 throw ValidationException::withMessages([
-                    'students' => __('panel.forms.calendar_event.students_out_of_scope'),
+                    'guardians' => __('panel.forms.calendar_event.guardians_only_parents'),
                 ]);
             }
+
+            $studentIds = $parents->flatMap(fn (User $parent) => $parent->students->pluck('id'))->unique()->values()->all();
+
+            if ($allowed !== null) {
+                // Fiecare părinte ales trebuie să aibă măcar un copil în sfera dirigintelui;
+                // copiii din alte clase se lasă deoparte (evenimentul rămâne în sfera lui).
+                foreach ($parents as $parent) {
+                    if ($parent->students->pluck('id')->intersect($allowed)->isEmpty()) {
+                        throw ValidationException::withMessages([
+                            'guardians' => __('panel.forms.calendar_event.guardians_out_of_scope'),
+                        ]);
+                    }
+                }
+
+                $studentIds = array_values(array_intersect($studentIds, $allowed));
+            }
+
+            if ($studentIds === [] && $guardianIds !== []) {
+                throw ValidationException::withMessages([
+                    'guardians' => __('panel.forms.calendar_event.guardians_no_children'),
+                ]);
+            }
+
+            $event->students()->sync($studentIds);
+            $event->users()->sync($parents->pluck('id')->all());
+
+            return;
         }
 
-        $event->students()->sync($ids);
+        $studentIds = $reach === AudienceReach::Student
+            ? self::ids($selection['students'] ?? [])
+            : self::expandFamilySelection($selection['families'] ?? [], $allowed);
+
+        if ($allowed !== null && array_diff($studentIds, $allowed) !== []) {
+            throw ValidationException::withMessages([
+                'students' => __('panel.forms.calendar_event.students_out_of_scope'),
+            ]);
+        }
+
+        $event->students()->sync($studentIds);
+        $event->users()->sync([]);
+    }
+
+    /**
+     * Expandează token-urile de familie în ELEVII vizați. Elevii aleși direct rămân supuși gărzii
+     * stricte din {@see syncNominalAudience}; copiii unui părinte ales se INTERSECTEAZĂ cu sfera
+     * dirigintelui (părintele poate avea copii și în alte clase — aceia nu intră).
+     *
+     * @param  array<int, mixed>  $tokens
+     * @param  array<int, int>|null  $allowed  sfera dirigintelui (null = conducere, nescoped)
+     * @return array<int, int>
+     */
+    private static function expandFamilySelection(array $tokens, ?array $allowed): array
+    {
+        $parsed = FamilyTokens::parse($tokens);
+
+        $studentIds = Student::query()->whereKey($parsed['students'])->pluck('id')->all();
+
+        if ($parsed['guardians'] !== []) {
+            $children = Student::query()
+                ->whereHas('guardians', fn ($query) => $query->whereKey($parsed['guardians']))
+                ->pluck('id')
+                ->all();
+
+            if ($allowed !== null) {
+                $children = array_intersect($children, $allowed);
+            }
+
+            $studentIds = array_merge($studentIds, $children);
+        }
+
+        return array_values(array_unique($studentIds));
+    }
+
+    /**
+     * @param  array<int, int|string>  $values
+     * @return array<int, int>
+     */
+    private static function ids(array $values): array
+    {
+        return array_values(array_unique(array_filter(array_map('intval', $values))));
     }
 
     /**

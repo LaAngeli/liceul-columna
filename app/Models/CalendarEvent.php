@@ -90,6 +90,18 @@ class CalendarEvent extends Model implements Auditable
         return $this->belongsToMany(Student::class);
     }
 
+    /**
+     * PĂRINȚII aleși ca punct de intrare la reach = „doar părinții" — memoria selecției din
+     * formular (la editare se re-afișează exact conturile alese). Vizibilitatea NU citește acest
+     * pivot: rămâne pe {@see students()} × reach (toți părinții elevului vizat văd evenimentul).
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class);
+    }
+
     /** @return BelongsTo<SchoolClass, $this> */
     public function schoolClass(): BelongsTo
     {

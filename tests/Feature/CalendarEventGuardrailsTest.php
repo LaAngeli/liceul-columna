@@ -25,6 +25,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\Term;
 use App\Models\User;
+use App\Support\FamilyTokens;
 use App\Support\SchoolCalendar;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -247,7 +248,7 @@ it('opțiunile pe an de studiu enumeră clasele, nu mai afișează „Treapta N"
         ->and($html)->not->toContain('Treapta');
 });
 
-it('conducerea creează un eveniment nominal și pivotul de elevi se salvează', function () {
+it('conducerea creează un nominal „doar părinții" alegând PĂRINTELE — pivotul poartă copiii lui', function () {
     calendarUser(UserRole::AdministratorOperational);
 
     $class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 8]);
@@ -255,12 +256,16 @@ it('conducerea creează un eveniment nominal și pivotul de elevi se salvează',
         fn (Student $student) => Enrollment::factory()->for($student)->for($class)->for($this->year)->create(),
     );
 
+    $parent = User::factory()->create();
+    $parent->assignRole(UserRole::Parinte->value);
+    $parent->students()->sync($students->pluck('id')->all());
+
     Livewire::test(CreateCalendarEvent::class)
         ->fillForm([
             'type' => CalendarEventType::Meeting->value,
             'visibility_scope' => CalendarEventScope::Students->value,
-            'students' => $students->pluck('id')->all(),
             'audience_reach' => AudienceReach::Guardians->value,
+            'guardians' => [$parent->id],
             'title' => 'Discuție cu părinții',
             'starts_on' => SchoolCalendar::localNow()->addWeek()->toDateString(),
         ])
@@ -269,9 +274,12 @@ it('conducerea creează un eveniment nominal și pivotul de elevi se salvează',
 
     $event = CalendarEvent::query()->where('title', 'Discuție cu părinții')->firstOrFail();
 
+    // Evenimentul trăiește pe calendarele copiilor (pivotul de elevi), doar părinții îl văd
+    // (reach), iar selecția de PĂRINȚI e memorată ca atare pentru editare.
     expect($event->visibility_scope)->toBe(CalendarEventScope::Students)
         ->and($event->audience_reach)->toBe(AudienceReach::Guardians)
-        ->and($event->students()->pluck('students.id')->sort()->values()->all())->toBe($students->pluck('id')->sort()->values()->all());
+        ->and($event->students()->pluck('students.id')->sort()->values()->all())->toBe($students->pluck('id')->sort()->values()->all())
+        ->and($event->users()->pluck('users.id')->all())->toBe([$parent->id]);
 });
 
 it('dirigintele nu poate ținti nominal un elev din afara claselor lui — respins pe SERVER', function () {
@@ -288,17 +296,77 @@ it('dirigintele nu poate ținti nominal un elev din afara claselor lui — respi
 
     actingAs($homeroom);
 
+    // Modul „doar elevul": id străin în câmpul de elevi → respins pe câmp.
     Livewire::test(CreateCalendarEvent::class)
         ->fillForm([
             'type' => CalendarEventType::Meeting->value,
             'visibility_scope' => CalendarEventScope::Students->value,
+            'audience_reach' => AudienceReach::Student->value,
             'students' => [$outsider->id],
-            'audience_reach' => AudienceReach::Both->value,
             'title' => 'Nominal din afara sferei',
             'starts_on' => SchoolCalendar::localNow()->addWeek()->toDateString(),
         ])
         ->call('create')
         ->assertHasFormErrors(['students']);
 
+    // Modul „familii": același elev străin, împachetat ca token de familie → tot respins.
+    Livewire::test(CreateCalendarEvent::class)
+        ->fillForm([
+            'type' => CalendarEventType::Meeting->value,
+            'visibility_scope' => CalendarEventScope::Students->value,
+            'audience_reach' => AudienceReach::Both->value,
+            'families' => [FamilyTokens::student($outsider->id)],
+            'title' => 'Nominal din afara sferei',
+            'starts_on' => SchoolCalendar::localNow()->addWeek()->toDateString(),
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['families']);
+
     expect(CalendarEvent::query()->where('title', 'Nominal din afara sferei')->exists())->toBeFalse();
+});
+
+it('reach „doar părinții" pe calendar: căutarea și validarea rămân în sfera dirigintelui, pe ROL de părinte', function () {
+    $homeroom = User::factory()->create();
+    $homeroom->assignRole(UserRole::Diriginte->value);
+    $teacher = Teacher::factory()->create(['user_id' => $homeroom->id]);
+
+    $myClass = SchoolClass::factory()->for($this->year)->create(['grade_level' => 6]);
+    $myClass->update(['homeroom_teacher_id' => $teacher->id]);
+
+    // Părinte cu copil în CLASA dirigintelui.
+    $inStudent = Student::factory()->create(['last_name' => 'Scopat-Unic', 'first_name' => 'Mihai']);
+    Enrollment::factory()->for($inStudent)->for($myClass)->for($this->year)->create();
+    $inParent = User::factory()->create(['name' => 'Scopat-Unic Părinte']);
+    $inParent->assignRole(UserRole::Parinte->value);
+    $inParent->students()->attach($inStudent->id);
+
+    // Părinte cu copil DOAR în altă clasă.
+    $otherClass = SchoolClass::factory()->for($this->year)->create(['grade_level' => 7]);
+    $outStudent = Student::factory()->create();
+    Enrollment::factory()->for($outStudent)->for($otherClass)->for($this->year)->create();
+    $outParent = User::factory()->create(['name' => 'Scopat-Unic Străin']);
+    $outParent->assignRole(UserRole::Parinte->value);
+    $outParent->students()->attach($outStudent->id);
+
+    actingAs($homeroom);
+
+    // Căutarea de părinți vede DOAR părintele din sfera lui.
+    $results = CalendarEventForm::searchGuardians('Scopat-Unic');
+    expect($results)->toHaveKey($inParent->id)
+        ->and($results)->not->toHaveKey($outParent->id);
+
+    // Părintele din afara sferei e respins pe SERVER, nu doar ascuns din căutare.
+    Livewire::test(CreateCalendarEvent::class)
+        ->fillForm([
+            'type' => CalendarEventType::Meeting->value,
+            'visibility_scope' => CalendarEventScope::Students->value,
+            'audience_reach' => AudienceReach::Guardians->value,
+            'guardians' => [$outParent->id],
+            'title' => 'Părinte din afara sferei',
+            'starts_on' => SchoolCalendar::localNow()->addWeek()->toDateString(),
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['guardians']);
+
+    expect(CalendarEvent::query()->where('title', 'Părinte din afara sferei')->exists())->toBeFalse();
 });

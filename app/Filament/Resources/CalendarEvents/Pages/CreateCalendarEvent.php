@@ -36,9 +36,11 @@ class CreateCalendarEvent extends CreateRecord
             return;
         }
 
-        /** @var array<int, int|string> $students */
-        $students = $this->data['students'] ?? [];
-        CalendarEventResource::syncStudents($record, $students);
+        CalendarEventResource::syncNominalAudience($record, [
+            'students' => is_array($this->data['students'] ?? null) ? $this->data['students'] : [],
+            'guardians' => is_array($this->data['guardians'] ?? null) ? $this->data['guardians'] : [],
+            'families' => is_array($this->data['families'] ?? null) ? $this->data['families'] : [],
+        ]);
 
         // Nominalul își notifică familiile ABIA acum — observerul `created` a sărit (pivot gol atunci).
         if ($record->visibility_scope === CalendarEventScope::Students) {
