@@ -66,6 +66,7 @@ export default function ManageTwoFactor(props: Props) {
                                 <Button
                                     variant="destructive"
                                     type="submit"
+                                    className="min-h-11 md:min-h-0"
                                     disabled={processing}
                                 >
                                     {t('settings.twofa_disable', 'Dezactivează 2FA')}
@@ -92,7 +93,7 @@ export default function ManageTwoFactor(props: Props) {
 
                     <div>
                         {hasSetupData ? (
-                            <Button onClick={() => setShowSetupModal(true)}>
+                            <Button className="min-h-11 md:min-h-0" onClick={() => setShowSetupModal(true)}>
                                 <ShieldCheck />
                                 {t('settings.twofa_continue', 'Continuă configurarea')}
                             </Button>
@@ -102,7 +103,7 @@ export default function ManageTwoFactor(props: Props) {
                                 onSuccess={() => setShowSetupModal(true)}
                             >
                                 {({ processing }) => (
-                                    <Button type="submit" disabled={processing}>
+                                    <Button type="submit" className="min-h-11 md:min-h-0" disabled={processing}>
                                         {t('settings.twofa_enable', 'Activează 2FA')}
                                     </Button>
                                 )}

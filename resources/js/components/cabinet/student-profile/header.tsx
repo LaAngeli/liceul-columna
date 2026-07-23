@@ -164,21 +164,21 @@ export function ProfileHeader({
                 <div className="flex w-full flex-wrap gap-2 sm:w-auto">
                     <Link
                         href="/cabinet/calendar"
-                        className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted md:h-9 md:min-h-0"
                     >
                         <CalendarDays className="size-4" aria-hidden="true" />
                         {t('ccal.title')}
                     </Link>
                     <Link
                         href="/cabinet/mesaje"
-                        className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted md:h-9 md:min-h-0"
                     >
                         <MessageSquare className="size-4" aria-hidden="true" />
                         {t('cabinet.messages_title')}
                     </Link>
                     <Link
                         href="/cabinet/notificari"
-                        className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted md:h-9 md:min-h-0"
                     >
                         <Bell className="size-4" aria-hidden="true" />
                         {t('cabinet.notif_title')}

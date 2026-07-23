@@ -61,7 +61,7 @@ export function FilterPills({
 
     const pillClass = (isActive: boolean) =>
         cn(
-            'inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
+            'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors md:h-9 md:min-h-0',
             'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
             isActive
                 ? 'border-primary bg-primary text-primary-foreground'
@@ -106,7 +106,7 @@ export function FilterPills({
                     type="button"
                     onClick={() => setExpanded(!expanded)}
                     aria-expanded={expanded}
-                    className="inline-flex h-9 cursor-pointer items-center rounded-full border border-dashed border-border px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-dashed border-border px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:h-9 md:min-h-0"
                 >
                     {expanded ? t('cabinet.filter_less') : `+${hidden}`}
                     {!expanded && <span className="sr-only"> {t('cabinet.filter_more')}</span>}

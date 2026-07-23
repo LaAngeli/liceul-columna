@@ -273,7 +273,7 @@ export default function MessagesPage({ folder, q, threads, counts, compose, open
                                         onClick={() => setSelectedId(null)}
                                         aria-current={active ? 'page' : undefined}
                                         className={cn(
-                                            'inline-flex min-h-10 shrink-0 items-center gap-2.5 rounded-full px-3.5 text-sm transition-colors lg:rounded-l-none lg:rounded-r-full',
+                                            'inline-flex min-h-11 shrink-0 items-center gap-2.5 rounded-full px-3.5 text-sm transition-colors lg:min-h-10 lg:rounded-l-none lg:rounded-r-full',
                                             active ? 'bg-primary/10 font-bold text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                                         )}
                                     >
@@ -308,7 +308,7 @@ export default function MessagesPage({ folder, q, threads, counts, compose, open
                                         onChange={(e) => setSearch(e.target.value)}
                                         placeholder={t('cabinet.mailbox_search')}
                                         aria-label={t('cabinet.mailbox_search')}
-                                        className="w-full rounded-full border border-input bg-background py-2.5 pr-4 pl-9 text-sm"
+                                        className="min-h-11 w-full rounded-full border border-input bg-background py-2.5 pr-4 pl-9 text-sm md:min-h-0"
                                     />
                                 </div>
 
@@ -409,7 +409,7 @@ function MailRow({
                 type="button"
                 onClick={onStar}
                 aria-label={t(thread.starred ? 'cabinet.mailbox_unstar' : 'cabinet.mailbox_star')}
-                className="shrink-0 py-3 pr-1 pl-3 text-muted-foreground hover:text-amber-500"
+                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center text-muted-foreground hover:text-amber-500 md:min-h-0 md:min-w-0 md:py-3 md:pr-1 md:pl-3"
             >
                 <Star className={cn('size-4', thread.starred && 'fill-amber-400 text-amber-500')} aria-hidden="true" />
             </button>

@@ -73,7 +73,8 @@ export function AppSidebarHeader({
             <Link
                 href={homeHref}
                 aria-label="Liceul Columna"
-                className="absolute left-1/2 inline-flex -translate-x-1/2 items-center rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:hidden"
+                // Centrat pe orizontală ȘI verticală; min-h-11 → zonă tactilă de 44px, deși logo-ul rămâne h-8.
+                className="absolute top-1/2 left-1/2 inline-flex min-h-11 -translate-x-1/2 -translate-y-1/2 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:hidden"
             >
                 <img src="/images/logo/columna-horizontal.png" alt="Liceul Columna" className="h-8 w-auto dark:hidden" />
                 <img src="/images/logo/columna-horizontal-white.png" alt="Liceul Columna" className="hidden h-8 w-auto dark:block" />

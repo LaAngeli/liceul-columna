@@ -206,7 +206,7 @@ export function HomeworkCard({ h, muted = false }: { h: HomeworkItem; muted?: bo
                                 href={link}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="rounded-md bg-muted px-2 py-0.5 text-xs text-primary underline-offset-2 hover:underline"
+                                className="inline-flex min-h-11 items-center rounded-md bg-muted px-3 text-xs text-primary underline-offset-2 hover:underline md:min-h-0 md:px-2 md:py-0.5"
                             >
                                 {t('cabinet.link')} {i + 1}
                             </a>

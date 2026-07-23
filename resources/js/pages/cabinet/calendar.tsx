@@ -390,14 +390,14 @@ export default function Calendar({
                             type="button"
                             aria-label={t('ccal.prev')}
                             onClick={() => shift(-1)}
-                            className="flex size-9 items-center justify-center rounded-md border border-sidebar-border/70 text-muted-foreground hover:bg-muted dark:border-sidebar-border"
+                            className="flex size-11 items-center justify-center rounded-md border border-sidebar-border/70 text-muted-foreground hover:bg-muted md:size-9 dark:border-sidebar-border"
                         >
                             <ChevronLeft className="size-4" aria-hidden="true" />
                         </button>
                         <button
                             type="button"
                             onClick={() => moveTo(new Date())}
-                            className="rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
+                            className="inline-flex min-h-11 items-center rounded-md border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium hover:bg-muted md:min-h-0 dark:border-sidebar-border"
                         >
                             {t('ccal.today')}
                         </button>
@@ -405,7 +405,7 @@ export default function Calendar({
                             type="button"
                             aria-label={t('ccal.next')}
                             onClick={() => shift(1)}
-                            className="flex size-9 items-center justify-center rounded-md border border-sidebar-border/70 text-muted-foreground hover:bg-muted dark:border-sidebar-border"
+                            className="flex size-11 items-center justify-center rounded-md border border-sidebar-border/70 text-muted-foreground hover:bg-muted md:size-9 dark:border-sidebar-border"
                         >
                             <ChevronRight className="size-4" aria-hidden="true" />
                         </button>
@@ -419,7 +419,7 @@ export default function Calendar({
                                 key={v.key}
                                 type="button"
                                 onClick={() => setView(v.key)}
-                                className={`px-3 py-1.5 text-sm font-medium transition-colors ${i > 0 ? 'border-l border-sidebar-border/70 dark:border-sidebar-border' : ''} ${
+                                className={`inline-flex min-h-11 items-center px-3 py-1.5 text-sm font-medium transition-colors md:min-h-0 ${i > 0 ? 'border-l border-sidebar-border/70 dark:border-sidebar-border' : ''} ${
                                     view === v.key
                                         ? 'bg-primary text-primary-foreground'
                                         : 'text-muted-foreground hover:bg-muted'
@@ -496,7 +496,7 @@ export default function Calendar({
                                     key={cat}
                                     onClick={() => toggleCat(cat)}
                                     aria-pressed={!isHidden}
-                                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all ${
+                                    className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all md:min-h-0 ${
                                         isHidden
                                             ? 'border-transparent text-muted-foreground line-through opacity-40 hover:opacity-60'
                                             : 'border-sidebar-border/70 dark:border-sidebar-border'

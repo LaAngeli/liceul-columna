@@ -172,7 +172,7 @@ export default function CabinetProfile({ account, twoFactor, status, self, child
                             </div>
                             <Link
                                 href={`/cabinet/elev/${self.id}`}
-                                className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                                className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary hover:underline md:mt-4 md:min-h-0"
                             >
                                 {t('profile.view_full', 'Vezi profilul complet')}
                                 <ArrowUpRight className="size-4" />

@@ -55,7 +55,7 @@ export default function TwoFactorEmail({ enabled, accountEmail, status }: Props)
 
                     <Form {...destroy.form()}>
                         {({ processing }) => (
-                            <Button variant="destructive" type="submit" disabled={processing}>
+                            <Button variant="destructive" type="submit" className="min-h-11 md:min-h-0" disabled={processing}>
                                 {t('settings.twofa_email_disable', 'Dezactivează codul pe e-mail')}
                             </Button>
                         )}
@@ -88,7 +88,7 @@ export default function TwoFactorEmail({ enabled, accountEmail, status }: Props)
                                     <InputError message={errors.email} />
                                 </div>
 
-                                <Button type="submit" variant={codeSent ? 'outline' : 'default'} disabled={processing || resendCooldown > 0}>
+                                <Button type="submit" variant={codeSent ? 'outline' : 'default'} className="min-h-11 md:min-h-0" disabled={processing || resendCooldown > 0}>
                                     {resendCooldown > 0
                                         ? t('auth.twofa_email_resend_in').replace(':seconds', String(resendCooldown))
                                         : t('settings.twofa_email_send_code', 'Trimite codul de verificare')}
@@ -119,7 +119,7 @@ export default function TwoFactorEmail({ enabled, accountEmail, status }: Props)
                                         <InputError message={errors.code} />
                                     </div>
 
-                                    <Button type="submit" disabled={processing}>
+                                    <Button type="submit" className="min-h-11 md:min-h-0" disabled={processing}>
                                         {t('settings.twofa_email_confirm', 'Confirmă și activează')}
                                     </Button>
                                 </>

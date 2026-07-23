@@ -209,7 +209,7 @@ function DayCards({ weekly }: { weekly: WeeklyData }) {
                             onClick={() => setSelected(d.value)}
                             aria-pressed={active}
                             className={cn(
-                                'inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
+                                'inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors md:h-9 md:min-h-0',
                                 'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                                 active
                                     ? 'border-primary bg-primary text-primary-foreground'
@@ -347,7 +347,7 @@ export function DayPlan({ weekly, homework }: { weekly: WeeklyData | null; homew
                         type="button"
                         onClick={() => shiftDay(-1)}
                         aria-label={t('cabinet.day_plan_prev')}
-                        className="inline-flex size-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
+                        className="inline-flex size-11 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground md:size-8"
                     >
                         ‹
                     </button>
@@ -356,7 +356,7 @@ export function DayPlan({ weekly, homework }: { weekly: WeeklyData | null; homew
                         type="button"
                         onClick={() => shiftDay(1)}
                         aria-label={t('cabinet.day_plan_next')}
-                        className="inline-flex size-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
+                        className="inline-flex size-11 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground md:size-8"
                     >
                         ›
                     </button>
