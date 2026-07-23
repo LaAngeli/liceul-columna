@@ -107,12 +107,28 @@ it('bara temporală filtrează notele pe data acordării; intervalul liber acope
         ->call('openCatalogEntity', $this->ownClass->id)
         ->assertCanSeeTableRecords([$inWeek, $outsideWeek]);
 
-    // Filtrul interval De la / Până la — independent de bară.
-    Livewire::test(ListGrades::class)
+    // Perioadele arbitrare trec acum prin modul „Personalizat" al BAREI, nu printr-un filtru
+    // paralel din pâlnie: acela dubla bara și se aplica simultan cu ea (interval uitat = filtrare
+    // tăcută), deci a fost eliminat — vezi CustomTimeRangeTest pentru scenariile de graniță.
+    Livewire::withQueryParams(['mod' => 'personalizat', 'de' => '2025-10-15', 'pana' => '2025-10-25'])
+        ->test(ListGrades::class)
         ->call('openCatalogEntity', $this->ownClass->id)
-        ->filterTable('interval', ['from' => '2025-10-15', 'until' => '2025-10-25'])
         ->assertCanSeeTableRecords([$outsideWeek])
         ->assertCanNotSeeTableRecords([$inWeek]);
+});
+
+it('filtrul paralel de interval din pâlnie a DISPĂRUT — bara e sursa unică a perioadei', function () {
+    actingAs(navigatorDirector());
+
+    // Filament n-are `assertTableFilterDoesNotExist`; absența se probează pe lista de filtre a
+    // tabelului (asserția pozitivă ar fi trecut oricum, deci nu spune nimic despre eliminare).
+    $filters = Livewire::test(ListGrades::class)
+        ->call('openCatalogEntity', $this->ownClass->id)
+        ->instance()
+        ->getTable()
+        ->getFilters();
+
+    expect(array_keys($filters))->not->toContain('interval');
 });
 
 // ─── Meniul de dimensiuni pe rol ─────────────────────────────────────────────────────────

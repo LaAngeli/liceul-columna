@@ -24,13 +24,10 @@ use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 
 class AbsencesTable
 {
@@ -88,30 +85,9 @@ class AbsencesTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                // Interval liber pe data absenței — complementar barei temporale (Zi/Săptămână/
-                // Lună) din navigator, pentru perioade arbitrare.
-                Filter::make('interval')
-                    ->schema([
-                        DatePicker::make('from')
-                            ->label(__('panel.homework_time.from')),
-                        DatePicker::make('until')
-                            ->label(__('panel.homework_time.until')),
-                    ])
-                    ->query(fn (Builder $query, array $data): Builder => $query
-                        ->when($data['from'] ?? null, fn (Builder $q, string $date): Builder => $q
-                            ->whereDate('occurred_on', '>=', $date))
-                        ->when($data['until'] ?? null, fn (Builder $q, string $date): Builder => $q
-                            ->whereDate('occurred_on', '<=', $date)))
-                    ->indicateUsing(function (array $data): ?string {
-                        if (blank($data['from'] ?? null) && blank($data['until'] ?? null)) {
-                            return null;
-                        }
-
-                        return __('panel.homework_time.period_indicator', [
-                            'from' => filled($data['from'] ?? null) ? Carbon::parse((string) $data['from'])->format('d.m.Y') : '…',
-                            'until' => filled($data['until'] ?? null) ? Carbon::parse((string) $data['until'])->format('d.m.Y') : '…',
-                        ]);
-                    }),
+                // Intervalul liber pe dată a fost ELIMINAT de aici (2026-07-23) — vezi bara
+                // temporală, modul „Personalizat": o singură sursă de adevăr pentru perioadă,
+                // în loc de două filtre care se aplicau simultan, unul dintre ele ascuns în pâlnie.
                 // Filtrele acoperite de navigator dispar când contextul respectiv e activ —
                 // navigarea e sursa de adevăr, filtrul ar dubla (și contrazice) selecția.
                 SelectFilter::make('school_class_id')

@@ -14,16 +14,13 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 
 class HomeworkAssignmentsTable
 {
@@ -101,30 +98,9 @@ class HomeworkAssignmentsTable
                     ->visibleFrom('lg'),
             ])
             ->filters([
-                // Interval liber pe DATA EFECTIVĂ (termen ?? atribuire) — complementar barei
-                // temporale din navigator (Zi/Săptămână/Lună), pentru perioade arbitrare.
-                Filter::make('interval')
-                    ->schema([
-                        DatePicker::make('from')
-                            ->label(__('panel.homework_time.from')),
-                        DatePicker::make('until')
-                            ->label(__('panel.homework_time.until')),
-                    ])
-                    ->query(fn (Builder $query, array $data): Builder => $query
-                        ->when($data['from'] ?? null, fn (Builder $q, string $date): Builder => $q
-                            ->where(HomeworkAssignment::effectiveOnExpression(), '>=', $date))
-                        ->when($data['until'] ?? null, fn (Builder $q, string $date): Builder => $q
-                            ->where(HomeworkAssignment::effectiveOnExpression(), '<=', $date)))
-                    ->indicateUsing(function (array $data): ?string {
-                        if (blank($data['from'] ?? null) && blank($data['until'] ?? null)) {
-                            return null;
-                        }
-
-                        return __('panel.homework_time.interval_indicator', [
-                            'from' => filled($data['from'] ?? null) ? Carbon::parse((string) $data['from'])->format('d.m.Y') : '…',
-                            'until' => filled($data['until'] ?? null) ? Carbon::parse((string) $data['until'])->format('d.m.Y') : '…',
-                        ]);
-                    }),
+                // Intervalul liber pe data efectivă a fost ELIMINAT de aici (2026-07-23) — vezi bara
+                // temporală, modul „Personalizat" (filtrează pe aceeași expresie: termen ?? atribuire).
+                // Două filtre de perioadă, dintre care unul ascuns în pâlnie, se aplicau simultan.
                 // Filtrele acoperite de navigator dispar când contextul respectiv e activ.
                 SelectFilter::make('grade_level')
                     ->label(__('panel.fields.class'))
