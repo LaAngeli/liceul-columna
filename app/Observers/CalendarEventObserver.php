@@ -2,7 +2,7 @@
 
 namespace App\Observers;
 
-use App\Enums\CalendarAudienceReach;
+use App\Enums\AudienceReach;
 use App\Enums\CalendarEventScope;
 use App\Enums\NotificationType;
 use App\Models\CalendarEvent;
@@ -123,7 +123,7 @@ class CalendarEventObserver
      */
     private function nominalRecipients(CalendarEvent $event): Collection
     {
-        $reach = $event->audience_reach ?? CalendarAudienceReach::Both;
+        $reach = $event->audience_reach ?? AudienceReach::Both;
 
         return $event->students()
             ->with(['user', 'guardians'])

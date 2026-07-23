@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\CalendarEvents\Schemas;
 
-use App\Enums\CalendarAudienceReach;
+use App\Enums\AudienceReach;
 use App\Enums\CalendarEventScope;
 use App\Enums\CalendarEventType;
 use App\Filament\Resources\CalendarEvents\CalendarEventResource;
@@ -51,7 +51,7 @@ class CalendarEventForm
                         $set('grade_level', null);
                         $set('school_class_id', null);
                         $set('students', []);
-                        $set('audience_reach', CalendarAudienceReach::Both->value);
+                        $set('audience_reach', AudienceReach::Both->value);
                     }),
 
                 Select::make('grade_level')
@@ -107,8 +107,8 @@ class CalendarEventForm
                 // sau ambii. Se aplică DOAR audienței nominale.
                 Select::make('audience_reach')
                     ->label(__('panel.forms.calendar_event.reach'))
-                    ->options(CalendarAudienceReach::options())
-                    ->default(CalendarAudienceReach::Both->value)
+                    ->options(AudienceReach::options())
+                    ->default(AudienceReach::Both->value)
                     ->native(false)
                     ->live()
                     ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
@@ -337,7 +337,7 @@ class CalendarEventForm
      * ca fraza să fie testabilă direct, nu doar prin randarea formularului.
      *
      * @param  mixed  $students  lista de id-uri de elevi (audiența nominală)
-     * @param  mixed  $reach  {@see CalendarAudienceReach} value (elev/părinți/ambii)
+     * @param  mixed  $reach  {@see AudienceReach} value (elev/părinți/ambii)
      */
     public static function audienceSummary(mixed $scope, mixed $gradeLevel, mixed $classId, mixed $students = null, mixed $reach = null): string
     {
@@ -396,8 +396,8 @@ class CalendarEventForm
             return (string) __('panel.forms.calendar_event.summary_pick_students');
         }
 
-        $reachCase = is_string($reach) ? CalendarAudienceReach::tryFrom($reach) : null;
-        $reachLabel = ($reachCase ?? CalendarAudienceReach::Both)->getLabel();
+        $reachCase = is_string($reach) ? AudienceReach::tryFrom($reach) : null;
+        $reachLabel = ($reachCase ?? AudienceReach::Both)->getLabel();
 
         return (string) trans_choice('panel.forms.calendar_event.summary_students', count($ids), [
             'count' => count($ids),

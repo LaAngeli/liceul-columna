@@ -25,6 +25,14 @@
                     @endif
                 </div>
 
+                {{-- Audiența aleasă — cine primește (sau a primit) anunțul. --}}
+                <div class="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
+                    <span class="font-semibold text-gray-500 dark:text-gray-400">{{ __('panel.announcements.audience_label') }}:</span>
+                    <span class="inline-flex items-center rounded-full bg-primary-50 px-2.5 py-0.5 font-medium text-primary-700 ring-1 ring-primary-600/20 dark:bg-primary-400/10 dark:text-primary-300 dark:ring-primary-400/30">
+                        {{ $this->audienceDescription() }}
+                    </span>
+                </div>
+
                 <div class="mt-4 whitespace-pre-line text-sm leading-relaxed text-gray-950 dark:text-white">{{ $this->record->body }}</div>
             </div>
 
@@ -46,7 +54,7 @@
 
                 @if ($funnel === null)
                     <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                        {{ trans_choice('panel.announcements.broadcast_draft', $this->familyAccountsCount(), ['count' => $this->familyAccountsCount()]) }}
+                        {{ trans_choice('panel.announcements.broadcast_draft', $this->audienceCount(), ['count' => $this->audienceCount()]) }}
                     </p>
                 @else
                     {{-- Pâlnia: programate → livrate → citite. --}}

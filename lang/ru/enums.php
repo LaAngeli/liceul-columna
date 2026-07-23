@@ -99,10 +99,18 @@ return [
         'school_class' => 'Один класс',
         'students' => 'Отдельные ученики — выбранные поимённо',
     ],
-    'calendar_audience_reach' => [
+    'audience_reach' => [
         'student' => 'Только ученик',
         'guardians' => 'Только родители',
         'both' => 'Ученик и родители',
+    ],
+    'announcement_audience' => [
+        'families' => 'Все семьи — родители и ученики',
+        'school' => 'Вся организация — семьи + персонал',
+        'classes' => 'Выбранные классы',
+        'students' => 'Отдельные ученики — выбранные поимённо',
+        'subject_teachers' => 'Преподаватели предмета',
+        'users' => 'Отдельные аккаунты — выбранные напрямую',
     ],
     'audience_domain' => [
         'instruire' => 'Обучение',

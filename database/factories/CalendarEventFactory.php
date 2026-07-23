@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Enums\CalendarAudienceReach;
+use App\Enums\AudienceReach;
 use App\Enums\CalendarEventScope;
 use App\Enums\CalendarEventType;
 use App\Models\CalendarEvent;
@@ -63,7 +63,7 @@ class CalendarEventFactory extends Factory
      * Eveniment NOMINAL (elevi anume). Atașează elevii cu `->hasAttached()` sau `->students()->attach()`
      * după creare; `reach` implicit = ambii (elev + părinți).
      */
-    public function forStudents(CalendarAudienceReach $reach = CalendarAudienceReach::Both): static
+    public function forStudents(AudienceReach $reach = AudienceReach::Both): static
     {
         return $this->state(fn (): array => [
             'visibility_scope' => CalendarEventScope::Students,

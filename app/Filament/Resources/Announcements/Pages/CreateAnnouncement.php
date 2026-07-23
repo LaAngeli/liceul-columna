@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Announcements\Pages;
 
 use App\Filament\Concerns\DisablesCreateAnother;
 use App\Filament\Resources\Announcements\AnnouncementResource;
+use App\Models\Announcement;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateAnnouncement extends CreateRecord
@@ -20,7 +21,21 @@ class CreateAnnouncement extends CreateRecord
     {
         $data['author_user_id'] = auth()->id();
 
-        return $data;
+        return AnnouncementResource::normalizeAudience($data);
+    }
+
+    protected function afterCreate(): void
+    {
+        $record = $this->getRecord();
+
+        if ($record instanceof Announcement) {
+            AnnouncementResource::syncAudience(
+                $record,
+                is_array($this->data['school_classes'] ?? null) ? $this->data['school_classes'] : [],
+                is_array($this->data['students'] ?? null) ? $this->data['students'] : [],
+                is_array($this->data['users'] ?? null) ? $this->data['users'] : [],
+            );
+        }
     }
 
     /**

@@ -3,10 +3,8 @@
 namespace App\Filament\Resources\Announcements\Pages;
 
 use App\Actions\BroadcastAnnouncement;
-use App\Enums\UserRole;
 use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Models\Announcement;
-use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -44,11 +42,12 @@ class ViewAnnouncement extends ViewRecord
                 ->visible(fn (): bool => ! $this->record->isPublished())
                 ->requiresConfirmation()
                 ->modalHeading(__('panel.forms.announcement.publish.heading'))
-                // Audiența REALĂ, numărată în momentul confirmării — nu o formulare vagă.
-                ->modalDescription(fn (): string => trans_choice(
+                // Audiența REALĂ, numărată în momentul confirmării — nu o formulare vagă:
+                // descrierea audienței alese + numărul de conturi din ACELAȘI resolver care difuzează.
+                ->modalDescription(fn (): string => $this->audienceDescription().' — '.trans_choice(
                     'panel.announcements.publish_description',
-                    $this->familyAccountsCount(),
-                    ['count' => $this->familyAccountsCount()],
+                    $this->audienceCount(),
+                    ['count' => $this->audienceCount()],
                 ))
                 ->modalSubmitActionLabel(__('panel.forms.announcement.publish.label'))
                 ->action(function (): void {
@@ -70,14 +69,19 @@ class ViewAnnouncement extends ViewRecord
         ];
     }
 
-    public function familyAccountsCount(): int
+    /**
+     * Numărul REAL de destinatari ai audienței alese — același resolver care va difuza
+     * ({@see BroadcastAnnouncement::resolveRecipients}): confirmarea nu poate minți.
+     */
+    public function audienceCount(): int
     {
-        return User::query()
-            ->whereHas('roles', fn ($query) => $query->whereIn('name', [
-                UserRole::Parinte->value,
-                UserRole::Elev->value,
-            ]))
-            ->count();
+        return app(BroadcastAnnouncement::class)->resolveRecipients($this->record)->count();
+    }
+
+    /** Descrierea umană a audienței, pentru fișă. */
+    public function audienceDescription(): string
+    {
+        return $this->record->audienceDescription();
     }
 
     /**

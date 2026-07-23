@@ -102,10 +102,18 @@ return [
         'school_class' => 'O singură clasă',
         'students' => 'Elevi anume — aleși nominal',
     ],
-    'calendar_audience_reach' => [
+    'audience_reach' => [
         'student' => 'Doar elevul',
         'guardians' => 'Doar părinții',
         'both' => 'Elevul și părinții',
+    ],
+    'announcement_audience' => [
+        'families' => 'Toate familiile — părinți și elevi',
+        'school' => 'Toată instituția — familii + personal',
+        'classes' => 'Clase alese',
+        'students' => 'Elevi anume — aleși nominal',
+        'subject_teachers' => 'Profesorii unei discipline',
+        'users' => 'Conturi anume — alese direct',
     ],
     'audience_domain' => [
         'instruire' => 'Instruire',

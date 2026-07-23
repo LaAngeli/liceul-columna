@@ -10,7 +10,7 @@
  * nici clasele, nici numărul de copii vizați.
  */
 
-use App\Enums\CalendarAudienceReach;
+use App\Enums\AudienceReach;
 use App\Enums\CalendarEventScope;
 use App\Enums\CalendarEventType;
 use App\Enums\UserRole;
@@ -260,7 +260,7 @@ it('conducerea creează un eveniment nominal și pivotul de elevi se salvează',
             'type' => CalendarEventType::Meeting->value,
             'visibility_scope' => CalendarEventScope::Students->value,
             'students' => $students->pluck('id')->all(),
-            'audience_reach' => CalendarAudienceReach::Guardians->value,
+            'audience_reach' => AudienceReach::Guardians->value,
             'title' => 'Discuție cu părinții',
             'starts_on' => SchoolCalendar::localNow()->addWeek()->toDateString(),
         ])
@@ -270,7 +270,7 @@ it('conducerea creează un eveniment nominal și pivotul de elevi se salvează',
     $event = CalendarEvent::query()->where('title', 'Discuție cu părinții')->firstOrFail();
 
     expect($event->visibility_scope)->toBe(CalendarEventScope::Students)
-        ->and($event->audience_reach)->toBe(CalendarAudienceReach::Guardians)
+        ->and($event->audience_reach)->toBe(AudienceReach::Guardians)
         ->and($event->students()->pluck('students.id')->sort()->values()->all())->toBe($students->pluck('id')->sort()->values()->all());
 });
 
@@ -293,7 +293,7 @@ it('dirigintele nu poate ținti nominal un elev din afara claselor lui — respi
             'type' => CalendarEventType::Meeting->value,
             'visibility_scope' => CalendarEventScope::Students->value,
             'students' => [$outsider->id],
-            'audience_reach' => CalendarAudienceReach::Both->value,
+            'audience_reach' => AudienceReach::Both->value,
             'title' => 'Nominal din afara sferei',
             'starts_on' => SchoolCalendar::localNow()->addWeek()->toDateString(),
         ])

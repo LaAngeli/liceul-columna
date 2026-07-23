@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Announcements;
 
+use App\Enums\AnnouncementAudience;
 use App\Filament\Resources\Announcements\Pages\CreateAnnouncement;
 use App\Filament\Resources\Announcements\Pages\EditAnnouncement;
 use App\Filament\Resources\Announcements\Pages\ListAnnouncements;
@@ -17,9 +18,10 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Anunțuri broadcast ale conducerii (spec §4): se compun aici și, la „Publică", se trimit tuturor
- * familiilor ca notificare. Confirmarea de citire se vede în coloana „Citit X / Y". Gated pe
- * `canPublishContent` (director / prim-vicedirector / administrator operațional / super-admin).
+ * Anunțuri ale conducerii (spec §4): se compun aici cu AUDIENȚĂ aleasă (familii / instituție /
+ * clase / elevi anume / catedră / conturi) și, la „Publică", se trimit audienței ca notificare.
+ * Confirmarea de citire se vede în coloana „Citit X / Y". Gated pe `canPublishContent`
+ * (director / prim-vicedirector / administrator operațional / super-admin).
  */
 class AnnouncementResource extends Resource
 {
@@ -98,5 +100,63 @@ class AnnouncementResource extends Resource
             'view' => ViewAnnouncement::route('/{record}'),
             'edit' => EditAnnouncement::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Coerență audiență ↔ câmpuri: rămân setate doar câmpurile potrivite tipului (fără valori
+     * reziduale dintr-o alegere anterioară). Selecțiile pivot (`school_classes`/`students`/`users`)
+     * nu sunt coloane — se scot din payload; sincronizarea lor se face în pagini
+     * ({@see syncAudience}).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function normalizeAudience(array $data): array
+    {
+        $audience = $data['audience'] ?? null;
+
+        if ($audience !== AnnouncementAudience::Students->value) {
+            $data['audience_reach'] = null;
+        }
+
+        if ($audience !== AnnouncementAudience::SubjectTeachers->value) {
+            $data['subject_id'] = null;
+        }
+
+        unset($data['school_classes'], $data['students'], $data['users']);
+
+        return $data;
+    }
+
+    /**
+     * Sincronizează pivoturile audienței din starea formularului: fiecare tip își umple DOAR
+     * pivotul lui, celelalte se golesc (o schimbare de audiență pe ciornă nu lasă resturi).
+     *
+     * @param  array<int, int|string>  $classIds
+     * @param  array<int, int|string>  $studentIds
+     * @param  array<int, int|string>  $userIds
+     */
+    public static function syncAudience(Announcement $announcement, array $classIds, array $studentIds, array $userIds): void
+    {
+        $announcement->schoolClasses()->sync(
+            $announcement->audience === AnnouncementAudience::Classes ? self::ids($classIds) : [],
+        );
+
+        $announcement->students()->sync(
+            $announcement->audience === AnnouncementAudience::Students ? self::ids($studentIds) : [],
+        );
+
+        $announcement->users()->sync(
+            $announcement->audience === AnnouncementAudience::Users ? self::ids($userIds) : [],
+        );
+    }
+
+    /**
+     * @param  array<int, int|string>  $values
+     * @return array<int, int>
+     */
+    private static function ids(array $values): array
+    {
+        return array_values(array_unique(array_filter(array_map('intval', $values))));
     }
 }

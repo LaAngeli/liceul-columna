@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\CalendarAudienceReach;
+use App\Enums\AudienceReach;
 use App\Enums\CalendarEventScope;
 use App\Enums\CalendarEventType;
 use App\Observers\CalendarEventObserver;
@@ -29,7 +29,7 @@ use OwenIt\Auditing\Contracts\Auditable;
  * @property CalendarEventScope $visibility_scope
  * @property int|null $grade_level
  * @property int|null $school_class_id
- * @property CalendarAudienceReach|null $audience_reach
+ * @property AudienceReach|null $audience_reach
  * @property bool $notify_families
  * @property string $title
  * @property string|null $description
@@ -66,7 +66,7 @@ class CalendarEvent extends Model implements Auditable
         return [
             'type' => CalendarEventType::class,
             'visibility_scope' => CalendarEventScope::class,
-            'audience_reach' => CalendarAudienceReach::class,
+            'audience_reach' => AudienceReach::class,
             'notify_families' => 'boolean',
             'grade_level' => 'integer',
             'starts_on' => 'date',
@@ -149,7 +149,7 @@ class CalendarEvent extends Model implements Auditable
      */
     public function reachIncludes(bool $asGuardian): bool
     {
-        $reach = $this->audience_reach ?? CalendarAudienceReach::Both;
+        $reach = $this->audience_reach ?? AudienceReach::Both;
 
         return $asGuardian ? $reach->includesGuardians() : $reach->includesStudent();
     }

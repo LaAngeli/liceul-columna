@@ -99,10 +99,18 @@ return [
         'school_class' => 'A single class',
         'students' => 'Specific students — chosen by name',
     ],
-    'calendar_audience_reach' => [
+    'audience_reach' => [
         'student' => 'Student only',
         'guardians' => 'Parents only',
         'both' => 'Student and parents',
+    ],
+    'announcement_audience' => [
+        'families' => 'All families — parents and students',
+        'school' => 'Whole institution — families + staff',
+        'classes' => 'Selected classes',
+        'students' => 'Specific students — chosen by name',
+        'subject_teachers' => 'Teachers of a subject',
+        'users' => 'Specific accounts — chosen directly',
     ],
     'audience_domain' => [
         'instruire' => 'Instruction',

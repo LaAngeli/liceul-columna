@@ -8,7 +8,7 @@ use Filament\Support\Contracts\HasLabel;
  * Audiența unui eveniment de calendar manual: toată școala, o treaptă (toate clasele unei trepte),
  * o clasă anume sau elevi anume (unul sau mai mulți, aleși nominal). Determină vizibilitatea pentru
  * familii — clasă/treaptă/global prin {@see CalendarEvent::scopeVisibleToClass()}, elevii anume prin
- * relația {@see CalendarEvent::students()} + reach-ul {@see CalendarAudienceReach}.
+ * relația {@see CalendarEvent::students()} + reach-ul {@see AudienceReach}.
  */
 enum CalendarEventScope: string implements HasLabel
 {

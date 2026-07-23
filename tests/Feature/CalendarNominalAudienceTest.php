@@ -11,7 +11,7 @@
 use App\Calendar\CalendarAccess;
 use App\Calendar\CalendarScope;
 use App\Calendar\Projectors\ManualEventProjector;
-use App\Enums\CalendarAudienceReach;
+use App\Enums\AudienceReach;
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\CalendarEvent;
@@ -70,7 +70,7 @@ function projectFor(User $viewer, Student $student): array
 it('reach „elev" — elevul îl vede, părintele nu', function () {
     [$student, $studentUser, $parent] = nominalStudent($this);
 
-    $event = CalendarEvent::factory()->forStudents(CalendarAudienceReach::Student)->create(['starts_on' => '2026-06-10']);
+    $event = CalendarEvent::factory()->forStudents(AudienceReach::Student)->create(['starts_on' => '2026-06-10']);
     $event->students()->attach($student->id);
 
     expect(projectFor($studentUser, $student))->toHaveCount(1)
@@ -80,7 +80,7 @@ it('reach „elev" — elevul îl vede, părintele nu', function () {
 it('reach „părinți" — părintele îl vede, elevul nu', function () {
     [$student, $studentUser, $parent] = nominalStudent($this);
 
-    $event = CalendarEvent::factory()->forStudents(CalendarAudienceReach::Guardians)->create(['starts_on' => '2026-06-10']);
+    $event = CalendarEvent::factory()->forStudents(AudienceReach::Guardians)->create(['starts_on' => '2026-06-10']);
     $event->students()->attach($student->id);
 
     expect(projectFor($parent, $student))->toHaveCount(1)
@@ -90,7 +90,7 @@ it('reach „părinți" — părintele îl vede, elevul nu', function () {
 it('reach „ambii" — și elevul, și părintele îl văd', function () {
     [$student, $studentUser, $parent] = nominalStudent($this);
 
-    $event = CalendarEvent::factory()->forStudents(CalendarAudienceReach::Both)->create(['starts_on' => '2026-06-10']);
+    $event = CalendarEvent::factory()->forStudents(AudienceReach::Both)->create(['starts_on' => '2026-06-10']);
     $event->students()->attach($student->id);
 
     expect(projectFor($studentUser, $student))->toHaveCount(1)
@@ -185,7 +185,7 @@ it('notificarea nominală de creare respectă reach-ul (părinți → tutorele, 
     [$student, $studentUser, $parent] = nominalStudent($this);
 
     // Fluxul real: eveniment creat → elevi atașați → notificarea nominală declanșată (afterCreate).
-    $event = CalendarEvent::factory()->forStudents(CalendarAudienceReach::Guardians)->create(['starts_on' => today()->addWeek()->toDateString()]);
+    $event = CalendarEvent::factory()->forStudents(AudienceReach::Guardians)->create(['starts_on' => today()->addWeek()->toDateString()]);
     $event->students()->attach($student->id);
     app(CalendarEventObserver::class)->notifyNominalCreation($event);
 
