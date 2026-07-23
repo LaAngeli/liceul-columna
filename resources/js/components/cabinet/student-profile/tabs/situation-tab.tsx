@@ -1,10 +1,11 @@
+import { GradeBook } from '@/components/cabinet/catalog/gradebook-views';
+import type { GradeBookData } from '@/components/cabinet/catalog/gradebook-views';
 import {
     AbsenceRegister,
     AbsenceTotals,
-    GradesTable,
     MotivationsPanel,
 } from '@/components/cabinet/catalog/situation-views';
-import type { AbsenceRegisterData, MotivationItem, MotivationWindow, SubjectGrades } from '@/components/cabinet/catalog/situation-views';
+import type { AbsenceRegisterData, MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
 import { SectionHeading } from '@/components/cabinet/section-heading';
 import { SkeletonGrid, SkeletonTable } from '@/components/cabinet/student-profile/skeletons';
 import { useTranslations } from '@/lib/i18n';
@@ -16,7 +17,7 @@ import { useTranslations } from '@/lib/i18n';
  */
 export function SituationTab({
     studentId,
-    subjects,
+    gradebook,
     absenceRegister,
     absencesMotivated,
     absencesUnmotivated,
@@ -26,7 +27,7 @@ export function SituationTab({
     onContestGrade,
 }: {
     studentId: number;
-    subjects?: SubjectGrades[];
+    gradebook?: GradeBookData;
     absenceRegister?: AbsenceRegisterData;
     absencesMotivated: number;
     absencesUnmotivated: number;
@@ -52,10 +53,10 @@ export function SituationTab({
                     <p className="mt-1.5 text-muted-foreground">{t('cabinet.extract_grades')}</p>
                 </details>
 
-                {subjects === undefined ? (
+                {gradebook === undefined ? (
                     <SkeletonTable rows={6} />
                 ) : (
-                    <GradesTable subjects={subjects} onContestGrade={onContestGrade} />
+                    <GradeBook data={gradebook} onContestGrade={onContestGrade} />
                 )}
             </section>
 

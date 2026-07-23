@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { FilterPills } from '@/components/cabinet/catalog/filter-pills';
 import { localIso } from '@/components/cabinet/catalog/homework-views';
 import { EmptyState } from '@/components/cabinet/empty-state';
-import { gradeLabel } from '@/components/cabinet/student-profile/helpers';
-import type { GradeItem } from '@/components/cabinet/student-profile/helpers';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTranslations } from '@/lib/i18n';
@@ -13,17 +11,12 @@ import { cn } from '@/lib/utils';
 import { motivation } from '@/routes/cabinet';
 
 /**
- * Vederile PARTAJATE ale situației (note + absențe + motivări) — folosite de modulele „Note" și
- * „Absențe" din meniu ȘI de tabul „Situație" al fișei elevului. O singură implementare.
+ * Vederile PARTAJATE ale situației (absențe + motivări + matricea mediilor) — folosite de modulele
+ * „Note"/„Absențe" din meniu ȘI de tabul „Situație" al fișei elevului. O singură implementare.
+ *
+ * Catalogul propriu-zis (notele) stă în `gradebook-views` — a crescut destul cât să merite fișier
+ * propriu, iar aici rămâne doar matricea mediilor semestriale, pe care evoluția o refolosește.
  */
-
-export interface SubjectGrades {
-    subject: string;
-    average: number | null;
-    mc?: number | null;
-    summative?: number | null;
-    items: GradeItem[];
-}
 
 export interface SemesterAveragesMatrix {
     terms: number[];
@@ -73,92 +66,6 @@ export interface MotivationItem {
 export interface MotivationWindow {
     min: string;
     max: string;
-}
-
-/** Tabelul notelor pe discipline (chips + MS cu componente) + legendele. */
-export function GradesTable({
-    subjects,
-    onContestGrade,
-}: {
-    subjects: SubjectGrades[];
-    onContestGrade?: (gradeId: number) => void;
-}) {
-    const t = useTranslations();
-
-    if (subjects.length === 0) {
-        return <EmptyState title={t('cabinet.no_grades')} />;
-    }
-
-    return (
-        <>
-            <div className="overflow-hidden rounded-xl border">
-                <table className="w-full text-sm">
-                    <thead className="bg-muted/50 text-left text-muted-foreground">
-                        <tr>
-                            <th scope="col" className="px-2.5 py-2 font-medium sm:px-4">{t('cabinet.subject')}</th>
-                            <th scope="col" className="px-2.5 py-2 font-medium sm:px-4">{t('cabinet.grades')}</th>
-                            <th scope="col" className="px-2.5 py-2 text-right font-medium sm:px-4">{t('cabinet.average')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {subjects.map((s) => (
-                            <tr key={s.subject} className="border-t">
-                                <th scope="row" className="px-2.5 py-3 text-left font-medium sm:px-4">{s.subject}</th>
-                                <td className="px-2.5 py-3 sm:px-4">
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {s.items.map((item, i) => {
-                                            // min-h-7: chip-ul e și țintă tactilă („Contestă") — 20px era sub minimul WCAG pe mobil.
-                                            const chipClass = `inline-flex min-h-7 min-w-7 items-center justify-center rounded-md px-2 py-0.5 text-xs font-semibold ${
-                                                item.isSummative
-                                                    ? 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/40 dark:text-amber-300'
-                                                    : 'bg-primary/10 text-primary'
-                                            }`;
-                                            const tooltip = [item.typeLabel, item.date].filter(Boolean).join(' · ');
-                                            const gradeId = item.id;
-
-                                            // Familia poate contesta direct din chip — cererea se
-                                            // deschide cu nota deja selectată (zero re-tastare).
-                                            return onContestGrade && gradeId != null ? (
-                                                <button
-                                                    key={i}
-                                                    type="button"
-                                                    onClick={() => onContestGrade(gradeId)}
-                                                    title={[tooltip, t('cabinet.grade_contest_hint')].filter(Boolean).join(' · ')}
-                                                    aria-label={`${t('cabinet.grade_contest_hint')}: ${s.subject} — ${gradeLabel(item)}`}
-                                                    className={`${chipClass} cursor-pointer transition-shadow hover:ring-2 hover:ring-primary/40`}
-                                                >
-                                                    {gradeLabel(item)}
-                                                </button>
-                                            ) : (
-                                                <span key={i} className={chipClass} title={tooltip || undefined}>
-                                                    {gradeLabel(item)}
-                                                </span>
-                                            );
-                                        })}
-                                    </div>
-                                </td>
-                                <td className="px-2.5 py-3 text-right sm:px-4">
-                                    <div className="font-semibold">{s.average ?? '—'}</div>
-                                    {s.mc != null && s.summative != null && (
-                                        <div className="mt-0.5 text-[11px] font-normal text-muted-foreground">
-                                            {t('cabinet.avg_current')} {s.mc} · {t('cabinet.avg_summative')} {s.summative}
-                                        </div>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500/40 ring-1 ring-amber-500/40" />
-                {t('cabinet.summative_legend')}
-            </p>
-            {onContestGrade && (
-                <p className="mt-1 text-[11px] text-muted-foreground">{t('cabinet.grade_contest_legend')}</p>
-            )}
-        </>
-    );
 }
 
 /** Matricea mediilor semestriale ale anului curent: disciplină × semestru + media generală. */

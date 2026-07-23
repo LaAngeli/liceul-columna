@@ -522,4 +522,6 @@ return [
     'Cum protejăm datele cu caracter personal ale elevilor, părinților și vizitatorilor, conform Legii nr. 133/2011.' => 'How we protect the personal data of students, parents and visitors, under Law no. 133/2011.',
     'Termenii de utilizare a site-ului columna.md și a serviciilor online ale Liceului Columna.' => 'The terms of use of the columna.md website and of Liceul Columna\'s online services.',
     'Ce cookie-uri folosim, în ce scop și cum îți gestionezi preferințele.' => 'What cookies we use, for what purpose and how to manage your preferences.',
+    'Semestrul I' => 'Term I',
+    'Semestrul II' => 'Term II',
 ];

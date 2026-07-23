@@ -23,20 +23,24 @@ class CabinetCatalogController extends Controller
 {
     use BuildsStudentCatalogData;
 
-    /** Modulul „Note": situația curentă (note pe discipline + MS) sau mediile semestriale ale anului. */
+    /**
+     * Modulul „Note": catalogul semestrului (note pe discipline SAU cronologic — o singură
+     * încărcare, două vederi comutabile instant) sau evoluția (medii semestriale + dinamica
+     * multi-an). `medii` e vechea denumire a secțiunii de evoluție — păstrată ca alias, ca
+     * linkurile și semnele de carte de dinainte să nu aterizeze în altă parte.
+     */
     public function grades(Request $request): Response
     {
-        [$module, $student] = $this->moduleContext($request, ['curente', 'medii']);
+        [$module, $student] = $this->moduleContext($request, ['curente', 'evolutie'], ['medii' => 'evolutie']);
 
-        $props = ['module' => $module, 'subjects' => null, 'averages' => null];
+        $props = ['module' => $module, 'gradebook' => null, 'evolution' => null];
 
         if ($student !== null && $module['section'] === 'curente') {
-            $student->load(['grades.subject', 'grades.term', 'grades.schoolClass']);
-            $props['subjects'] = $this->gradesBySubject($student);
+            $props['gradebook'] = $this->gradeBook($student);
         }
 
-        if ($student !== null && $module['section'] === 'medii') {
-            $props['averages'] = $this->semesterAveragesMatrix($student);
+        if ($student !== null && $module['section'] === 'evolutie') {
+            $props['evolution'] = $this->gradeEvolution($student);
         }
 
         return Inertia::render('cabinet/note', $props);
@@ -103,9 +107,10 @@ class CabinetCatalogController extends Controller
      * (`?sectiune=`, normalizată la prima secțiune a modulului).
      *
      * @param  list<string>  $sections
+     * @param  array<string, string>  $aliases  denumiri vechi de secțiune → cea de azi (linkuri salvate)
      * @return array{0: array{students: array<int, array{id: int, name: string, classLabel: string|null}>, currentId: int|null, section: string}, 1: Student|null}
      */
-    private function moduleContext(Request $request, array $sections): array
+    private function moduleContext(Request $request, array $sections, array $aliases = []): array
     {
         $user = $request->user('web');
 
@@ -129,6 +134,7 @@ class CabinetCatalogController extends Controller
         }
 
         $section = (string) $request->query('sectiune', $sections[0] ?? '');
+        $section = $aliases[$section] ?? $section;
         if ($sections !== [] && ! in_array($section, $sections, true)) {
             $section = $sections[0];
         }

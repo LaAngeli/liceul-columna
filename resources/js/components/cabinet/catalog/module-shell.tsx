@@ -80,7 +80,9 @@ export function ModuleShell({
                                         onClick={() => visit({ copil: student.id })}
                                         aria-pressed={active}
                                         className={cn(
-                                            'inline-flex shrink-0 items-center gap-2 rounded-full border py-1.5 pr-3.5 pl-1.5 text-sm font-medium transition-colors',
+                                            // min-h-11: comutatorul e vizibil pe telefon, deci intră sub
+                                            // pragul tactil de 44px al proiectului (avea 38px).
+                                            'inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border py-1.5 pr-3.5 pl-1.5 text-sm font-medium transition-colors',
                                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                                             active
                                                 ? 'border-primary bg-primary/10 text-primary'

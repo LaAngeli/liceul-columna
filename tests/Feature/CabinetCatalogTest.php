@@ -55,22 +55,35 @@ it('modulul Note se randează pentru părinte cu datele DOAR ale modulului', fun
             ->where('module.section', 'curente')
             ->where('module.currentId', $student->id)
             ->has('module.students', 1)
-            ->has('subjects')
+            ->has('gradebook')
             // Modulul încarcă DOAR datele lui — nimic din celelalte module.
             ->missing('homework')
             ->missing('weekly')
             ->missing('register'));
 });
 
-it('secțiunea „medii" încarcă matricea și NU notele curente', function () {
+it('secțiunea „evoluție" încarcă traseul și NU catalogul semestrului', function () {
     [$parent] = catalogFamily();
 
+    $this->actingAs($parent)->get(route('cabinet.grades', ['sectiune' => 'evolutie']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('module.section', 'evolutie')
+            ->where('gradebook', null)
+            ->has('evolution.matrix')
+            ->has('evolution.dynamics'));
+});
+
+it('vechiul link „medii" duce la evoluție, nu la secțiunea implicită', function () {
+    [$parent] = catalogFamily();
+
+    // Notificările și semnele de carte emise înainte de redenumire trebuie să aterizeze pe
+    // conținutul echivalent, nu pe „Note curente".
     $this->actingAs($parent)->get(route('cabinet.grades', ['sectiune' => 'medii']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('module.section', 'medii')
-            ->where('subjects', null)
-            ->has('averages'));
+            ->where('module.section', 'evolutie')
+            ->has('evolution'));
 });
 
 it('o secțiune necunoscută cade pe secțiunea implicită', function () {

@@ -22,7 +22,7 @@ use Illuminate\Support\Collection;
 class ComputeStudentDynamics
 {
     /** Pragul (puncte) peste care o diferență de medie contează ca tendință. */
-    private const TREND_THRESHOLD = 0.25;
+    private const TREND_THRESHOLD = Grades::TREND_THRESHOLD;
 
     /** Scăderea față de media istorică proprie care declanșează alerta timpurie. */
     private const ALERT_DROP = 0.5;

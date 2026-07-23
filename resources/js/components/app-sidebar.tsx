@@ -72,7 +72,7 @@ export function AppSidebar() {
             icon: BookOpenCheck,
             subs: [
                 { title: t('cabinet.catalog_sec_current', 'Note curente'), section: 'curente' },
-                { title: t('cabinet.catalog_sec_averages', 'Medii semestriale'), section: 'medii' },
+                { title: t('cabinet.gb_sec_evolution', 'Evoluție'), section: 'evolutie' },
             ],
         },
         {

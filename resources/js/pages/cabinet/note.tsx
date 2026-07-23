@@ -1,19 +1,22 @@
 import { Head } from '@inertiajs/react';
+import { GradeBook, GradeEvolution } from '@/components/cabinet/catalog/gradebook-views';
+import type { EvolutionData, GradeBookData } from '@/components/cabinet/catalog/gradebook-views';
 import { ModuleShell } from '@/components/cabinet/catalog/module-shell';
 import type { ModuleContext } from '@/components/cabinet/catalog/module-shell';
-import { GradesTable, SemesterAveragesTable } from '@/components/cabinet/catalog/situation-views';
-import type { SemesterAveragesMatrix, SubjectGrades } from '@/components/cabinet/catalog/situation-views';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 
 interface Props {
     module: ModuleContext;
-    subjects: SubjectGrades[] | null;
-    averages: SemesterAveragesMatrix | null;
+    gradebook: GradeBookData | null;
+    evolution: EvolutionData | null;
 }
 
-/** Modulul „Note": situația curentă (note + MS pe discipline) · mediile semestriale ale anului. */
-export default function GradesModulePage({ module, subjects, averages }: Props) {
+/**
+ * Modulul „Note": catalogul semestrului (note pe discipline / cronologic, comutabile instant)
+ * și evoluția rezultatelor (traseul multi-an + mediile semestriale).
+ */
+export default function GradesModulePage({ module, gradebook, evolution }: Props) {
     const t = useTranslations();
 
     return (
@@ -26,11 +29,11 @@ export default function GradesModulePage({ module, subjects, averages }: Props) 
                 module={module}
                 sections={[
                     { value: 'curente', label: t('cabinet.catalog_sec_current') },
-                    { value: 'medii', label: t('cabinet.catalog_sec_averages') },
+                    { value: 'evolutie', label: t('cabinet.gb_sec_evolution') },
                 ]}
             >
-                {module.section === 'curente' && subjects !== null && <GradesTable subjects={subjects} />}
-                {module.section === 'medii' && averages !== null && <SemesterAveragesTable averages={averages} />}
+                {module.section === 'curente' && gradebook !== null && <GradeBook data={gradebook} />}
+                {module.section === 'evolutie' && evolution !== null && <GradeEvolution evolution={evolution} />}
             </ModuleShell>
         </>
     );

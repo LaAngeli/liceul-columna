@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { BookOpen, ClipboardList, FileText, History, LayoutDashboard } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import type { GradeBookData } from '@/components/cabinet/catalog/gradebook-views';
 import type { HomeworkItem } from '@/components/cabinet/catalog/homework-views';
 import type { WeeklyData } from '@/components/cabinet/catalog/schedule-views';
 import type { AbsenceRegisterData, MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
@@ -43,17 +44,6 @@ interface StatusAck {
     canAcknowledge: boolean;
 }
 
-interface GradeItem {
-    id?: number;
-    value: string | null;
-    calificativ: string | null;
-    date: string | null;
-    term: number | null;
-    type?: string;
-    typeLabel?: string;
-    isSummative?: boolean;
-}
-
 interface Dynamics {
     general: { level: number; average: number }[];
     subjects: { subject: string; points: { level: number; value: number }[]; trend: Trend }[];
@@ -83,7 +73,7 @@ interface Props {
     motivationWindow: MotivationWindow | null;
 
     // Defer (sosesc progresiv într-un al 2-lea request după mount)
-    subjects?: { subject: string; average: number | null; mc?: number | null; summative?: number | null; items: GradeItem[] }[];
+    gradebook?: GradeBookData;
     absenceRegister?: AbsenceRegisterData;
     transcript?: { grade_level: number; subjects: { subject: string; sem1: string | null; sem2: string | null; annual: string | null }[] }[];
     homework?: HomeworkItem[];
@@ -186,7 +176,7 @@ export default function StudentProfile(props: Props) {
 
         // Ancorele de sub „Note" se mută doar când sosesc notele și absențele (secțiunile de
         // deasupra lor) — după ambele, poziția e definitivă și intenția s-a consumat.
-        if (props.subjects !== undefined && props.absenceRegister !== undefined) {
+        if (props.gradebook !== undefined && props.absenceRegister !== undefined) {
             pendingSection.current = null;
         }
 
@@ -195,7 +185,7 @@ export default function StudentProfile(props: Props) {
         const frame = requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
 
         return () => cancelAnimationFrame(frame);
-    }, [activeTab, props.subjects, props.absenceRegister]);
+    }, [activeTab, props.gradebook, props.absenceRegister]);
 
     function changeTab(next: string) {
         const tab = (VALID_TABS as readonly string[]).includes(next) ? (next as TabValue) : 'overview';
@@ -279,7 +269,7 @@ export default function StudentProfile(props: Props) {
                 <TabPanel value="situation" active={activeTab}>
                     <SituationTab
                         studentId={props.student.id}
-                        subjects={props.subjects}
+                        gradebook={props.gradebook}
                         absenceRegister={props.absenceRegister}
                         absencesMotivated={props.absencesMotivated}
                         absencesUnmotivated={props.absencesUnmotivated}

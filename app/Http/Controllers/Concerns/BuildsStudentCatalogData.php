@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Actions\ComputeStudentDynamics;
+use App\Actions\ComputeTermAverage;
 use App\Enums\SchoolCycle;
 use App\Http\Controllers\CabinetCatalogController;
 use App\Http\Controllers\CabinetController;
@@ -11,6 +13,7 @@ use App\Models\Grade;
 use App\Models\HomeworkAssignment;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\TermAverage;
 use App\Support\ContentTranslator;
@@ -153,6 +156,328 @@ trait BuildsStudentCatalogData
             'terms' => $terms->pluck('number')->map(fn ($n): int => (int) $n)->all(),
             'rows' => $rows,
             'general' => $general,
+        ];
+    }
+
+    /**
+     * CATALOGUL familiei pentru ANUL școlar curent — sursa modulului „Note".
+     *
+     * Trei lucruri pe care vederea dinainte nu le făcea, deși avea datele:
+     *   • **scopare pe semestru.** Chip-urile din Sem. I și Sem. II stăteau amestecate sub o medie
+     *     care descria doar semestrul curent (la un elev real: 58 + 64 de note, o singură medie).
+     *     Aici fiecare notă își poartă semestrul, iar sinteza se calculează PER semestru.
+     *   • **data notei în payload, nu în tooltip.** Vechiul UI o ascundea într-un `title`, adică
+     *     invizibilă pe telefon — exact publicul modulului.
+     *   • **sinteza pe server.** Media generală, tendința și disciplinele sub prag sunt reguli de
+     *     business (§2.4/§3), nu decorațiuni de UI: se calculează aici, unde sunt testabile.
+     *
+     * Mediile rămân cele OFICIALE din `term_averages` (calculate de {@see ComputeTermAverage}) —
+     * niciodată recalculate din note pe traseul de afișare, ca să nu apară două adevăruri.
+     *
+     * @return array{
+     *     terms: list<array{number: int, label: string, current: bool}>,
+     *     currentTerm: int|null,
+     *     subjects: list<array<string, mixed>>,
+     *     grades: list<array<string, mixed>>,
+     *     summary: array<int, array<string, mixed>>,
+     * }
+     */
+    protected function gradeBook(Student $student): array
+    {
+        $currentTerm = Term::query()->where('is_current', true)->first();
+
+        if ($currentTerm === null) {
+            return ['terms' => [], 'currentTerm' => null, 'subjects' => [], 'grades' => [], 'summary' => []];
+        }
+
+        $terms = Term::query()
+            ->where('academic_year_id', $currentTerm->academic_year_id)
+            ->orderBy('number')
+            ->get();
+
+        $termIds = $terms->pluck('id');
+        /** @var array<int, int> $termNumberById */
+        $termNumberById = $terms->pluck('number', 'id')->map(fn ($n): int => (int) $n)->all();
+
+        // Notele ANULUI, nu doar ale semestrului curent: comutarea Sem. I ↔ Sem. II rămâne
+        // instantă (client-side), fără încă un tur la server. Volumul e mic (~120 note/elev/an).
+        $grades = Grade::query()
+            ->where('student_id', $student->id)
+            ->whereNull('annulled_at') // §1: nota anulată rămâne în istoric, dar nu în cabinet
+            ->whereIn('term_id', $termIds)
+            ->with(['subject', 'teacher', 'schoolClass'])
+            ->orderByDesc('graded_on')
+            ->orderByDesc('id')
+            ->get();
+
+        $averages = TermAverage::query()
+            ->where('student_id', $student->id)
+            ->whereIn('term_id', $termIds)
+            ->with('subject')
+            ->get();
+
+        /** @var array<int, array<string, mixed>> $subjects indexat pe subject_id */
+        $subjects = [];
+        // Pe subject_id, NU pe nume: legacy-ul are discipline omonime legitime, iar pe nume
+        // notele lor s-ar contopi sub o medie aleasă arbitrar.
+        $register = function (int $subjectId, string $name) use (&$subjects): void {
+            $subjects[$subjectId] ??= [
+                'id' => $subjectId,
+                'name' => ContentTranslator::subject($name),
+                'terms' => [],
+                'teachers' => [],
+            ];
+        };
+
+        $subjectTeachers = $this->subjectTeachersFor($grades);
+
+        $rows = [];
+        foreach ($grades as $grade) {
+            $subjectId = (int) $grade->subject_id;
+            $register($subjectId, (string) $grade->subject->name);
+
+            $subjectTeacher = $subjectTeachers[$grade->school_class_id.'-'.$subjectId] ?? null;
+            if ($subjectTeacher !== null && ! in_array($subjectTeacher, $subjects[$subjectId]['teachers'], true)) {
+                $subjects[$subjectId]['teachers'][] = $subjectTeacher;
+            }
+
+            $rows[] = [
+                'id' => $grade->id,
+                'subjectId' => $subjectId,
+                'subject' => $subjects[$subjectId]['name'],
+                'term' => $termNumberById[$grade->term_id] ?? 0,
+                // `label` = ce se AFIȘEAZĂ (nota sau calificativul din primar), `value` = ce se
+                // poate calcula. Separate, ca UI-ul să nu reinventeze regula „FB nu are medie".
+                'label' => $grade->value !== null ? (string) (float) $grade->value : ($grade->calificativ ?? '—'),
+                'value' => $grade->value !== null ? (float) $grade->value : null,
+                'date' => $grade->graded_on->format('d.m.Y'),
+                'iso' => $grade->graded_on->toDateString(),
+                'weekday' => $grade->graded_on->translatedFormat('l'),
+                'monthLabel' => ucfirst($grade->graded_on->translatedFormat('F Y')),
+                'typeLabel' => $grade->evaluation_type->labelForCycle(
+                    SchoolCycle::fromGradeLevel((int) $grade->schoolClass->grade_level)
+                ),
+                'isSummative' => $grade->evaluation_type->isWeighted(),
+                // Cine a CONSEMNAT nota — doar când nota însăși o poartă. Nu se completează din
+                // alocare: aceea spune cine predă, nu cine a pus nota asta.
+                'teacher' => $grade->teacher?->full_name,
+                // Când a intrat nota în sistem (ora școlii) — ziua evaluării și ziua consemnării
+                // pot diferi, iar familia întreabă exact despre diferența asta.
+                'recordedAt' => SchoolCalendar::local($grade->created_at)?->format('d.m.Y, H:i'),
+            ];
+        }
+
+        // Mediile oficiale pe (disciplină, semestru) + componentele MS (§1.3: MC + sumativă).
+        foreach ($averages as $average) {
+            $subjectId = (int) $average->subject_id;
+            $register($subjectId, (string) $average->subject->name);
+            $number = $termNumberById[$average->term_id] ?? 0;
+
+            $subjects[$subjectId]['terms'][$number] = [
+                'average' => $average->value !== null ? (float) $average->value : null,
+                'mc' => $average->mc_value !== null ? (float) $average->mc_value : null,
+                'summative' => $average->summative_value !== null ? (float) $average->summative_value : null,
+            ];
+        }
+
+        foreach ($subjects as $subjectId => $subject) {
+            foreach ($terms as $term) {
+                $number = (int) $term->number;
+                $termGrades = array_values(array_filter(
+                    $rows,
+                    fn (array $row): bool => $row['subjectId'] === $subjectId && $row['term'] === $number,
+                ));
+
+                // Disciplina fără nicio urmă în semestru (nici notă, nici medie) nu apare deloc:
+                // altfel Sem. I ar afișa discipline care încep abia în Sem. II.
+                if ($termGrades === [] && ! isset($subject['terms'][$number])) {
+                    continue;
+                }
+
+                // Seria cronologică ASC a notelor NUMERICE — baza sparkline-ului și a tendinței.
+                // Calificativele (primar) nu intră: nu sunt cantități.
+                $series = array_values(array_filter(array_map(
+                    fn (array $row): ?float => $row['value'],
+                    array_reverse($termGrades),
+                ), fn (?float $value): bool => $value !== null));
+
+                $stats = $subject['terms'][$number] ?? ['average' => null, 'mc' => null, 'summative' => null];
+                $stats['count'] = count($termGrades);
+                $stats['series'] = $series;
+                $stats['trend'] = $this->seriesTrend($series);
+                $stats['lastDate'] = $termGrades[0]['date'] ?? null;
+                // Sub pragul de promovare (§3) → disciplina intră în riscul de corigență.
+                $stats['risk'] = $stats['average'] !== null && $stats['average'] < Grades::PASS;
+
+                $subjects[$subjectId]['terms'][$number] = $stats;
+            }
+        }
+
+        $subjects = array_values(array_filter($subjects, fn (array $subject): bool => $subject['terms'] !== []));
+        usort($subjects, fn (array $a, array $b): int => strcmp((string) $a['name'], (string) $b['name']));
+
+        $termList = [];
+        foreach ($terms as $term) {
+            $termList[] = [
+                'number' => (int) $term->number,
+                // Numele semestrului vine din BAZĂ, scris în RO de școală — trece prin dicționarul
+                // de conținut ca și numele disciplinelor, altfel interfața RU/EN afișa „Semestrul I".
+                'label' => ContentTranslator::string((string) $term->name),
+                'current' => (bool) $term->is_current,
+            ];
+        }
+
+        return [
+            'terms' => $termList,
+            'currentTerm' => (int) $currentTerm->number,
+            'subjects' => $subjects,
+            'grades' => $rows,
+            'summary' => $this->gradeBookSummary($subjects, $rows, $terms),
+        ];
+    }
+
+    /**
+     * Profesorul fiecărei perechi (clasă, disciplină), din ALOCĂRI — nu din nota în sine.
+     *
+     * Motivul: `grades.teacher_id` e populat doar pe notele introduse din panou (importul legacy
+     * nu aducea profesorul — 135 din ~52.000 de note). Alocarea răspunde totuși la întrebarea reală
+     * a familiei, „cine predă disciplina asta", iar nota își păstrează separat `teacher` = cine a
+     * consemnat-o efectiv, acolo unde se știe.
+     *
+     * Unde alocarea e AMBIGUĂ (grupe de engleză: aceeași pereche clasă+disciplină, profesori
+     * diferiți) nu se întoarce nimic: un nume greșit lângă o notă e mai rău decât niciun nume.
+     *
+     * Cheia hărții e `school_class_id`-`subject_id`.
+     *
+     * @param  Collection<int, Grade>  $grades
+     * @return array<string, string>
+     */
+    private function subjectTeachersFor(Collection $grades): array
+    {
+        $classIds = $grades->pluck('school_class_id')->filter()->unique()->values();
+
+        if ($classIds->isEmpty()) {
+            return [];
+        }
+
+        $map = [];
+        $assignments = TeachingAssignment::query()
+            ->whereIn('school_class_id', $classIds)
+            ->whereIn('subject_id', $grades->pluck('subject_id')->unique()->values())
+            ->with('teacher')
+            ->get()
+            ->groupBy(fn (TeachingAssignment $a): string => $a->school_class_id.'-'.$a->subject_id);
+
+        foreach ($assignments as $key => $group) {
+            $names = $group->map(fn (TeachingAssignment $a): ?string => $a->teacher?->full_name)
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($names->count() === 1) {
+                $map[(string) $key] = (string) $names->first();
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Sinteza fiecărui semestru: media generală (media aritmetică a MS-urilor, trunchiată — §2.4),
+     * câte note, câte discipline, câte sub prag, ultima notă și tendința față de semestrul anterior.
+     *
+     * @param  list<array<string, mixed>>  $subjects
+     * @param  list<array<string, mixed>>  $rows
+     * @param  Collection<int, Term>  $terms
+     * @return array<int, array<string, mixed>>
+     */
+    private function gradeBookSummary(array $subjects, array $rows, Collection $terms): array
+    {
+        $summary = [];
+        $previousAverage = null;
+
+        foreach ($terms as $term) {
+            $number = (int) $term->number;
+
+            $values = [];
+            $risk = 0;
+            $subjectCount = 0;
+            foreach ($subjects as $subject) {
+                $stats = $subject['terms'][$number] ?? null;
+                if ($stats === null) {
+                    continue;
+                }
+                $subjectCount++;
+                if ($stats['average'] !== null) {
+                    $values[] = (float) $stats['average'];
+                }
+                if ($stats['risk'] === true) {
+                    $risk++;
+                }
+            }
+
+            $average = $values !== [] ? Grades::truncate2(array_sum($values) / count($values)) : null;
+            $termRows = array_values(array_filter($rows, fn (array $row): bool => $row['term'] === $number));
+
+            $summary[$number] = [
+                'average' => $average,
+                // Tendința semestrului = față de media generală a semestrului ANTERIOR din același
+                // an; la primul semestru nu există termen de comparație, deci rămâne null.
+                'trend' => $average !== null && $previousAverage !== null
+                    ? Grades::trend($previousAverage, $average)
+                    : null,
+                'previousAverage' => $previousAverage,
+                'gradesCount' => count($termRows),
+                'subjectsCount' => $subjectCount,
+                'riskCount' => $risk,
+                'lastDate' => $termRows[0]['date'] ?? null,
+            ];
+
+            if ($average !== null) {
+                $previousAverage = $average;
+            }
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Tendința unei serii de note dintr-un semestru: prima jumătate vs ultima jumătate (nota din
+     * mijloc, la număr impar, nu intră în niciuna). Sub 4 note nu se pronunță — două note nu fac
+     * o traiectorie, iar o săgeată falsă e mai rea decât absența ei.
+     *
+     * @param  list<float>  $series
+     */
+    private function seriesTrend(array $series): ?string
+    {
+        $count = count($series);
+
+        if ($count < 4) {
+            return null;
+        }
+
+        $half = intdiv($count, 2);
+        $first = array_slice($series, 0, $half);
+        $last = array_slice($series, $count - $half);
+
+        return Grades::trend(
+            array_sum($first) / count($first),
+            array_sum($last) / count($last),
+        );
+    }
+
+    /**
+     * EVOLUȚIA rezultatelor: mediile semestriale ale anului curent (matricea disciplină × semestru)
+     * + dinamica multi-an din foaia matricolă ({@see ComputeStudentDynamics}).
+     * Cele două împreună acoperă și „cum stă acum", și „de unde vine".
+     *
+     * @return array{matrix: array<string, mixed>, dynamics: array<string, mixed>}
+     */
+    protected function gradeEvolution(Student $student): array
+    {
+        return [
+            'matrix' => $this->semesterAveragesMatrix($student),
+            'dynamics' => app(ComputeStudentDynamics::class)->for($student),
         ];
     }
 
