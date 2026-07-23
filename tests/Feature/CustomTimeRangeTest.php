@@ -128,6 +128,40 @@ it('perioadă FĂRĂ rezultate: lista e goală, dar filtrul rămâne activ și e
         ->and($page->instance()->timeCustomIsEmpty())->toBeFalse();
 });
 
+it('calendarul aplică ambele capete într-o singură interacțiune (setCustomRange)', function () {
+    $inside = Grade::factory()->for($this->student)->for($this->subject)->for($this->class)->create(['graded_on' => '2025-11-12']);
+    $outside = Grade::factory()->for($this->student)->for($this->subject)->for($this->class)->create(['graded_on' => '2025-11-25']);
+
+    $page = customRangePage()->call('openCatalogEntity', $this->class->id);
+
+    // Prima apăsare pe o zi: selecție validă de o singură zi, aplicată pe loc.
+    $page->call('setCustomRange', '2025-11-12', '2025-11-12');
+
+    expect($page->instance()->timeMode())->toBe('personalizat')
+        ->and($page->instance()->timePeriodLabel())->toContain('12');
+
+    $page->assertCanSeeTableRecords([$inside])->assertCanNotSeeTableRecords([$outside]);
+
+    // A doua apăsare extinde intervalul; capetele inversate se normalizează pe aceeași cale.
+    $page->call('setCustomRange', '2025-11-25', '2025-11-10');
+
+    expect($page->instance()->timeFrom)->toBe('2025-11-10')
+        ->and($page->instance()->timeUntil)->toBe('2025-11-25');
+
+    $page->assertCanSeeTableRecords([$inside, $outside]);
+});
+
+it('calendarul primește lunile și zilele TRADUSE de pe server (componenta n-are cuvinte proprii)', function () {
+    $locale = customRangePage()->instance()->timeCalendarLocale();
+
+    expect($locale['months'])->toHaveCount(12)
+        ->and($locale['weekdays'])->toHaveCount(7)
+        ->and($locale['months'][0])->toBe('Ianuarie')
+        // Săptămâna începe LUNI: prima etichetă e ziua de luni, nu duminica.
+        ->and($locale['weekdays'][0])->toBe('Lun')
+        ->and($locale['today'])->toBe(now()->toDateString());
+});
+
 it('capete INVERSATE se schimbă între ele — o greșeală de tastare nu întoarce zero rezultate', function () {
     $grade = Grade::factory()->for($this->student)->for($this->subject)->for($this->class)->create(['graded_on' => '2025-11-12']);
 

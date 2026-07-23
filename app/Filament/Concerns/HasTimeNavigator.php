@@ -140,12 +140,57 @@ trait HasTimeNavigator
         }
     }
 
+    /**
+     * Aplică intervalul ales DIN CALENDAR (o singură interacțiune: capetele vin împreună).
+     * Normalizarea rămâne aceeași cale ca la valorile venite din URL — calendarul e o interfață
+     * peste aceeași stare, nu o a doua sursă de adevăr.
+     */
+    public function setCustomRange(?string $from, ?string $until): void
+    {
+        $this->timeMode = self::TIME_MODE_CUSTOM;
+        $this->timeFrom = $from;
+        $this->timeUntil = $until;
+
+        $this->normalizeCustomRange();
+    }
+
     /** Golește intervalul liber, păstrând modul activ (utilizatorul reia selecția). */
     public function clearCustomRange(): void
     {
         $this->timeFrom = null;
         $this->timeUntil = null;
         $this->resetTable();
+    }
+
+    /**
+     * Datele de LOCALIZARE ale calendarului (nume de luni și de zile, prima zi a săptămânii),
+     * traduse pe SERVER: componenta din browser nu conține niciun cuvânt — merge la fel în RO/RU/EN.
+     *
+     * @return array{months: array<int, string>, weekdays: array<int, string>, today: string}
+     */
+    public function timeCalendarLocale(): array
+    {
+        $months = [];
+        $weekdays = [];
+
+        $anchor = CarbonImmutable::create(2026, 1, 1);
+
+        for ($month = 1; $month <= 12; $month++) {
+            $months[] = ucfirst($anchor->month($month)->translatedFormat('F'));
+        }
+
+        // Săptămâna începe LUNI (convenția școlii); prima zi a săptămânii lui Carbon urmează locale.
+        $monday = $anchor->startOfWeek(CarbonImmutable::MONDAY);
+
+        for ($day = 0; $day < 7; $day++) {
+            $weekdays[] = ucfirst($monday->addDays($day)->translatedFormat('D'));
+        }
+
+        return [
+            'months' => $months,
+            'weekdays' => $weekdays,
+            'today' => CarbonImmutable::today()->toDateString(),
+        ];
     }
 
     /** Pasul perioadei: ±1 zi / săptămână / lună, după modul activ. */

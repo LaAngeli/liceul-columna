@@ -29,60 +29,7 @@
     </x-filament::tabs>
 
     @if ($this->timeIsCustom())
-        {{-- Pe telefon: rând propriu, câmpuri late și înalte de 44px (ținta tactilă a proiectului). --}}
-        <div class="flex flex-wrap items-end gap-2 max-sm:w-full">
-            <label class="flex flex-col gap-1 max-sm:flex-1">
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ __('panel.homework_time.from') }}
-                </span>
-                <x-filament::input.wrapper>
-                    <x-filament::input
-                        type="date"
-                        wire:model.live="timeFrom"
-                        max="{{ $this->timeUntil }}"
-                        class="max-sm:min-h-11"
-                        :aria-label="__('panel.homework_time.from')"
-                    />
-                </x-filament::input.wrapper>
-            </label>
-
-            <label class="flex flex-col gap-1 max-sm:flex-1">
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ __('panel.homework_time.until') }}
-                </span>
-                <x-filament::input.wrapper>
-                    <x-filament::input
-                        type="date"
-                        wire:model.live="timeUntil"
-                        min="{{ $this->timeFrom }}"
-                        class="max-sm:min-h-11"
-                        :aria-label="__('panel.homework_time.until')"
-                    />
-                </x-filament::input.wrapper>
-            </label>
-
-            @unless ($this->timeCustomIsEmpty())
-                <x-filament::button
-                    size="sm"
-                    color="gray"
-                    icon="heroicon-m-x-mark"
-                    wire:click="clearCustomRange"
-                    class="max-sm:min-h-11"
-                >
-                    {{ __('panel.homework_time.clear_range') }}
-                </x-filament::button>
-            @endunless
-        </div>
-
-        <p @class([
-            'text-sm max-sm:w-full',
-            'text-gray-500 dark:text-gray-400' => $this->timeCustomIsEmpty(),
-            'font-medium' => ! $this->timeCustomIsEmpty(),
-        ])>
-            {{ $this->timeCustomIsEmpty()
-                ? __('panel.homework_time.custom_hint')
-                : $this->timePeriodLabel() }}
-        </p>
+        @include('filament.catalog.partials.date-range-calendar')
     @elseif ($this->timeMode() !== null)
         <div class="flex items-center gap-1">
             <x-filament::icon-button
