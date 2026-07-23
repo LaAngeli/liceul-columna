@@ -6,7 +6,9 @@ import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import PublicLayout from '@/layouts/public-layout';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+// Fallback-ul e numele instituției, NU „Laravel": dacă VITE_APP_NAME lipsește la build
+// (producție fără .env, CI, clonă nouă), titlul din tab rămâne corect pentru utilizator.
+const appName = import.meta.env.VITE_APP_NAME || 'Liceul Columna';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
