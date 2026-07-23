@@ -65,10 +65,7 @@ class BroadcastAnnouncement
             AnnouncementAudience::Families => $this->familyAccounts(),
             AnnouncementAudience::School => $this->allAccounts(),
             AnnouncementAudience::Classes => $this->classFamilies($announcement->schoolClasses()->pluck('school_classes.id')->all()),
-            AnnouncementAudience::Students => $this->nominalFamilies(
-                $announcement->students()->pluck('students.id')->all(),
-                $announcement->audience_reach ?? AudienceReach::Both,
-            ),
+            AnnouncementAudience::Students => $this->nominalRecipients($announcement),
             AnnouncementAudience::SubjectTeachers => $this->subjectTeachers($announcement->subject_id),
             AnnouncementAudience::Users => $announcement->users()->get(),
         };
@@ -86,6 +83,7 @@ class BroadcastAnnouncement
      * @param  array<int, int|string>  $classIds
      * @param  array<int, int|string>  $studentIds
      * @param  array<int, int|string>  $userIds
+     * @param  array<int, int|string>  $guardianIds  părinții aleși direct (reach = doar părinții)
      */
     public function previewCount(
         mixed $audience,
@@ -94,6 +92,7 @@ class BroadcastAnnouncement
         mixed $reach = null,
         mixed $subjectId = null,
         array $userIds = [],
+        array $guardianIds = [],
     ): ?int {
         $audienceCase = is_string($audience) ? AnnouncementAudience::tryFrom($audience) : null;
 
@@ -107,7 +106,9 @@ class BroadcastAnnouncement
             AnnouncementAudience::Families => $this->familyAccounts(),
             AnnouncementAudience::School => $this->allAccounts(),
             AnnouncementAudience::Classes => $this->classFamilies(self::ids($classIds)),
-            AnnouncementAudience::Students => $this->nominalFamilies(self::ids($studentIds), $reachCase),
+            AnnouncementAudience::Students => $reachCase === AudienceReach::Guardians
+                ? User::query()->whereKey(self::ids($guardianIds))->get()
+                : $this->nominalFamilies(self::ids($studentIds), $reachCase),
             AnnouncementAudience::SubjectTeachers => $this->subjectTeachers(is_numeric($subjectId) ? (int) $subjectId : null),
             AnnouncementAudience::Users => User::query()->whereKey(self::ids($userIds))->get(),
         };
@@ -116,6 +117,32 @@ class BroadcastAnnouncement
             ->filter(fn (User $user): bool => $user->suspended_at === null)
             ->unique('id')
             ->count();
+    }
+
+    /**
+     * Destinatarii audienței nominale „Elevi/Părinți": la reach = doar părinții, autorul a ales
+     * PĂRINȚI CONCREȚI (stocați în pivotul de conturi); la elev/ambii — elevii aleși, extinși la
+     * familie după reach. Fallback defensiv: un anunț vechi cu reach=părinți dar FĂRĂ conturi alese
+     * (pivotul de elevi populat, din datele dinaintea acestei schimbări) cade pe familiile elevilor.
+     *
+     * @return Collection<int, User>
+     */
+    private function nominalRecipients(Announcement $announcement): Collection
+    {
+        $reach = $announcement->audience_reach ?? AudienceReach::Both;
+
+        if ($reach === AudienceReach::Guardians) {
+            $chosen = $announcement->users()->get();
+
+            if ($chosen->isNotEmpty()) {
+                return $chosen;
+            }
+        }
+
+        return $this->nominalFamilies(
+            $announcement->students()->pluck('students.id')->all(),
+            $reach,
+        );
     }
 
     /**

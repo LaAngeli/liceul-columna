@@ -100,7 +100,7 @@ return [
         'global' => 'Toată școala — toți elevii și părinții',
         'grade_level' => 'Un an de studiu — toate clasele paralele',
         'school_class' => 'O singură clasă',
-        'students' => 'Elevi anume — aleși nominal',
+        'students' => 'Elevi/Părinți',
     ],
     'audience_reach' => [
         'student' => 'Doar elevul',
@@ -111,7 +111,7 @@ return [
         'families' => 'Toate familiile — părinți și elevi',
         'school' => 'Toată instituția — familii + personal',
         'classes' => 'Clase alese',
-        'students' => 'Elevi anume — aleși nominal',
+        'students' => 'Elevi/Părinți',
         'subject_teachers' => 'Profesorii unei discipline',
         'users' => 'Conturi anume — alese direct',
     ],

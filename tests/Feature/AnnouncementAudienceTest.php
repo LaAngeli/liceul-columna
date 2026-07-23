@@ -14,6 +14,7 @@ use App\Enums\AudienceReach;
 use App\Enums\UserRole;
 use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Filament\Resources\Announcements\Pages\CreateAnnouncement;
+use App\Filament\Resources\Announcements\Schemas\AnnouncementForm;
 use App\Models\AcademicYear;
 use App\Models\Announcement;
 use App\Models\Enrollment;
@@ -227,4 +228,75 @@ it('anunțurile existente (pre-migrare) rămân pe „toate familiile" — defau
     $legacy = Announcement::factory()->create();
 
     expect($legacy->refresh()->audience)->toBe(AnnouncementAudience::Families);
+});
+
+it('reach „doar părinții" cu PĂRINȚI ALEȘI DIRECT: exact conturile alese primesc, nu toată familia', function () {
+    [$student, $studentUser, $parent] = audienceStudent($this);
+    // Al doilea părinte al aceluiași copil — NEales: nu primește.
+    $otherParent = User::factory()->create();
+    $otherParent->assignRole(UserRole::Parinte->value);
+    $otherParent->students()->attach($student->id);
+
+    $announcement = Announcement::factory()->create([
+        'audience' => AnnouncementAudience::Students,
+        'audience_reach' => AudienceReach::Guardians,
+    ]);
+    // Fluxul nou: părinții aleși pe nume, stocați în pivotul de conturi.
+    AnnouncementResource::syncAudience($announcement, [], [], [], [$parent->id]);
+
+    $ids = app(BroadcastAnnouncement::class)->resolveRecipients($announcement)->pluck('id');
+
+    expect($ids)->toContain($parent->id)
+        ->and($ids)->not->toContain($otherParent->id)
+        ->and($ids)->not->toContain($studentUser->id)
+        ->and($announcement->students()->count())->toBe(0);
+});
+
+it('conducerea creează PRIN FORMULAR un anunț „doar părinții" cu părinți aleși direct', function () {
+    [, , $parent] = audienceStudent($this);
+
+    $ao = User::factory()->create();
+    $ao->assignRole(UserRole::AdministratorOperational->value);
+    actingAs($ao);
+
+    Livewire::test(CreateAnnouncement::class)
+        ->fillForm([
+            'title' => 'Ședință cu părinți aleși',
+            'body' => 'Detalii în cabinet.',
+            'audience' => AnnouncementAudience::Students->value,
+            'audience_reach' => AudienceReach::Guardians->value,
+            'guardians' => [$parent->id],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $announcement = Announcement::query()->where('title', 'Ședință cu părinți aleși')->firstOrFail();
+
+    expect($announcement->users()->pluck('users.id')->all())->toBe([$parent->id])
+        ->and($announcement->students()->count())->toBe(0)
+        ->and(app(BroadcastAnnouncement::class)->resolveRecipients($announcement)->pluck('id')->all())
+        ->toBe([$parent->id]);
+});
+
+it('căutarea pe server întoarce potriviri exacte, în zona corectă (elevi / părinți / conturi)', function () {
+    [$student, , $parent] = audienceStudent($this);
+    $student->update(['last_name' => 'Frunz- Unicat', 'first_name' => 'Mirel']);
+    $parent->update(['name' => 'Frunza-Parinte Viorica']);
+
+    $teacherUser = User::factory()->create(['name' => 'Frunza-Prof Ion']);
+    $teacherUser->assignRole(UserRole::Profesor->value);
+
+    $students = AnnouncementForm::searchStudents('Frunz');
+    $guardians = AnnouncementForm::searchGuardians('Frunza');
+    $users = AnnouncementForm::searchUsers('Frunza-Prof');
+
+    // Elevii: doar elevul, cu clasa în etichetă; NU părintele, NU profesorul.
+    expect($students)->toHaveKey($student->id)
+        ->and(implode(' ', $students))->toContain('Frunz')
+        ->and($guardians)->toHaveKey($parent->id)
+        ->and($guardians)->not->toHaveKey($teacherUser->id)
+        ->and($users)->toHaveKey($teacherUser->id);
+
+    // Sub 2 caractere → nicio interogare, listă goală (nu toată școala).
+    expect(AnnouncementForm::searchStudents('F'))->toBe([]);
 });

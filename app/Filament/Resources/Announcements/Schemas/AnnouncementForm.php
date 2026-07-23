@@ -55,10 +55,62 @@ class AnnouncementForm
                     ->afterStateUpdated(function (Set $set): void {
                         $set('school_classes', []);
                         $set('students', []);
+                        $set('guardians', []);
                         $set('users', []);
                         $set('subject_id', null);
                         $set('audience_reach', AudienceReach::Both->value);
                     }),
+
+                // „Cine, din familie" stă ÎNAINTEA selecției de persoane: alegerea lui decide CE
+                // selectezi mai jos — elevi (reach elev/ambii) sau părinți concreți (reach părinți).
+                Select::make('audience_reach')
+                    ->label(__('panel.forms.announcement.reach'))
+                    ->options(AudienceReach::options())
+                    ->default(AudienceReach::Both->value)
+                    ->native(false)
+                    ->live()
+                    ->required(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Students->value)
+                    ->visible(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Students->value)
+                    // Comutarea elevi↔părinți golește selecția rămasă din celălalt mod.
+                    ->afterStateUpdated(function (Set $set): void {
+                        $set('students', []);
+                        $set('guardians', []);
+                    })
+                    ->helperText(__('panel.forms.announcement.reach_hint')),
+
+                // Elevii vizați (reach = elev sau ambii). Căutare pe SERVER, cu potriviri exacte pe
+                // nume — nu o listă statică de sute de opțiuni filtrate în browser.
+                Select::make('students')
+                    ->label(__('panel.forms.announcement.students'))
+                    ->getSearchResultsUsing(fn (string $search): array => self::searchStudents($search))
+                    ->getOptionLabelsUsing(fn (array $values): array => self::studentLabels($values))
+                    ->multiple()
+                    ->searchable()
+                    ->native(false)
+                    ->live()
+                    ->required(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Students->value
+                        && $get('audience_reach') !== AudienceReach::Guardians->value)
+                    ->visible(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Students->value
+                        && $get('audience_reach') !== AudienceReach::Guardians->value)
+                    ->helperText(fn (Get $get): string => $get('audience_reach') === AudienceReach::Student->value
+                        ? (string) __('panel.forms.announcement.students_hint_student')
+                        : (string) __('panel.forms.announcement.students_hint_both')),
+
+                // Părinții vizați (reach = doar părinții): se aleg PĂRINȚI CONCREȚI, nu elevi —
+                // un părinte cu doi copii e un singur destinatar, ales pe numele lui.
+                Select::make('guardians')
+                    ->label(__('panel.forms.announcement.guardians'))
+                    ->getSearchResultsUsing(fn (string $search): array => self::searchGuardians($search))
+                    ->getOptionLabelsUsing(fn (array $values): array => self::userLabels($values))
+                    ->multiple()
+                    ->searchable()
+                    ->native(false)
+                    ->live()
+                    ->required(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Students->value
+                        && $get('audience_reach') === AudienceReach::Guardians->value)
+                    ->visible(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Students->value
+                        && $get('audience_reach') === AudienceReach::Guardians->value)
+                    ->helperText(__('panel.forms.announcement.guardians_hint')),
 
                 Select::make('school_classes')
                     ->label(__('panel.forms.announcement.classes'))
@@ -70,28 +122,6 @@ class AnnouncementForm
                     ->required(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Classes->value)
                     ->visible(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Classes->value)
                     ->helperText(__('panel.forms.announcement.classes_hint')),
-
-                Select::make('students')
-                    ->label(__('panel.forms.announcement.students'))
-                    ->options(fn (): array => self::studentOptions())
-                    ->getOptionLabelsUsing(fn (array $values): array => self::studentLabels($values))
-                    ->multiple()
-                    ->searchable()
-                    ->native(false)
-                    ->live()
-                    ->required(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Students->value)
-                    ->visible(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Students->value)
-                    ->helperText(__('panel.forms.announcement.students_hint')),
-
-                Select::make('audience_reach')
-                    ->label(__('panel.forms.announcement.reach'))
-                    ->options(AudienceReach::options())
-                    ->default(AudienceReach::Both->value)
-                    ->native(false)
-                    ->live()
-                    ->required(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Students->value)
-                    ->visible(fn (Get $get): bool => $get('audience') === AnnouncementAudience::Students->value)
-                    ->helperText(__('panel.forms.announcement.reach_hint')),
 
                 Select::make('subject_id')
                     ->label(__('panel.forms.announcement.subject'))
@@ -105,7 +135,7 @@ class AnnouncementForm
 
                 Select::make('users')
                     ->label(__('panel.forms.announcement.users'))
-                    ->options(fn (): array => self::userOptions())
+                    ->getSearchResultsUsing(fn (string $search): array => self::searchUsers($search))
                     ->getOptionLabelsUsing(fn (array $values): array => self::userLabels($values))
                     ->multiple()
                     ->searchable()
@@ -126,6 +156,7 @@ class AnnouncementForm
                         $get('audience_reach'),
                         $get('subject_id'),
                         is_array($get('users')) ? $get('users') : [],
+                        is_array($get('guardians')) ? $get('guardians') : [],
                     )),
             ]);
     }
@@ -136,6 +167,7 @@ class AnnouncementForm
      * @param  array<int, int|string>  $classIds
      * @param  array<int, int|string>  $studentIds
      * @param  array<int, int|string>  $userIds
+     * @param  array<int, int|string>  $guardianIds
      */
     public static function audienceSummary(
         mixed $audience,
@@ -144,17 +176,20 @@ class AnnouncementForm
         mixed $reach,
         mixed $subjectId,
         array $userIds,
+        array $guardianIds = [],
     ): string {
-        $count = app(BroadcastAnnouncement::class)->previewCount($audience, $classIds, $studentIds, $reach, $subjectId, $userIds);
+        $count = app(BroadcastAnnouncement::class)->previewCount($audience, $classIds, $studentIds, $reach, $subjectId, $userIds, $guardianIds);
 
         if ($count === null) {
             return (string) __('panel.forms.announcement.summary_pick_audience');
         }
 
+        $guardiansMode = $reach === AudienceReach::Guardians->value;
+
         // Selecție încă goală la tipurile care cer una → îndrumare, nu un „0 conturi" derutant.
         $needsSelection = match ($audience) {
             AnnouncementAudience::Classes->value => $classIds === [],
-            AnnouncementAudience::Students->value => $studentIds === [],
+            AnnouncementAudience::Students->value => $guardiansMode ? $guardianIds === [] : $studentIds === [],
             AnnouncementAudience::SubjectTeachers->value => ! is_numeric($subjectId),
             AnnouncementAudience::Users->value => $userIds === [],
             default => false,
@@ -191,13 +226,19 @@ class AnnouncementForm
     }
 
     /**
-     * Elevii anului curent, „Nume — Clasa". Anunțurile sunt gate-uite pe conducere
-     * (canPublishContent) — fără filtrare pe diriginte.
+     * Căutare pe SERVER a elevilor (anul curent, înmatriculați activ), pe nume — „Nume — Clasa".
+     * Anunțurile sunt gate-uite pe conducere (canPublishContent) — fără filtrare pe diriginte.
      *
      * @return array<int, string>
      */
-    private static function studentOptions(): array
+    public static function searchStudents(string $search): array
     {
+        $search = trim($search);
+
+        if (mb_strlen($search) < 2) {
+            return [];
+        }
+
         $yearId = SchoolCalendar::currentYearId();
 
         $options = [];
@@ -205,7 +246,17 @@ class AnnouncementForm
         Enrollment::query()
             ->when($yearId !== null, fn ($query) => $query->where('academic_year_id', $yearId))
             ->whereNull('left_on')
+            // Fiecare cuvânt tastat trebuie să se regăsească în nume SAU prenume — acoperă și
+            // căutarea „Nume Prenume" completă, portabil (fără CONCAT, absent în SQLite-ul testelor).
+            ->whereHas('student', function ($student) use ($search): void {
+                foreach (preg_split('/\s+/', $search) ?: [] as $word) {
+                    $student->where(fn ($inner) => $inner
+                        ->where('last_name', 'like', "%{$word}%")
+                        ->orWhere('first_name', 'like', "%{$word}%"));
+                }
+            })
             ->with(['student', 'schoolClass'])
+            ->limit(50)
             ->get()
             ->each(function (Enrollment $enrollment) use (&$options): void {
                 if ($enrollment->student === null) {
@@ -220,6 +271,40 @@ class AnnouncementForm
             });
 
         asort($options);
+
+        return $options;
+    }
+
+    /**
+     * Căutare pe SERVER a PĂRINȚILOR (conturi cu rol părinte, active), pe nume — cu copiii lor în
+     * etichetă, ca omonimii să fie distinși.
+     *
+     * @return array<int, string>
+     */
+    public static function searchGuardians(string $search): array
+    {
+        $search = trim($search);
+
+        if (mb_strlen($search) < 2) {
+            return [];
+        }
+
+        $options = [];
+
+        User::query()
+            ->whereNull('suspended_at')
+            ->whereHas('roles', fn ($query) => $query->where('name', UserRole::Parinte->value))
+            ->where('name', 'like', "%{$search}%")
+            ->with('students')
+            ->orderBy('name')
+            ->limit(50)
+            ->get()
+            ->each(function (User $user) use (&$options): void {
+                $children = $user->students->map(fn (Student $student): string => $student->full_name)->implode(', ');
+                $options[$user->id] = $children !== ''
+                    ? $user->name.' — '.__('panel.forms.announcement.guardian_of', ['children' => $children])
+                    : $user->name;
+            });
 
         return $options;
     }
@@ -255,18 +340,27 @@ class AnnouncementForm
     }
 
     /**
-     * Toate conturile active, „Nume (rol)" — profesori, părinți individuali, grupuri mixte.
+     * Căutare pe SERVER a conturilor active, pe nume — „Nume (rol)": profesori, părinți
+     * individuali, grupuri mixte.
      *
      * @return array<int, string>
      */
-    private static function userOptions(): array
+    public static function searchUsers(string $search): array
     {
+        $search = trim($search);
+
+        if (mb_strlen($search) < 2) {
+            return [];
+        }
+
         $options = [];
 
         $users = User::query()
             ->whereNull('suspended_at')
+            ->where('name', 'like', "%{$search}%")
             ->with('roles')
             ->orderBy('name')
+            ->limit(50)
             ->get();
 
         foreach ($users as $user) {

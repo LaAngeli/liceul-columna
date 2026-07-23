@@ -34,6 +34,7 @@ class CreateAnnouncement extends CreateRecord
                 is_array($this->data['school_classes'] ?? null) ? $this->data['school_classes'] : [],
                 is_array($this->data['students'] ?? null) ? $this->data['students'] : [],
                 is_array($this->data['users'] ?? null) ? $this->data['users'] : [],
+                is_array($this->data['guardians'] ?? null) ? $this->data['guardians'] : [],
             );
         }
     }

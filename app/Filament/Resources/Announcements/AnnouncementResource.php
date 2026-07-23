@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Announcements;
 
 use App\Enums\AnnouncementAudience;
+use App\Enums\AudienceReach;
 use App\Filament\Resources\Announcements\Pages\CreateAnnouncement;
 use App\Filament\Resources\Announcements\Pages\EditAnnouncement;
 use App\Filament\Resources\Announcements\Pages\ListAnnouncements;
@@ -123,7 +124,7 @@ class AnnouncementResource extends Resource
             $data['subject_id'] = null;
         }
 
-        unset($data['school_classes'], $data['students'], $data['users']);
+        unset($data['school_classes'], $data['students'], $data['guardians'], $data['users']);
 
         return $data;
     }
@@ -131,24 +132,32 @@ class AnnouncementResource extends Resource
     /**
      * Sincronizează pivoturile audienței din starea formularului: fiecare tip își umple DOAR
      * pivotul lui, celelalte se golesc (o schimbare de audiență pe ciornă nu lasă resturi).
+     * La „Elevi/Părinți" cu reach = doar părinții, pivotul de CONTURI poartă părinții aleși
+     * direct, iar cel de elevi se golește (și invers pentru reach elev/ambii).
      *
      * @param  array<int, int|string>  $classIds
      * @param  array<int, int|string>  $studentIds
      * @param  array<int, int|string>  $userIds
+     * @param  array<int, int|string>  $guardianIds
      */
-    public static function syncAudience(Announcement $announcement, array $classIds, array $studentIds, array $userIds): void
+    public static function syncAudience(Announcement $announcement, array $classIds, array $studentIds, array $userIds, array $guardianIds = []): void
     {
+        $nominal = $announcement->audience === AnnouncementAudience::Students;
+        $guardiansMode = $nominal && $announcement->audience_reach === AudienceReach::Guardians;
+
         $announcement->schoolClasses()->sync(
             $announcement->audience === AnnouncementAudience::Classes ? self::ids($classIds) : [],
         );
 
         $announcement->students()->sync(
-            $announcement->audience === AnnouncementAudience::Students ? self::ids($studentIds) : [],
+            $nominal && ! $guardiansMode ? self::ids($studentIds) : [],
         );
 
-        $announcement->users()->sync(
-            $announcement->audience === AnnouncementAudience::Users ? self::ids($userIds) : [],
-        );
+        $announcement->users()->sync(match (true) {
+            $announcement->audience === AnnouncementAudience::Users => self::ids($userIds),
+            $guardiansMode => self::ids($guardianIds),
+            default => [],
+        });
     }
 
     /**

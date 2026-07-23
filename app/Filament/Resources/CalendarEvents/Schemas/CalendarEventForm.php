@@ -71,12 +71,27 @@ class CalendarEventForm
                     ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::SchoolClass->value)
                     ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::SchoolClass->value),
 
-                // Elevi ANUME: unul sau mai mulți, aleși nominal. Salvarea relației (pivot) se face
-                // în paginile Create/Edit ({@see CalendarEventResource::syncStudents}) — câmpul nu e
-                // coloană. Conducerea alege dintre elevii anului curent; dirigintele doar ai lui.
+                // Cine, din familia fiecărui elev vizat, VEDE evenimentul — pus ÎNAINTEA selecției:
+                // alegerea lui schimbă instrucțiunile de mai jos. (În calendar se aleg mereu ELEVI,
+                // fiindcă evenimentul trăiește pe calendarul copilului; reach-ul decide cine din
+                // familie îl vede — spre deosebire de Anunțuri, unde la „doar părinții" se aleg
+                // părinți concreți.)
+                Select::make('audience_reach')
+                    ->label(__('panel.forms.calendar_event.reach'))
+                    ->options(AudienceReach::options())
+                    ->default(AudienceReach::Both->value)
+                    ->native(false)
+                    ->live()
+                    ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
+                    ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
+                    ->helperText(__('panel.forms.calendar_event.reach_hint')),
+
+                // Elevii vizați — căutare pe SERVER, pe nume (nu listă statică de sute de opțiuni).
+                // Salvarea relației (pivot) se face în paginile Create/Edit
+                // ({@see CalendarEventResource::syncStudents}) — câmpul nu e coloană.
                 Select::make('students')
                     ->label(__('panel.forms.calendar_event.students'))
-                    ->options(fn (): array => self::studentOptions())
+                    ->getSearchResultsUsing(fn (string $search): array => self::searchStudents($search))
                     ->getOptionLabelsUsing(fn (array $values): array => self::studentLabels($values))
                     ->multiple()
                     ->searchable()
@@ -101,19 +116,12 @@ class CalendarEventForm
                             $fail((string) __('panel.forms.calendar_event.students_out_of_scope'));
                         }
                     })
-                    ->helperText(__('panel.forms.calendar_event.students_hint')),
-
-                // Cine, din familia fiecărui elev vizat, vede evenimentul: elevul singur, părinții
-                // sau ambii. Se aplică DOAR audienței nominale.
-                Select::make('audience_reach')
-                    ->label(__('panel.forms.calendar_event.reach'))
-                    ->options(AudienceReach::options())
-                    ->default(AudienceReach::Both->value)
-                    ->native(false)
-                    ->live()
-                    ->required(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
-                    ->visible(fn (Get $get): bool => $get('visibility_scope') === CalendarEventScope::Students->value)
-                    ->helperText(__('panel.forms.calendar_event.reach_hint')),
+                    // Instrucțiunea urmează reach-ul ales mai sus (elev / părinți / ambii).
+                    ->helperText(fn (Get $get): string => match ($get('audience_reach')) {
+                        AudienceReach::Student->value => (string) __('panel.forms.calendar_event.students_hint_student'),
+                        AudienceReach::Guardians->value => (string) __('panel.forms.calendar_event.students_hint_guardians'),
+                        default => (string) __('panel.forms.calendar_event.students_hint_both'),
+                    }),
 
                 // CONFIRMAREA audienței, înainte de salvare: cine anume va vedea evenimentul, cu
                 // clasele enumerate și numărul de elevi. Eticheta unei opțiuni descrie o INTENȚIE;
@@ -406,13 +414,20 @@ class CalendarEventForm
     }
 
     /**
-     * Opțiunile de elevi pentru audiența nominală: elevii anului curent, etichetați „Nume — Clasa".
-     * Dirigintele vede doar elevii claselor lui (aceeași gardă ca la {@see classOptions()}).
+     * Căutare pe SERVER a elevilor audienței nominale, pe nume: elevii anului curent, etichetați
+     * „Nume — Clasa". Dirigintele caută doar printre elevii claselor lui (aceeași gardă ca la
+     * {@see classOptions()}) — zona de căutare urmează drepturile, nu doar textul tastat.
      *
      * @return array<int, string>
      */
-    private static function studentOptions(): array
+    public static function searchStudents(string $search): array
     {
+        $search = trim($search);
+
+        if (mb_strlen($search) < 2) {
+            return [];
+        }
+
         $user = auth('web')->user();
         $classes = self::currentYearClasses();
 
@@ -428,7 +443,17 @@ class CalendarEventForm
 
         Enrollment::query()
             ->whereIn('school_class_id', $classes->pluck('id'))
+            // Fiecare cuvânt tastat trebuie să se regăsească în nume SAU prenume — acoperă și
+            // căutarea „Nume Prenume" completă, portabil (fără CONCAT, absent în SQLite-ul testelor).
+            ->whereHas('student', function ($student) use ($search): void {
+                foreach (preg_split('/\s+/', $search) ?: [] as $word) {
+                    $student->where(fn ($inner) => $inner
+                        ->where('last_name', 'like', "%{$word}%")
+                        ->orWhere('first_name', 'like', "%{$word}%"));
+                }
+            })
             ->with(['student', 'schoolClass'])
+            ->limit(50)
             ->get()
             ->each(function (Enrollment $enrollment) use (&$options): void {
                 if ($enrollment->student === null) {

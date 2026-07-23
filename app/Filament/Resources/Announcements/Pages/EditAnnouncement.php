@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Announcements\Pages;
 
+use App\Enums\AnnouncementAudience;
+use App\Enums\AudienceReach;
 use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Models\Announcement;
@@ -38,7 +40,14 @@ class EditAnnouncement extends EditRecord
         if ($record instanceof Announcement) {
             $data['school_classes'] = $record->schoolClasses()->pluck('school_classes.id')->all();
             $data['students'] = $record->students()->pluck('students.id')->all();
-            $data['users'] = $record->users()->pluck('users.id')->all();
+
+            // Pivotul de conturi are DOUĂ roluri: „Conturi anume" (users) sau părinții aleși
+            // direct la „Elevi/Părinți — doar părinții" (guardians). Se umple câmpul potrivit.
+            $accounts = $record->users()->pluck('users.id')->all();
+            $guardiansMode = $record->audience === AnnouncementAudience::Students
+                && $record->audience_reach === AudienceReach::Guardians;
+            $data['guardians'] = $guardiansMode ? $accounts : [];
+            $data['users'] = $guardiansMode ? [] : $accounts;
         }
 
         return $data;
@@ -63,6 +72,7 @@ class EditAnnouncement extends EditRecord
                 is_array($this->data['school_classes'] ?? null) ? $this->data['school_classes'] : [],
                 is_array($this->data['students'] ?? null) ? $this->data['students'] : [],
                 is_array($this->data['users'] ?? null) ? $this->data['users'] : [],
+                is_array($this->data['guardians'] ?? null) ? $this->data['guardians'] : [],
             );
         }
     }

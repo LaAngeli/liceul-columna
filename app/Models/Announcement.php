@@ -224,13 +224,18 @@ class Announcement extends Model
 
     private function studentsSummary(): string
     {
-        $names = $this->students()->get()->map(fn (Student $student): string => $student->full_name);
+        $reach = $this->audience_reach ?? AudienceReach::Both;
+
+        // Reach „doar părinții" = părinți aleși DIRECT (pivotul de conturi) → se enumeră ei.
+        $names = $reach === AudienceReach::Guardians && $this->users()->exists()
+            ? $this->users()->pluck('name')
+            : $this->students()->get()->map(fn (Student $student): string => $student->full_name);
+
         $shown = $names->take(5)->implode(', ');
         $rest = max(0, $names->count() - 5);
 
         $list = $rest > 0 ? $shown.' +'.$rest : $shown;
-        $reach = ($this->audience_reach ?? AudienceReach::Both)->getLabel();
 
-        return $list !== '' ? $list.' — '.mb_strtolower($reach) : '';
+        return $list !== '' ? $list.' — '.mb_strtolower($reach->getLabel()) : '';
     }
 }

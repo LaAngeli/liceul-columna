@@ -97,7 +97,7 @@ return [
         'global' => 'Whole school — all students and parents',
         'grade_level' => 'One year of study — all parallel classes',
         'school_class' => 'A single class',
-        'students' => 'Specific students — chosen by name',
+        'students' => 'Students/Parents',
     ],
     'audience_reach' => [
         'student' => 'Student only',
@@ -108,7 +108,7 @@ return [
         'families' => 'All families — parents and students',
         'school' => 'Whole institution — families + staff',
         'classes' => 'Selected classes',
-        'students' => 'Specific students — chosen by name',
+        'students' => 'Students/Parents',
         'subject_teachers' => 'Teachers of a subject',
         'users' => 'Specific accounts — chosen directly',
     ],
