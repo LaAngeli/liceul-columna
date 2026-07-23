@@ -115,7 +115,7 @@ export function ProfileHeader({
                                 value={student.id}
                                 onChange={(e) => switchChild(Number(e.target.value))}
                                 aria-label={t('cabinet.tab_switch_child')}
-                                className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                className="min-h-11 rounded-md border border-input bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-8 md:min-h-0"
                             >
                                 {siblings.map((s) => (
                                     <option key={s.id} value={s.id}>
@@ -143,8 +143,10 @@ export function ProfileHeader({
             </div>
 
             {/* Statisticile duc la secțiunea lor din „Situație" (media → note, absențele → tabelul
-                de absențe) — butoane cu salt în pagină, vizibile din ORICE tab (antetul persistă). */}
-            <div className="ml-auto flex items-center gap-2 text-center">
+                de absențe) — butoane cu salt în pagină, vizibile din ORICE tab (antetul persistă).
+                Pe mobil trec pe rând propriu (`w-full`) ca numele elevului să nu mai fie trunchiat
+                de concurența pentru lățime; de la sm în sus rămân inline la dreapta. */}
+            <div className="flex w-full items-center gap-2 text-center sm:ml-auto sm:w-auto">
                 <HeaderStat
                     value={student.average ?? '—'}
                     label={t('cabinet.average_general')}
