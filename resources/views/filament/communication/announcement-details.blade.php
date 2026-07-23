@@ -144,9 +144,11 @@
             </div>
 
             <div>
+                {{-- min-h-11 pe telefon: ținta tactilă a proiectului e ≥44px, iar linkul ăsta e
+                     singura cale de întoarcere din fișă. --}}
                 <a
                     href="{{ \App\Filament\Resources\Announcements\AnnouncementResource::getUrl() }}"
-                    class="inline-flex min-h-9 items-center gap-1 text-sm font-medium text-gray-500 hover:text-primary-600 hover:underline dark:text-gray-400 dark:hover:text-primary-400"
+                    class="inline-flex min-h-9 items-center gap-1 text-sm font-medium text-gray-500 hover:text-primary-600 hover:underline max-sm:min-h-11 dark:text-gray-400 dark:hover:text-primary-400"
                 >
                     <x-filament::icon icon="heroicon-o-arrow-uturn-left" class="h-4 w-4" />
                     {{ __('panel.announcements.back') }}

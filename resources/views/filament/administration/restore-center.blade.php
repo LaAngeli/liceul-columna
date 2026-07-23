@@ -52,7 +52,15 @@
     @else
         <div class="space-y-4">
             <div class="flex flex-wrap items-center gap-3">
-                <x-filament::button color="gray" size="sm" icon="heroicon-o-arrow-left" wire:click="leaveType">
+                {{-- Ținte tactile ≥44px pe telefon (regula de responsivitate a proiectului): butoanele
+                     `sm` ale temei au 32px, suficient cu mausul, prea mic cu degetul. --}}
+                <x-filament::button
+                    color="gray"
+                    size="sm"
+                    icon="heroicon-o-arrow-left"
+                    wire:click="leaveType"
+                    class="max-sm:min-h-11"
+                >
                     {{ __('panel.restore.back') }}
                 </x-filament::button>
 
@@ -90,12 +98,15 @@
                                     </p>
                                 </div>
 
-                                <div class="flex shrink-0 flex-wrap items-center gap-2">
+                                {{-- Pe telefon acțiunile trec pe rând propriu, la lățime plină: cu două
+                                     butoane (super-admin) rândul comun le-ar strivi lângă un nume lung. --}}
+                                <div class="flex shrink-0 flex-wrap items-center gap-2 max-sm:w-full">
                                     <x-filament::button
                                         size="sm"
                                         icon="heroicon-o-arrow-uturn-left"
                                         wire:click="restore({{ $row['id'] }})"
                                         :disabled="$row['blocking'] !== []"
+                                        class="max-sm:min-h-11 max-sm:flex-1"
                                     >
                                         {{ __('panel.restore.restore') }}
                                     </x-filament::button>
@@ -106,6 +117,7 @@
                                             color="danger"
                                             icon="heroicon-o-trash"
                                             wire:click="askPurge({{ $row['id'] }})"
+                                            class="max-sm:min-h-11 max-sm:flex-1"
                                         >
                                             {{ __('panel.restore.purge') }}
                                         </x-filament::button>
@@ -142,11 +154,21 @@
                                     </p>
 
                                     <div class="mt-2 flex flex-wrap gap-2">
-                                        <x-filament::button size="sm" color="danger" wire:click="purge({{ $row['id'] }})">
+                                        <x-filament::button
+                                            size="sm"
+                                            color="danger"
+                                            wire:click="purge({{ $row['id'] }})"
+                                            class="max-sm:min-h-11 max-sm:flex-1"
+                                        >
                                             {{ __('panel.restore.purge_confirm') }}
                                         </x-filament::button>
 
-                                        <x-filament::button size="sm" color="gray" wire:click="cancelPurge">
+                                        <x-filament::button
+                                            size="sm"
+                                            color="gray"
+                                            wire:click="cancelPurge"
+                                            class="max-sm:min-h-11 max-sm:flex-1"
+                                        >
                                             {{ __('panel.restore.cancel') }}
                                         </x-filament::button>
                                     </div>
