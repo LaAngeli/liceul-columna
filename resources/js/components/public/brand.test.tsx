@@ -74,4 +74,21 @@ describe('StatRibbon / CountUp', () => {
         expect(screen.getByText('0')).toBeInTheDocument();
         expect(screen.queryByText('27')).not.toBeInTheDocument();
     });
+
+    it('fără `matchMedia` în mediu (SSR / runtime minimal) NU crapă — pornește de la 0', () => {
+        // Doar IntersectionObserver, matchMedia lipsă cu totul: inițializatorul rulează la ORICE
+        // randare, inclusiv una server-side, deci trebuie să reziste fără API-uri de browser.
+        vi.stubGlobal('matchMedia', undefined);
+        vi.stubGlobal(
+            'IntersectionObserver',
+            class {
+                observe() {}
+                disconnect() {}
+                unobserve() {}
+            },
+        );
+
+        expect(() => render(<StatRibbon items={items} />)).not.toThrow();
+        expect(screen.getByText('0')).toBeInTheDocument();
+    });
 });

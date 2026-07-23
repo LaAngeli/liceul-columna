@@ -361,7 +361,12 @@ function CountUp({ value, className }: { value: string; className?: string }) {
             return value;
         }
 
-        return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? String(numeric) : '0';
+        // Gardă defensivă: spre deosebire de efect (care rulează DOAR în client), inițializatorul
+        // rulează la fiecare randare — inclusiv una server-side, dacă SSR se activează vreodată.
+        // Fără `window`/`matchMedia` pornim de la 0 (animația obișnuită), exact ca înainte.
+        const prefersReduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+        return prefersReduced ? String(numeric) : '0';
     });
     useEffect(() => {
         if (numeric === null) {
@@ -375,7 +380,8 @@ function CountUp({ value, className }: { value: string; className?: string }) {
         }
 
         // Reduced-motion: valoarea finală e deja afișată din inițializator — nu pornim observatorul.
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        // `?.` pentru simetrie cu inițializatorul: componenta tolerează lipsa API-ului de browser.
+        if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
             return;
         }
 
