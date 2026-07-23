@@ -238,15 +238,19 @@ function ArchiveTab({
         if (next.q.trim() !== '') {
             query.q = next.q.trim();
         }
+
         if (next.tip) {
             query.tip = next.tip;
         }
+
         if (next.de_la) {
             query.de_la = next.de_la;
         }
+
         if (next.pana_la) {
             query.pana_la = next.pana_la;
         }
+
         if (next.sort === 'vechi') {
             query.sort = 'vechi';
         }

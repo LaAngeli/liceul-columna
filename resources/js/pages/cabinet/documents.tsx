@@ -3,7 +3,8 @@ import { Download, FileBarChart, FileText, FolderOpen, GraduationCap, Inbox, Lay
 import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { EmptyState } from '@/components/cabinet/empty-state';
-import { TabBar, TabPanel, type TabItem } from '@/components/cabinet/tab-bar';
+import { TabBar, TabPanel } from '@/components/cabinet/tab-bar';
+import type { TabItem } from '@/components/cabinet/tab-bar';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 
@@ -79,6 +80,7 @@ export default function DocumentsPage({ categories, schoolDocuments, children }:
 
     // Documentele statice ale școlii, indexate pe categorie pentru filtrarea per-tab.
     const schoolByCategory: Record<string, SchoolDoc[]> = {};
+
     for (const group of schoolDocuments) {
         schoolByCategory[group.category] = group.items;
     }
@@ -89,9 +91,11 @@ export default function DocumentsPage({ categories, schoolDocuments, children }:
         if (key === 'reports') {
             return children.reduce((total, child) => total + child.generated.length, 0);
         }
+
         if (key === 'requests') {
             return children.reduce((total, child) => total + child.requestsTotal, 0);
         }
+
         return 0;
     };
     const countFor = (key: string): number => (schoolByCategory[key]?.length ?? 0) + childCountFor(key);
