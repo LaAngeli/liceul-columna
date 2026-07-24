@@ -67,9 +67,17 @@ export function ModuleShell({
                 <EmptyState icon={GraduationCap} title={t('dashboard.no_profile')} className="flex-1" />
             ) : (
                 <>
-                    {/* Comutatorul de copil — doar pentru părintele cu mai mulți copii. */}
+                    {/* Comutatorul de copil — doar pentru părintele cu mai mulți copii.
+                        Până la 3 copii: UN SINGUR rând, fără scroll și fără înfășurare — pastilele se
+                        MICȘOREAZĂ cât e nevoie (eticheta se trunchiază pe ecran îngust, avatarul rămâne),
+                        deci aceeași dispunere pe orice dispozitiv. De la 4 în sus, unde micșorarea ar
+                        face pastilele ilizibile, rândul devine scrollabil. */}
                     {module.students.length > 1 && (
-                        <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label={t('cabinet.messages_child')}>
+                        <div
+                            className={cn('flex gap-1.5', module.students.length > 3 && 'overflow-x-auto pb-1')}
+                            role="group"
+                            aria-label={t('cabinet.messages_child')}
+                        >
                             {module.students.map((student) => {
                                 const active = student.id === module.currentId;
 
@@ -80,10 +88,13 @@ export function ModuleShell({
                                         onClick={() => visit({ copil: student.id })}
                                         aria-pressed={active}
                                         className={cn(
-                                            // min-h-11: comutatorul e vizibil pe telefon, deci intră sub
-                                            // pragul tactil de 44px al proiectului (avea 38px).
-                                            'inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border py-1.5 pr-3.5 pl-1.5 text-sm font-medium transition-colors',
+                                            // min-h-11: țintă tactilă ≥44px (regula proiectului).
+                                            // min-w-0: permite pastilei să se micșoreze sub lățimea conținutului
+                                            // (fără el, min-width:auto ar forța overflow/scroll).
+                                            'inline-flex min-h-11 min-w-0 items-center gap-2 rounded-full border py-1.5 pr-3.5 pl-1.5 text-sm font-medium transition-colors',
                                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                            // La 4+ copii nu se micșorează — lățime naturală + scroll pe container.
+                                            module.students.length > 3 && 'shrink-0',
                                             active
                                                 ? 'border-primary bg-primary/10 text-primary'
                                                 : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -91,16 +102,19 @@ export function ModuleShell({
                                     >
                                         <span
                                             className={cn(
-                                                'flex size-6 items-center justify-center rounded-full text-[10px] font-semibold',
+                                                'flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold',
                                                 active ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary',
                                             )}
                                         >
                                             {getInitials(student.name)}
                                         </span>
-                                        <span className="whitespace-nowrap">
-                                            {student.name.split(' ')[0]}
+                                        {/* Prioritate la strângere: PRENUMELE rămâne mereu lizibil (`shrink-0`),
+                                            iar eticheta de clasă e cea care se scurtează cu „…" (`truncate`) —
+                                            numele copilului contează mai mult decât clasa când spațiul e mic. */}
+                                        <span className="flex min-w-0 items-baseline">
+                                            <span className="shrink-0">{student.name.split(' ')[0]}</span>
                                             {student.classLabel && (
-                                                <span className={cn('ml-1 text-xs', active ? 'text-primary/70' : 'text-muted-foreground/70')}>
+                                                <span className={cn('ml-1 truncate text-xs', active ? 'text-primary/70' : 'text-muted-foreground/70')}>
                                                     · {student.classLabel}
                                                 </span>
                                             )}
