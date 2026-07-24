@@ -46,13 +46,30 @@ sudo -u www-data php artisan view:cache     # reconstruit CA www-data
 chown -R www-data:www-data storage bootstrap/cache
 ```
 
-**⚠️ REGULA care previne recidiva — după ORICE `artisan` rulat ca root pe producție:**
+**⚠️ REGULA — după ORICE `artisan` rulat ca root pe producție:**
 ```bash
 chown -R www-data:www-data storage bootstrap/cache
 ```
 Ideal, rulează comenzile care scriu în cache direct ca userul FPM: `sudo -u www-data php artisan …`.
 Verifică oricând cu `ls -l storage/framework/views | head` — dacă vezi `root root`, e o cădere care
 așteaptă să se întâmple.
+
+### ✅ Apărare AUTOMATĂ instalată pe VPS (2026-07-24)
+
+Documentația singură n-a fost de ajuns: aceeași cauză a doborât producția de **două ori** (15 și 24
+iulie), fiindcă deploy-ul se face din sesiuni diferite. Există acum două straturi care repară automat:
+
+| Strat | Ce acoperă |
+|---|---|
+| `.git/hooks/post-merge` + `post-checkout` | momentul `git pull` (merge ȘI fast-forward) |
+| `/etc/cron.d/columna-cache-ownership` (la 5 min) | `artisan` rulat ca root **DUPĂ** pull — golul pe care hook-ul nu-l prinde |
+
+Cron-ul atinge doar `storage/framework`, `storage/logs`, `bootstrap/cache` (directoare mici — măsurat
+**0,004s**), NU `storage/app` (media de 380MB, scrisă oricum de www-data). Fereastra maximă de
+indisponibilitate scade astfel la ~5 minute, iar situația se auto-repară fără intervenție.
+
+⚠️ Hook-urile git NU se versionează (trăiesc în `.git/hooks/`) — la o **re-clonare** a proiectului pe
+un server nou, trebuie reinstalate manual. Cron-ul, fiind în `/etc/cron.d/`, la fel.
 
 ## Permisiuni (VPS) — alte simptome
 `The stream or file "storage/logs/laravel.log" could not be opened` / erori de scriere →
