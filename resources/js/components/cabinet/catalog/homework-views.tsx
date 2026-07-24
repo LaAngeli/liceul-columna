@@ -314,17 +314,29 @@ function HomeworkDateFilter({
         setPendingStart(null);
     }
 
+    // `w-full sm:w-auto` + `justify-center`: pe mobil pastilele umplu celula de grilă (2×2 egal),
+    // pe desktop revin la lățime-după-conținut. min-h-11 = țintă tactilă ≥44px (regula proiectului).
     const chip = (active: boolean) =>
         cn(
-            // min-h-11: țintă tactilă ≥44px (regula proiectului) — pastilele erau la 36px.
-            'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors',
+            'inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors sm:w-auto',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             active ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
         );
 
     return (
         <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t('cabinet.hw_filter_dates')}>
+            {/* MOBIL: card de filtre (bordură + fundal discret) care SEPARĂ zona de dată de pastilele
+                de disciplină de deasupra, cu cele 4 controale într-o grilă 2×2 ECHILIBRATĂ — nu
+                ruperea 3+1 care părea accidentală. DESKTOP (≥sm): cardul dispare și controalele revin
+                pe un singur rând, ca înainte. */}
+            <div
+                className={cn(
+                    'grid grid-cols-2 gap-1.5 rounded-xl border bg-muted/30 p-2',
+                    'sm:flex sm:flex-wrap sm:items-center sm:border-0 sm:bg-transparent sm:p-0',
+                )}
+                role="group"
+                aria-label={t('cabinet.hw_filter_dates')}
+            >
                 <button type="button" onClick={() => preset(null)} aria-pressed={range === null} className={chip(range === null)}>
                     {t('cabinet.hw_dates_all')}
                 </button>
@@ -334,8 +346,6 @@ function HomeworkDateFilter({
                 <button type="button" onClick={() => preset(week)} aria-pressed={isWeekActive} className={chip(isWeekActive)}>
                     {t('cabinet.hw_dates_week')}
                 </button>
-                {/* Fără `ml-auto`: pe mobil rândul se rupe, iar butonul rămânea orfan, aliniat la
-                    dreapta pe linia a doua. Toate cele patru curg ca un singur grup de filtre. */}
                 <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className={chip(open)}>
                     <CalendarDays className="size-3.5" aria-hidden />
                     {t('cabinet.hw_dates_calendar')}
