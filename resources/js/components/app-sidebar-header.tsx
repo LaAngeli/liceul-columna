@@ -73,11 +73,13 @@ export function AppSidebarHeader({
             <Link
                 href={homeHref}
                 aria-label="Liceul Columna"
-                // Centrat pe orizontală ȘI verticală; min-h-11 → zonă tactilă de 44px, deși logo-ul rămâne h-8.
+                // Centrat pe orizontală ȘI verticală; min-h-11 → zonă tactilă de 44px. Logo-ul e la
+                // h-[37px] (+15% față de h-8): tot sub cei 44px ai link-ului, deci navbar-ul (h-16/h-14
+                // la scroll, înălțime FIXĂ, logo poziționat absolut) nu se schimbă cu niciun pixel.
                 className="absolute top-1/2 left-1/2 inline-flex min-h-11 -translate-x-1/2 -translate-y-1/2 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:hidden"
             >
-                <img src="/images/logo/columna-horizontal.png" alt="Liceul Columna" className="h-8 w-auto dark:hidden" />
-                <img src="/images/logo/columna-horizontal-white.png" alt="Liceul Columna" className="hidden h-8 w-auto dark:block" />
+                <img src="/images/logo/columna-horizontal.png" alt="Liceul Columna" className="h-[37px] w-auto dark:hidden" />
+                <img src="/images/logo/columna-horizontal-white.png" alt="Liceul Columna" className="hidden h-[37px] w-auto dark:block" />
             </Link>
 
             {/* DESKTOP — trigger-ul sidebar-ului + breadcrumbs, ca până acum. */}
