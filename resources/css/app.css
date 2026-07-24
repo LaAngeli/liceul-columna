@@ -61,6 +61,9 @@
 
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
+    /* `danger` = roșul care trebuie CITIT (text) sau VĂZUT ca marcaj mic (buline, bare de
+       grafic). Diferit de `destructive`, care e suprafața ce poartă text alb. Vezi `--danger`. */
+    --color-danger: var(--danger);
 
     --color-border: var(--border);
     --color-input: var(--input);
@@ -112,6 +115,9 @@
     --accent-foreground: oklch(0.405 0.092 244.4);
     --destructive: oklch(0.577 0.245 27.325);
     --destructive-foreground: oklch(0.999 0.004 106.5);
+    /* Roșul de pericol care trebuie CITIT (text) sau VĂZUT (buline, bare). Pe fundal deschis
+       coincide cu `--destructive` (contrast deja bun); în `.dark` se desparte — vezi acolo. */
+    --danger: var(--destructive);
     --border: oklch(0.916 0.004 240);
     --input: oklch(0.916 0.004 240);
     --ring: oklch(0.405 0.092 244.4);
@@ -163,8 +169,19 @@
     --muted-foreground: oklch(0.78 0.026 240);
     --accent: oklch(0.36 0.05 244.4);
     --accent-foreground: oklch(0.985 0.001 106.5);
+    /* `--destructive` rămâne roșul de SUPRAFAȚĂ: pe el stă text alb (butonul distructiv,
+       badge-ul clopoțelului, barele de absențe nemotivate) și dă 10:1 — excelent. NU-l
+       lumina: ar strica exact acele locuri. */
     --destructive: oklch(0.396 0.141 25.723);
     --destructive-foreground: oklch(0.985 0.001 106.5);
+    /* …dar ca TEXT sau ca MARCAJ MIC aceeași valoare era invizibilă: L=0.396 pe un card cu
+       L=0.322 înseamnă 1.25:1, sub pragul AA de 4.5:1 — roșul „se topea" în fundalul navy.
+       Un singur token nu poate servi ambele roluri în dark: au cerințe opuse de luminozitate.
+       Măsurat pe valoarea de mai jos: 5.96:1 pe card, 7.10:1 pe fundal, 5.1:1 pe pastilele cu
+       tentă `bg-destructive/10` — AA în toate trei; iar ca buline/bare urcă de la 1.2:1 la
+       3.4:1, peste pragul de 3:1 al WCAG 1.4.11. Același tipar pe care codul îl aplica deja
+       verdelui (`text-emerald-700 dark:text-emerald-400`), doar că roșul fusese omis. */
+    --danger: oklch(0.78 0.12 25.723);
     --border: oklch(0.39 0.045 244.4);
     --input: oklch(0.39 0.045 244.4);
     --ring: oklch(0.96 0.005 240);
@@ -192,6 +209,21 @@
     /* DARK = „modul navy": benzile coboară SUB pagină (mai adânci decât ea), păstrând
        raportul din light unde benzile sunt mai închise decât fundalul. */
     --surface-navy: oklch(0.215 0.048 244.4);
+}
+
+/* Textul de pericol în dark ia `--danger`, nu `--destructive` (motivul complet e la definirea
+   tokenului: aceeași valoare nu poate fi și suprafață-cu-text-alb, și text lizibil). Marcajele
+   decorative folosesc direct utilitarul `bg-danger`; aici remapăm doar TEXTUL, ca să nu fie
+   nevoie de 55 de editări prin componente. `bg-destructive` și `border-destructive` rămân
+   neatinse — butonul distructiv și badge-ul clopoțelului arată exact ca înainte (text alb pe
+   roșu, 10:1). Regulă NELAYERATĂ intenționat: în Tailwind v4 stratul `utilities` ar învinge
+   orice `@layer`, indiferent de specificitate. */
+.dark .text-destructive {
+    color: var(--danger);
+}
+
+.dark .text-destructive\/60 {
+    color: color-mix(in oklab, var(--danger) 60%, transparent);
 }
 
 @layer base {

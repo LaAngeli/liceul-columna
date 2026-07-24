@@ -59,16 +59,16 @@ const COLORS: Record<
     },
     // Absence — destructive: stare problematică/semnal.
     danger: {
-        dot: 'bg-destructive',
-        rail: 'bg-destructive',
+        dot: 'bg-danger',
+        rail: 'bg-danger',
         chip: 'bg-destructive/10 text-destructive',
         text: 'text-destructive',
     },
     // Deadline — destructive (atenție/termen). Mapat la destructive pentru a păstra strict 4 familii brand
     // (auditul a cerut max ~4); pe rolul „urgență temporală", destructive funcționează ca semnal vizual.
     warning: {
-        dot: 'bg-destructive/80',
-        rail: 'bg-destructive/80',
+        dot: 'bg-danger/80',
+        rail: 'bg-danger/80',
         chip: 'bg-destructive/10 text-destructive',
         text: 'text-destructive',
     },

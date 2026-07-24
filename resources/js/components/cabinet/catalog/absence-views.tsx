@@ -106,7 +106,7 @@ function SplitBar({ motivated, unmotivated, className }: { motivated: number; un
     return (
         <div className={cn('flex h-2 overflow-hidden rounded-full bg-muted', className)} aria-hidden>
             <div className="bg-emerald-500" style={{ width: `${(motivated / total) * 100}%` }} />
-            <div className="bg-destructive" style={{ width: `${(unmotivated / total) * 100}%` }} />
+            <div className="bg-danger" style={{ width: `${(unmotivated / total) * 100}%` }} />
         </div>
     );
 }
@@ -368,7 +368,7 @@ function SummaryBand({ summary, onRequestMotivation }: { summary: AbsenceSummary
                         <span className="text-muted-foreground">{t(pluralKey('cabinet.motivated', summary.motivated))}</span>
                     </span>
                     <span className="inline-flex items-center gap-1.5">
-                        <span className="size-2.5 rounded-sm bg-destructive" aria-hidden />
+                        <span className="size-2.5 rounded-sm bg-danger" aria-hidden />
                         <span className="font-semibold tabular-nums">{summary.unmotivated}</span>
                         <span className="text-muted-foreground">{t(pluralKey('cabinet.unmotivated', summary.unmotivated))}</span>
                     </span>
@@ -430,7 +430,7 @@ function MonthlyChart({ months }: { months: AbsenceMonth[] }) {
                             style={{ height: '4.5rem' }}
                             title={`${month.label}: ${month.total}`}
                         >
-                            <div className="w-full bg-destructive" style={{ height: `${(month.unmotivated / peak) * 100}%` }} />
+                            <div className="w-full bg-danger" style={{ height: `${(month.unmotivated / peak) * 100}%` }} />
                             <div className="w-full bg-emerald-500" style={{ height: `${(month.motivated / peak) * 100}%` }} />
                         </div>
                         <span className="w-full truncate text-center text-[10px] text-muted-foreground">{month.label}</span>
@@ -536,7 +536,7 @@ function Filters({
                     >
                         {item.value !== 'all' && (
                             <span
-                                className={cn('size-2 rounded-full', item.value === 'motivated' ? 'bg-emerald-500' : 'bg-destructive')}
+                                className={cn('size-2 rounded-full', item.value === 'motivated' ? 'bg-emerald-500' : 'bg-danger')}
                                 aria-hidden
                             />
                         )}
@@ -607,7 +607,7 @@ function SubjectBreakdown({ subjects, entries, term }: { subjects: AbsenceSubjec
                                     <span
                                         className={cn(
                                             'mt-0.5 size-2.5 shrink-0 rounded-full',
-                                            entry.motivated ? 'bg-emerald-500' : 'bg-destructive',
+                                            entry.motivated ? 'bg-emerald-500' : 'bg-danger',
                                         )}
                                         title={t(entry.motivated ? 'cabinet.motivated' : 'cabinet.unmotivated')}
                                     >

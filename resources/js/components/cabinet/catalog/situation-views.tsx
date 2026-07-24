@@ -291,7 +291,7 @@ function MotivationDetailDialog({ detail, onClose }: { detail: MotivationItem | 
                                             <span
                                                 className={cn(
                                                     'absolute -left-[5px] mt-1.5 block size-2.5 rounded-full',
-                                                    detail.status === 'approved' ? 'bg-emerald-500' : 'bg-destructive',
+                                                    detail.status === 'approved' ? 'bg-emerald-500' : 'bg-danger',
                                                 )}
                                                 aria-hidden
                                             />
