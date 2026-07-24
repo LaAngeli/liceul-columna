@@ -334,12 +334,9 @@ function HomeworkDateFilter({
                 <button type="button" onClick={() => preset(week)} aria-pressed={isWeekActive} className={chip(isWeekActive)}>
                     {t('cabinet.hw_dates_week')}
                 </button>
-                <button
-                    type="button"
-                    onClick={() => setOpen((v) => !v)}
-                    aria-expanded={open}
-                    className={cn(chip(open), 'ml-auto')}
-                >
+                {/* Fără `ml-auto`: pe mobil rândul se rupe, iar butonul rămânea orfan, aliniat la
+                    dreapta pe linia a doua. Toate cele patru curg ca un singur grup de filtre. */}
+                <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className={chip(open)}>
                     <CalendarDays className="size-3.5" aria-hidden />
                     {t('cabinet.hw_dates_calendar')}
                 </button>
