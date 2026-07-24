@@ -97,7 +97,8 @@ class CabinetCatalogController extends Controller
 
         return Inertia::render('cabinet/teme', [
             'module' => $module,
-            'homework' => $student !== null ? $this->homeworkForStudent($student) : null,
+            // Tot setul anului (nu doar ultimele 20) — filtrul de calendar navighează la orice zi.
+            'homework' => $student !== null ? $this->classHomework($student) : null,
         ]);
     }
 

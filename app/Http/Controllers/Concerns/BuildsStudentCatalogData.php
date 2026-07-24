@@ -939,35 +939,105 @@ trait BuildsStudentCatalogData
             ->get();
 
         return $upcoming->concat($past)
-            ->map(function (HomeworkAssignment $homework) use ($today): array {
-                $effective = $homework->effectiveOn();
-                $effectiveDate = $effective->toDateString();
-
-                return [
-                    'id' => $homework->id,
-                    'date' => $homework->assigned_on->format('d.m.Y'),
-                    'due' => $homework->due_on?->format('d.m.Y'),
-                    // Cheia de GRUPARE pe zile (stabilă, sortabilă) + eticheta zilei tradusă în
-                    // limba interfeței (serverul cunoaște locale-ul; frontend-ul n-are formatter).
-                    'effectiveDate' => $effectiveDate,
-                    'dayLabel' => ucfirst($effective->translatedFormat('l, j F')),
-                    // Comparație pe ZIUA ȘCOLII (`$today`), nu `isToday()/isFuture()` — acelea se
-                    // raportează la UTC și mutau temele de azi în „viitor" noaptea.
-                    'status' => match (true) {
-                        $effectiveDate === $today => 'today',
-                        $effectiveDate > $today => 'upcoming',
-                        default => 'past',
-                    },
-                    'subject' => ContentTranslator::subject((string) $homework->subject_name),
-                    // Cine a dat tema — author_name e snapshot-ul textual de la creare (rămâne
-                    // valabil și dacă fișa profesorului dispare), aceeași logică ca subject_name.
-                    'teacher' => $homework->author_name,
-                    'topic' => $homework->topic,
-                    'required' => $homework->required_task,
-                    'optional' => $homework->optional_task,
-                    'links' => $homework->links ?? [],
-                ];
-            })
+            ->map(fn (HomeworkAssignment $homework): array => $this->homeworkRow($homework, $today))
             ->all();
+    }
+
+    /**
+     * TOT setul de teme al clasei pentru anul curent — sursa modulului dedicat „Teme".
+     *
+     * Spre deosebire de {@see homeworkForStudent} (viitorul + ultimele 20 din trecut, potrivit
+     * pentru „Ziua mea"/fișă), aici vin TOATE temele anului: filtrul de calendar trebuie să poată
+     * naviga la orice zi trecută, nu doar la ultimele 20 — altfel „verifică temele din 12 martie"
+     * ar întoarce gol chiar dacă tema există. Volumul e mic per clasă (~230 teme/an), deci se
+     * încarcă o dată și se filtrează client-side, ca la {@see gradeBook}/{@see absenceOverview}.
+     *
+     * Mărginit inferior la începutul anului școlar: temele nu au `academic_year_id` (se leagă pe
+     * grade_level+section), iar aceeași clasă „VII 1" există în fiecare an — fără limită am amesteca
+     * anii.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function classHomework(Student $student): array
+    {
+        $class = $student->currentSchoolClass();
+
+        if (! $class) {
+            return [];
+        }
+
+        $expression = HomeworkAssignment::effectiveOnExpression();
+        $today = SchoolCalendar::localNow()->toDateString();
+        $yearStart = $this->currentAcademicYearStart();
+
+        $base = fn (): Builder => HomeworkAssignment::query()
+            ->where('grade_level', $class->grade_level)
+            ->where(function (Builder $query) use ($class): void {
+                $query->where('section', $class->section)->orWhereNull('section');
+            })
+            ->when($yearStart !== null, fn (Builder $query) => $query->where($expression, '>=', $yearStart));
+
+        // Aceeași ordine ca vederea implicită: viitorul cronologic ASC, apoi trecutul DESC (fără
+        // limită). Filtrul de calendar re-taie oricum client-side pe fereastra aleasă.
+        $upcoming = $base()->where($expression, '>=', $today)->orderBy($expression)->get();
+        $past = $base()->where($expression, '<', $today)->orderByDesc($expression)->get();
+
+        return $upcoming->concat($past)
+            ->map(fn (HomeworkAssignment $homework): array => $this->homeworkRow($homework, $today))
+            ->all();
+    }
+
+    /**
+     * Începutul anului școlar CURENT (Y-m-d), sau null în vacanța dintre ani. Sursă unică pentru
+     * mărginirile pe an (fereastra de motivare, setul de teme).
+     */
+    private function currentAcademicYearStart(): ?string
+    {
+        $current = Term::query()->where('is_current', true)->first();
+
+        if ($current === null) {
+            return null;
+        }
+
+        $yearStart = Term::query()->where('academic_year_id', $current->academic_year_id)->min('starts_on');
+
+        return $yearStart !== null ? Carbon::parse((string) $yearStart)->toDateString() : null;
+    }
+
+    /**
+     * O temă, în forma pe care o consumă cabinetul (data efectivă = termen ?? atribuire, statut pe
+     * ziua ȘCOLII, disciplină/autor traduse). Sursă unică pentru vederea windowed și cea completă.
+     *
+     * @return array<string, mixed>
+     */
+    private function homeworkRow(HomeworkAssignment $homework, string $today): array
+    {
+        $effective = $homework->effectiveOn();
+        $effectiveDate = $effective->toDateString();
+
+        return [
+            'id' => $homework->id,
+            'date' => $homework->assigned_on->format('d.m.Y'),
+            'due' => $homework->due_on?->format('d.m.Y'),
+            // Cheia de GRUPARE pe zile (stabilă, sortabilă) + eticheta zilei tradusă în limba
+            // interfeței (serverul cunoaște locale-ul; frontend-ul n-are formatter).
+            'effectiveDate' => $effectiveDate,
+            'dayLabel' => ucfirst($effective->translatedFormat('l, j F')),
+            // Comparație pe ZIUA ȘCOLII (`$today`), nu `isToday()/isFuture()` — acelea se raportează
+            // la UTC și mutau temele de azi în „viitor" noaptea.
+            'status' => match (true) {
+                $effectiveDate === $today => 'today',
+                $effectiveDate > $today => 'upcoming',
+                default => 'past',
+            },
+            'subject' => ContentTranslator::subject((string) $homework->subject_name),
+            // Cine a dat tema — author_name e snapshot-ul textual de la creare (rămâne valabil și
+            // dacă fișa profesorului dispare), aceeași logică ca subject_name.
+            'teacher' => $homework->author_name,
+            'topic' => $homework->topic,
+            'required' => $homework->required_task,
+            'optional' => $homework->optional_task,
+            'links' => $homework->links ?? [],
+        ];
     }
 }

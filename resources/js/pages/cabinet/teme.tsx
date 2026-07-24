@@ -29,7 +29,8 @@ export default function HomeworkModulePage({ module, homework }: Props) {
                     (homework.length === 0 ? (
                         <EmptyState title={t('cabinet.no_homework')} />
                     ) : (
-                        <HomeworkByDay homework={homework} />
+                        // Modulul dedicat primește tot setul anului → activăm filtrul de calendar.
+                        <HomeworkByDay homework={homework} showCalendar />
                     ))}
             </ModuleShell>
         </>
