@@ -10,6 +10,13 @@ import { cn } from '@/lib/utils';
  * nu crească necontrolat pe verticală la clasele de liceu (15+ discipline), peste `VISIBLE` opțiuni
  * restul stă pliat după un buton „+N"; opțiunea ACTIVĂ rămâne mereu vizibilă, chiar dacă ar cădea
  * dincolo de prag.
+ *
+ * Pe MOBIL pastilele sunt „justificate": `flex-auto` le lasă să crească până umplu rândul, așa că
+ * marginea din dreapta iese dreaptă în loc de zimțată (măsurat la 390px: golul de la capătul
+ * rândurilor varia între 10px și 106px — de aici impresia de dezordine). Spațiul liber se împarte
+ * egal, deci etichetele NU se trunchiază în plus și numărul de rânduri rămâne același. Pe desktop
+ * (`md:flex-none`) pastilele își păstrează lățimea naturală: acolo containerul e lat, pastilele
+ * încap pe 1-2 rânduri, iar creșterea le-ar umfla inutil.
  */
 
 export interface FilterPillOption {
@@ -61,7 +68,7 @@ export function FilterPills({
 
     const pillClass = (isActive: boolean) =>
         cn(
-            'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors md:h-9 md:min-h-0',
+            'inline-flex min-h-11 flex-auto cursor-pointer items-center justify-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors md:h-9 md:min-h-0 md:flex-none',
             'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
             isActive
                 ? 'border-primary bg-primary text-primary-foreground'
@@ -106,7 +113,7 @@ export function FilterPills({
                     type="button"
                     onClick={() => setExpanded(!expanded)}
                     aria-expanded={expanded}
-                    className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-dashed border-border px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:h-9 md:min-h-0"
+                    className="inline-flex min-h-11 flex-auto cursor-pointer items-center justify-center rounded-full border border-dashed border-border px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:h-9 md:min-h-0 md:flex-none"
                 >
                     {expanded ? t('cabinet.filter_less') : `+${hidden}`}
                     {!expanded && <span className="sr-only"> {t('cabinet.filter_more')}</span>}

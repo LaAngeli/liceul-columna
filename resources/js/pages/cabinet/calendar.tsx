@@ -371,7 +371,7 @@ export default function Calendar({
                                         : null,
                                 )
                             }
-                            className="rounded-md border border-sidebar-border/70 bg-card px-3 py-2 text-sm dark:border-sidebar-border"
+                            className="min-h-11 rounded-md border border-sidebar-border/70 bg-card px-3 py-2 text-sm md:min-h-0 dark:border-sidebar-border"
                         >
                             <option value="">{t('ccal.all_children')}</option>
                             {kids.map((c) => (
@@ -496,7 +496,7 @@ export default function Calendar({
                                     key={cat}
                                     onClick={() => toggleCat(cat)}
                                     aria-pressed={!isHidden}
-                                    className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all md:min-h-0 ${
+                                    className={`inline-flex min-h-11 flex-auto items-center justify-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all md:min-h-0 md:flex-none ${
                                         isHidden
                                             ? 'border-transparent text-muted-foreground line-through opacity-40 hover:opacity-60'
                                             : 'border-sidebar-border/70 dark:border-sidebar-border'
@@ -513,7 +513,7 @@ export default function Calendar({
                             <button
                                 type="button"
                                 onClick={showAllCats}
-                                className="ml-1 inline-flex items-center rounded-full border border-primary/40 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                                className="ml-1 inline-flex min-h-11 flex-auto items-center justify-center rounded-full border border-primary/40 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10 md:min-h-0 md:flex-none"
                             >
                                 {t('ccal.show_all')}
                             </button>

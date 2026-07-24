@@ -79,6 +79,7 @@ export default function TwoFactorEmail({ enabled, accountEmail, status }: Props)
                                         type="email"
                                         defaultValue={accountEmail ?? ''}
                                         placeholder="nume@exemplu.md"
+                                        className="min-h-11 md:min-h-0"
                                     />
                                     {accountEmail === null && (
                                         <p className="text-xs text-muted-foreground">
