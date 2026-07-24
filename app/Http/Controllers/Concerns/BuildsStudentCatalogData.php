@@ -262,9 +262,10 @@ trait BuildsStudentCatalogData
                 // Cine a CONSEMNAT nota — doar când nota însăși o poartă. Nu se completează din
                 // alocare: aceea spune cine predă, nu cine a pus nota asta.
                 'teacher' => $grade->teacher?->full_name,
-                // Când a intrat nota în sistem (ora școlii) — ziua evaluării și ziua consemnării
-                // pot diferi, iar familia întreabă exact despre diferența asta.
-                'recordedAt' => SchoolCalendar::local($grade->created_at)?->format('d.m.Y, H:i'),
+                // Când a intrat nota în sistem — ziua evaluării și ziua consemnării pot diferi,
+                // iar familia întreabă exact despre diferența asta. DOAR ziua: ora exactă a
+                // tastării nu spune nimic despre situația școlară a copilului.
+                'recordedAt' => SchoolCalendar::local($grade->created_at)?->format('d.m.Y'),
             ];
         }
 

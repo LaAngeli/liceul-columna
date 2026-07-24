@@ -305,7 +305,10 @@ class SeedDemoZone extends Command
                         'graded_on' => $ts->toDateString(),
                         'type' => 1,
                         'evaluation_type' => random_int(1, 12) === 1 ? 'teza' : 'curenta',
-                        'value' => number_format(random_int(50, 100) / 10, 2, '.', ''),
+                        // ÎNTREG, nu zecimal: `random_int(50,100)/10` producea 6,5 / 7,3 — note pe care
+                        // scala 1–10 nu le cunoaște (zecimalele aparțin mediilor). Cele 52.228 de
+                        // note reale importate din sistemul școlii sunt TOATE întregi.
+                        'value' => random_int(5, 10),
                         'created_at' => $ts,
                         'updated_at' => $ts,
                     ]);

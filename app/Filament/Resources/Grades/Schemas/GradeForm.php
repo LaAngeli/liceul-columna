@@ -78,6 +78,12 @@ class GradeForm
                 TextInput::make('value')
                     ->label(__('panel.fields.value'))
                     ->numeric()
+                    // Nota individuală e ÎNTREAGĂ: zecimalele aparțin mediilor, nu evaluărilor
+                    // (§1/§2.4). `step` dă săgețile din 1 în 1 și blochează tastarea lui „6,5" în
+                    // browser; regula `integer` o respinge și pe server, unde contează. Fără ele,
+                    // formularul accepta 6,5 — iar generatoarele demo chiar produceau astfel de note.
+                    ->step(1)
+                    ->rules(['integer'])
                     ->minValue(1)
                     ->maxValue(10)
                     ->helperText(fn (Get $get): string => self::valueHelper($get))

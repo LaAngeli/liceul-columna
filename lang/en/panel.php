@@ -1320,6 +1320,7 @@ return [
             'duplicate' => 'An absence already exists for this student, on this day, for this subject.',
         ],
         'grade' => [
+            'value_must_be_integer' => 'A grade is a whole number from 1 to 10. Decimals belong to averages only.',
             'future' => 'The grade date cannot be in the future.',
             'no_term_for_date' => 'No term is defined for this date. Open the new academic year (terms with date ranges) before recording grades in it.',
         ],

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -76,6 +77,32 @@ class Grade extends Model implements Auditable
     public function scopeActive(Builder $query): void
     {
         $query->whereNull('annulled_at');
+    }
+
+    /**
+     * Nota individuală e un NUMĂR ÎNTREG pe scala 1–10 (§1); zecimalele aparțin exclusiv mediilor
+     * ({@see TermAverage}, sutimi fără rotunjire — §2.4).
+     *
+     * Garda stă pe model, nu doar pe formular, pentru că formularul e o singură cale de intrare:
+     * seedere, comenzi și un viitor API scriu tot prin model. Descoperit pe date reale: cele 52.228
+     * de note importate din sistemul școlii sunt TOATE întregi, în timp ce două generatoare de
+     * demo (`app:seed-demo-zone`, `app:simulate-demo-activity`) produceau valori de tipul 6,5 —
+     * ajunse până în cabinetul familiei.
+     *
+     * Importul legacy scrie prin query builder, deci NU trece pe aici — deliberat: reproduce
+     * fidel datele școlii, iar o gardă acolo ar rescrie istoric.
+     */
+    protected static function booted(): void
+    {
+        static::saving(static function (self $grade): void {
+            $value = $grade->getAttribute('value');
+
+            if ($value !== null && (float) $value !== floor((float) $value)) {
+                throw ValidationException::withMessages([
+                    'value' => __('panel.validation.grade.value_must_be_integer'),
+                ]);
+            }
+        });
     }
 
     /**

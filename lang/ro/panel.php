@@ -1335,6 +1335,7 @@ return [
             'duplicate' => 'Există deja o absență pentru acest elev, în această zi, la această disciplină.',
         ],
         'grade' => [
+            'value_must_be_integer' => 'Nota este un număr întreg de la 1 la 10. Zecimalele apar doar la medii.',
             'future' => 'Data notei nu poate fi în viitor.',
             'no_term_for_date' => 'Nu există un semestru definit pentru această dată. Deschide anul școlar nou (semestre cu intervale) înainte de a introduce note în el.',
         ],
