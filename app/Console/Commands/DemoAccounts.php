@@ -2,16 +2,20 @@
 
 namespace App\Console\Commands;
 
+use App\Http\Middleware\EnsureTwoFactorEnrolled;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 
 class DemoAccounts extends Command
 {
-    protected $signature = 'app:demo-accounts {--remove : Șterge definitiv toate conturile demo}';
+    protected $signature = 'app:demo-accounts
+        {--remove : Șterge definitiv toate conturile demo}
+        {--reset-2fa : Dezactivează 2FA pe conturile demo (le deblochează pentru testare)}';
 
-    protected $description = 'Evidența conturilor demo/test (marcate [DEMO]): le listează sau, cu --remove, le șterge curat.';
+    protected $description = 'Evidența conturilor demo/test (marcate [DEMO]): le listează, le deblochează 2FA sau, cu --remove, le șterge curat.';
 
     /**
      * Marcajul care identifică un cont demo — prefix obligatoriu în `name`.
@@ -41,8 +45,13 @@ class DemoAccounts extends Command
             ])->all(),
         );
 
+        if ($this->option('reset-2fa')) {
+            return $this->resetTwoFactor($accounts);
+        }
+
         if (! $this->option('remove')) {
             $this->info($accounts->count().' cont(uri) demo. Rulează `php artisan app:demo-accounts --remove` pentru a le șterge.');
+            $this->line('Blocat la logare de 2FA? `php artisan app:demo-accounts --reset-2fa`.');
 
             return self::SUCCESS;
         }
@@ -136,5 +145,48 @@ class DemoAccounts extends Command
         $assign((int) $candidates->first()->id);
 
         return true;
+    }
+
+    /**
+     * Dezactivează 2FA pe conturile demo, ca să nu blocheze testarea.
+     *
+     * ⚠️ Comutatoarele `SECURITY_2FA_STAFF/CABINET` din `.env` opresc DOAR obligativitatea de a-ți
+     * CONFIGURA 2FA (gate-ul {@see EnsureTwoFactorEnrolled}). Provocarea de
+     * la login (`/two-factor-challenge`) vine din STAREA CONTULUI: dacă are `two_factor_secret` sau
+     * `two_factor_email_enabled_at`, Fortify o cere indiferent de config. Sunt două lucruri diferite,
+     * iar confuzia dintre ele costă o sesiune de „de ce tot îmi cere cod?".
+     *
+     * Atinge EXCLUSIV conturile marcate {@see MARKER} — conturile reale își păstrează 2FA.
+     *
+     * @param  Collection<int, User>  $accounts
+     */
+    private function resetTwoFactor($accounts): int
+    {
+        $blocked = $accounts->filter(
+            fn (User $user): bool => $user->two_factor_secret !== null
+                || $user->two_factor_email_enabled_at !== null
+        );
+
+        if ($blocked->isEmpty()) {
+            $this->info('Niciun cont demo nu are 2FA activ — toate se loghează direct.');
+
+            return self::SUCCESS;
+        }
+
+        foreach ($blocked as $user) {
+            $user->forceFill([
+                'two_factor_secret' => null,
+                'two_factor_recovery_codes' => null,
+                'two_factor_confirmed_at' => null,
+                'two_factor_email_enabled_at' => null,
+            ])->save();
+        }
+
+        $this->info('2FA dezactivat pe '.$blocked->count().' cont(uri) demo:');
+        foreach ($blocked as $user) {
+            $this->line('  · '.($user->email ?: $user->username));
+        }
+
+        return self::SUCCESS;
     }
 }
