@@ -46,14 +46,14 @@ class CabinetCatalogController extends Controller
         return Inertia::render('cabinet/note', $props);
     }
 
-    /** Modulul „Absențe": registrul pe discipline sau motivările familiei (formular + istoric). */
+    /** Modulul „Absențe": situația pe semestru (sinteză + discipline + cronologie) sau motivările. */
     public function absences(Request $request): Response
     {
         [$module, $student] = $this->moduleContext($request, ['registru', 'motivari']);
 
         $props = [
             'module' => $module,
-            'register' => null,
+            'overview' => null,
             'motivations' => null,
             'motivationWindow' => null,
             // Pagina e gardată pe familie (EnsureFamilyCabinet) + copilul e validat la familie —
@@ -62,7 +62,7 @@ class CabinetCatalogController extends Controller
         ];
 
         if ($student !== null && $module['section'] === 'registru') {
-            $props['register'] = $this->absenceRegister($student);
+            $props['overview'] = $this->absenceOverview($student);
         }
 
         if ($student !== null && $module['section'] === 'motivari') {

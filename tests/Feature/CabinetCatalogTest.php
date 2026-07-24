@@ -27,9 +27,10 @@ beforeEach(function () {
 });
 
 /**
- * Părinte cu un copil înscris într-o clasă.
+ * Părinte cu un copil înscris într-o clasă, într-un an cu semestru curent (fără el, modulele
+ * scopate pe semestru — Note și Absențe — n-au axă și întorc, corect, gol).
  *
- * @return array{0: User, 1: Student}
+ * @return array{0: User, 1: Student, 2: Term, 3: SchoolClass}
  */
 function catalogFamily(): array
 {
@@ -37,12 +38,13 @@ function catalogFamily(): array
     $class = SchoolClass::factory()->for($year)->create();
     $student = Student::factory()->create();
     Enrollment::factory()->for($student)->for($class)->for($year)->create();
+    $term = Term::factory()->for($year)->create(['number' => 1, 'is_current' => true]);
 
     $parent = User::factory()->create();
     $parent->assignRole(UserRole::Parinte->value);
     $parent->students()->attach($student->id);
 
-    return [$parent, $student];
+    return [$parent, $student, $term, $class];
 }
 
 it('modulul Note se randează pentru părinte cu datele DOAR ale modulului', function () {
@@ -102,8 +104,9 @@ it('modulul Absențe: registru implicit, motivările în secțiunea lor', functi
         ->assertInertia(fn (Assert $page) => $page
             ->component('cabinet/absente')
             ->where('module.section', 'registru')
-            ->has('register.subjects')
-            ->has('register.absences')
+            ->has('overview.subjects')
+            ->has('overview.absences')
+            ->has('overview.summary')
             ->where('motivations', null));
 
     $this->actingAs($parent)->get(route('cabinet.absences', ['sectiune' => 'motivari']))
@@ -112,17 +115,19 @@ it('modulul Absențe: registru implicit, motivările în secțiunea lor', functi
             ->where('module.section', 'motivari')
             ->has('motivations')
             ->where('canRequestMotivation', true)
-            ->where('register', null));
+            ->where('overview', null));
 });
 
-it('registrul expune contextul complet al absenței: profesor, statut, termen, disciplină', function () {
-    [$parent, $student] = catalogFamily();
+it('situația expune contextul complet al absenței: profesor, statut, termen, disciplină', function () {
+    [$parent, $student, $term, $class] = catalogFamily();
 
     $subject = Subject::factory()->create(['name' => 'Matematica']);
     $teacher = Teacher::factory()->create(['last_name' => 'Popescu', 'first_name' => 'Ion']);
     Absence::factory()->create([
         'student_id' => $student->id,
         'subject_id' => $subject->id,
+        'school_class_id' => $class->id,
+        'term_id' => $term->id,
         'teacher_id' => $teacher->id,
         'occurred_on' => Carbon::yesterday()->toDateString(),
         'is_motivated' => false,
@@ -132,16 +137,16 @@ it('registrul expune contextul complet al absenței: profesor, statut, termen, d
     $this->actingAs($parent)->get(route('cabinet.absences'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('register.absences.0.subject', 'Matematica')
-            ->where('register.absences.0.teacher', 'Popescu Ion')
-            ->where('register.absences.0.motivated', false)
-            ->where('register.absences.0.date', Carbon::yesterday()->format('d.m.Y'))
-            ->where('register.absences.0.deadline', Carbon::tomorrow()->format('d.m.Y'))
-            ->where('register.absences.0.deadlinePassed', false)
-            ->where('register.absences.0.locked', false)
-            ->where('register.subjects.0.name', 'Matematica')
-            ->where('register.subjects.0.unmotivated', 1)
-            ->where('register.unmotivated', 1));
+            ->where('overview.absences.0.subject', 'Matematica')
+            ->where('overview.absences.0.teacher', 'Popescu Ion')
+            ->where('overview.absences.0.motivated', false)
+            ->where('overview.absences.0.date', Carbon::yesterday()->format('d.m.Y'))
+            ->where('overview.absences.0.deadline', Carbon::tomorrow()->format('d.m.Y'))
+            ->where('overview.absences.0.deadlinePassed', false)
+            ->where('overview.absences.0.locked', false)
+            ->where('overview.subjects.0.name', 'Matematica')
+            ->where('overview.subjects.0.terms.1.unmotivated', 1)
+            ->where('overview.summary.1.unmotivated', 1));
 });
 
 it('cererea de motivare poartă cronologia completă: depunere, decizie, impact', function () {
@@ -177,15 +182,10 @@ it('cererea de motivare poartă cronologia completă: depunere, decizie, impact'
 });
 
 it('fereastra de motivare urmează anul școlar curent', function () {
-    [$parent] = catalogFamily();
-
-    $year = AcademicYear::factory()->create();
-    Term::factory()->create([
-        'academic_year_id' => $year->id,
-        'is_current' => true,
-        'starts_on' => '2025-09-01',
-        'ends_on' => '2026-01-31',
-    ]);
+    // Semestrul curent e cel al fixturii — un al doilea „is_current" ar face ambiguu care an
+    // dictează fereastra, exact situația pe care garda din model o interzice oricum.
+    [$parent, , $term] = catalogFamily();
+    $term->update(['starts_on' => '2025-09-01', 'ends_on' => '2026-01-31']);
 
     $this->actingAs($parent)->get(route('cabinet.absences', ['sectiune' => 'motivari']))
         ->assertOk()

@@ -1,24 +1,23 @@
+import { AbsenceOverview } from '@/components/cabinet/catalog/absence-views';
+import type { AbsenceOverviewData } from '@/components/cabinet/catalog/absence-views';
 import { GradeBook } from '@/components/cabinet/catalog/gradebook-views';
 import type { GradeBookData } from '@/components/cabinet/catalog/gradebook-views';
-import {
-    AbsenceRegister,
-    AbsenceTotals,
-    MotivationsPanel,
-} from '@/components/cabinet/catalog/situation-views';
-import type { AbsenceRegisterData, MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
+import { AbsenceTotals, MotivationsPanel } from '@/components/cabinet/catalog/situation-views';
+import type { MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
 import { SectionHeading } from '@/components/cabinet/section-heading';
 import { SkeletonGrid, SkeletonTable } from '@/components/cabinet/student-profile/skeletons';
 import { useTranslations } from '@/lib/i18n';
 
 /**
- * Tab Situație — note + absențe + motivări. COMPUS din vederile partajate `catalog/situation-views`
- * (aceleași componente ca modulele „Note"/„Absențe" din meniu → design garantat identic).
- * Prop-urile defer (subjects, absenceRegister, motivations) sosesc progresiv; skeleton până atunci.
+ * Tab Situație — note + absențe + motivări. COMPUS din ACELEAȘI vederi ca modulele „Note" și
+ * „Absențe" din meniu (`catalog/gradebook-views`, `catalog/absence-views`, `catalog/situation-views`)
+ * → design garantat identic. Prop-urile defer (gradebook, absenceOverview, motivations) sosesc
+ * progresiv; până atunci, skeleton.
  */
 export function SituationTab({
     studentId,
     gradebook,
-    absenceRegister,
+    absenceOverview,
     absencesMotivated,
     absencesUnmotivated,
     motivations,
@@ -28,7 +27,7 @@ export function SituationTab({
 }: {
     studentId: number;
     gradebook?: GradeBookData;
-    absenceRegister?: AbsenceRegisterData;
+    absenceOverview?: AbsenceOverviewData;
     absencesMotivated: number;
     absencesUnmotivated: number;
     motivations?: MotivationItem[];
@@ -73,10 +72,10 @@ export function SituationTab({
                     <p className="mt-1.5 text-muted-foreground">{t('cabinet.extract_absences')}</p>
                 </details>
 
-                {absenceRegister === undefined ? (
+                {absenceOverview === undefined ? (
                     <SkeletonGrid count={6} columns={3} />
                 ) : (
-                    <AbsenceRegister register={absenceRegister} />
+                    <AbsenceOverview overview={absenceOverview} />
                 )}
             </section>
 

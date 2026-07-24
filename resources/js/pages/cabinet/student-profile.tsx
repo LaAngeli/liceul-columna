@@ -1,10 +1,11 @@
 import { Head } from '@inertiajs/react';
 import { BookOpen, ClipboardList, FileText, History, LayoutDashboard } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import type { AbsenceOverviewData } from '@/components/cabinet/catalog/absence-views';
 import type { GradeBookData } from '@/components/cabinet/catalog/gradebook-views';
 import type { HomeworkItem } from '@/components/cabinet/catalog/homework-views';
 import type { WeeklyData } from '@/components/cabinet/catalog/schedule-views';
-import type { AbsenceRegisterData, MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
+import type { MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
 import { ProfileHeader } from '@/components/cabinet/student-profile/header';
 import type { Trend } from '@/components/cabinet/student-profile/helpers';
 import { HistoryTab } from '@/components/cabinet/student-profile/tabs/history-tab';
@@ -74,7 +75,7 @@ interface Props {
 
     // Defer (sosesc progresiv într-un al 2-lea request după mount)
     gradebook?: GradeBookData;
-    absenceRegister?: AbsenceRegisterData;
+    absenceOverview?: AbsenceOverviewData;
     transcript?: { grade_level: number; subjects: { subject: string; sem1: string | null; sem2: string | null; annual: string | null }[] }[];
     homework?: HomeworkItem[];
     dynamics?: Dynamics;
@@ -176,7 +177,7 @@ export default function StudentProfile(props: Props) {
 
         // Ancorele de sub „Note" se mută doar când sosesc notele și absențele (secțiunile de
         // deasupra lor) — după ambele, poziția e definitivă și intenția s-a consumat.
-        if (props.gradebook !== undefined && props.absenceRegister !== undefined) {
+        if (props.gradebook !== undefined && props.absenceOverview !== undefined) {
             pendingSection.current = null;
         }
 
@@ -185,7 +186,7 @@ export default function StudentProfile(props: Props) {
         const frame = requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
 
         return () => cancelAnimationFrame(frame);
-    }, [activeTab, props.gradebook, props.absenceRegister]);
+    }, [activeTab, props.gradebook, props.absenceOverview]);
 
     function changeTab(next: string) {
         const tab = (VALID_TABS as readonly string[]).includes(next) ? (next as TabValue) : 'overview';
@@ -270,7 +271,7 @@ export default function StudentProfile(props: Props) {
                     <SituationTab
                         studentId={props.student.id}
                         gradebook={props.gradebook}
-                        absenceRegister={props.absenceRegister}
+                        absenceOverview={props.absenceOverview}
                         absencesMotivated={props.absencesMotivated}
                         absencesUnmotivated={props.absencesUnmotivated}
                         motivations={props.motivations}

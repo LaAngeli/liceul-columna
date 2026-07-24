@@ -1,22 +1,23 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import { AbsenceOverview } from '@/components/cabinet/catalog/absence-views';
+import type { AbsenceOverviewData } from '@/components/cabinet/catalog/absence-views';
 import { ModuleShell } from '@/components/cabinet/catalog/module-shell';
 import type { ModuleContext } from '@/components/cabinet/catalog/module-shell';
-import { AbsenceRegister, AbsenceTotals, MotivationsPanel } from '@/components/cabinet/catalog/situation-views';
-import type { AbsenceRegisterData, MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
-import { SectionHeading } from '@/components/cabinet/section-heading';
+import { MotivationsPanel } from '@/components/cabinet/catalog/situation-views';
+import type { MotivationItem, MotivationWindow } from '@/components/cabinet/catalog/situation-views';
 import { useTranslations } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 
 interface Props {
     module: ModuleContext;
-    register: AbsenceRegisterData | null;
+    overview: AbsenceOverviewData | null;
     motivations: MotivationItem[] | null;
     motivationWindow: MotivationWindow | null;
     canRequestMotivation: boolean;
 }
 
-/** Modulul „Absențe": registrul detaliat pe discipline · motivările familiei (formular + istoric). */
-export default function AbsencesModulePage({ module, register, motivations, motivationWindow, canRequestMotivation }: Props) {
+/** Modulul „Absențe": situația pe semestru (sinteză + 3 vederi) · motivările familiei. */
+export default function AbsencesModulePage({ module, overview, motivations, motivationWindow, canRequestMotivation }: Props) {
     const t = useTranslations();
 
     return (
@@ -32,14 +33,21 @@ export default function AbsencesModulePage({ module, register, motivations, moti
                     { value: 'motivari', label: t('cabinet.catalog_sec_motivations') },
                 ]}
             >
-                {module.section === 'registru' && register !== null && (
-                    <section>
-                        <SectionHeading
-                            title={t('cabinet.reg_title')}
-                            actions={<AbsenceTotals motivated={register.motivated} unmotivated={register.unmotivated} />}
-                        />
-                        <AbsenceRegister register={register} />
-                    </section>
+                {module.section === 'registru' && overview !== null && (
+                    <AbsenceOverview
+                        overview={overview}
+                        // Alerta „termenul expiră" e singurul lucru rezolvabil din situație — butonul
+                        // ei duce direct la formularul de motivare, nu doar la o altă filă.
+                        onRequestMotivation={
+                            canRequestMotivation
+                                ? () =>
+                                      router.get('/cabinet/absente', {
+                                          copil: module.currentId ?? undefined,
+                                          sectiune: 'motivari',
+                                      })
+                                : undefined
+                        }
+                    />
                 )}
 
                 {module.section === 'motivari' && motivations !== null && module.currentId !== null && (

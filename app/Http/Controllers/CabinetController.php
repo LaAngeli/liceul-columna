@@ -414,7 +414,8 @@ class CabinetController extends Controller
             // Tab „Situație" — note + absențe + motivări
             // Același catalog ca modulul „Note" din meniu (o singură implementare, un singur design).
             'gradebook' => Inertia::defer(fn (): array => $this->gradeBook($student)),
-            'absenceRegister' => Inertia::defer(fn (): array => $this->absenceRegister($student)),
+            // Aceeași situație a absențelor ca modulul „Absențe" din meniu (o singură implementare).
+            'absenceOverview' => Inertia::defer(fn (): array => $this->absenceOverview($student)),
             'deferralRisk' => Inertia::defer(fn (): array => app(ComputeDeferralRisk::class)->for($student)),
             'motivations' => Inertia::defer(fn (): array => $canSeeSensitive ? $this->motivations($student) : []),
 

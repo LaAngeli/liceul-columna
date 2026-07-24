@@ -1,7 +1,6 @@
 import { Form } from '@inertiajs/react';
-import { CalendarRange, FileText, Lock, Paperclip } from 'lucide-react';
+import { FileText, Paperclip } from 'lucide-react';
 import { useState } from 'react';
-import { FilterPills } from '@/components/cabinet/catalog/filter-pills';
 import { localIso } from '@/components/cabinet/catalog/homework-views';
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { Badge } from '@/components/ui/badge';
@@ -22,26 +21,6 @@ export interface SemesterAveragesMatrix {
     terms: number[];
     rows: { subject: string; values: Record<number, number | null> }[];
     general: Record<number, number | null>;
-}
-
-/** Registrul absențelor: contoare pe discipline + fiecare absență cu contextul ei complet. */
-export interface AbsenceRegisterData {
-    subjects: { id: number; name: string; total: number; unmotivated: number }[];
-    absences: {
-        id: number;
-        date: string;
-        weekday: string;
-        subjectId: number;
-        subject: string;
-        teacher: string | null;
-        motivated: boolean;
-        recordedAt: string | null;
-        deadline: string | null;
-        deadlinePassed: boolean;
-        locked: boolean;
-    }[];
-    motivated: number;
-    unmotivated: number;
 }
 
 export interface MotivationItem {
@@ -131,97 +110,6 @@ export function AbsenceTotals({ motivated, unmotivated }: { motivated: number; u
                 {unmotivated} {t('cabinet.unmotivated')}
             </Badge>
         </>
-    );
-}
-
-/**
- * REGISTRUL absențelor: pastile de disciplină complet clickabile (cu contoare) + lista absențelor
- * disciplinei active, cu tot contextul (zi, profesor, statut, termen de motivare / consolidare).
- * Toate datele sunt deja încărcate → comutarea între discipline e INSTANT, pur client-side.
- */
-export function AbsenceRegister({ register }: { register: AbsenceRegisterData }) {
-    const t = useTranslations();
-    const [activeSubject, setActiveSubject] = useState<number | 'all'>('all');
-
-    if (register.absences.length === 0) {
-        return <EmptyState title={t('cabinet.no_absences')} />;
-    }
-
-    const visible =
-        activeSubject === 'all'
-            ? register.absences
-            : register.absences.filter((a) => a.subjectId === activeSubject);
-
-    return (
-        <div className="flex flex-col gap-3">
-            {/* Selectorul de disciplină — pastile care se ÎNFĂȘOARĂ, fără scroll orizontal
-                (aceeași componentă ca filtrul din modulul „Teme"). */}
-            <FilterPills
-                options={register.subjects.map((s) => ({
-                    key: s.id,
-                    label: s.name,
-                    count: s.total,
-                    danger: s.unmotivated > 0,
-                }))}
-                active={activeSubject}
-                onChange={(key) => setActiveSubject(key === 'all' ? 'all' : Number(key))}
-                allCount={register.absences.length}
-                ariaLabel={t('cabinet.subject')}
-            />
-
-            {/* Lista absențelor disciplinei active — cronologic descrescător. */}
-            <ul className="divide-y overflow-hidden rounded-xl border bg-card">
-                {visible.map((a) => (
-                    <li key={a.id} className="flex items-center gap-3 px-3.5 py-2.5">
-                        <div className="w-21 shrink-0">
-                            <div className="text-sm font-semibold">{a.date}</div>
-                            <div className="text-[11px] text-muted-foreground first-letter:uppercase">{a.weekday}</div>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            {activeSubject === 'all' && <div className="truncate text-sm font-medium">{a.subject}</div>}
-                            {a.teacher && <div className="truncate text-xs text-muted-foreground">{a.teacher}</div>}
-                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                                {a.recordedAt && (
-                                    <span>
-                                        {t('cabinet.reg_recorded')}: {a.recordedAt}
-                                    </span>
-                                )}
-                                {a.locked && (
-                                    <span
-                                        className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-700 dark:text-amber-300"
-                                        title={t('cabinet.reg_locked_hint')}
-                                    >
-                                        <Lock className="size-3" aria-hidden />
-                                        {t('cabinet.reg_locked')}
-                                    </span>
-                                )}
-                                {!a.locked && a.deadline && !a.deadlinePassed && (
-                                    <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-medium">
-                                        <CalendarRange className="size-3" aria-hidden />
-                                        {t('cabinet.reg_deadline')}: {a.deadline}
-                                    </span>
-                                )}
-                                {!a.locked && a.deadlinePassed && (
-                                    <span className="inline-flex items-center gap-1 rounded bg-destructive/10 px-1.5 py-0.5 font-medium text-destructive">
-                                        {t('cabinet.reg_deadline_passed')}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                        <span
-                            className={cn(
-                                'shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold',
-                                a.motivated
-                                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
-                                    : 'bg-destructive/10 text-destructive',
-                            )}
-                        >
-                            {t(a.motivated ? 'cabinet.motivated' : 'cabinet.unmotivated')}
-                        </span>
-                    </li>
-                ))}
-            </ul>
-        </div>
     );
 }
 

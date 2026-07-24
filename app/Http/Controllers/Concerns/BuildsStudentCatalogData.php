@@ -11,6 +11,7 @@ use App\Models\Absence;
 use App\Models\AbsenceMotivation;
 use App\Models\Grade;
 use App\Models\HomeworkAssignment;
+use App\Models\Lesson;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\TeachingAssignment;
@@ -349,12 +350,14 @@ trait BuildsStudentCatalogData
      *
      * Cheia hărții e `school_class_id`-`subject_id`.
      *
-     * @param  Collection<int, Grade>  $grades
+     * @template TRecord of Grade|Absence
+     *
+     * @param  Collection<int, TRecord>  $records  rânduri cu (school_class_id, subject_id)
      * @return array<string, string>
      */
-    private function subjectTeachersFor(Collection $grades): array
+    private function subjectTeachersFor(Collection $records): array
     {
-        $classIds = $grades->pluck('school_class_id')->filter()->unique()->values();
+        $classIds = $records->pluck('school_class_id')->filter()->unique()->values();
 
         if ($classIds->isEmpty()) {
             return [];
@@ -363,7 +366,7 @@ trait BuildsStudentCatalogData
         $map = [];
         $assignments = TeachingAssignment::query()
             ->whereIn('school_class_id', $classIds)
-            ->whereIn('subject_id', $grades->pluck('subject_id')->unique()->values())
+            ->whereIn('subject_id', $records->pluck('subject_id')->filter()->unique()->values())
             ->with('teacher')
             ->get()
             ->groupBy(fn (TeachingAssignment $a): string => $a->school_class_id.'-'.$a->subject_id);
@@ -508,21 +511,47 @@ trait BuildsStudentCatalogData
     }
 
     /**
-     * REGISTRUL absențelor: fiecare absență cu contextul ei complet (dată + zi, disciplină,
-     * profesorul care a consemnat-o, statut, termenul de motivare / consolidarea) + contoarele
-     * pe discipline pentru filtrarea client-side. Toate absențele elevului dintr-o singură
-     * încărcare (volum mic per elev) → comutarea între discipline e INSTANT, fără alt request.
+     * SITUAȚIA absențelor pentru anul curent — sursa modulului „Absențe".
+     *
+     * Registrul dinainte era o listă plată: corectă, dar mută la întrebările pe care le pune de fapt
+     * un părinte — „câte are în total?", „câte au rămas nemotivate?", „e mai rău decât semestrul
+     * trecut?", „la ce lecție a lipsit?". Aici răspunsurile vin gata calculate:
+     *   • **axa semestrului**, ca la {@see gradeBook()} — absențele anului sub o singură sinteză ar
+     *     amesteca două perioade care se judecă separat;
+     *   • **sinteza per semestru**: total, motivate/nemotivate, zile distincte afectate, tendința
+     *     față de semestrul anterior, termene care expiră și absențe consolidate;
+     *   • **seria lunară**, pentru graficul de evoluție (agregare pe server: e o regulă de citire,
+     *     nu o decorațiune de UI);
+     *   • **lecția**, derivată din orarul structurat — schema nu are ora absenței, doar ziua.
      *
      * @return array{
-     *     subjects: array<int, array{id: int, name: string, total: int, unmotivated: int}>,
-     *     absences: array<int, array<string, mixed>>,
-     *     motivated: int,
-     *     unmotivated: int,
+     *     terms: list<array{number: int, label: string, current: bool}>,
+     *     currentTerm: int|null,
+     *     subjects: list<array<string, mixed>>,
+     *     absences: list<array<string, mixed>>,
+     *     summary: array<int, array<string, mixed>>,
+     *     months: array<int, list<array<string, mixed>>>,
      * }
      */
-    protected function absenceRegister(Student $student): array
+    protected function absenceOverview(Student $student): array
     {
-        $absences = $student->absences()
+        $currentTerm = Term::query()->where('is_current', true)->first();
+
+        if ($currentTerm === null) {
+            return ['terms' => [], 'currentTerm' => null, 'subjects' => [], 'absences' => [], 'summary' => [], 'months' => []];
+        }
+
+        $terms = Term::query()
+            ->where('academic_year_id', $currentTerm->academic_year_id)
+            ->orderBy('number')
+            ->get();
+
+        /** @var array<int, int> $termNumberById */
+        $termNumberById = $terms->pluck('number', 'id')->map(fn ($n): int => (int) $n)->all();
+
+        $absences = Absence::query()
+            ->where('student_id', $student->id)
+            ->whereIn('term_id', $terms->pluck('id'))
             ->with(['subject', 'teacher'])
             ->orderByDesc('occurred_on')
             ->orderByDesc('id')
@@ -530,51 +559,253 @@ trait BuildsStudentCatalogData
 
         $wholeDayLabel = (string) __('site.cabinet.whole_day_absence');
         $today = SchoolCalendar::localNow()->startOfDay();
+        $subjectTeachers = $this->subjectTeachersFor($absences);
+        $lessons = $this->lessonSlotsFor($absences);
 
-        $rows = $absences->map(function (Absence $absence) use ($wholeDayLabel, $today): array {
-            $deadline = $absence->motivation_deadline;
-
-            return [
-                'id' => $absence->id,
-                'date' => $absence->occurred_on->format('d.m.Y'),
-                // Ziua săptămânii în limba interfeței (SetUserLocale) — contextul „luni/vineri"
-                // contează pentru părinte mai mult decât cifra seacă.
-                'weekday' => $absence->occurred_on->translatedFormat('l'),
-                // Absența pe zi întreagă nu are disciplină → grup propriu, id 0.
-                'subjectId' => (int) ($absence->subject_id ?? 0),
-                'subject' => $absence->subject?->name !== null
-                    ? ContentTranslator::subject((string) $absence->subject->name)
-                    : $wholeDayLabel,
-                'teacher' => $absence->teacher?->full_name,
-                'motivated' => $absence->is_motivated,
-                // Momentul consemnării în sistem (ora absenței în sine nu se stochează — schema
-                // ține doar ZIUA) — pe ora școlii, nu UTC.
-                'recordedAt' => SchoolCalendar::local($absence->created_at)?->format('d.m.Y, H:i'),
-                // Contextul termenului contează DOAR cât absența e nemotivată.
-                'deadline' => ! $absence->is_motivated && $deadline !== null ? $deadline->format('d.m.Y') : null,
-                'deadlinePassed' => ! $absence->is_motivated && $deadline !== null && $deadline->lt($today),
-                'locked' => ! $absence->is_motivated && $absence->motivation_locked_at !== null,
-            ];
-        })->values()->all();
-
+        /** @var array<int, array<string, mixed>> $subjects */
         $subjects = [];
-        foreach ($absences->groupBy(fn (Absence $absence): int => (int) ($absence->subject_id ?? 0)) as $subjectId => $items) {
-            $name = $items->first()->subject?->name;
-            $subjects[] = [
-                'id' => (int) $subjectId,
+        $rows = [];
+
+        foreach ($absences as $absence) {
+            // Absența pe zi întreagă n-are disciplină → grup propriu, id 0 (aceeași convenție ca în
+            // registrul dinainte, pe care se sprijină filtrarea client-side).
+            $subjectId = (int) ($absence->subject_id ?? 0);
+            $name = $absence->subject?->name;
+            $key = $absence->school_class_id.'-'.$subjectId;
+
+            $subjects[$subjectId] ??= [
+                'id' => $subjectId,
                 'name' => $name !== null ? ContentTranslator::subject((string) $name) : $wholeDayLabel,
-                'total' => $items->count(),
-                'unmotivated' => $items->where('is_motivated', false)->count(),
+                'teacher' => $subjectTeachers[$key] ?? null,
+                'terms' => [],
+            ];
+
+            $deadline = $absence->motivation_deadline;
+            $recordedBy = $absence->teacher?->full_name;
+            $number = $termNumberById[$absence->term_id] ?? 0;
+            $locked = ! $absence->is_motivated && $absence->motivation_locked_at !== null;
+            $deadlinePassed = ! $absence->is_motivated && $deadline !== null && $deadline->lt($today);
+
+            $rows[] = [
+                'id' => $absence->id,
+                'term' => $number,
+                'subjectId' => $subjectId,
+                'subject' => $subjects[$subjectId]['name'],
+                'iso' => $absence->occurred_on->toDateString(),
+                'date' => $absence->occurred_on->format('d.m.Y'),
+                'weekday' => $absence->occurred_on->translatedFormat('l'),
+                'monthKey' => $absence->occurred_on->format('Y-m'),
+                'monthLabel' => ucfirst($absence->occurred_on->translatedFormat('F Y')),
+                // Profesorul disciplinei vine din alocări; `absences.teacher_id` e populat pe 79 din
+                // ~14.000 de rânduri (importul legacy nu-l aducea), deci ca sursă unică ar fi tăcut
+                // aproape peste tot. Vezi {@see subjectTeachersFor()}.
+                'teacher' => $recordedBy ?? $subjectTeachers[$key] ?? null,
+                // Lecția: schema stochează doar ZIUA, deci numărul se deduce din orar. null unde
+                // disciplina apare de mai multe ori în acea zi — vezi {@see lessonSlotsFor()}.
+                'lesson' => $lessons[$key.'-'.$absence->occurred_on->dayOfWeekIso] ?? null,
+                'motivated' => $absence->is_motivated,
+                'recordedAt' => SchoolCalendar::local($absence->created_at)?->format('d.m.Y, H:i'),
+                // Termenul contează DOAR cât absența e nemotivată; după aceea e istorie.
+                'deadline' => ! $absence->is_motivated && $deadline !== null ? $deadline->format('d.m.Y') : null,
+                'deadlinePassed' => $deadlinePassed,
+                // Zile rămase până la expirarea dreptului de a cere motivare — semnalul acționabil.
+                'deadlineDays' => ! $absence->is_motivated && $deadline !== null && ! $deadlinePassed
+                    ? $today->diffInDays($deadline)
+                    : null,
+                'locked' => $locked,
             ];
         }
-        usort($subjects, fn (array $a, array $b): int => $b['total'] <=> $a['total']);
+
+        // Contoarele pe (disciplină, semestru) — baza pastilelor de filtrare și a cardurilor.
+        foreach ($rows as $row) {
+            $stats = $subjects[$row['subjectId']]['terms'][$row['term']] ?? ['total' => 0, 'motivated' => 0, 'unmotivated' => 0];
+            $stats['total']++;
+            $row['motivated'] ? $stats['motivated']++ : $stats['unmotivated']++;
+            $subjects[$row['subjectId']]['terms'][$row['term']] = $stats;
+        }
+
+        $subjects = array_values($subjects);
+        usort($subjects, fn (array $a, array $b): int => strcmp((string) $a['name'], (string) $b['name']));
+
+        $termList = [];
+        foreach ($terms as $term) {
+            $termList[] = [
+                'number' => (int) $term->number,
+                'label' => ContentTranslator::string((string) $term->name),
+                'current' => (bool) $term->is_current,
+            ];
+        }
 
         return [
+            'terms' => $termList,
+            'currentTerm' => (int) $currentTerm->number,
             'subjects' => $subjects,
             'absences' => $rows,
-            'motivated' => $absences->where('is_motivated', true)->count(),
-            'unmotivated' => $absences->where('is_motivated', false)->count(),
+            'summary' => $this->absenceSummary($rows, $terms),
+            'months' => $this->absenceMonths($rows, $terms),
         ];
+    }
+
+    /**
+     * Sinteza fiecărui semestru: totalul, împărțirea motivate/nemotivate, câte ZILE distincte a
+     * lipsit (o zi cu 5 lecții pierdute e o zi, nu cinci absențe separate — asta întreabă părintele),
+     * disciplina cea mai afectată, termenele care expiră și tendința față de semestrul anterior.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @param  Collection<int, Term>  $terms
+     * @return array<int, array<string, mixed>>
+     */
+    private function absenceSummary(array $rows, Collection $terms): array
+    {
+        $summary = [];
+        $previousTotal = null;
+
+        foreach ($terms as $term) {
+            $number = (int) $term->number;
+            $termRows = array_values(array_filter($rows, fn (array $row): bool => $row['term'] === $number));
+
+            $motivated = count(array_filter($termRows, fn (array $row): bool => $row['motivated'] === true));
+            $total = count($termRows);
+            $unmotivated = $total - $motivated;
+
+            /** @var array<int, int> $perSubject */
+            $perSubject = [];
+            foreach ($termRows as $row) {
+                $perSubject[$row['subject']] = ($perSubject[$row['subject']] ?? 0) + 1;
+            }
+            arsort($perSubject);
+            $worstName = array_key_first($perSubject);
+
+            $summary[$number] = [
+                'total' => $total,
+                'motivated' => $motivated,
+                'unmotivated' => $unmotivated,
+                // Procentul motivat — rostul barei de proporție din sinteză.
+                'motivatedRate' => $total > 0 ? (int) round($motivated / $total * 100) : null,
+                'days' => count(array_unique(array_column($termRows, 'iso'))),
+                'subjectsCount' => count($perSubject),
+                'worstSubject' => $worstName !== null ? ['name' => $worstName, 'count' => $perSubject[$worstName]] : null,
+                'lastDate' => $termRows[0]['date'] ?? null,
+                // Nemotivate al căror termen expiră în cel mult o săptămână: singurul lucru din
+                // modul pe care familia îl poate încă REZOLVA.
+                'expiringSoon' => count(array_filter(
+                    $termRows,
+                    fn (array $row): bool => $row['deadlineDays'] !== null && $row['deadlineDays'] <= 7,
+                )),
+                // Consolidate: termenul a trecut sau dirigintele a închis motivarea — rămân definitive.
+                'locked' => count(array_filter(
+                    $termRows,
+                    fn (array $row): bool => $row['locked'] === true || $row['deadlinePassed'] === true,
+                )),
+                'previousTotal' => $previousTotal,
+                // La absențe „mai multe" e mai rău, deci tendința se inversează față de medii:
+                // creșterea numărului = `down`, ca UI-ul să folosească aceeași convenție de culoare.
+                'trend' => $previousTotal !== null && $total !== $previousTotal
+                    ? ($total > $previousTotal ? 'down' : 'up')
+                    : ($previousTotal !== null ? 'stable' : null),
+            ];
+
+            $previousTotal = $total;
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Absențele grupate pe LUNĂ, în ordine cronologică — seria graficului de evoluție. Lunile fără
+     * absențe din interiorul semestrului sunt incluse cu zero: fără ele, graficul ar comprima o
+     * pauză de două luni într-un singur pas și ar minți despre ritm.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @param  Collection<int, Term>  $terms
+     * @return array<int, list<array<string, mixed>>>
+     */
+    private function absenceMonths(array $rows, Collection $terms): array
+    {
+        $months = [];
+
+        foreach ($terms as $term) {
+            $number = (int) $term->number;
+            $termRows = array_filter($rows, fn (array $row): bool => $row['term'] === $number);
+
+            /** @var array<string, array{key: string, label: string, total: int, motivated: int, unmotivated: int}> $buckets */
+            $buckets = [];
+            foreach ($termRows as $row) {
+                $buckets[$row['monthKey']] ??= [
+                    'key' => $row['monthKey'],
+                    'label' => ucfirst(Carbon::parse($row['iso'])->translatedFormat('M')),
+                    'total' => 0,
+                    'motivated' => 0,
+                    'unmotivated' => 0,
+                ];
+                $buckets[$row['monthKey']]['total']++;
+                $row['motivated'] ? $buckets[$row['monthKey']]['motivated']++ : $buckets[$row['monthKey']]['unmotivated']++;
+            }
+
+            if ($buckets !== []) {
+                // Completăm golurile dintre prima și ultima lună cu absențe.
+                $keys = array_keys($buckets);
+                sort($keys);
+                $cursor = Carbon::createFromFormat('Y-m', $keys[0])->startOfMonth();
+                $last = Carbon::createFromFormat('Y-m', $keys[count($keys) - 1])->startOfMonth();
+
+                while ($cursor->lte($last)) {
+                    $key = $cursor->format('Y-m');
+                    $buckets[$key] ??= [
+                        'key' => $key,
+                        'label' => ucfirst($cursor->translatedFormat('M')),
+                        'total' => 0,
+                        'motivated' => 0,
+                        'unmotivated' => 0,
+                    ];
+                    $cursor->addMonth();
+                }
+                ksort($buckets);
+            }
+
+            $months[$number] = array_values($buckets);
+        }
+
+        return $months;
+    }
+
+    /**
+     * Lecția fiecărei perechi (clasă, disciplină, zi a săptămânii), din orarul STRUCTURAT.
+     *
+     * Schema absențelor stochează doar ZIUA (`occurred_on` e `date`), nu ora — numărul lecției nu
+     * poate veni de pe rând. Orarul îl dă însă fără ambiguitate în 87% din cazuri; unde aceeași
+     * disciplină apare de două ori în aceeași zi, nu se poate ști la care lecție a lipsit, deci nu
+     * se întoarce nimic. Un „Lecția 3" greșit ar fi mai rău decât o casetă goală.
+     *
+     * @param  Collection<int, Absence>  $absences
+     * @return array<string, array{number: int, room: string|null}>
+     */
+    private function lessonSlotsFor(Collection $absences): array
+    {
+        $classIds = $absences->pluck('school_class_id')->filter()->unique()->values();
+
+        if ($classIds->isEmpty()) {
+            return [];
+        }
+
+        $slots = Lesson::query()
+            ->whereIn('school_class_id', $classIds)
+            ->whereIn('subject_id', $absences->pluck('subject_id')->filter()->unique()->values())
+            ->get()
+            ->groupBy(fn (Lesson $lesson): string => $lesson->school_class_id.'-'.$lesson->subject_id.'-'.$lesson->day_of_week->value);
+
+        $map = [];
+        foreach ($slots as $key => $group) {
+            if ($group->count() === 1) {
+                $lesson = $group->first();
+                $map[(string) $key] = [
+                    'number' => (int) $lesson->lesson_number,
+                    'room' => $lesson->room,
+                ];
+            }
+        }
+
+        return $map;
     }
 
     /**
