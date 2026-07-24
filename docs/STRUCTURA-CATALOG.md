@@ -11,7 +11,7 @@ Chișinău, 26 iunie 2026
 # 1.  Scop și principii de bază
 Acest document fixează structura informațională și regulile de acces ale catalogului electronic, astfel încât fiecare categorie de utilizatori să vadă și să completeze exact ce îi revine — nici mai mult, nici mai puțin — iar greșelile de utilizare să fie blocate tehnic, nu doar descurajate.
 - Drepturile se acordă pe rol, nu pe persoană. O persoană poate cumula roluri (dirigintele este și profesor), dar fiecare rol are propriul set de permisiuni, verificat pe server.
-- Tot ce ține de date academice respectă: introducere directă de profesor în timp real, scală 1–10, niciodată ștergere (DELETE) pe note — doar anulare cu motiv, vizibilă în istoric.
+- Tot ce ține de date academice respectă: introducere directă de profesor în timp real, scală 1–10 (**nota individuală e un număr ÎNTREG** — sutimile aparțin exclusiv mediilor, vezi [NOTARE-TIPURI-SI-SCALA.md](NOTARE-TIPURI-SI-SCALA.md) §3.1), niciodată ștergere (DELETE) pe note — doar anulare cu motiv, vizibilă în istoric.
 - Mediile sunt calculate automat (cache), niciodată introduse manual, după reguli diferite pe cicluri (vezi 2.4) — se elimină erorile de aritmetică și posibilitatea de manipulare.
 - Orice modificare sensibilă este înscrisă în audit_log (valoare veche / valoare nouă, autor, dată) — neștergibil.
 - Un cont de familie accesează toți copiii săi printr-o singură autentificare; în interior, informația este separată clar pe fiecare copil (inclusiv dinamica multi-an). Accesul la datele unui elev din afara familiei este imposibil tehnic.
