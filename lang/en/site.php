@@ -827,7 +827,7 @@ return [
         'status_official' => 'Officially validated',
         'dynamics_title' => 'Trends & progress',
         'dynamics_current' => 'Current average',
-        'dynamics_history' => 'Your historical average',
+        'dynamics_history' => 'Historical average',
         'dynamics_vs_last_year' => 'Current term vs. last year',
         'dynamics_general' => 'Overall average over time',
         'dynamics_by_subject' => 'Trend by subject',

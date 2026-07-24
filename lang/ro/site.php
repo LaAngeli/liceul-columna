@@ -827,7 +827,7 @@ return [
         'status_official' => 'Validat oficial',
         'dynamics_title' => 'Dinamică și evoluție',
         'dynamics_current' => 'Media curentă',
-        'dynamics_history' => 'Media ta istorică',
+        'dynamics_history' => 'Media istorică',
         'dynamics_vs_last_year' => 'Sem. curent vs. anul trecut',
         'dynamics_general' => 'Evoluția mediei generale',
         'dynamics_by_subject' => 'Tendința pe discipline',

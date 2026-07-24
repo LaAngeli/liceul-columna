@@ -827,7 +827,7 @@ return [
         'status_official' => 'Утверждено официально',
         'dynamics_title' => 'Динамика и развитие',
         'dynamics_current' => 'Текущий средний балл',
-        'dynamics_history' => 'Ваш исторический средний',
+        'dynamics_history' => 'Исторический средний балл',
         'dynamics_vs_last_year' => 'Тек. семестр vs. прошлый год',
         'dynamics_general' => 'Динамика общего среднего',
         'dynamics_by_subject' => 'Тенденция по предметам',
