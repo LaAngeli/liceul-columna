@@ -13,8 +13,12 @@
 /vendor
 .DS_Store
 .env
-.env.backup
-.env.production
+# ORICE variantă de .env (backup, .old, .bak, datată) — repo-ul e PUBLIC, iar un `.env` conține
+# APP_KEY, parola bazei și parola arhivelor de backup. Tiparul exact `.env.backup` NU acoperea
+# fișiere ca `.env.backup-appname-20260724-013900`, lăsat pe VPS de un deploy (2026-07-24): apărea
+# ca untracked, deci un `git add -A` l-ar fi comis public. Șablonul rămâne urmărit explicit.
+.env.*
+!.env.example
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
