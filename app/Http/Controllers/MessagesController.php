@@ -278,6 +278,8 @@ class MessagesController extends Controller
                 return [
                     'id' => $student->id,
                     'name' => $student->full_name,
+                    // „Scrie · despre {prenume}" — familia identifică copilul după prenume.
+                    'firstName' => $student->first_name,
                     'classLabel' => $class !== null ? trim($class->name.' '.($class->section ?? '')) : null,
                     'recipients' => $send->allowedRecipientsForStudent($student),
                 ];

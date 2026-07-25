@@ -17,7 +17,10 @@ export interface LastGrade {
 
 export interface CockpitChild {
     id: number;
+    /** Numele complet (Nume + Prenume) — pentru inițialele avatarului. */
     name: string;
+    /** Prenumele — titlul cardului: părintele diferențiază copiii după prenume. */
+    firstName: string;
     class: string | null;
     average: number | null;
     trend: Trend;
@@ -128,14 +131,14 @@ export function StandingCard({ student }: { student: CockpitChild }) {
                     <h3 className="truncate font-semibold leading-tight">
                         <Link
                             href={profileUrl}
-                            aria-label={`${student.name} — ${t('cabinet.cockpit_view_profile')}`}
+                            aria-label={`${student.firstName} — ${t('cabinet.cockpit_view_profile')}`}
                             className={cn(
                                 'focus-visible:outline-none',
                                 'after:absolute after:inset-0 after:rounded-2xl after:content-[""]',
                                 'focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-offset-2',
                             )}
                         >
-                            {student.name}
+                            {student.firstName}
                         </Link>
                     </h3>
                     <p className="text-sm text-muted-foreground">{student.class ?? t('cabinet.class_unassigned')}</p>

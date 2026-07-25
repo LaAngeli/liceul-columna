@@ -57,6 +57,8 @@ interface Recipient {
 interface StudentOption {
     id: number;
     name: string;
+    /** Prenumele — „despre {prenume}": familia identifică copilul după prenume. */
+    firstName: string;
     classLabel: string | null;
     recipients: Recipient[];
 }
@@ -847,7 +849,7 @@ function ComposeDialog({
                 <DialogHeader>
                     <DialogTitle>
                         {t('cabinet.messages_new')}
-                        {student ? ` · ${t('cabinet.mailbox_about')} ${student.name.split(' ')[0]}` : ''}
+                        {student ? ` · ${t('cabinet.mailbox_about')} ${student.firstName}` : ''}
                     </DialogTitle>
                     <DialogDescription className="sr-only">{t('cabinet.messages_new')}</DialogDescription>
                 </DialogHeader>

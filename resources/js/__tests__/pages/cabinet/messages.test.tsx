@@ -67,7 +67,7 @@ const baseProps = {
         trash: { total: 0, unread: 0 },
     },
     compose: {
-        students: [{ id: 1, name: 'Elev Test', classLabel: 'V A', recipients: [] }],
+        students: [{ id: 1, name: 'Test Elev', firstName: 'Elev', classLabel: 'V A', recipients: [] }],
         canAudience: false,
         audienceDomains: [],
         attachments: { maxFiles: 5, maxFileMb: 8, extensions: ['pdf'] },

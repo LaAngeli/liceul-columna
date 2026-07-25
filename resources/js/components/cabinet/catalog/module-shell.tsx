@@ -9,7 +9,10 @@ import { cn } from '@/lib/utils';
 
 export interface ModuleStudent {
     id: number;
+    /** Numele complet (Nume + Prenume) — pentru inițialele avatarului. */
     name: string;
+    /** Prenumele — eticheta afișată: părintele diferențiază copiii după prenume. */
+    firstName: string;
     classLabel: string | null;
 }
 
@@ -112,7 +115,7 @@ export function ModuleShell({
                                             iar eticheta de clasă e cea care se scurtează cu „…" (`truncate`) —
                                             numele copilului contează mai mult decât clasa când spațiul e mic. */}
                                         <span className="flex min-w-0 items-baseline">
-                                            <span className="shrink-0">{student.name.split(' ')[0]}</span>
+                                            <span className="shrink-0">{student.firstName}</span>
                                             {student.classLabel && (
                                                 <span className={cn('ml-1 truncate text-xs', active ? 'text-primary/70' : 'text-muted-foreground/70')}>
                                                     · {student.classLabel}

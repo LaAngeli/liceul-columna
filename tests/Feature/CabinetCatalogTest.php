@@ -57,6 +57,9 @@ it('modulul Note se randează pentru părinte cu datele DOAR ale modulului', fun
             ->where('module.section', 'curente')
             ->where('module.currentId', $student->id)
             ->has('module.students', 1)
+            // Switcher-ul de copil poartă PRENUMELE (părintele diferențiază după prenume),
+            // nu numele complet — garda de regresie pentru afișarea greșită a numelui de familie.
+            ->where('module.students.0.firstName', $student->first_name)
             ->has('gradebook')
             // Modulul încarcă DOAR datele lui — nimic din celelalte module.
             ->missing('homework')

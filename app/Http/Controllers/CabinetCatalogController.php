@@ -146,7 +146,11 @@ class CabinetCatalogController extends Controller
 
                 return [
                     'id' => $student->id,
+                    // Numele COMPLET rămâne pentru inițialele avatarului; comutatorul afișează însă
+                    // PRENUMELE: părintele își cunoaște numele de familie al copiilor, diferențierea
+                    // o face după prenume.
                     'name' => $student->full_name,
+                    'firstName' => $student->first_name,
                     'classLabel' => $class !== null ? trim($class->name.' '.($class->section ?? '')) : null,
                 ];
             })->all(),

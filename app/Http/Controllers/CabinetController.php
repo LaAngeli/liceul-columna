@@ -220,7 +220,10 @@ class CabinetController extends Controller
 
         return [
             'id' => $student->id,
+            // `name` (complet) alimentează inițialele avatarului; cardul afișează PRENUMELE —
+            // părintele diferențiază copiii după prenume, nu după numele de familie (comun/știut).
             'name' => $student->full_name,
+            'firstName' => $student->first_name,
             'class' => $class !== null ? trim($class->name.' '.($class->section ?? '')) : null,
             'average' => $overallAverage,
             'trend' => $trend,
@@ -385,10 +388,11 @@ class CabinetController extends Controller
 
         // Audit § profil #6 — comutator copil din interiorul profilului (părinte cu mai mulți copii).
         // Lista frați se trimite DOAR familiei (nu personalului). Profesorul vede `siblings = []`.
+        // Comutatorul afișează PRENUMELE (părintele diferențiază copiii după el).
         /** @var array<int, array{id: int, name: string}> $siblings */
         $siblings = $viewer instanceof User && $this->isFamilyOf($viewer, $student)
             ? $viewer->students()->orderBy('first_name')->get()
-                ->map(fn (Student $s): array => ['id' => $s->id, 'name' => $s->full_name])
+                ->map(fn (Student $s): array => ['id' => $s->id, 'name' => $s->first_name])
                 ->all()
             : [];
 
