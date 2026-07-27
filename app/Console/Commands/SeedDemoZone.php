@@ -404,7 +404,12 @@ class SeedDemoZone extends Command
             if (isset($restore['parent_children'])) {
                 $now = Carbon::now();
                 foreach ($restore['parent_children']['student_ids'] as $sid) {
-                    DB::table('guardian_student')->insert([
+                    // insertOrIgnore, NU insert: restaurarea trebuie să fie idempotentă față de drift
+                    // extern. Dacă altă unealtă (ex. app:link-demo-accounts, rulat de altă sesiune) a
+                    // re-legat deja părintele de copiii reali, un insert simplu ar lovi constrângerea
+                    // unică (guardian_user_id, student_id) → tranzacția de --remove ar face rollback și
+                    // zona demo ar rămâne blocată. Restaurarea vrea „asigură legătura", nu „creeaz-o".
+                    DB::table('guardian_student')->insertOrIgnore([
                         'guardian_user_id' => $restore['parent_children']['user_id'],
                         'student_id' => $sid,
                         'created_at' => $now,
