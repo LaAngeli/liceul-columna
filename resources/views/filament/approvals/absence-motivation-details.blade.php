@@ -211,6 +211,16 @@
                     </dl>
 
                     @if ($this->canJudge())
+                        {{-- ÎN CE CALITATE judeci: dreptul de validare vine din DESEMNAREA de
+                             dirigenție, nu din rolul contului — fără linia asta, un cont etichetat
+                             „Profesor" care validează legitim pare o breșă (feedback 2026-07-27). --}}
+                        @if ($this->judgeCapacity() !== null)
+                            <p class="mt-3 flex items-start gap-1.5 rounded-lg bg-primary-50 p-2.5 text-xs font-medium text-primary-700 dark:bg-primary-400/10 dark:text-primary-300">
+                                <x-filament::icon icon="heroicon-m-identification" class="mt-0.5 h-4 w-4 shrink-0" />
+                                {{ $this->judgeCapacity() }}
+                            </p>
+                        @endif
+
                         <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
                             {{ __('panel.absence_motivation_view.pending_hint') }}
                         </p>

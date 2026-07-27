@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AbsenceMotivations\Pages;
 
+use App\Enums\AudienceDomain;
 use App\Enums\RequestStatus;
 use App\Filament\Resources\AbsenceMotivations\AbsenceMotivationResource;
 use App\Filament\Resources\Students\StudentResource;
@@ -96,6 +97,33 @@ class ViewAbsenceMotivation extends ViewRecord
         $user = auth('web')->user();
 
         return $user instanceof User && $this->record->canBeReviewedBy($user);
+    }
+
+    /**
+     * ÎN CE CALITATE judecă utilizatorul această cerere — afișat lângă butoane.
+     *
+     * Motivul: dreptul vine din DESEMNAREA de dirigenție pe fișă, nu din rolul contului, deci un
+     * cont etichetat „Profesor" poate valida legitim (raportat de beneficiar, 2026-07-27, ca
+     * suspiciune de breșă). Ecranul spune acum explicit de unde vine dreptul.
+     */
+    public function judgeCapacity(): ?string
+    {
+        $user = auth('web')->user();
+
+        if (! $user instanceof User || ! $this->canJudge()) {
+            return null;
+        }
+
+        // Administrația judecă în virtutea funcției, nu a dirigenției — chiar dacă are și clase.
+        if ($user->isAdministrator() || $user->handlesAudienceDomain(AudienceDomain::Educatie)) {
+            return null;
+        }
+
+        $homeroom = $user->homeroomLabel();
+
+        return $homeroom === null
+            ? null
+            : (string) __('panel.absence_motivation_view.judging_as_homeroom', ['classes' => $homeroom]);
     }
 
     /**

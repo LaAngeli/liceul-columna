@@ -22,8 +22,17 @@ class DemoAccountsSeeder extends Seeder
             Role::findOrCreate($role->value, 'web');
         }
 
-        // Cont de profesor (de preferință un diriginte, util pentru scoping ulterior)
-        $teacher = Teacher::query()->whereHas('homeroomClasses')->orderBy('id')->first()
+        // Cont de PROFESOR SIMPLU: fișă FĂRĂ dirigenție, dar cu alocări (are ce testa).
+        // ⚠️ Înainte se alegea deliberat un DIRIGINTE („util pentru scoping") — de aceea contul
+        // etichetat „Profesor" putea valida motivări de absențe: dreptul venea din dirigenția
+        // fișei, nu din rol. Rolul de profesor simplu devenea astfel netestabil (raportat
+        // 2026-07-27). Dirigenția se testează cu contul `diriginte@`, de mai jos.
+        $teacher = Teacher::query()
+            ->whereDoesntHave('homeroomClasses')
+            ->whereHas('teachingAssignments')
+            ->orderBy('id')
+            ->first()
+            ?? Teacher::query()->whereDoesntHave('homeroomClasses')->orderBy('id')->first()
             ?? Teacher::query()->orderBy('id')->first();
 
         if ($teacher) {

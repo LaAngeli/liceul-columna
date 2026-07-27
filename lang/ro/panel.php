@@ -1493,6 +1493,7 @@ return [
         'document_no_preview' => 'Formatul nu se poate previzualiza — folosiți descărcarea.',
         'overdue' => 'Termen depășit',
         'pending_hint' => 'Analizați motivul, justificativul și absențele acoperite, apoi validați sau respingeți. La respingere, motivul e obligatoriu și ajunge la familie, în cabinet.',
+        'judging_as_homeroom' => 'Judeci această cerere ca DIRIGINTE al clasei :classes — dreptul vine din dirigenție, nu din rolul contului.',
         'exception_only_hint' => 'Excepție (motivare tardivă) — doar vicedirectorul pe educație o poate valida.',
         'homeroom' => 'Diriginte',
         'student_archived' => 'elev arhivat',

@@ -6,6 +6,26 @@
     $role = $roleValue !== null ? UserRole::tryFrom($roleValue) : null;
     $roleLabel = $role !== null ? trans('site.roles.'.$role->value, [], app()->getLocale()) : null;
 
+    // FUNCȚIA EFECTIVĂ, nu doar rolul contului: dirigenția e o DESEMNARE pe fișă, iar drepturile
+    // ei (validarea motivărilor de absență) vin de acolo, nu din rol. Un cont cu rolul „Profesor"
+    // desemnat diriginte primea, corect, acele drepturi — dar badge-ul spunea doar „Profesor",
+    // deci comportamentul corect părea o breșă (raportat de beneficiar, 2026-07-27).
+    $homeroom = $user?->homeroomLabel();
+    $badgeLabel = $roleLabel;
+    $badgeTitle = $roleLabel;
+
+    if ($homeroom !== null) {
+        $badgeLabel = trans('site.roles.diriginte', [], app()->getLocale()).' · '.$homeroom;
+
+        // Tooltipul păstrează ROLUL contului — funcția afișată nu-l ascunde, îl completează.
+        // Când rolul e deja „Diriginte", badge-ul spune totul: nu repetăm cuvântul în tooltip.
+        $badgeTitle = trans('panel.forms.user.role', [], app()->getLocale()).': '.$roleLabel;
+
+        if ($role !== UserRole::Diriginte) {
+            $badgeTitle .= ' · '.trans('site.roles.diriginte', [], app()->getLocale()).': '.$homeroom;
+        }
+    }
+
     // Locala JS pentru formatarea client-side a ceasului (live, fără polling server).
     $jsLocale = ['ro' => 'ro-RO', 'ru' => 'ru-RU', 'en' => 'en-GB'][app()->getLocale()] ?? 'ro-RO';
 @endphp
@@ -13,12 +33,12 @@
 {{-- Ceas+dată LIVE + badge de rol în topbar. Stiluri inline: Tailwind-ul Filament NU scanează
      resources/views/ (vezi language-switcher.blade.php). --}}
 <div class="fi-topbar-extras">
-    @if ($roleLabel !== null)
-        <span class="fi-role-badge" title="{{ $roleLabel }}">
+    @if ($badgeLabel !== null)
+        <span class="fi-role-badge" title="{{ $badgeTitle }}">
             <svg class="fi-role-badge__icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
             </svg>
-            <span>{{ $roleLabel }}</span>
+            <span>{{ $badgeLabel }}</span>
         </span>
     @endif
 

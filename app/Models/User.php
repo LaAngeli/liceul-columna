@@ -680,6 +680,31 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * Clasele la care persoana e DIRIGINTE, ca etichetă („XI R" / „X R, X U") — null dacă nu e.
+     *
+     * De ce există: dreptul de a valida motivări vine din DESEMNAREA de dirigenție pe fișă, nu din
+     * rolul contului. Un cont cu rolul „Profesor" desemnat diriginte primește, corect, drepturi de
+     * diriginte — dar interfața afișa doar rolul, deci comportamentul corect părea o breșă
+     * (raportat de beneficiar, 2026-07-27). Interfața spune acum funcția EFECTIVĂ.
+     */
+    public function homeroomLabel(): ?string
+    {
+        $classes = $this->teacher?->homeroomClasses()
+            ->orderBy('grade_level')
+            ->orderBy('name')
+            ->orderBy('section')
+            ->get();
+
+        if ($classes === null || $classes->isEmpty()) {
+            return null;
+        }
+
+        return $classes
+            ->map(fn (SchoolClass $class): string => trim($class->name.' '.($class->section ?? '')))
+            ->implode(', ');
+    }
+
+    /**
      * Poate gestiona evenimente de calendar (modul Calendar v2): conducerea (`canPublishContent`)
      * publică orice scope; dirigintele creează evenimente pentru clasa lui.
      */

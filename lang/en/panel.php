@@ -1477,6 +1477,7 @@ return [
         'document_no_preview' => 'This format cannot be previewed — use the download.',
         'overdue' => 'Deadline passed',
         'pending_hint' => 'Review the reason, the document and the covered absences, then approve or reject. On rejection the reason is mandatory and reaches the family in the cabinet.',
+        'judging_as_homeroom' => 'You are reviewing this request as HOMEROOM TEACHER of :classes — the right comes from the homeroom assignment, not from the account role.',
         'exception_only_hint' => 'Exception (late excuse) — only the deputy director for education can approve it.',
         'homeroom' => 'Homeroom teacher',
         'student_archived' => 'archived student',

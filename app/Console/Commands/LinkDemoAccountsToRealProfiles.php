@@ -35,8 +35,17 @@ class LinkDemoAccountsToRealProfiles extends Command
         'elev2@columna.test' => 552,
     ];
 
+    /**
+     * ⚠️ Contul „profesor" trebuie legat de o fișă FĂRĂ dirigenție (2026-07-27, după ce
+     * beneficiarul a raportat că un cont etichetat „Profesor" valida motivări de absențe):
+     * fișa #1 (Bujor-Cobili Carolina) e dirigintă la XI R, deci contul primea, pe bună dreptate,
+     * drepturi de diriginte — dar sub eticheta „Profesor". Rezultatul: rolul de profesor SIMPLU
+     * nu se putea testa deloc, iar comportamentul corect părea o breșă.
+     * Fișa #34 (Ungureanu Vasile) predă la 16 clase și nu are nicio dirigenție → perimetru bogat
+     * pentru testare, fără puteri de diriginte. Dirigenția se testează cu `diriginte@` (fișa #2).
+     */
     private const TEACHER_LINKS = [
-        'profesor@columna.test' => 1,
+        'profesor@columna.test' => 34,
         'diriginte@columna.test' => 2,
     ];
 
@@ -95,20 +104,49 @@ class LinkDemoAccountsToRealProfiles extends Command
 
         $table = (new $model)->getTable();
         $current = DB::table($table)->where('user_id', $user->id)->value('id');
-
-        if ((int) $current === $profileId) {
-            return [$email, $label, "#{$profileId}", 'neschimbat'];
-        }
+        $alreadyLinked = (int) $current === $profileId;
 
         if ($apply) {
-            // Eliberăm întâi fișa veche, apoi o legăm pe cea corectă: `user_id` e unic.
-            DB::table($table)->where('user_id', $user->id)->update(['user_id' => null]);
-            DB::table($table)->where('id', $profileId)->update(['user_id' => $user->id]);
+            if (! $alreadyLinked) {
+                // Eliberăm întâi fișa veche, apoi o legăm pe cea corectă: `user_id` e unic.
+                DB::table($table)->where('user_id', $user->id)->update(['user_id' => null]);
+                DB::table($table)->where('id', $profileId)->update(['user_id' => $user->id]);
+            }
+
+            // Numele contului URMEAZĂ fișa (identitatea persoanei stă în registru, nu pe cont):
+            // altfel, după re-legare, contul păstra numele fișei VECHI și apărea în panou ca o
+            // persoană care predă disciplinele alteia. Rulează și pe legături deja corecte —
+            // altfel un nume rămas în urmă dintr-o rulare veche nu s-ar mai repara niciodată.
+            // Marcajul [DEMO] rămâne, ca să nu iasă din plasa de curățare de la go-live.
+            $this->syncDemoName($user, $table, $profileId);
+        }
+
+        if ($alreadyLinked) {
+            return [$email, $label, "#{$profileId}", 'neschimbat'];
         }
 
         $changes++;
 
         return [$email, $label, $current ? "#{$current}" : '—', "#{$profileId}"];
+    }
+
+    /** Numele contului demo = numele fișei legate, cu marcajul [DEMO] păstrat. */
+    private function syncDemoName(User $user, string $table, int $profileId): void
+    {
+        $profileName = DB::table($table)
+            ->where('id', $profileId)
+            ->selectRaw("TRIM(CONCAT(COALESCE(last_name, ''), ' ', COALESCE(first_name, ''))) AS full_name")
+            ->value('full_name');
+
+        if (blank($profileName)) {
+            return;
+        }
+
+        $expected = DemoAccounts::MARKER.' '.$profileName;
+
+        if ($user->name !== $expected) {
+            DB::table('users')->where('id', $user->id)->update(['name' => $expected]);
+        }
     }
 
     /**
