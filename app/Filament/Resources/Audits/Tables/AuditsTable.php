@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Audits\Tables;
 
+use App\Enums\UserRole;
 use App\Filament\Resources\Audits\AuditResource;
 use App\Filament\Resources\Audits\Pages\ListAudits;
 use App\Models\Audit;
@@ -42,6 +43,9 @@ class AuditsTable
                     ->searchable()
                     // Numele lungi nu lățesc rândul — textul complet rămâne la survol.
                     ->limit(24)
+                    // Sub nume, CALITATEA de la momentul acțiunii (rol + dirigenție/domeniu):
+                    // „cine" fără „în ce calitate" nu e trasabilitate, e doar un nume.
+                    ->description(fn (Audit $record): ?string => self::capacityLine($record))
                     ->tooltip(fn (Audit $record): ?string => mb_strlen((string) $record->user?->name) > 24 ? $record->user?->name : null),
                 TextColumn::make('event')
                     ->label(__('panel.tables.audits.action'))
@@ -103,6 +107,13 @@ class AuditsTable
                             ? $query->whereIn('event', Audit::severityMap()[$value] ?? [])
                             : $query;
                     }),
+                // Investigare pe CALITATE: „ce au făcut diriginții?" — pe rolul consemnat ATUNCI,
+                // nu pe cel de azi (un cont promovat nu-și rescrie retroactiv acțiunile vechi).
+                SelectFilter::make('actor_role')
+                    ->label(__('panel.audit_view.acted_as'))
+                    ->options(fn (): array => collect(UserRole::cases())
+                        ->mapWithKeys(fn (UserRole $role): array => [$role->value => $role->label()])
+                        ->all()),
                 // Investigare pe INTERVAL: „ce s-a întâmplat între X și Y?".
                 Filter::make('perioada')
                     ->label(__('panel.audit_view.period'))
@@ -114,6 +125,22 @@ class AuditsTable
                         ->when($data['de_la'] ?? null, fn (Builder $q, $date) => $q->whereDate('created_at', '>=', $date))
                         ->when($data['pana_la'] ?? null, fn (Builder $q, $date) => $q->whereDate('created_at', '<=', $date))),
             ]);
+    }
+
+    /**
+     * Linia de calitate de sub numele autorului: rolul consemnat + funcțiile care dădeau drepturi
+     * peste el. Null pentru intrările istorice (fără instantaneu) și pentru acțiunile de sistem —
+     * un context lipsă rămâne gol, nu se completează cu presupuneri.
+     */
+    private static function capacityLine(Audit $record): ?string
+    {
+        $parts = array_filter([$record->actorRoleLabel()]);
+
+        foreach ($record->actorCapacities() as $capacity) {
+            $parts[] = $capacity['label'].': '.$capacity['detail'];
+        }
+
+        return $parts === [] ? null : implode(' · ', $parts);
     }
 
     /**

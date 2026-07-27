@@ -705,6 +705,32 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * CALITATEA efectivă, pentru jurnalul de audit — funcțiile care dau drepturi PESTE rolul
+     * contului: dirigenția (desemnare pe fișă) și domeniile de audiență (atribut de conducere).
+     *
+     * Format STABIL, independent de limbă (jurnalul e istoric, nu se re-traduce): perechi
+     * `tip:detaliu` separate prin `;` — de exemplu `diriginte:X R, X U` sau
+     * `diriginte:XI R;domeniu:educatie`. Etichetele traduse le pune viewerul ({@see Audit::actorCapacities}).
+     * Null pentru cine nu are nicio calitate în plus — acolo rolul spune deja totul.
+     */
+    public function auditCapacity(): ?string
+    {
+        $parts = [];
+
+        if (($homeroom = $this->homeroomLabel()) !== null) {
+            $parts[] = 'diriginte:'.$homeroom;
+        }
+
+        $domains = $this->audience_domains ?? [];
+
+        if ($domains !== []) {
+            $parts[] = 'domeniu:'.implode(', ', $domains);
+        }
+
+        return $parts === [] ? null : implode(';', $parts);
+    }
+
+    /**
      * Poate gestiona evenimente de calendar (modul Calendar v2): conducerea (`canPublishContent`)
      * publică orice scope; dirigintele creează evenimente pentru clasa lui.
      */

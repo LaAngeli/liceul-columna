@@ -11,6 +11,7 @@ use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\User;
 use App\Support\ContentTranslator;
+use App\Support\TeachingCapacity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -528,6 +529,20 @@ trait HasCatalogNavigator
         return $this->catalogActiveDimension() === 'clase'
             ? (string) __('panel.catalog_nav.chips_subjects')
             : (string) __('panel.catalog_nav.chips_classes');
+    }
+
+    /**
+     * ÎN CE CALITATE vezi clasa din context — diriginte (toată clasa) sau profesor (disciplinele
+     * tale). Cerința beneficiarului (2026-07-27): drepturile se derivă PER CLASĂ din desemnarea de
+     * dirigenție, nu din rolul contului, deci aceeași persoană are perimetre diferite de la o
+     * clasă la alta. Până acum diferența era invizibilă și făcea comportamentul corect să pară
+     * arbitrar — acum contextul o spune la fiecare intrare.
+     *
+     * @return array{label: string, detail: string}|null
+     */
+    public function catalogCapacityNotice(): ?array
+    {
+        return TeachingCapacity::noticeFor($this->catalogUser(), $this->catalogClassIdInContext());
     }
 
     /**

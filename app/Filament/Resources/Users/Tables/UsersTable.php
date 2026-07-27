@@ -17,6 +17,7 @@ use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,11 +30,30 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class UsersTable
 {
+    /**
+     * Eticheta rolului și funcția reală s-au despărțit: „Diriginte" fără nicio clasă, sau
+     * „Profesor" care ESTE diriginte. Drepturile rămân corecte (vin din desemnare) — se semnalează
+     * doar citirea înșelătoare.
+     */
+    private static function capacityMismatch(User $record): bool
+    {
+        $role = $record->getRoleNames()->first();
+        $isHomeroom = $record->homeroomLabel() !== null;
+
+        return match ($role) {
+            UserRole::Diriginte->value => ! $isHomeroom,
+            UserRole::Profesor->value => $isHomeroom,
+            default => false,
+        };
+    }
+
     public static function configure(Table $table): Table
     {
         return $table
             ->modifyQueryUsing(function (Builder $query, $livewire): Builder {
-                $query->with(['roles', 'teacher', 'student'])->withCount('students');
+                // `teacher.homeroomClasses` = dirigenția afișată pe rând; fără eager loading ar fi
+                // o interogare per cont pe o listă de ~600.
+                $query->with(['roles', 'teacher.homeroomClasses', 'student'])->withCount('students');
 
                 return $livewire instanceof ListUsers
                     ? $livewire->applyRoleContext($query)
@@ -65,6 +85,21 @@ class UsersTable
                     ->badge()
                     ->color(fn (User $record): string => self::associationMissing($record) ? 'warning' : 'gray')
                     ->visibleFrom('sm'),
+                // FUNCȚIA efectivă, când diferă de eticheta rolului: dirigenția e o desemnare pe
+                // fișă, iar drepturile sensibile vin de acolo. Coloana apare doar unde există
+                // ceva de spus — un cont fără dirigenție rămâne gol, nu marcat.
+                TextColumn::make('homeroom')
+                    ->label(__('panel.forms.user.homeroom'))
+                    ->state(fn (User $record): ?string => $record->homeroomLabel())
+                    ->placeholder(__('panel.common.dash'))
+                    ->badge()
+                    ->color(fn (User $record): string => self::capacityMismatch($record) ? 'warning' : 'gray')
+                    ->tooltip(fn (User $record): ?string => self::capacityMismatch($record)
+                        ? (string) __('panel.forms.user.homeroom_mismatch')
+                        : null)
+                    // Vizibilă pe ecranele unde administrația chiar lucrează: ascunsă implicit,
+                    // filtrul „Nepotrivire" ar întoarce o listă fără coloana care o explică.
+                    ->visibleFrom('lg'),
                 TextColumn::make('account_state')
                     ->label(__('panel.forms.user.account_state'))
                     ->state(fn (User $record): string => match (true) {
@@ -92,6 +127,19 @@ class UsersTable
                     ->placeholder(__('panel.common.all'))
                     ->trueLabel(__('panel.forms.user.password_must_change'))
                     ->falseLabel(__('panel.forms.user.password_set')),
+                // Deriva rol ↔ dirigenție, ca listă acționabilă: de pe card ajungi direct la
+                // conturile de reglat, nu la un număr care nu duce nicăieri.
+                Filter::make('capacity_mismatch')
+                    ->label(__('panel.forms.user.capacity_mismatch_filter'))
+                    ->query(fn (Builder $query): Builder => $query->where(
+                        fn (Builder $q): Builder => $q
+                            ->where(fn (Builder $inner): Builder => $inner
+                                ->whereHas('roles', fn (Builder $r) => $r->where('name', UserRole::Diriginte->value))
+                                ->whereDoesntHave('teacher.homeroomClasses'))
+                            ->orWhere(fn (Builder $inner): Builder => $inner
+                                ->whereHas('roles', fn (Builder $r) => $r->where('name', UserRole::Profesor->value))
+                                ->whereHas('teacher.homeroomClasses')),
+                    )),
             ])
             ->defaultSort('name')
             // Editarea inline; operațiunile de cont în grup „⋮" — 4 butoane late lățeau rândul

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Audit\RecordsActorCapacity;
 use App\Calendar\CalendarAggregator;
 use App\Calendar\Projectors\AbsenceProjector;
 use App\Calendar\Projectors\AdmissionVisitProjector;
@@ -26,6 +27,7 @@ use Illuminate\Validation\Rules\Password;
 use Inertia\ExceptionResponse;
 use Inertia\Inertia;
 use Laravel\Telescope\TelescopeServiceProvider;
+use OwenIt\Auditing\Drivers\Database;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -55,6 +57,11 @@ class AppServiceProvider extends ServiceProvider
             $app->make(AdmissionVisitProjector::class),
             $app->make(AudienceProjector::class),
         ]));
+
+        // Jurnalul consemnează CALITATEA sub care s-a acționat, nu doar identitatea (spec §3.1).
+        // Pachetul își instanțiază driverul prin container (`Auditor::createDatabaseDriver`), deci
+        // înlocuirea se face aici — `audit.driver` rămâne „database", scrierea rămâne a pachetului.
+        $this->app->bind(Database::class, RecordsActorCapacity::class);
     }
 
     /**

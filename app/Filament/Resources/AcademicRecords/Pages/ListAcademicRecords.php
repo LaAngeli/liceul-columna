@@ -11,9 +11,11 @@ use App\Models\Enrollment;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Term;
+use App\Models\User;
 use App\Support\ContentTranslator;
 use App\Support\GradeLevels;
 use App\Support\Grades;
+use App\Support\TeachingCapacity;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
@@ -128,6 +130,23 @@ class ListAcademicRecords extends ListRecords
         }
 
         return $this->activeClassMemo === false ? null : $this->activeClassMemo;
+    }
+
+    /**
+     * ÎN CE CALITATE vezi clasa activă — aceeași distincție ca în restul catalogului (sursa unică:
+     * {@see TeachingCapacity}). Foaia matricolă e read-only, dar perimetrul se derivă tot din
+     * dirigenție, deci indicatorul trebuie să fie consecvent aici.
+     *
+     * @return array{label: string, detail: string}|null
+     */
+    public function capacityNotice(): ?array
+    {
+        /** @var User|null $user */
+        $user = auth('web')->user();
+
+        $classId = $this->activeClass()?->getKey();
+
+        return TeachingCapacity::noticeFor($user, $classId === null ? null : (int) $classId);
     }
 
     public function activeStudent(): ?Student

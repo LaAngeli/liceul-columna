@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Pages;
 
 use App\Enums\UserRole;
 use App\Filament\Resources\Users\UserResource;
+use App\Models\Teacher;
 use App\Models\User;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
@@ -33,6 +34,9 @@ class ListUsers extends ListRecords
 
     /** @var array<string, array{total: int, suspended: int, temp: int}>|null */
     private ?array $roleCountsMemo = null;
+
+    /** @var array{diriginte_without_class: int, profesor_with_class: int}|null */
+    private ?array $mismatchMemo = null;
 
     protected function getHeaderActions(): array
     {
@@ -116,6 +120,8 @@ class ListUsers extends ListRecords
 
         $cards = [];
 
+        $mismatches = $this->capacityMismatches();
+
         foreach (UserRole::cases() as $role) {
             $row = $counts[$role->value] ?? ['total' => 0, 'suspended' => 0, 'temp' => 0];
 
@@ -123,6 +129,18 @@ class ListUsers extends ListRecords
 
             if ($row['temp'] > 0) {
                 $stats[] = (string) __('panel.users_nav.temp_passwords', ['count' => $row['temp']]);
+            }
+
+            // NEPOTRIVIREA rol ↔ dirigenție: eticheta contului și funcția reală s-au desincronizat.
+            // Nu e o eroare de drepturi (acelea vin din desemnare și sunt corecte), ci de LIZIBILITATE:
+            // un „Diriginte" fără clasă induce în eroare, iar un „Profesor" cu dirigenție ascunde
+            // exact sursa dreptului care a fost raportată ca breșă (2026-07-27).
+            if ($role === UserRole::Diriginte && $mismatches['diriginte_without_class'] > 0) {
+                $stats[] = (string) __('panel.users_nav.diriginte_without_class', ['count' => $mismatches['diriginte_without_class']]);
+            }
+
+            if ($role === UserRole::Profesor && $mismatches['profesor_with_class'] > 0) {
+                $stats[] = (string) __('panel.users_nav.profesor_with_class', ['count' => $mismatches['profesor_with_class']]);
             }
 
             $cards[] = [
@@ -157,6 +175,44 @@ class ListUsers extends ListRecords
     public function usersHint(): string
     {
         return (string) __('panel.users_nav.hint');
+    }
+
+    /**
+     * Conturile la care ETICHETA de rol și FUNCȚIA reală s-au desincronizat.
+     *
+     * Dirigenția e o desemnare pe fișă (`homeroom_teacher_id`), nu un rol — deci cele două se pot
+     * despărți oricând o clasă e reatribuită. Drepturile rămân corecte (vin din desemnare), dar
+     * citirea devine înșelătoare, iar asta a costat deja o suspiciune de breșă. Semnalul face
+     * deriva vizibilă; nu o „repară" automat — care dintre cele două e adevărul e o decizie
+     * a administrației, nu a codului.
+     *
+     * @return array{diriginte_without_class: int, profesor_with_class: int}
+     */
+    public function capacityMismatches(): array
+    {
+        if ($this->mismatchMemo !== null) {
+            return $this->mismatchMemo;
+        }
+
+        return $this->mismatchMemo = [
+            'diriginte_without_class' => self::mismatchQuery(UserRole::Diriginte, hasHomeroom: false)->count(),
+            'profesor_with_class' => self::mismatchQuery(UserRole::Profesor, hasHomeroom: true)->count(),
+        ];
+    }
+
+    /**
+     * Conturile cu rolul dat care AU (sau NU au) clase în dirigenție. Aceeași relație folosită de
+     * drepturi ({@see Teacher::homeroomSchoolClassIds}) — altfel semnalul ar minți.
+     *
+     * @return Builder<User>
+     */
+    public static function mismatchQuery(UserRole $role, bool $hasHomeroom): Builder
+    {
+        $query = User::query()->whereHas('roles', fn (Builder $q) => $q->where('name', $role->value));
+
+        return $hasHomeroom
+            ? $query->whereHas('teacher.homeroomClasses')
+            : $query->whereDoesntHave('teacher.homeroomClasses');
     }
 
     private function roleIsVisible(string $value): bool

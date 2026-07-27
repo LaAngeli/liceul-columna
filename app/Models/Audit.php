@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\UserRole;
 use Illuminate\Support\Facades\Lang;
 use LogicException;
 use OwenIt\Auditing\Models\Audit as BaseAudit;
@@ -18,6 +19,8 @@ use OwenIt\Auditing\Models\Audit as BaseAudit;
  * @property string $event
  * @property string $auditable_type
  * @property int|null $user_id
+ * @property string|null $actor_role
+ * @property string|null $actor_capacity
  * @property array<string, mixed>|null $old_values
  * @property array<string, mixed>|null $new_values
  * @property string|null $ip_address
@@ -148,6 +151,58 @@ class Audit extends BaseAudit
             $os !== null => $os,
             default => mb_substr($agent, 0, 60),
         };
+    }
+
+    /**
+     * CALITĂȚILE consemnate la momentul acțiunii, traduse pentru afișare.
+     *
+     * Coloana `actor_capacity` stochează perechi `tip:detaliu` separate prin `;` — format stabil,
+     * independent de limbă, fiindcă jurnalul e istoric și nu se re-traduce ({@see User::auditCapacity}).
+     * Traducerea se face abia aici; un tip necunoscut (apărut după o versiune ulterioară) se
+     * afișează cu cheia brută — vizibil, nu ascuns.
+     *
+     * @return list<array{label: string, detail: string}>
+     */
+    public function actorCapacities(): array
+    {
+        $raw = $this->actor_capacity;
+
+        if (! is_string($raw) || $raw === '') {
+            return [];
+        }
+
+        $capacities = [];
+
+        foreach (explode(';', $raw) as $part) {
+            if (! str_contains($part, ':')) {
+                continue;
+            }
+
+            [$type, $detail] = explode(':', $part, 2);
+            $key = 'panel.audit_view.capacity.'.$type;
+
+            $capacities[] = [
+                'label' => Lang::has($key) ? (string) trans($key) : $type,
+                'detail' => $detail,
+            ];
+        }
+
+        return $capacities;
+    }
+
+    /**
+     * Rolul consemnat ATUNCI, tradus — null pentru intrările scrise înainte de consemnare
+     * (istoricul nu se completează retroactiv).
+     */
+    public function actorRoleLabel(): ?string
+    {
+        $role = $this->actor_role;
+
+        if (! is_string($role) || $role === '') {
+            return null;
+        }
+
+        return UserRole::tryFrom($role)?->label() ?? $role;
     }
 
     /**

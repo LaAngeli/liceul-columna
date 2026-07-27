@@ -162,6 +162,15 @@
                             <span class="text-sm font-normal text-gray-500 dark:text-gray-400">· {{ $class->homeroomTeacher->full_name }}</span>
                         @endif
                     </h2>
+
+                    {{-- ÎN CE CALITATE vezi clasa — aceeași distincție ca în restul catalogului. --}}
+                    @php($capacity = $this->capacityNotice())
+                    @if ($capacity !== null)
+                        <p class="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-xs">
+                            <span class="font-semibold text-primary-600 dark:text-primary-400">{{ $capacity['label'] }}</span>
+                            <span class="hidden text-gray-500 dark:text-gray-400 sm:inline">{{ $capacity['detail'] }}</span>
+                        </p>
+                    @endif
                 </div>
             </div>
 

@@ -167,10 +167,33 @@
                         <dd class="text-right font-medium text-gray-950 dark:text-white">{{ $actor['name'] }}</dd>
                     </div>
                     <div class="flex items-baseline justify-between gap-3">
-                        <dt class="shrink-0 text-gray-500 dark:text-gray-400">{{ __('panel.audit_view.role') }}</dt>
+                        <dt class="shrink-0 text-gray-500 dark:text-gray-400">
+                            {{ $actor['historical'] ? __('panel.audit_view.role_current') : __('panel.audit_view.role') }}
+                        </dt>
                         <dd class="text-right text-gray-950 dark:text-white">{{ $actor['role'] ?? 'n/a' }}</dd>
                     </div>
+
+                    {{-- CALITATEA sub care s-a acționat: drepturile sensibile (validarea motivărilor)
+                         vin din DESEMNARE, nu din rolul contului — jurnalul o consemnează explicit. --}}
+                    @foreach ($actor['capacities'] as $capacity)
+                        <div class="flex items-baseline justify-between gap-3">
+                            <dt class="shrink-0 text-gray-500 dark:text-gray-400">{{ $capacity['label'] }}</dt>
+                            <dd class="text-right font-medium text-primary-600 dark:text-primary-400">{{ $capacity['detail'] }}</dd>
+                        </div>
+                    @endforeach
                 </dl>
+
+                @if ($actor['capacities'] !== [])
+                    <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                        {{ __('panel.audit_view.capacity_hint') }}
+                    </p>
+                @endif
+
+                @if ($actor['historical'])
+                    <p class="mt-3 text-xs text-gray-400 dark:text-gray-500">
+                        {{ __('panel.audit_view.role_historical_hint') }}
+                    </p>
+                @endif
 
                 @if ($actor['deleted'])
                     <p class="mt-3 text-xs text-gray-400 dark:text-gray-500">

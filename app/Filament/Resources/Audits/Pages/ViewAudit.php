@@ -33,14 +33,23 @@ class ViewAudit extends ViewRecord
     }
 
     /**
-     * CINE: numele + rolul actorului. Rolul e cel CURENT al contului (jurnalul nu stochează
-     * rolul de la momentul acțiunii — limitare spusă onest prin eticheta „rol actual").
+     * CINE — și, mai important, ÎN CE CALITATE.
      *
-     * @return array{name: string, role: string|null, deleted: bool}
+     * Rolul se citește din INSTANTANEUL scris la momentul acțiunii (`actor_role`), nu din contul
+     * de azi: o promovare sau o reatribuire de dirigenție nu are voie să rescrie retroactiv
+     * istoria. Intrările dinaintea consemnării (`historical = true`) cad pe rolul curent, marcat
+     * explicit ca atare — o limitare se spune, nu se ascunde.
+     *
+     * `capacities` = funcțiile care dădeau drepturi PESTE rol (dirigenție, domeniu de audiență):
+     * acolo unde dreptul chiar venea din desemnare, jurnalul o spune acum negru pe alb.
+     *
+     * @return array{name: string, role: string|null, capacities: list<array{label: string, detail: string}>, historical: bool, deleted: bool}
      */
     public function actor(): array
     {
         $user = $this->record->user;
+        $recordedRole = $this->record->actorRoleLabel();
+        $capacities = $this->record->actorCapacities();
 
         if ($user === null) {
             // user_id null = acțiune de sistem (comenzi, scheduler); user_id orfan = cont șters.
@@ -48,8 +57,21 @@ class ViewAudit extends ViewRecord
                 'name' => $this->record->user_id === null
                     ? (string) __('panel.common.system')
                     : (string) __('panel.audit_view.deleted_user'),
-                'role' => null,
+                // Contul poate lipsi, dar instantaneul rămâne — exact de asta îl scriem.
+                'role' => $recordedRole,
+                'capacities' => $capacities,
+                'historical' => false,
                 'deleted' => $this->record->user_id !== null,
+            ];
+        }
+
+        if ($recordedRole !== null) {
+            return [
+                'name' => (string) $user->name,
+                'role' => $recordedRole,
+                'capacities' => $capacities,
+                'historical' => false,
+                'deleted' => false,
             ];
         }
 
@@ -67,6 +89,8 @@ class ViewAudit extends ViewRecord
         return [
             'name' => (string) $user->name,
             'role' => $roleName,
+            'capacities' => [],
+            'historical' => true,
             'deleted' => false,
         ];
     }

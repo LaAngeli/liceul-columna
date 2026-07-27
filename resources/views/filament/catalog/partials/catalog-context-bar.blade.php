@@ -4,6 +4,7 @@
     $activeChipId = $this->catalogActiveChipId();
     $siblings = $this->catalogSiblingOptions();
     $primaryId = $this->catalogPrimaryModel()?->getKey();
+    $capacity = $this->catalogCapacityNotice();
 @endphp
 
 <div class="mb-2 space-y-4">
@@ -32,6 +33,17 @@
                     </span>
                 @endif
             </div>
+
+            {{-- ÎN CE CALITATE: perimetrul se derivă din desemnarea de dirigenție, PER CLASĂ —
+                 aceeași persoană vede altceva la clasa unde e diriginte față de una unde doar predă. --}}
+            @if ($capacity !== null)
+                {{-- Pe mobil rămâne doar ETICHETA (semnalul); explicația intră de la `sm`, ca
+                     subtitlul de mai sus — altfel trei rânduri de text preced tabelul la 390px. --}}
+                <p class="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-xs">
+                    <span class="font-semibold text-primary-600 dark:text-primary-400">{{ $capacity['label'] }}</span>
+                    <span class="hidden text-gray-500 dark:text-gray-400 sm:inline">{{ $capacity['detail'] }}</span>
+                </p>
+            @endif
         </div>
 
         @if (count($siblings) > 1)
