@@ -9,16 +9,25 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Leagă conturile demo de FIȘELE REALE, aceleași pe orice mediu.
+ * ⚠️ OBSOLETĂ ÎN FAZA DE TEST — subordonată zonei demo (2026-07-27).
  *
- * Conturile de prezentare trebuie să arate identic pe local și pe producție — altfel demonstrezi
- * un ecran și clientul vede altul. Divergența apărută pe 2026-07-24: pe prod rulase
- * `app:seed-demo-zone`, care creează elevi și clase FICTIVE, iar conturile demo s-au legat de
- * aceia (id 772/773); pe local rămăseseră legate de elevi reali din importul legacy (41/553/554).
- * Aceiași oameni există pe ambele medii cu aceleași id-uri — deci legătura, nu datele, era problema.
+ * Leagă conturile demo de FIȘELE REALE, aceleași pe orice mediu. Problema pe care o rezolva era
+ * reală (2026-07-24): conturile de prezentare arătau alte date pe local decât pe producție, fiindcă
+ * pe prod rulase `app:seed-demo-zone` și se legaseră de elevii FICTIVI ai zonei, iar pe local
+ * rămăseseră pe elevi reali din importul legacy. Demonstrai un ecran, clientul vedea altul.
  *
- * Comanda e IDEMPOTENTĂ și nu atinge nicio dată academică: rescrie doar `students.user_id`,
- * `teachers.user_id` și pivotul părinte–copil. Fișele deconectate rămân intacte.
+ * Dar METODA era greșită, și contrazice principiul care guvernează întreaga fază de test:
+ * DELIMITAREA demo/real, ca la go-live curățarea să fie totală și sigură. Cu conturile demo pe fișe
+ * reale, testerii produc note, absențe și mesaje pe elevi REALI — iar ce fac prin INTERFAȚĂ nu intră
+ * în niciun manifest, deci nu se mai poate identifica, darămite curăța.
+ *
+ * Răspunsul corect la aceeași problemă de paritate e `app:seed-demo-zone`: aceeași școală demo pe
+ * ambele medii, integral prefixată „[DEMO]", cu legăturile reale salvate în manifest și restaurate
+ * la `--remove`. Comanda de față REFUZĂ acum să ruleze cât timp zona demo există ({@see handle}),
+ * ca să nu scoată conturile din zonă și s-o lase orfană.
+ *
+ * Rămâne utilă doar pe un mediu FĂRĂ zonă demo. E IDEMPOTENTĂ și nu atinge nicio dată academică:
+ * rescrie doar `students.user_id`, `teachers.user_id` și pivotul părinte–copil.
  */
 class LinkDemoAccountsToRealProfiles extends Command
 {
@@ -54,6 +63,25 @@ class LinkDemoAccountsToRealProfiles extends Command
 
     public function handle(): int
     {
+        // ZONA DEMO ARE ÎNTÂIETATE (2026-07-27). Comanda asta rezolva o problemă reală — conturile
+        // demo arătau alte date pe local decât pe producție — dar prin metoda GREȘITĂ: legându-le
+        // de fișe REALE. Consecința e exact ce trebuie evitat până la go-live: testerii produc note,
+        // absențe și mesaje pe elevi REALI, iar ce fac prin interfață nu e urmărit de niciun
+        // manifest, deci nu se mai poate curăța fără să atingi date reale.
+        //
+        // Răspunsul corect la aceeași problemă e `app:seed-demo-zone`: o școală demo paralelă,
+        // integral prefixată „[DEMO]", în care conturile aterizează — curățare 100% reversibilă.
+        // Cât timp zona există, comanda asta ar rupe-o (ar scoate conturile din zonă, lăsând-o
+        // orfană), deci refuză să ruleze.
+        if (file_exists(storage_path('app/demo/zone.json'))) {
+            $this->error('Există o zonă demo activă (storage/app/demo/zone.json).');
+            $this->line('Conturile demo trebuie să rămână legate de ZONA demo, nu de fișe reale — altfel');
+            $this->line('testerii lucrează pe elevi reali și datele lor nu se mai pot curăța la go-live.');
+            $this->line('Dacă chiar vrei conturile pe date reale, elimină întâi zona: `php artisan app:seed-demo-zone --remove`.');
+
+            return self::FAILURE;
+        }
+
         $apply = (bool) $this->option('apply');
         $rows = [];
         $changes = 0;
