@@ -108,7 +108,11 @@ it('directorul creează conturi pentru fiecare rol pe care îl poate atribui', f
 
         $user = User::query()->where('username', 'cont-'.$role)->sole();
 
-        expect($user->getRoleNames()->all())->toBe([$role])
+        // Rolul „Diriginte" e DERIVAT din desemnare (2026-07-27): creat fără să i se dea o clasă,
+        // contul rămâne „Profesor" — eticheta nu mai poate afirma o funcție pe care n-o are.
+        $expectedRole = $role === UserRole::Diriginte->value ? UserRole::Profesor->value : $role;
+
+        expect($user->getRoleNames()->all())->toBe([$expectedRole])
             // Numele contului: la FIȘĂ EXISTENTĂ vine DIN REGISTRU (cerința beneficiarului
             // 2026-07-24 — identitatea nu se re-tastează, deci nici nu poate diverge de fișă);
             // la rolurile fără fișă (părinte, administrație) rămâne cel din câmpurile de nume.

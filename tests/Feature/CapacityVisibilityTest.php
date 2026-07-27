@@ -46,11 +46,15 @@ it('semnalează contul cu ROLUL „diriginte" care nu are nicio clasă în dirig
         ->toContain($user->id);
 });
 
-it('semnalează contul cu ROLUL „profesor" care ESTE diriginte — cazul raportat ca breșă', function () {
+it('semnalează contul cu ROLUL „profesor" care ESTE diriginte — deriva rămasă după un import', function () {
     $user = User::factory()->create();
     $user->assignRole(UserRole::Profesor->value);
     $teacher = Teacher::factory()->create(['user_id' => $user->id]);
-    $this->homeroomClass->update(['homeroom_teacher_id' => $teacher->id]);
+
+    // Prin MODEL, rolul s-ar deriva pe loc ({@see SyncHomeroomRole}) și n-ar mai fi nimic de
+    // semnalat. Deriva asta poate veni acum doar dintr-o scriere care ocolește observerii —
+    // exact ce fac importurile (`app:import-legacy`, `app:seed-demo-zone`), prin query builder.
+    SchoolClass::query()->whereKey($this->homeroomClass->id)->update(['homeroom_teacher_id' => $teacher->id]);
 
     expect(ListUsers::mismatchQuery(UserRole::Profesor, hasHomeroom: true)->pluck('id'))
         ->toContain($user->id);
@@ -83,7 +87,8 @@ it('numără deriva pentru cardurile navigatorului', function () {
     $ascuns = User::factory()->create();
     $ascuns->assignRole(UserRole::Profesor->value);
     $teacher = Teacher::factory()->create(['user_id' => $ascuns->id]);
-    $this->homeroomClass->update(['homeroom_teacher_id' => $teacher->id]);
+    // Query builder = calea importurilor, singura care mai poate produce deriva.
+    SchoolClass::query()->whereKey($this->homeroomClass->id)->update(['homeroom_teacher_id' => $teacher->id]);
 
     $admin = User::factory()->create();
     $admin->assignRole(UserRole::Admin->value);

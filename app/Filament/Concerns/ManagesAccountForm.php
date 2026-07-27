@@ -2,6 +2,7 @@
 
 namespace App\Filament\Concerns;
 
+use App\Actions\SyncHomeroomRole;
 use App\Enums\UserRole;
 use App\Filament\Resources\Users\Schemas\UserForm;
 use App\Models\Enrollment;
@@ -250,6 +251,12 @@ trait ManagesAccountForm
 
             $this->integrateTeacher($teacherId, $role);
             $this->integrateStudent($studentId);
+
+            // Rolul „Diriginte" e DERIVAT din desemnare, nu din ce s-a bifat în formular: cine a
+            // fost pus diriginte primește eticheta, cine a fost ales „Diriginte" fără să i se dea
+            // o clasă rămâne „Profesor". Apelul e EXPLICIT fiindcă atribuirea de mai sus trece
+            // prin query builder (`update`), care nu declanșează observerul de pe clasă.
+            app(SyncHomeroomRole::class)->forUser($user->fresh());
         });
 
         // Credențialele pleacă DUPĂ tranzacție: un rollback nu trebuie să lase e-mailuri trimise.

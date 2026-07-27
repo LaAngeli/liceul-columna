@@ -74,13 +74,15 @@ it('consemnează DIRIGENȚIA ca sursă a dreptului, cu clasele de atunci', funct
     $classA = SchoolClass::factory()->create(['name' => 'XI', 'section' => 'R', 'grade_level' => 11]);
     $classB = SchoolClass::factory()->create(['name' => 'X', 'section' => 'U', 'grade_level' => 10]);
 
-    // Cazul din raportarea beneficiarului: ROL „profesor", dar DESEMNAT diriginte.
+    // Rolul e DERIVAT din desemnare de la 2026-07-27 ({@see SyncHomeroomRole}), deci un cont de
+    // profesor desemnat diriginte devine „Diriginte" pe loc. Calitatea rămâne consemnată separat,
+    // fiindcă rolul spune CE ești, nu PENTRU CARE clase.
     $user = auditTeacher(UserRole::Profesor->value, $classA, $classB);
-    actingAs($user);
+    actingAs($user->fresh());
 
     $entry = auditLastEntryAfterChange();
 
-    expect($entry->actor_role)->toBe(UserRole::Profesor->value)
+    expect($entry->actor_role)->toBe(UserRole::Diriginte->value)
         ->and($entry->actor_capacity)->toContain('diriginte:');
 
     $capacities = $entry->actorCapacities();
@@ -149,7 +151,7 @@ it('cumulează dirigenția și domeniul când persoana le are pe amândouă', fu
 it('fișa afișează calitatea consemnată, iar intrările vechi sunt marcate ca istorice', function () {
     $class = SchoolClass::factory()->create(['name' => 'XI', 'section' => 'R', 'grade_level' => 11]);
     $user = auditTeacher(UserRole::Profesor->value, $class);
-    actingAs($user);
+    actingAs($user->fresh());
 
     $entry = auditLastEntryAfterChange();
 
@@ -157,7 +159,7 @@ it('fișa afișează calitatea consemnată, iar intrările vechi sunt marcate ca
     $page->record = $entry;
     $actor = $page->actor();
 
-    expect($actor['role'])->toBe(UserRole::Profesor->label())
+    expect($actor['role'])->toBe(UserRole::Diriginte->label())
         ->and($actor['historical'])->toBeFalse()
         ->and($actor['capacities'])->toHaveCount(1)
         ->and($actor['capacities'][0]['detail'])->toBe('XI R');
@@ -169,7 +171,7 @@ it('fișa afișează calitatea consemnată, iar intrările vechi sunt marcate ca
     $legacyActor = $page->actor();
 
     expect($legacyActor['historical'])->toBeTrue()
-        ->and($legacyActor['role'])->toBe(UserRole::Profesor->label())
+        ->and($legacyActor['role'])->toBe(UserRole::Diriginte->label())
         ->and($legacyActor['capacities'])->toBe([]);
 });
 

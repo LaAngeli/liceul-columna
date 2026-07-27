@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Actions\SyncHomeroomRole;
 use App\Enums\AudienceDomain;
 use App\Enums\NotificationChannel;
 use App\Enums\NotificationType;
@@ -503,9 +504,19 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
-     * Tipurile de notificări RELEVANTE pentru rolurile acestui cont — „director pe nișa lui,
-     * vicedirector pe a lui" (spec §5). Conduce matricea din Setări + e filtrul implicit de
-     * rutare. Reuniune pe roluri; vezi {@see NotificationType::forRole()}.
+     * Tipurile de notificări RELEVANTE pentru acest cont — „director pe nișa lui, vicedirector pe
+     * a lui" (spec §5). Conduce matricea din Setări + e filtrul implicit de rutare.
+     *
+     * Reuniune pe ROLURI ({@see NotificationType::forRole()}) PLUS pe DESEMNARE: dirigenția dă
+     * drepturi (validarea motivărilor) fără să treacă prin rol, deci un cont cu rolul „Profesor"
+     * desemnat diriginte judecă cererile clasei lui — dar tipul „cerere de motivare depusă" nu-i
+     * apărea în Setări, deci nu-l putea muta pe e-mail sau Telegram. Îl primea doar în cabinet, pe
+     * valoarea implicită: obligație fără posibilitatea de a o urmări cum vrea (reparat 2026-07-27).
+     *
+     * Rolul e derivat din desemnare de la aceeași dată ({@see SyncHomeroomRole}), deci
+     * cele două coincid de obicei — dar nu întotdeauna: conducerea care primește o clasă își
+     * păstrează rolul, iar importurile prin query builder ocolesc observerul. Sursa dreptului
+     * rămâne desemnarea, deci ea decide și aici.
      *
      * @return list<NotificationType>
      */
@@ -521,6 +532,12 @@ class User extends Authenticatable implements Auditable, FilamentUser
             }
 
             foreach (NotificationType::forRole($role) as $type) {
+                $types[$type->value] = $type;
+            }
+        }
+
+        if ($this->teacher?->homeroomClasses()->exists() === true) {
+            foreach (NotificationType::forRole(UserRole::Diriginte) as $type) {
                 $types[$type->value] = $type;
             }
         }
