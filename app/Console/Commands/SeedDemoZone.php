@@ -27,6 +27,7 @@ class SeedDemoZone extends Command
 {
     protected $signature = 'app:seed-demo-zone
         {--students=8 : Elevi demo per clasă}
+        {--fix-capacity : Doar reparație: dă contului profesor@ dirigenția din zona EXISTENTĂ}
         {--remove : Șterge zona demo și restaurează legăturile reale ale conturilor}';
 
     protected $description = 'Creează/șterge o zonă de test izolată (școală demo) pentru testeri';
@@ -38,6 +39,22 @@ class SeedDemoZone extends Command
 
     /** Discipline folosite la alocări (id-uri din tabelul `subjects`). */
     private const SUBJECT_IDS = [1, 5, 8, 2, 11, 9, 13];
+
+    /**
+     * A câta clasă demo primește drept diriginte contul `profesor@` — DUBLA CALITATE, cerută
+     * explicit de beneficiar (2026-07-28).
+     *
+     * Dirigenția e o DESEMNARE, nu un rol de cont: drepturile se derivă PER CLASĂ, deci scenariul
+     * care contează cel mai mult la testare e „același cont, calități diferite" — profesor la 5
+     * clase (vede doar disciplina lui), diriginte la una (vede toată clasa). Înainte, zona demo
+     * lăsa `profesor@` fără nicio dirigenție, iar diferența nu se putea observa decât reautentificat
+     * pe alt cont — adică deloc, ca experiență a aceluiași utilizator.
+     *
+     * NU clasa 0: acolo stau copiii conturilor elev@/elev2@/parinte@, iar dirigenția ei rămâne la
+     * `diriginte@`, ca fluxurile familiei (mesaje, motivări) să aibă destinatarul așteptat. Indicele
+     * 1 e o clasă în care `profesor@` oricum predă (vezi alocările: primele 6 clase).
+     */
+    private const PROF_HOMEROOM_INDEX = 1;
 
     /**
      * Nume pentru elevi/profesori demo. Interne DELIBERAT — `fake()` (fakerphp/faker) e în require-dev
@@ -56,7 +73,66 @@ class SeedDemoZone extends Command
     {
         $this->manifestPath = storage_path('app/demo/zone.json');
 
+        if ($this->option('fix-capacity')) {
+            return $this->fixCapacity();
+        }
+
         return $this->option('remove') ? $this->remove() : $this->seed();
+    }
+
+    /**
+     * Aplică dubla calitate pe o zonă DEJA existentă, fără re-seedare.
+     *
+     * De ce separat de `seed()`: pe producție zona poartă deja activitate reală de testare (note,
+     * cereri, mesaje generate de `app:seed-demo-life`); un `--remove` + `--seed` doar ca să se
+     * schimbe un `homeroom_teacher_id` ar arunca tot. Idempotentă: rulată de două ori, a doua oară
+     * raportează că nu e nimic de făcut.
+     */
+    private function fixCapacity(): int
+    {
+        if (! File::exists($this->manifestPath)) {
+            $this->error('Nu există zonă demo. Rulează întâi `php artisan app:seed-demo-zone`.');
+
+            return self::FAILURE;
+        }
+
+        /** @var array{classes?: list<int>} $manifest */
+        $manifest = json_decode((string) File::get($this->manifestPath), true) ?: [];
+        $classId = $manifest['classes'][self::PROF_HOMEROOM_INDEX] ?? null;
+
+        $teacherId = (int) DB::table('teachers')
+            ->join('users', 'users.id', '=', 'teachers.user_id')
+            ->where('users.email', 'profesor@columna.test')
+            ->value('teachers.id');
+
+        if ($classId === null || $teacherId === 0) {
+            $this->error('Zona demo pare incompletă (lipsește clasa-țintă sau fișa contului profesor@).');
+
+            return self::FAILURE;
+        }
+
+        $class = DB::table('school_classes')->where('id', $classId)->first(['name', 'homeroom_teacher_id']);
+
+        if ($class === null) {
+            $this->error('Clasa-țintă din manifest nu mai există.');
+
+            return self::FAILURE;
+        }
+
+        if ((int) $class->homeroom_teacher_id === $teacherId) {
+            $this->info("Nimic de făcut: profesor@ e deja diriginte la {$class->name}.");
+
+            return self::SUCCESS;
+        }
+
+        DB::table('school_classes')->where('id', $classId)->update([
+            'homeroom_teacher_id' => $teacherId,
+            'updated_at' => Carbon::now(),
+        ]);
+
+        $this->info("profesor@ e acum diriginte la {$class->name} — același cont are ambele calități.");
+
+        return self::SUCCESS;
     }
 
     private function seed(): int
@@ -104,7 +180,11 @@ class SeedDemoZone extends Command
             foreach (self::DISTRIBUTION as $grade => $count) {
                 foreach (range(0, $count - 1) as $s) {
                     $section = chr(65 + $s); // A, B, C
-                    $homeroomTeacherId = $pool[$classIndex % count($pool)];
+                    // Dubla calitate: o clasă din cele predate de profesor@ îl are chiar pe el ca
+                    // diriginte (vezi PROF_HOMEROOM_INDEX) — restul merg pe fondul de diriginți.
+                    $homeroomTeacherId = $classIndex === self::PROF_HOMEROOM_INDEX
+                        ? $profTeacherId
+                        : $pool[$classIndex % count($pool)];
 
                     $classId = (int) DB::table('school_classes')->insertGetId([
                         'academic_year_id' => $yearId,
