@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
+use App\Models\Concerns\ScopedToTeachingCapacity;
 use App\Observers\GradeObserver;
 use Database\Factories\GradeFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -32,7 +33,7 @@ class Grade extends Model implements Auditable
     use AuditableTrait;
 
     /** @use HasFactory<GradeFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, ScopedToTeachingCapacity, SoftDeletes;
 
     protected $fillable = [
         'student_id',

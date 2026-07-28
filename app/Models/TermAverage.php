@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ScopedToTeachingCapacity;
 use App\Support\Grades;
 use Database\Factories\TermAverageFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,7 +17,7 @@ class TermAverage extends Model implements Auditable
     use AuditableTrait;
 
     /** @use HasFactory<TermAverageFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, ScopedToTeachingCapacity, SoftDeletes;
 
     protected $fillable = [
         'student_id',

@@ -132,6 +132,10 @@ class StudentInfolist
         }
 
         return TermAverage::query()
+            // Cardul afișa mediile la TOATE disciplinele, oricui deschidea fișa — sursa vizibilă a
+            // scurgerii semnalate (un profesor de română citea media la fizică). Aceeași regulă de
+            // calitate ca la note: dirigintele vede tot, profesorul doar disciplinele lui.
+            ->visibleToStaff(auth('web')->user())
             ->with('subject')
             ->where('student_id', $student->id)
             ->where('term_id', $termId)

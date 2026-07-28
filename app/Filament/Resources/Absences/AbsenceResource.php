@@ -16,7 +16,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 
 class AbsenceResource extends Resource
 {
@@ -96,30 +95,8 @@ class AbsenceResource extends Resource
      */
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
-        $user = auth('web')->user();
-
-        if (! $user || $user->isAdministrator()) {
-            return $query;
-        }
-
-        $teacher = $user->teacher;
-
-        if (! $teacher) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        return $query->where(function (Builder $q) use ($teacher) {
-            $q->whereIn('school_class_id', $teacher->homeroomSchoolClassIds())
-                ->orWhereExists(function (QueryBuilder $sub) use ($teacher) {
-                    $sub->selectRaw('1')
-                        ->from('teaching_assignments as ta')
-                        ->whereColumn('ta.school_class_id', 'absences.school_class_id')
-                        ->whereColumn('ta.subject_id', 'absences.subject_id')
-                        ->where('ta.teacher_id', $teacher->id)
-                        ->whereNull('ta.deleted_at');
-                });
-        });
+        // Vezi nota din GradeResource: clauza e acum în scope-ul de model, nu duplicată aici.
+        return Absence::applyStaffVisibility(parent::getEloquentQuery(), auth('web')->user());
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

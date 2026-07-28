@@ -17,7 +17,6 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 
 class GradeResource extends Resource
 {
@@ -113,30 +112,10 @@ class GradeResource extends Resource
      */
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
-        $user = auth('web')->user();
-
-        if (! $user || $user->isAdministrator()) {
-            return $query;
-        }
-
-        $teacher = $user->teacher;
-
-        if (! $teacher) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        return $query->where(function (Builder $q) use ($teacher) {
-            $q->whereIn('school_class_id', $teacher->homeroomSchoolClassIds())
-                ->orWhereExists(function (QueryBuilder $sub) use ($teacher) {
-                    $sub->selectRaw('1')
-                        ->from('teaching_assignments as ta')
-                        ->whereColumn('ta.school_class_id', 'grades.school_class_id')
-                        ->whereColumn('ta.subject_id', 'grades.subject_id')
-                        ->where('ta.teacher_id', $teacher->id)
-                        ->whereNull('ta.deleted_at');
-                });
-        });
+        // Regula de calitate stă în {@see \App\Models\Concerns\ScopedToTeachingCapacity} — un
+        // singur loc pentru toate suprafețele (listă, fișa elevului, cardul de medii). Copiată în
+        // resurse, lipsea exact acolo unde nu era copiată.
+        return Grade::applyStaffVisibility(parent::getEloquentQuery(), auth('web')->user());
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

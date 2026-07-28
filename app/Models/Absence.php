@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\RequestStatus;
+use App\Models\Concerns\ScopedToTeachingCapacity;
 use App\Observers\AbsenceObserver;
 use Database\Factories\AbsenceFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -26,7 +27,7 @@ class Absence extends Model implements Auditable
     use AuditableTrait;
 
     /** @use HasFactory<AbsenceFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, ScopedToTeachingCapacity, SoftDeletes;
 
     protected $fillable = [
         'student_id',
