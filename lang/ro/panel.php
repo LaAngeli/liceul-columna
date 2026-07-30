@@ -2151,6 +2151,10 @@ return [
     'role_switch' => [
         'label' => 'Rol activ',
         'invalid' => 'Rolul ales nu aparține contului sau nu e un rol de panou.',
+        'scope_school' => 'Toată școala',
+        'scope_infra' => 'Sistem și infrastructură',
+        'scope_taught' => 'Clasele și disciplinele predate',
+        'scope_homeroom' => 'Clasa din dirigenție',
     ],
 
     'class_register' => [

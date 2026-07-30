@@ -156,13 +156,17 @@ it('familia nu poate folosi comutatorul — 403, cabinetul rămâne fără switc
     }
 });
 
-it('topbar-ul arată SELECT pentru multi-rol și badge static pentru mono-rol', function () {
+it('topbar-ul arată COMUTATOR (dropdown Filament) pentru multi-rol și badge static pentru mono-rol', function () {
     $multi = multiRoleUser(UserRole::Profesor->value, UserRole::Director->value);
     actingAs($multi);
 
     $html = view('filament.topbar.live-datetime')->render();
 
-    expect($html)->toContain('id="fi-role-switch-select"')
+    // Trigger + panou cu câte un rând-formular per rol (POST, nu <select> nativ — acela avea
+    // popup desenat de OS, nestilizabil) și starea activă marcată.
+    expect($html)->toContain('id="fi-role-switch"')
+        ->and($html)->toContain('fi-role-menu__item')
+        ->and($html)->toContain('fi-role-menu__item--active')
         ->and($html)->toContain(UserRole::Director->label())
         ->and($html)->toContain(UserRole::Profesor->label());
 
@@ -171,7 +175,7 @@ it('topbar-ul arată SELECT pentru multi-rol și badge static pentru mono-rol', 
 
     $html = view('filament.topbar.live-datetime')->render();
 
-    expect($html)->not->toContain('id="fi-role-switch-select"')
+    expect($html)->not->toContain('id="fi-role-switch"')
         ->and($html)->toContain('fi-role-badge');
 });
 

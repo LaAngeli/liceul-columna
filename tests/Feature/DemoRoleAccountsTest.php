@@ -133,11 +133,11 @@ it('director@ poartă cele trei roluri și comutatorul din topbar le arată pe t
         ->and($director->teacher)->not->toBeNull()
         ->and($director->homeroomSchoolClassIds())->not->toBe([]);
 
-    // Badge-ul din topbar devine SELECT cu toate cele trei roluri.
+    // Badge-ul din topbar devine COMUTATOR (dropdown Filament) cu toate cele trei roluri.
     $this->actingAs($director);
     $html = view('filament.topbar.live-datetime')->render();
 
-    expect($html)->toContain('id="fi-role-switch-select"')
+    expect($html)->toContain('id="fi-role-switch"')
         ->and($html)->toContain(UserRole::Director->label())
         ->and($html)->toContain(UserRole::Profesor->label())
         ->and($html)->toContain(UserRole::Diriginte->label());
@@ -166,7 +166,7 @@ it('profesor@ rămâne DELIBERAT mono-rol — cazul-negativ, fără comutator', 
     $this->actingAs($profesor);
     $html = view('filament.topbar.live-datetime')->render();
 
-    expect($html)->not->toContain('id="fi-role-switch-select"');
+    expect($html)->not->toContain('id="fi-role-switch"');
 });
 
 it('login-ul de dev refuză un rol inexistent', function () {

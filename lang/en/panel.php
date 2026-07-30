@@ -2136,6 +2136,10 @@ return [
     'role_switch' => [
         'label' => 'Active role',
         'invalid' => 'The chosen role does not belong to the account or is not a panel role.',
+        'scope_school' => 'Whole school',
+        'scope_infra' => 'System & infrastructure',
+        'scope_taught' => 'Classes and subjects taught',
+        'scope_homeroom' => 'Homeroom class',
     ],
 
     'class_register' => [
