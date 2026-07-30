@@ -8,6 +8,7 @@ use App\Enums\AudienceDomain;
 use App\Enums\NotificationChannel;
 use App\Enums\NotificationType;
 use App\Enums\UserRole;
+use App\Support\ActiveRole;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -168,6 +169,46 @@ class User extends Authenticatable implements Auditable, FilamentUser
             : route('dashboard');
     }
 
+    // ── Rolul ACTIV (comutarea de context multi-rol, F1) ────────────────────────────────────
+
+    /**
+     * Rolul sub care contul LUCREAZĂ acum ({@see ActiveRole} pentru regulile de rezolvare).
+     * Pentru conturile mono-rol e întotdeauna rolul lor — contractul F0.
+     *
+     * DELIBERAT ne-memoizat: relația de roluri e deja cache-uită de spatie (și golită corect la
+     * syncRoles), iar o memoizare proprie rămânea STALE după retrogradare — dreptul derivat din
+     * domeniul de audiență supraviețuia schimbării de rol în același request
+     * (prins de RoleResidualPrivilegeTest la introducerea fundației F1).
+     */
+    public function activeRole(): ?UserRole
+    {
+        return ActiveRole::resolve($this);
+    }
+
+    /**
+     * Rolul ACTIV e una dintre valorile date? Primitiva pe care stă întreaga fațadă de
+     * capabilități: sub multi-rol, ce POȚI face vine din contextul ales, nu din reuniunea
+     * rolurilor (raport §4). Pentru mono-rol e echivalent cu hasAnyRole — garantat de F0.
+     *
+     * @param  list<string>|string  $values
+     */
+    public function activeRoleIs(array|string $values): bool
+    {
+        $active = $this->activeRole()?->value;
+
+        if ($active === null) {
+            return false;
+        }
+
+        return in_array($active, (array) $values, true);
+    }
+
+    /** Contul poate comuta între mai multe roluri de panou? (gate-ul comutatorului din topbar) */
+    public function isMultiRole(): bool
+    {
+        return count(ActiveRole::switchableValues($this->getRoleNames()->all())) > 1;
+    }
+
     /**
      * Administrația academică (super-admin / director / prim-vicedirector / administrator
      * operațional) vede TOT catalogul, fără scoping. NU implică drept de scriere — vezi
@@ -175,7 +216,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function isAdministrator(): bool
     {
-        return $this->hasAnyRole(UserRole::administratorValues());
+        return $this->activeRoleIs(UserRole::administratorValues());
     }
 
     /**
@@ -183,7 +224,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function isSuperAdmin(): bool
     {
-        return $this->hasRole(UserRole::Admin->value);
+        return $this->activeRoleIs(UserRole::Admin->value);
     }
 
     /**
@@ -191,7 +232,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function isTechnicalAdmin(): bool
     {
-        return $this->hasRole(UserRole::AdministratorTehnic->value);
+        return $this->activeRoleIs(UserRole::AdministratorTehnic->value);
     }
 
     /**
@@ -199,7 +240,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function isOperationalAdmin(): bool
     {
-        return $this->hasRole(UserRole::AdministratorOperational->value);
+        return $this->activeRoleIs(UserRole::AdministratorOperational->value);
     }
 
     /**
@@ -207,7 +248,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function isSystemAdministrator(): bool
     {
-        return $this->hasAnyRole([UserRole::Admin->value, UserRole::AdministratorTehnic->value]);
+        return $this->activeRoleIs([UserRole::Admin->value, UserRole::AdministratorTehnic->value]);
     }
 
     /**
@@ -215,7 +256,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function isDirector(): bool
     {
-        return $this->hasAnyRole([UserRole::Director->value, UserRole::PrimVicedirector->value]);
+        return $this->activeRoleIs([UserRole::Director->value, UserRole::PrimVicedirector->value]);
     }
 
     /**
@@ -224,7 +265,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function isManagement(): bool
     {
-        return $this->hasAnyRole([
+        return $this->activeRoleIs([
             UserRole::Director->value,
             UserRole::PrimVicedirector->value,
             UserRole::AdministratorOperational->value,
@@ -257,7 +298,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
     public function handlesAudienceDomain(AudienceDomain $domain): bool
     {
         return in_array($domain->value, $this->audience_domains ?? [], true)
-            && $this->hasAnyRole(UserRole::audienceDomainHolderValues());
+            && $this->activeRoleIs(UserRole::audienceDomainHolderValues());
     }
 
     /**
@@ -318,7 +359,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canConfigureSchool(): bool
     {
-        return $this->hasAnyRole([
+        return $this->activeRoleIs([
             UserRole::Admin->value,
             UserRole::Director->value,
             UserRole::AdministratorOperational->value,
@@ -347,7 +388,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canPublishContent(): bool
     {
-        return $this->hasAnyRole([
+        return $this->activeRoleIs([
             UserRole::Admin->value,
             UserRole::Director->value,
             UserRole::PrimVicedirector->value,
@@ -361,7 +402,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canManageSchedules(): bool
     {
-        return $this->hasAnyRole([UserRole::Admin->value, UserRole::AdministratorOperational->value]);
+        return $this->activeRoleIs([UserRole::Admin->value, UserRole::AdministratorOperational->value]);
     }
 
     /**
@@ -378,7 +419,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
     public function canViewSchedules(): bool
     {
         return $this->canManageSchedules()
-            || $this->hasAnyRole([
+            || $this->activeRoleIs([
                 UserRole::Director->value,
                 UserRole::PrimVicedirector->value,
                 UserRole::Diriginte->value,
@@ -392,7 +433,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canApproveGradeCorrections(): bool
     {
-        return $this->hasAnyRole([
+        return $this->activeRoleIs([
             UserRole::Admin->value,
             UserRole::Director->value,
             UserRole::PrimVicedirector->value,
@@ -407,7 +448,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canApproveHomeworkCorrections(): bool
     {
-        return $this->hasAnyRole([
+        return $this->activeRoleIs([
             UserRole::Admin->value,
             UserRole::Director->value,
             UserRole::PrimVicedirector->value,
@@ -422,7 +463,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canAdministerCatalog(): bool
     {
-        return $this->hasAnyRole([
+        return $this->activeRoleIs([
             UserRole::Admin->value,
             UserRole::Director->value,
             UserRole::PrimVicedirector->value,
@@ -435,7 +476,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canValidateSemester(): bool
     {
-        return $this->hasAnyRole([
+        return $this->activeRoleIs([
             UserRole::Admin->value,
             UserRole::Director->value,
             UserRole::PrimVicedirector->value,
@@ -456,7 +497,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canViewAuditLog(): bool
     {
-        return $this->hasAnyRole([
+        return $this->activeRoleIs([
             UserRole::Admin->value,
             UserRole::Director->value,
             UserRole::PrimVicedirector->value,
@@ -470,7 +511,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canManageInfrastructure(): bool
     {
-        return $this->hasAnyRole([UserRole::Admin->value, UserRole::AdministratorTehnic->value]);
+        return $this->activeRoleIs([UserRole::Admin->value, UserRole::AdministratorTehnic->value]);
     }
 
     /**
@@ -637,18 +678,18 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function manageableRoleValues(): array
     {
-        if ($this->hasRole(UserRole::Admin->value)) {
+        if ($this->activeRoleIs(UserRole::Admin->value)) {
             return UserRole::values();
         }
 
-        if ($this->hasRole(UserRole::Director->value)) {
+        if ($this->activeRoleIs(UserRole::Director->value)) {
             return array_values(array_diff(UserRole::values(), [
                 UserRole::Admin->value,
                 UserRole::AdministratorTehnic->value,
             ]));
         }
 
-        if ($this->hasRole(UserRole::AdministratorOperational->value)) {
+        if ($this->activeRoleIs(UserRole::AdministratorOperational->value)) {
             return [
                 UserRole::Profesor->value,
                 UserRole::Diriginte->value,
@@ -764,7 +805,7 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canBackdateCalendarEvents(): bool
     {
-        return $this->hasAnyRole([UserRole::Admin->value, UserRole::Director->value]);
+        return $this->activeRoleIs([UserRole::Admin->value, UserRole::Director->value]);
     }
 
     /**

@@ -2,8 +2,9 @@
     use App\Enums\UserRole;
 
     $user = auth()->user();
-    $roleValue = $user?->getRoleNames()->first();
-    $role = $roleValue !== null ? UserRole::tryFrom($roleValue) : null;
+    // Rolul ACTIV (F1): sub multi-rol, badge-ul arata contextul sub care lucrezi acum.
+    $role = $user?->activeRole();
+    $roleValue = $role?->value;
     $roleLabel = $role !== null ? trans('site.roles.'.$role->value, [], app()->getLocale()) : null;
 
     // FUNCȚIA EFECTIVĂ, nu doar rolul contului: dirigenția e o DESEMNARE pe fișă, iar drepturile
@@ -33,7 +34,31 @@
 {{-- Ceas+dată LIVE + badge de rol în topbar. Stiluri inline: Tailwind-ul Filament NU scanează
      resources/views/ (vezi language-switcher.blade.php). --}}
 <div class="fi-topbar-extras">
-    @if ($badgeLabel !== null)
+    @if ($user !== null && $user->isMultiRole())
+        {{-- COMUTATORUL DE ROL ACTIV (multi-rol F2, doc pct. 4): un cont cu mai multe funcții își
+             alege contextul de aici, fără logout — select în locul badge-ului static, POST +
+             redirect (Filament re-randează meniul/dashboard-ul/filtrele pe request). Exclusiv
+             panoul staff: familia nu are comutare (decizia beneficiarului, 30.07.2026). --}}
+        <form method="POST" action="{{ route('staff.role.switch') }}" class="fi-role-switch" title="{{ __('panel.role_switch.label') }}">
+            @csrf
+            <svg class="fi-role-badge__icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+            </svg>
+            <label class="fi-sr-only" for="fi-role-switch-select">{{ __('panel.role_switch.label') }}</label>
+            <select
+                id="fi-role-switch-select"
+                name="role"
+                class="fi-role-switch__select"
+                onchange="this.form.submit()"
+            >
+                @foreach (\App\Support\ActiveRole::switchableValues($user->getRoleNames()->all()) as $switchable)
+                    <option value="{{ $switchable }}" @selected($roleValue === $switchable)>
+                        {{ \App\Enums\UserRole::tryFrom($switchable)?->label() ?? $switchable }}
+                    </option>
+                @endforeach
+            </select>
+        </form>
+    @elseif ($badgeLabel !== null)
         <span class="fi-role-badge" title="{{ $badgeTitle }}">
             <svg class="fi-role-badge__icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
@@ -109,6 +134,68 @@
     }
 
     .fi-role-badge__icon { width: 0.85rem; height: 0.85rem; opacity: 0.7; }
+
+    /* Comutatorul de rol activ — aceeași pastilă ca badge-ul, dar interactivă (select nativ:
+       funcționează cu tastatura, pe mobil deschide picker-ul de sistem, zero JS de întreținut). */
+    .fi-role-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.25rem 0.375rem 0.25rem 0.625rem;
+        border-radius: 9999px;
+        border: 1px solid color-mix(in srgb, var(--brand-navy) 25%, transparent);
+        background-color: color-mix(in srgb, var(--brand-navy) 6%, transparent);
+        color: rgb(55 65 81);
+        white-space: nowrap;
+        transition: border-color 150ms ease, background-color 150ms ease;
+    }
+
+    .fi-role-switch:hover {
+        border-color: color-mix(in srgb, var(--brand-navy) 45%, transparent);
+        background-color: color-mix(in srgb, var(--brand-navy) 10%, transparent);
+    }
+
+    .dark .fi-role-switch {
+        border-color: rgba(191, 219, 254, 0.25);
+        background-color: rgba(255, 255, 255, 0.05);
+        color: rgb(209 213 219);
+    }
+
+    .fi-role-switch__select {
+        border: none;
+        background: transparent;
+        padding: 0 1.25rem 0 0;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1.25;
+        color: inherit;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+        background-position: right 0 center;
+        background-repeat: no-repeat;
+        background-size: 1rem 1rem;
+    }
+
+    .fi-role-switch__select:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
+    .fi-role-switch__select option {
+        color: rgb(17 24 39);
+    }
+
+    .fi-sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+    }
 
     /* Ceasul — card pill discret cu accent de brand. Ierarhie vizuală: ora HH:MM = principal
        (navy, medium), secundele = subtile (mai mici, opacitate redusă), data = discret (gri, mic),

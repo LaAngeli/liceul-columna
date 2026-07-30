@@ -12,6 +12,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\User;
 use App\Notifications\CatalogNotification;
+use App\Support\ActiveRole;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -347,7 +348,10 @@ class SendMessage
         $colleagues = [];
 
         foreach ($panelUsers as $user) {
-            $role = (string) $user->getRoleNames()->first();
+            // Rolul PRINCIPAL (prioritatea enum): un cont multi-rol se grupează după funcția
+            // cea mai înaltă — un director-profesor apare la administrație, nu la colegi.
+            $resolved = ActiveRole::resolve($user);
+            $role = $resolved !== null ? $resolved->value : (string) $user->getRoleNames()->first();
 
             if ($role === UserRole::Admin->value) {
                 continue; // break-glass IT — nu e o destinație de corespondență

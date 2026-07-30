@@ -78,10 +78,10 @@ class ViewAudit extends ViewRecord
         $roleName = null;
 
         try {
-            $rawRole = $user->roles->first()?->name;
-            $roleName = $rawRole !== null
-                ? (UserRole::tryFrom($rawRole)?->label() ?? $rawRole)
-                : null;
+            $labels = $user->getRoleNames()
+                ->map(static fn (string $value): string => UserRole::tryFrom($value)?->label() ?? $value)
+                ->all();
+            $roleName = $labels === [] ? null : implode(' / ', $labels);
         } catch (Throwable) {
             $roleName = null;
         }

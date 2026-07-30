@@ -12,6 +12,7 @@ use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\User;
+use App\Support\ActiveRole;
 use App\Support\FamilyTokens;
 use App\Support\SchoolCalendar;
 use Closure;
@@ -428,8 +429,7 @@ class AnnouncementForm
             ->get();
 
         foreach ($users as $user) {
-            $role = $user->getRoleNames()->first();
-            $roleLabel = is_string($role) ? (UserRole::tryFrom($role)?->label() ?? $role) : '';
+            $roleLabel = ActiveRole::resolve($user)?->label() ?? '';
             $options[$user->id] = $roleLabel !== ''
                 ? $user->name.' ('.$roleLabel.')'
                 : $user->name;

@@ -303,7 +303,7 @@ class CabinetController extends Controller
                 'name' => $user->name,
                 'username' => $user->username,
                 'email' => $user->email,
-                'role' => $user->getRoleNames()->first(),
+                'role' => $user->activeRole()?->value,
                 // `translatedFormat` folosește tokeni PHP `date()` (F = lună întreagă, Y = an 4
                 // cifre), NU tokeni ICU (MMMM/yyyy). Cu tokeni ICU luna se dublează pe fiecare
                 // literă suplimentară (`MMMM` → 4×lună) și `y` = an 2 cifre × 4 → „26262626".

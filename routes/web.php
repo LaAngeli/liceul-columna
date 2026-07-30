@@ -20,6 +20,7 @@ use App\Http\Controllers\MessagesController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\PrivacyConsentController;
 use App\Http\Controllers\PublicPageController;
+use App\Http\Controllers\SwitchActiveRoleController;
 use App\Http\Controllers\TwoFactorEmailChallengeController;
 use App\Http\Controllers\TwoFactorEmailSetupController;
 use App\Http\Controllers\VisitController;
@@ -165,6 +166,12 @@ foreach (Locale::prefixed() as $prefix) {
 */
 
 Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function () {
+    // Comutatorul de ROL ACTIV (multi-rol F2) — EXCLUSIV pentru personalul panoului; familia nu
+    // are comutare (decizia beneficiarului). Validarea apartenenței e în controller + ActiveRole.
+    Route::post('admin/rol-activ', SwitchActiveRoleController::class)
+        ->middleware('throttle:30,1')
+        ->name('staff.role.switch');
+
     // EnsureFamilyCabinet redirecționează personalul la /admin — se aplică pe rutele GET care RANDEAZĂ
     // pagini de familie (gating UNIFORM, audit M-8/#23/#39/#24). NU pe acțiunile POST (au deja abort 403
     // în controller) și NU pe vizualizarea profilului unui elev / descărcările de PII (accesibile ȘI

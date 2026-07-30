@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\User;
 use App\Notifications\TemporaryCredentials;
+use App\Support\ActiveRole;
 use App\Support\TemporaryPassword;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -37,7 +38,7 @@ class UsersTable
      */
     private static function capacityMismatch(User $record): bool
     {
-        $role = $record->getRoleNames()->first();
+        $role = ActiveRole::resolve($record)?->value;
         $isHomeroom = $record->homeroomLabel() !== null;
 
         return match ($role) {
@@ -279,7 +280,8 @@ class UsersTable
     /** Rezumatul asocierii, după rolul contului: fișa legată / copiii / — . */
     private static function associationSummary(User $record): string
     {
-        $role = $record->getRoleNames()->first();
+        // Rolul PRINCIPAL (prioritatea enum) — un cont multi-rol pedagogic tot fisa de profesor o arata.
+        $role = ActiveRole::resolve($record)?->value;
 
         return match ($role) {
             UserRole::Profesor->value, UserRole::Diriginte->value => $record->teacher !== null
@@ -296,7 +298,7 @@ class UsersTable
     /** Asociere LIPSĂ care merită semnalată (profesor fără fișă nu vede catalogul; părinte fără copii). */
     private static function associationMissing(User $record): bool
     {
-        $role = $record->getRoleNames()->first();
+        $role = ActiveRole::resolve($record)?->value;
 
         return match ($role) {
             UserRole::Profesor->value, UserRole::Diriginte->value => $record->teacher === null,

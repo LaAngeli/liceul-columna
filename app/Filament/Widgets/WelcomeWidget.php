@@ -42,7 +42,7 @@ class WelcomeWidget extends Widget
             return ['greeting' => '', 'name' => '', 'initials' => '', 'roleLabel' => null, 'date' => '', 'missingTeacherProfile' => false, 'primaryValue' => null, 'primaryLabel' => null, 'secondaryLine' => null, 'sparkPoints' => null];
         }
 
-        $roleValue = $user->getRoleNames()->first();
+        $roleValue = $user->activeRole()?->value; // rolul ACTIV (F1)
         $role = $roleValue !== null ? UserRole::tryFrom($roleValue) : null;
 
         $now = Carbon::now();

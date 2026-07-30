@@ -2129,6 +2129,11 @@ return [
     ],
 
     // Catalog navigator (grades / absences): drill-down menu across dimensions → entities → table.
+    'role_switch' => [
+        'label' => 'Active role',
+        'invalid' => 'The chosen role does not belong to the account or is not a panel role.',
+    ],
+
     'class_register' => [
         'title' => 'Class register',
         'empty_heading' => 'No classes available',

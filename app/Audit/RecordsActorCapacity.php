@@ -85,8 +85,13 @@ class RecordsActorCapacity extends Database
             $user = User::query()->whereKey($userId)->first();
         }
 
+        // Rolul ACTIV, nu primul din listă: sub multi-rol (F1), jurnalul consemnează contextul
+        // sub care s-a lucrat — „Ion Popescu [Diriginte] a motivat absența" (doc pct. 10).
+        // Pentru mono-rol cele două coincid; fallback-ul păstrează comportamentul vechi.
+        $active = $user?->activeRole();
+
         return $this->resolved[$userId] = [
-            'role' => $user?->getRoleNames()->first(),
+            'role' => $active !== null ? $active->value : $user?->getRoleNames()->first(),
             'capacity' => $user?->auditCapacity(),
         ];
     }

@@ -2144,6 +2144,11 @@ return [
         'queue_empty_description' => 'Toate cererile au fost judecate — coada se populează singură când apar cereri noi.',
     ],
 
+    'role_switch' => [
+        'label' => 'Rol activ',
+        'invalid' => 'Rolul ales nu aparține contului sau nu e un rol de panou.',
+    ],
+
     'class_register' => [
         'title' => 'Catalogul clasei',
         'empty_heading' => 'Nicio clasă disponibilă',
