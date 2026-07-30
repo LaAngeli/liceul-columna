@@ -15,7 +15,9 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Term;
+use App\Models\TwoFactorEmailCode;
 use App\Models\User;
+use App\Support\DemoSecurity;
 use Database\Seeders\DemoRoleAccountsSeeder;
 use Spatie\Permission\Models\Role;
 
@@ -133,4 +135,81 @@ it('rutele demo login nu sunt înregistrate în producție', function () {
     // În producție, blocul din routes/web.php nu montează ruta (guard de mediu).
     expect(app()->environment(['local', 'testing']))->toBeTrue();
     expect(app()->environment('production'))->toBeFalse();
+});
+
+/**
+ * REGRESIA CARE S-A ÎNTORS DE TREI ORI: „îmi cere iar cod de confirmare".
+ *
+ * Cauza n-a fost configul, ci contradicția dintre două mecanisme — `DemoSecurity::pass()` înrola
+ * contul în 2FA pe email ca să treacă de gate-ul de OBLIGATIVITATE, iar înrolarea e exact ce
+ * declanșează PROVOCAREA la login. Cum funcția rulează la fiecare login demo, orice curățare era
+ * anulată imediat. Testele de mai jos fixează contractul în AMBELE poziții ale comutatorului.
+ */
+it('cu obligativitatea STINSĂ, contul demo nu are 2FA — deci nu i se cere cod', function () {
+    config(['security.two_factor.required_staff' => false, 'security.two_factor.required_cabinet' => false]);
+
+    $user = User::factory()->create(['name' => '[DEMO] Profesor', 'email' => 'p@columna.test']);
+    $user->assignRole(UserRole::Profesor->value);
+    // Starea din care pornea problema: cont deja înrolat pe email, cu un cod în așteptare.
+    $user->forceFill(['two_factor_email_enabled_at' => now()])->save();
+    TwoFactorEmailCode::create([
+        'user_id' => $user->id,
+        'code_hash' => hash('sha256', '123456'),
+        'sent_at' => now(),
+        'expires_at' => now()->addMinutes(10),
+    ]);
+
+    DemoSecurity::pass($user);
+
+    expect($user->fresh()->twoFactorChallengeMethod())->toBeNull()
+        ->and($user->fresh()->two_factor_email_enabled_at)->toBeNull()
+        ->and(TwoFactorEmailCode::where('user_id', $user->id)->count())->toBe(0);
+});
+
+it('cu obligativitatea APRINSĂ, contul demo rămâne înrolat (altfel s-ar bloca pe pagina de configurare)', function () {
+    config(['security.two_factor.required_staff' => true]);
+
+    $user = User::factory()->create(['name' => '[DEMO] Profesor', 'email' => 'p2@columna.test']);
+    $user->assignRole(UserRole::Profesor->value);
+
+    DemoSecurity::pass($user);
+
+    expect($user->fresh()->hasTwoFactorConfigured())->toBeTrue();
+});
+
+it('obligativitatea se citește dintr-un singur loc, pe segmentul corect', function () {
+    $staff = User::factory()->create();
+    $staff->assignRole(UserRole::Profesor->value);
+    $familie = User::factory()->create();
+    $familie->assignRole(UserRole::Parinte->value);
+
+    config(['security.two_factor.required_staff' => true, 'security.two_factor.required_cabinet' => false]);
+    expect($staff->requiresTwoFactorEnrollment())->toBeTrue()
+        ->and($familie->requiresTwoFactorEnrollment())->toBeFalse();
+
+    config(['security.two_factor.required_staff' => false, 'security.two_factor.required_cabinet' => true]);
+    expect($staff->requiresTwoFactorEnrollment())->toBeFalse()
+        ->and($familie->requiresTwoFactorEnrollment())->toBeTrue();
+});
+
+it('contul demo se loghează prin ruta REALĂ doar cu utilizator + parolă, fără pagina de cod', function () {
+    config(['security.two_factor.required_staff' => false]);
+
+    $user = User::factory()->create([
+        'name' => '[DEMO] Profesor',
+        'email' => 'login@columna.test',
+        'password' => bcrypt('password'),
+        'must_change_password' => false,
+    ]);
+    $user->assignRole(UserRole::Profesor->value);
+    $user->forceFill(['two_factor_email_enabled_at' => now()])->save(); // starea „stricată"
+
+    DemoSecurity::pass($user);
+
+    // Ruta Fortify reală, exact ca din formular.
+    $response = $this->post('/login', ['email' => 'login@columna.test', 'password' => 'password']);
+
+    $response->assertRedirect();
+    expect($response->headers->get('Location'))->not->toContain('two-factor-challenge');
+    $this->assertAuthenticatedAs($user);
 });

@@ -2,9 +2,9 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\UserRole;
 use App\Http\Middleware\Concerns\ExemptsPublicRoutes;
 use App\Models\User;
+use App\Support\DemoSecurity;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -35,13 +35,13 @@ class EnsureTwoFactorEnrolled
     }
 
     /**
-     * Segmentare rollout: personalul (roluri de panou) vs. cabinet (elev/părinte).
+     * Segmentare rollout: personalul (roluri de panou) vs. cabinet (elev/părinte). Regula stă pe
+     * model — o folosește și {@see DemoSecurity}, care trebuie să decidă exact la fel
+     * dacă înrolează un cont demo sau îi curăță 2FA.
      */
     private function isRequiredFor(User $user): bool
     {
-        return $user->hasAnyRole(UserRole::panelRoleValues())
-            ? (bool) config('security.two_factor.required_staff')
-            : (bool) config('security.two_factor.required_cabinet');
+        return $user->requiresTwoFactorEnrollment();
     }
 
     /**

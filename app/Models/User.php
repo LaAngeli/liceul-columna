@@ -139,6 +139,22 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * Îi e OBLIGATORIU să aibă 2FA configurat? Rollout FAZAT (config/security.php): personalul
+     * întâi, cabinetul după anunțul școlii.
+     *
+     * ⚠️ Obligativitatea („trebuie să AI") e alt lucru decât provocarea la login („dovedește că
+     * ești"). Configul comandă doar prima; a doua vine din STAREA contului și se declanșează
+     * oricum, dacă e înrolat. Cine confundă cele două ajunge să „repare" obligativitatea
+     * înrolând contul — și obține exact provocarea pe care voia s-o evite.
+     */
+    public function requiresTwoFactorEnrollment(): bool
+    {
+        return $this->hasAnyRole(UserRole::panelRoleValues())
+            ? (bool) config('security.two_factor.required_staff')
+            : (bool) config('security.two_factor.required_cabinet');
+    }
+
+    /**
      * Emailul mascat pentru pagina de challenge (nu divulgăm adresa completă pre-autentificare).
      */
     public function maskedEmail(): ?string
