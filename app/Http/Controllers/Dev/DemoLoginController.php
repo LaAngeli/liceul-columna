@@ -29,11 +29,19 @@ class DemoLoginController extends Controller
         $userRole = UserRole::tryFrom($role);
         abort_if($userRole === null, 404, 'Rol necunoscut.');
 
+        // ÎNTÂI după username (== slug-ul rolului): sub multi-rol, căutarea pe rol devine ambiguă —
+        // directorul-vitrină poartă ȘI rolurile profesor/diriginte, deci `/_demo/login/diriginte`
+        // l-ar nimeri pe el în loc de contul dedicat. Username-ul e neechivoc; rolul rămâne fallback
+        // (conturi demo ad-hoc create în teste, fără username-convenție).
         $user = User::query()
             ->where('name', 'like', DemoAccounts::MARKER.'%')
-            ->whereHas('roles', fn ($q) => $q->where('name', $userRole->value))
-            ->orderBy('id')
-            ->first();
+            ->where('username', $userRole->value)
+            ->first()
+            ?? User::query()
+                ->where('name', 'like', DemoAccounts::MARKER.'%')
+                ->whereHas('roles', fn ($q) => $q->where('name', $userRole->value))
+                ->orderBy('id')
+                ->first();
 
         abort_if($user === null, 404, "Nu există un cont demo pentru rolul „{$role}”. Rulează: php artisan db:seed --class=DemoRoleAccountsSeeder");
 

@@ -24,7 +24,7 @@ Alternativ, autentificare clasică: e-mail (mai jos) + parola `password`.
 | Rol | URL de login | E-mail | Unde intră | Fișă legată (scoping) |
 |---|---|---|---|---|
 | Super Administrator | `/_demo/login/admin` | `admin@liceul-columna.test` | Panou `/admin` | — (vede tot) |
-| Director | `/_demo/login/director` | `director@columna.test` | Panou `/admin` | — (vede tot) |
+| Director | `/_demo/login/director` | `director@columna.test` | Panou `/admin` | **VITRINA MULTI-ROL: Director + Profesor + Diriginte** („Ion Popescu" din specificație) — fișă proprie cu predare și dirigenție; comutatorul „Rol activ" din bara de sus schimbă între cele TREI contexte: Director = vede toată școala; Profesor = doar clasele predate; Diriginte = exclusiv clasa lui + motivări |
 | Prim-vicedirector | `/_demo/login/prim-vicedirector` | `vicedirector@columna.test` | Panou `/admin` | — (vede tot) |
 | Administrator Operațional | `/_demo/login/administrator-operational` | `operational@columna.test` | Panou `/admin` | — (vede tot) |
 | Administrator Tehnic | `/_demo/login/administrator-tehnic` | `tehnic@columna.test` | Panou `/admin` | — (fără date academice) |

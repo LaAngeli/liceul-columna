@@ -36,6 +36,10 @@ beforeEach(function () {
     $class = SchoolClass::factory()->for($year)->create();
     $homeroom = Teacher::factory()->create();
     $class->update(['homeroom_teacher_id' => $homeroom->id]);
+    // A doua fișă cu dirigenție: vitrina multi-rol (director@) își ia propria clasă,
+    // fără să i-o fure dirigintelui dedicat.
+    $secondHomeroom = Teacher::factory()->create();
+    SchoolClass::factory()->for($year)->create(['homeroom_teacher_id' => $secondHomeroom->id]);
     Teacher::factory()->count(2)->create();
 
     $subject = Subject::factory()->create();
@@ -114,6 +118,55 @@ it('login-ul de dev SE AUTO-VINDECĂ: cont demo cu 2FA șters + obligativitate p
         ->assertDontSee('configurare-2fa');
 
     expect($director->fresh()->hasTwoFactorConfigured())->toBeTrue();
+});
+
+// ── Vitrina multi-rol: director@ = „Ion Popescu" din specificație ─────────────────────────────
+
+it('director@ poartă cele trei roluri și comutatorul din topbar le arată pe toate', function () {
+    // Raportat 30.07: „de pe director nu pot schimba rolul" — contul era mono. Acum e vitrina.
+    $director = User::query()->where('username', 'director')->firstOrFail();
+
+    expect($director->getRoleNames()->all())
+        ->toEqualCanonicalizing([UserRole::Director->value, UserRole::Profesor->value, UserRole::Diriginte->value])
+        ->and($director->isMultiRole())->toBeTrue()
+        // Are fișă proprie, cu dirigenție — toate cele trei contexte au conținut.
+        ->and($director->teacher)->not->toBeNull()
+        ->and($director->homeroomSchoolClassIds())->not->toBe([]);
+
+    // Badge-ul din topbar devine SELECT cu toate cele trei roluri.
+    $this->actingAs($director);
+    $html = view('filament.topbar.live-datetime')->render();
+
+    expect($html)->toContain('id="fi-role-switch-select"')
+        ->and($html)->toContain(UserRole::Director->label())
+        ->and($html)->toContain(UserRole::Profesor->label())
+        ->and($html)->toContain(UserRole::Diriginte->label());
+
+    // Iar comutarea chiar funcționează pe el.
+    $this->post(route('staff.role.switch'), ['role' => UserRole::Profesor->value])->assertRedirect();
+    expect($director->fresh()->activeRole())->toBe(UserRole::Profesor);
+});
+
+it('login-ul demo alege contul după USERNAME — dirigintele dedicat, nu directorul-vitrină', function () {
+    // Sub multi-rol, căutarea pe rol devine ambiguă: directorul poartă ȘI rolul diriginte.
+    get('/_demo/login/'.UserRole::Diriginte->value)->assertRedirect('/admin');
+    expect(auth()->user()->username)->toBe('diriginte');
+
+    auth()->logout();
+
+    get('/_demo/login/'.UserRole::Profesor->value)->assertRedirect('/admin');
+    expect(auth()->user()->username)->toBe('profesor');
+});
+
+it('profesor@ rămâne DELIBERAT mono-rol — cazul-negativ, fără comutator', function () {
+    $profesor = User::query()->where('username', 'profesor')->firstOrFail();
+
+    expect($profesor->isMultiRole())->toBeFalse();
+
+    $this->actingAs($profesor);
+    $html = view('filament.topbar.live-datetime')->render();
+
+    expect($html)->not->toContain('id="fi-role-switch-select"');
 });
 
 it('login-ul de dev refuză un rol inexistent', function () {

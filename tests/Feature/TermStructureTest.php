@@ -158,7 +158,9 @@ it('semestrul cu ISTORIC academic nu poate fi șters; unul gol, ne-curent, da', 
 
     // Un semestru gol și ne-curent rămâne curățabil (rând creat din greșeală) — într-un an nou
     // (anul are exact DOUĂ semestre; un al treilea nu mai poate exista).
-    $emptyYear = AcademicYear::factory()->create(['starts_on' => '2026-09-01', 'ends_on' => '2027-08-31']);
+    // Numele EXPLICIT, nu lăsat pe factory: acela trage un an aleator din unique() care nu știe
+    // de „2025–2026" hardcodat mai sus → coliziune UNIQUE pe name (flake dependent de secvența faker).
+    $emptyYear = AcademicYear::factory()->create(['name' => '2026–2027', 'starts_on' => '2026-09-01', 'ends_on' => '2027-08-31']);
     $empty = Term::factory()->for($emptyYear)->create([
         'number' => 1, 'name' => 'Semestrul I',
         'starts_on' => '2026-09-01', 'ends_on' => '2026-12-20', 'is_current' => false,

@@ -41,7 +41,6 @@ class DemoRoleAccountsSeeder extends Seeder
         // de alte seedere ca recenzent) — nu-l dublăm. Contul REAL de producție rămâne cel creat
         // cu `app:create-admin` (fără marcaj [DEMO], deci neatins de curățare).
         $this->account('admin@liceul-columna.test', 'admin', UserRole::Admin, 'Super Administrator');
-        $this->account('director@columna.test', 'director', UserRole::Director, 'Director');
         $this->account('vicedirector@columna.test', 'vicedirector', UserRole::PrimVicedirector, 'Prim-vicedirector');
         $this->account('operational@columna.test', 'operational', UserRole::AdministratorOperational, 'Administrator Operațional');
         $this->account('tehnic@columna.test', 'tehnic', UserRole::AdministratorTehnic, 'Administrator Tehnic');
@@ -52,6 +51,11 @@ class DemoRoleAccountsSeeder extends Seeder
         // deci comutatorul de context din topbar și separarea Profesor/Diriginte se pot testa
         // direct pe el (exact cumulul din documentul beneficiarului, 30.07.2026).
         $this->teacherAccount('diriginte@columna.test', 'diriginte', UserRole::Diriginte, homeroom: true, extraRoles: [UserRole::Profesor]);
+        // VITRINA CUMULULUI (raportat 30.07: „de pe director nu pot schimba rolul"): exact exemplul
+        // „Ion Popescu" din documentul beneficiarului — Director + Profesor + Diriginte pe UN cont,
+        // cu fișă proprie (dirigenție + predare), ca toate cele trei contexte să aibă conținut.
+        // Se seedează DUPĂ diriginte@, ca acela să-și păstreze fișa obișnuită pe baze proaspete.
+        $this->teacherAccount('director@columna.test', 'director', UserRole::Director, homeroom: true, extraRoles: [UserRole::Profesor, UserRole::Diriginte]);
         $this->studentAccount();
         $this->parentAccount();
 
@@ -158,11 +162,24 @@ class DemoRoleAccountsSeeder extends Seeder
      */
     private function pickTeacher(bool $homeroom, int $ownUserId): ?Teacher
     {
-        return Teacher::query()
-            ->when($homeroom, fn ($q) => $q->whereHas('homeroomClasses'))
+        $base = fn () => Teacher::query()
+            // STRICT în ambele sensuri: contul de profesor-simplu NU are voie pe o fișă cu
+            // dirigenție (fura fișa vitrinei multi-rol și, mai rău, crea drift rol↔desemnare —
+            // exact starea „profesor cu clasă" pe care semnalul din Utilizatori o vânează).
+            ->when(
+                $homeroom,
+                fn ($q) => $q->whereHas('homeroomClasses'),
+                fn ($q) => $q->whereDoesntHave('homeroomClasses'),
+            )
             ->where(fn ($q) => $q->whereNull('user_id')->orWhere('user_id', $ownUserId))
-            ->orderBy('id')
-            ->first();
+            ->orderBy('id');
+
+        // ÎNTÂI fișele marcate [DEMO] (zona demo): fără preferință, vitrina multi-rol s-a legat de
+        // fișa unui profesor REAL rămasă liberă (Bujor-Cobili, 31.07) — testerii ar fi scris note
+        // în numele unei persoane reale, pe clase reale. Fallback pe nemarcate DOAR când nu există
+        // zonă demo (ex. mediul de test, cu fișe din factory).
+        return $base()->where('last_name', 'like', DemoAccounts::MARKER.'%')->first()
+            ?? $base()->first();
     }
 
     /**
