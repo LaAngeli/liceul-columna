@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
+use App\Enums\UserRole;
 use App\Filament\Concerns\EnforcesAbsenceScope;
 use App\Filament\Concerns\EnforcesGradeScope;
 use App\Models\Absence;
@@ -146,7 +147,7 @@ class ClassRegister extends Page
         $teacher = $this->viewerTeacher();
 
         $base = SchoolClass::query()
-            ->when($teacher !== null, fn ($q) => $q->whereIn('id', $teacher->visibleSchoolClassIds()))
+            ->when($teacher !== null, fn ($q) => $q->whereIn('id', $teacher->contextSchoolClassIds($this->viewer()?->teachingContext()))) // contextul pedagogic activ (F3)
             ->orderBy('grade_level')
             ->orderBy('name')
             ->orderBy('section');
@@ -192,7 +193,7 @@ class ClassRegister extends Page
 
         $teacher = $this->viewerTeacher();
         $isHomeroom = $teacher !== null
-            && in_array((int) $class->getKey(), $teacher->homeroomSchoolClassIds(), true);
+            && in_array((int) $class->getKey(), $this->viewer()?->contextHomeroomClassIds() ?? [], true); // contextul pedagogic activ (F3)
 
         $rows = DB::table('teaching_assignments')
             ->join('subjects', 'subjects.id', '=', 'teaching_assignments.subject_id')
@@ -336,6 +337,13 @@ class ClassRegister extends Page
 
         if ($user->canAdministerCatalog()) {
             return true;
+        }
+
+        // Context Diriginte (multi-rol F3): notarea e un act de PROFESOR (doc pct. 5 — separarea
+        // strictă). Chiar la disciplina proprie, comuți pe Profesor ca să notezi; aici rămân
+        // vizualizarea întregii clase și consemnarea absențelor.
+        if ($user->teachingContext() === UserRole::Diriginte) {
+            return false;
         }
 
         return $user->teacher?->canGradeClassSubject((int) $class->getKey(), (int) $subject->getKey()) ?? false;

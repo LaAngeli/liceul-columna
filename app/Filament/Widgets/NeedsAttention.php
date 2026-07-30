@@ -96,7 +96,7 @@ class NeedsAttention extends Widget
                 StudentResource::getUrl('index').'?corigenti=1',
             );
         } elseif (! $user->isAdministrator() && $user->teacher !== null) {
-            $classIds = $user->teacher->visibleSchoolClassIds();
+            $classIds = $user->contextClassIds(); // contextul pedagogic activ (F3)
             $items[] = self::item(
                 'panel.widgets.teacher_overview.corigenti',
                 'heroicon-o-exclamation-triangle',

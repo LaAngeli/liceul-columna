@@ -454,7 +454,7 @@ class ListLessons extends ListRecords
             return null;
         }
 
-        return $user->teacher?->visibleSchoolClassIds() ?? [];
+        return $user->contextClassIds(); // contextul pedagogic activ (F3)
     }
 
     /** @return Collection<int|string, int> */

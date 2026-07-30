@@ -33,13 +33,13 @@ class SyncHomeroomRoles extends Command
         }
 
         $this->table(
-            ['#', 'Cont', 'Rol curent', 'Rol derivat', 'Dirigenție'],
+            ['#', 'Cont', 'Roluri acum', 'Dirigenție', 'Acțiune'],
             array_map(static fn (array $row): array => [
                 (string) $row['user']->getKey(),
                 (string) $row['user']->name,
-                $row['from'],
-                $row['to']->value,
+                $row['user']->getRoleNames()->implode(', '),
                 $row['user']->homeroomLabel() ?? '—',
+                $row['action'],
             ], $drifted),
         );
 

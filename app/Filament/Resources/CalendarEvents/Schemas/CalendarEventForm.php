@@ -511,7 +511,7 @@ class CalendarEventForm
         $classes = self::currentYearClasses();
 
         if ($user instanceof User && ! $user->canPublishContent()) {
-            $classes = $classes->whereIn('id', $user->homeroomSchoolClassIds());
+            $classes = $classes->whereIn('id', $user->contextHomeroomClassIds()); // contextul pedagogic activ (F3)
         }
 
         if ($classes->isEmpty()) {
@@ -795,7 +795,7 @@ class CalendarEventForm
         $user = auth('web')->user();
 
         if ($user instanceof User && ! $user->canPublishContent()) {
-            $query->whereKey($user->homeroomSchoolClassIds());
+            $query->whereKey($user->contextHomeroomClassIds()); // contextul pedagogic activ (F3)
         }
 
         $options = [];

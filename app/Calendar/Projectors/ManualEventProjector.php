@@ -100,7 +100,7 @@ class ManualEventProjector implements CalendarProjector
             return true;
         }
 
-        $homeroomClassIds = $viewer->homeroomSchoolClassIds();
+        $homeroomClassIds = $viewer->contextHomeroomClassIds(); // contextul pedagogic activ (F3)
 
         if ($homeroomClassIds === []) {
             return false;

@@ -113,8 +113,10 @@ it('spune „ca diriginte" pe clasa proprie și „ca profesor" pe cea unde doar
     $user->assignRole(UserRole::Profesor->value);
     $teacher = Teacher::factory()->create(['user_id' => $user->id]);
 
-    // Diriginte la una, doar profesor la cealaltă — exact scenariul din întrebarea beneficiarului.
-    $this->homeroomClass->update(['homeroom_teacher_id' => $teacher->id]);
+    // Diriginte la una, doar profesor la cealaltă. Prin QUERY BUILDER: pe calea de model,
+    // observerul i-ar adăuga rolul Diriginte (membria F3) → cont MULTI-rol → indicatorul cedează
+    // locul comutatorului de context. Aici testăm exact starea MONO-rol rămasă din importuri.
+    SchoolClass::query()->whereKey($this->homeroomClass->id)->update(['homeroom_teacher_id' => $teacher->id]);
     $subject = Subject::factory()->create();
     TeachingAssignment::factory()->create([
         'teacher_id' => $teacher->id,
@@ -167,7 +169,8 @@ it('arată aceeași calitate și în Foaia matricolă, prin sursa unică', funct
     $user = User::factory()->create();
     $user->assignRole(UserRole::Profesor->value);
     $teacher = Teacher::factory()->create(['user_id' => $user->id]);
-    $this->homeroomClass->update(['homeroom_teacher_id' => $teacher->id]);
+    // Query builder: starea mono-rol (vezi testul de mai sus) — pe model, membria l-ar face multi.
+    SchoolClass::query()->whereKey($this->homeroomClass->id)->update(['homeroom_teacher_id' => $teacher->id]);
 
     actingAs($user->fresh());
 

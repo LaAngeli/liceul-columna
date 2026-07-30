@@ -180,7 +180,7 @@ class GradeForm
         $query = SchoolClass::query()->orderBy('grade_level')->orderBy('name');
 
         if ($teacher = self::currentTeacher()) {
-            $query->whereKey($teacher->visibleSchoolClassIds());
+            $query->whereKey($teacher->contextSchoolClassIds(auth('web')->user()?->teachingContext())); // contextul pedagogic activ (F3)
         }
 
         $options = [];
@@ -226,10 +226,10 @@ class GradeForm
 
         if ($schoolClassId !== null) {
             $classIds = $teacher !== null
-                ? array_values(array_intersect([$schoolClassId], $teacher->visibleSchoolClassIds()))
+                ? array_values(array_intersect([$schoolClassId], $teacher->contextSchoolClassIds(auth('web')->user()?->teachingContext())))
                 : [$schoolClassId];
         } elseif ($teacher !== null) {
-            $classIds = $teacher->visibleSchoolClassIds();
+            $classIds = $teacher->contextSchoolClassIds(auth('web')->user()?->teachingContext()); // contextul pedagogic activ (F3)
         }
 
         if ($classIds !== null) {

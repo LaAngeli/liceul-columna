@@ -171,7 +171,9 @@ it('fișa afișează calitatea consemnată, iar intrările vechi sunt marcate ca
     $legacyActor = $page->actor();
 
     expect($legacyActor['historical'])->toBeTrue()
-        ->and($legacyActor['role'])->toBe(UserRole::Diriginte->label())
+        // Membria F3: contul poartă acum AMBELE roluri, iar fallback-ul istoric le arată pe toate
+        // (nu putem ști care era activ atunci).
+        ->and($legacyActor['role'])->toBe(UserRole::Profesor->label().' / '.UserRole::Diriginte->label())
         ->and($legacyActor['capacities'])->toBe([]);
 });
 

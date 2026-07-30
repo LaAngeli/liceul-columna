@@ -274,7 +274,7 @@ class ListSchoolClasses extends ListRecords
     /** @return array<int, int> */
     private function viewerHomeroomIds(): array
     {
-        return auth('web')->user()?->teacher?->homeroomSchoolClassIds() ?? [];
+        return auth('web')->user()?->contextHomeroomClassIds() ?? []; // contextul pedagogic activ (F3)
     }
 
     private function canUseTrashedView(): bool

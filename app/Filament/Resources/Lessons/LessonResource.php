@@ -115,6 +115,6 @@ class LessonResource extends Resource
             return $query;
         }
 
-        return $query->whereIn('school_class_id', $user->teacher?->visibleSchoolClassIds() ?? []);
+        return $query->whereIn('school_class_id', $user->contextClassIds()); // contextul pedagogic activ (F3)
     }
 }

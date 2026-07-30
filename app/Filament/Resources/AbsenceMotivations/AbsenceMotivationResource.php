@@ -88,7 +88,7 @@ class AbsenceMotivationResource extends Resource
             return true;
         }
 
-        return $user->teacher !== null && $user->teacher->homeroomSchoolClassIds() !== [];
+        return $user->teacher !== null && $user->contextHomeroomClassIds() !== []; // contextul pedagogic activ (F3)
     }
 
     public static function getNavigationBadge(): ?string
@@ -161,7 +161,7 @@ class AbsenceMotivationResource extends Resource
             return $query;
         }
 
-        $homeroomClassIds = $user->teacher?->homeroomSchoolClassIds() ?? [];
+        $homeroomClassIds = $user->contextHomeroomClassIds(); // contextul pedagogic activ (F3)
         $handlesEducatie = $user->handlesAudienceDomain(AudienceDomain::Educatie);
 
         return $query->where(function (Builder $scope) use ($homeroomClassIds, $handlesEducatie): void {

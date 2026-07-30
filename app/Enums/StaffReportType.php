@@ -160,7 +160,7 @@ enum StaffReportType: string implements HasLabel
         }
 
         return match ($this) {
-            self::ClassRoster => in_array($classId, $teacher->visibleSchoolClassIds(), true),
+            self::ClassRoster => in_array($classId, $user->contextClassIds(), true), // contextul pedagogic activ (F3)
             self::ClassSubjectSituation,
             self::GradeDistribution => $subjectId !== null && $classId !== null
                 && $teacher->canGradeClassSubject($classId, $subjectId),
@@ -169,7 +169,7 @@ enum StaffReportType: string implements HasLabel
             self::SubjectAverages,
             self::AbsenceStatistics,
             self::ClassFullSituation,
-            self::PromotionRate => in_array($classId, $teacher->homeroomSchoolClassIds(), true),
+            self::PromotionRate => in_array($classId, $user->contextHomeroomClassIds(), true), // contextul pedagogic activ (F3)
             self::TeacherActivity, self::SchoolOverview => false,
         };
     }
@@ -194,7 +194,7 @@ enum StaffReportType: string implements HasLabel
         $types = [self::ClassRoster, self::ClassSubjectSituation, self::GradeDistribution];
 
         // Analizele pe clasă — doar dirigintele (are cel puțin o clasă în diriginție).
-        if ($teacher->homeroomSchoolClassIds() !== []) {
+        if ($user->contextHomeroomClassIds() !== []) { // contextul pedagogic activ (F3)
             $types = [
                 ...$types,
                 self::StudentRanking,

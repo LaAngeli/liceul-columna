@@ -96,7 +96,7 @@ class CalendarEventResource extends Resource
         // Dirigintele (care nu e și din conducere) vede DOAR evenimentele claselor lui.
         if ($user instanceof User && ! $user->canPublishContent()) {
             $query->where('visibility_scope', CalendarEventScope::SchoolClass->value)
-                ->whereIn('school_class_id', $user->homeroomSchoolClassIds());
+                ->whereIn('school_class_id', $user->contextHomeroomClassIds()); // contextul pedagogic activ (F3)
         }
 
         return $query;
@@ -280,7 +280,7 @@ class CalendarEventResource extends Resource
      */
     public static function homeroomStudentIds(User $user): array
     {
-        $classIds = $user->homeroomSchoolClassIds();
+        $classIds = $user->contextHomeroomClassIds(); // contextul pedagogic activ (F3)
 
         if ($classIds === []) {
             return [];
@@ -308,7 +308,7 @@ class CalendarEventResource extends Resource
             return false;
         }
 
-        $homeroomClassIds = $user->homeroomSchoolClassIds();
+        $homeroomClassIds = $user->contextHomeroomClassIds(); // contextul pedagogic activ (F3)
 
         if ($homeroomClassIds === []) {
             return false;

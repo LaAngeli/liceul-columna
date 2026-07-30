@@ -40,7 +40,7 @@ class StudentPolicy
         }
 
         if ($user->hasAnyRole(UserRole::panelRoleValues()) && ! $user->isTechnicalAdmin()) {
-            $classIds = $user->teacher?->visibleSchoolClassIds() ?? [];
+            $classIds = $user->contextClassIds(); // contextul pedagogic activ (F3)
 
             if ($classIds !== [] && $student->enrollments()->whereIn('school_class_id', $classIds)->exists()) {
                 return true;

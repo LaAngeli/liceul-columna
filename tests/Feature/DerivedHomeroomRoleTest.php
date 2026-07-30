@@ -1,14 +1,16 @@
 <?php
 
 /**
- * ROLUL „DIRIGINTE" E DERIVAT DIN DESEMNARE (decizie 2026-07-27).
+ * MEMBRIA rolului „Diriginte", derivată din desemnare (reconvertit pentru multi-rol, 30.07.2026).
  *
- * Rolul nu dădea niciun drept — toate drepturile de dirigenție vin din `homeroom_teacher_id`.
- * Rămăsese o copie manuală a unei realități care se schimbă fără el, deci eticheta putea minți.
- * Acum e o consecință: cine primește o clasă devine „Diriginte", cine o pierde revine „Profesor".
+ * Istoric: „rolul derivat" ÎNLOCUIA eticheta (profesor↔diriginte) — corect în lumea
+ * un-cont-un-rol, dar distructiv sub multi-rol: crearea unei clase cu diriginte îi ștergea
+ * persoanei rolul Profesor (prins de ContextSeparationTest în F3). Semantica nouă: dirigenția
+ * ADAUGĂ rolul Diriginte pe lângă ce există; pierderea ultimei clase îl RETRAGE (mono-dirigintele
+ * revine „Profesor" — contul nu rămâne fără rol). Conducerea și familia nu sunt atinse.
  *
- * Plus reparația care ținea de aceeași cauză: matricea de notificări se uita la ROL, deci un
- * „Profesor" desemnat diriginte judeca cererile clasei lui fără să poată configura notificarea.
+ * Plus reparația păstrată din prima versiune: matricea de notificări urmează DESEMNAREA, nu doar
+ * rolul — cine are dirigenție primește tipurile de diriginte în Setări.
  */
 
 use App\Actions\SyncHomeroomRole;
@@ -38,37 +40,53 @@ function derivedTeacher(string $role): User
     return $user->fresh();
 }
 
-it('promovează la „Diriginte" pe cel care primește o clasă', function () {
+it('primirea unei clase ADAUGĂ rolul Diriginte lângă Profesor — nu îl înlocuiește', function () {
     $user = derivedTeacher(UserRole::Profesor->value);
     $class = SchoolClass::factory()->for($this->year)->create();
 
-    expect($user->getRoleNames()->first())->toBe(UserRole::Profesor->value);
+    expect($user->getRoleNames()->all())->toBe([UserRole::Profesor->value]);
 
     $class->update(['homeroom_teacher_id' => $user->teacher->id]);
 
-    expect($user->fresh()->getRoleNames()->first())->toBe(UserRole::Diriginte->value);
+    expect($user->fresh()->getRoleNames()->all())
+        ->toEqualCanonicalizing([UserRole::Profesor->value, UserRole::Diriginte->value])
+        // A devenit MULTI-rol: comutatorul de context i se deschide.
+        ->and($user->fresh()->isMultiRole())->toBeTrue();
 });
 
-it('readuce la „Profesor" pe cel care pierde ultima clasă', function () {
+it('pierderea ultimei clase RETRAGE rolul Diriginte; profesorul rămâne profesor', function () {
+    $user = derivedTeacher(UserRole::Profesor->value);
+    $class = SchoolClass::factory()->for($this->year)->create(['homeroom_teacher_id' => $user->teacher->id]);
+
+    expect($user->fresh()->getRoleNames()->all())
+        ->toEqualCanonicalizing([UserRole::Profesor->value, UserRole::Diriginte->value]);
+
+    $class->update(['homeroom_teacher_id' => null]);
+
+    expect($user->fresh()->getRoleNames()->all())->toBe([UserRole::Profesor->value]);
+});
+
+it('mono-dirigintele care pierde ultima clasă revine „Profesor" — contul nu rămâne fără rol', function () {
     $user = derivedTeacher(UserRole::Diriginte->value);
     $class = SchoolClass::factory()->for($this->year)->create(['homeroom_teacher_id' => $user->teacher->id]);
 
     $class->update(['homeroom_teacher_id' => null]);
 
-    expect($user->fresh()->getRoleNames()->first())->toBe(UserRole::Profesor->value);
+    expect($user->fresh()->getRoleNames()->all())->toBe([UserRole::Profesor->value]);
 });
 
-it('păstrează „Diriginte" cât timp mai rămâne măcar o clasă', function () {
+it('membria rămâne cât timp mai există măcar o clasă', function () {
     $user = derivedTeacher(UserRole::Profesor->value);
     $first = SchoolClass::factory()->for($this->year)->create(['homeroom_teacher_id' => $user->teacher->id]);
     SchoolClass::factory()->for($this->year)->create(['homeroom_teacher_id' => $user->teacher->id]);
 
     $first->update(['homeroom_teacher_id' => null]);
 
-    expect($user->fresh()->getRoleNames()->first())->toBe(UserRole::Diriginte->value);
+    expect($user->fresh()->getRoleNames()->all())
+        ->toEqualCanonicalizing([UserRole::Profesor->value, UserRole::Diriginte->value]);
 });
 
-it('mută eticheta la AMBELE capete când dirigenția e reatribuită', function () {
+it('reatribuirea mută membria la AMBELE capete', function () {
     $cedent = derivedTeacher(UserRole::Diriginte->value);
     $primitor = derivedTeacher(UserRole::Profesor->value);
 
@@ -76,42 +94,39 @@ it('mută eticheta la AMBELE capete când dirigenția e reatribuită', function 
 
     $class->update(['homeroom_teacher_id' => $primitor->teacher->id]);
 
-    expect($cedent->fresh()->getRoleNames()->first())->toBe(UserRole::Profesor->value)
-        ->and($primitor->fresh()->getRoleNames()->first())->toBe(UserRole::Diriginte->value);
+    expect($cedent->fresh()->getRoleNames()->all())->toBe([UserRole::Profesor->value])
+        ->and($primitor->fresh()->getRoleNames()->all())
+        ->toEqualCanonicalizing([UserRole::Profesor->value, UserRole::Diriginte->value]);
 });
 
-it('ștergerea clasei retrage eticheta, restaurarea o readuce', function () {
+it('ștergerea clasei retrage membria, restaurarea o readuce', function () {
     $user = derivedTeacher(UserRole::Profesor->value);
     $class = SchoolClass::factory()->for($this->year)->create(['homeroom_teacher_id' => $user->teacher->id]);
 
-    expect($user->fresh()->getRoleNames()->first())->toBe(UserRole::Diriginte->value);
-
     $class->delete();
-    expect($user->fresh()->getRoleNames()->first())->toBe(UserRole::Profesor->value);
+    expect($user->fresh()->getRoleNames()->all())->toBe([UserRole::Profesor->value]);
 
     $class->restore();
-    expect($user->fresh()->getRoleNames()->first())->toBe(UserRole::Diriginte->value);
+    expect($user->fresh()->getRoleNames()->all())
+        ->toEqualCanonicalizing([UserRole::Profesor->value, UserRole::Diriginte->value]);
 });
 
-it('NU retrogradează conducerea care primește o clasă — dirigenția e o funcție în plus', function () {
+it('NU atinge conducerea care primește o clasă — dirigenția e o funcție în plus', function () {
     $director = User::factory()->create();
     $director->assignRole(UserRole::Director->value);
     $teacher = Teacher::factory()->create(['user_id' => $director->id]);
 
     SchoolClass::factory()->for($this->year)->create(['homeroom_teacher_id' => $teacher->id]);
 
-    expect($director->fresh()->getRoleNames()->first())->toBe(UserRole::Director->value);
+    expect($director->fresh()->getRoleNames()->all())->toBe([UserRole::Director->value]);
 });
 
-it('sincronizează starea moștenită, scrisă pe lângă observeri', function () {
+it('sincronizează starea scrisă pe lângă observeri (importuri)', function () {
     $orfan = derivedTeacher(UserRole::Diriginte->value);
     $ascuns = derivedTeacher(UserRole::Profesor->value);
 
-    // Scriere prin QUERY BUILDER: exact cum o fac importurile — observerul nu se declanșează.
     $class = SchoolClass::factory()->for($this->year)->create();
     SchoolClass::query()->whereKey($class->id)->update(['homeroom_teacher_id' => $ascuns->teacher->id]);
-
-    expect($ascuns->fresh()->getRoleNames()->first())->toBe(UserRole::Profesor->value);
 
     $sync = app(SyncHomeroomRole::class);
 
@@ -121,9 +136,9 @@ it('sincronizează starea moștenită, scrisă pe lângă observeri', function (
         $sync->forUser($row['user']);
     }
 
-    expect($orfan->fresh()->getRoleNames()->first())->toBe(UserRole::Profesor->value)
-        ->and($ascuns->fresh()->getRoleNames()->first())->toBe(UserRole::Diriginte->value)
-        // Idempotentă: a doua trecere nu mai are ce raporta.
+    expect($orfan->fresh()->getRoleNames()->all())->toBe([UserRole::Profesor->value])
+        ->and($ascuns->fresh()->getRoleNames()->all())
+        ->toEqualCanonicalizing([UserRole::Profesor->value, UserRole::Diriginte->value])
         ->and(app(SyncHomeroomRole::class)->drifted())->toBe([]);
 });
 
@@ -131,10 +146,10 @@ it('comanda raportează fără să scrie, iar cu --apply scrie', function () {
     $orfan = derivedTeacher(UserRole::Diriginte->value);
 
     $this->artisan('app:sync-homeroom-roles')->assertSuccessful();
-    expect($orfan->fresh()->getRoleNames()->first())->toBe(UserRole::Diriginte->value);
+    expect($orfan->fresh()->getRoleNames()->all())->toBe([UserRole::Diriginte->value]);
 
     $this->artisan('app:sync-homeroom-roles', ['--apply' => true])->assertSuccessful();
-    expect($orfan->fresh()->getRoleNames()->first())->toBe(UserRole::Profesor->value);
+    expect($orfan->fresh()->getRoleNames()->all())->toBe([UserRole::Profesor->value]);
 
     $this->artisan('app:sync-homeroom-roles')
         ->expectsOutputToContain('Nimic de sincronizat')
@@ -143,9 +158,7 @@ it('comanda raportează fără să scrie, iar cu --apply scrie', function () {
 
 // ── Matricea de notificări urmează desemnarea ──────────────────────────────────────────────────
 
-it('dă tipurile de diriginte celui DESEMNAT, chiar dacă rolul contului nu e „Diriginte"', function () {
-    // Conducerea care primește o clasă îți păstrează rolul (vezi mai sus) — deci aici rolul
-    // CHIAR rămâne diferit de funcție, iar notificările trebuie să urmeze funcția.
+it('dă tipurile de diriginte celui DESEMNAT, chiar dacă rolurile contului nu includ „Diriginte"', function () {
     $director = User::factory()->create();
     $director->assignRole(UserRole::Director->value);
     $teacher = Teacher::factory()->create(['user_id' => $director->id]);

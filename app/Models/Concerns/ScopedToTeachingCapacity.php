@@ -2,6 +2,7 @@
 
 namespace App\Models\Concerns;
 
+use App\Enums\UserRole;
 use App\Models\AcademicRecord;
 use App\Models\Teacher;
 use App\Models\User;
@@ -70,12 +71,26 @@ trait ScopedToTeachingCapacity
 
         $table = $query->getModel()->getTable();
 
-        return $query->where(function (Builder $scoped) use ($teacher, $table): void {
-            $scoped
+        // CONTEXTUL pedagogic (multi-rol F3): în context Diriginte rămâne DOAR ramura de
+        // dirigenție (exclusiv clasele lui, doc pct. 5); în context Profesor DOAR ramura de
+        // predare (clasa de dirigenție se vede prin ea numai dacă predă acolo — cu drepturi de
+        // profesor). Fără context (mono-rol) = ambele ramuri, comportamentul istoric.
+        $context = $user->teachingContext();
+
+        return $query->where(function (Builder $scoped) use ($teacher, $table, $context): void {
+            $homeroomBranch = $context !== UserRole::Profesor;
+            $taughtBranch = $context !== UserRole::Diriginte;
+
+            if ($homeroomBranch) {
                 // Ca DIRIGINTE: toată clasa, orice disciplină.
-                ->whereIn($table.'.school_class_id', $teacher->homeroomSchoolClassIds())
+                $scoped->whereIn($table.'.school_class_id', $teacher->homeroomSchoolClassIds());
+            }
+
+            if ($taughtBranch) {
                 // Ca PROFESOR: doar acolo unde predă chiar acea disciplină, la acea clasă.
-                ->orWhereExists(function (QueryBuilder $sub) use ($teacher, $table): void {
+                $method = $homeroomBranch ? 'orWhereExists' : 'whereExists';
+
+                $scoped->{$method}(function (QueryBuilder $sub) use ($teacher, $table): void {
                     $sub->selectRaw('1')
                         ->from('teaching_assignments as ta')
                         ->whereColumn('ta.school_class_id', $table.'.school_class_id')
@@ -83,6 +98,7 @@ trait ScopedToTeachingCapacity
                         ->where('ta.teacher_id', $teacher->id)
                         ->whereNull('ta.deleted_at');
                 });
+            }
         });
     }
 }

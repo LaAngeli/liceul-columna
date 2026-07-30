@@ -139,6 +139,8 @@ class UsersTable
                                 ->whereDoesntHave('teacher.homeroomClasses'))
                             ->orWhere(fn (Builder $inner): Builder => $inner
                                 ->whereHas('roles', fn (Builder $r) => $r->where('name', UserRole::Profesor->value))
+                                // Multi-rol: {Profesor, Diriginte} cu clasă = starea corectă, nu derivă.
+                                ->whereDoesntHave('roles', fn (Builder $r) => $r->where('name', UserRole::Diriginte->value))
                                 ->whereHas('teacher.homeroomClasses')),
                     )),
             ])

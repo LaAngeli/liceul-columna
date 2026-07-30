@@ -210,6 +210,13 @@ class ListUsers extends ListRecords
     {
         $query = User::query()->whereHas('roles', fn (Builder $q) => $q->where('name', $role->value));
 
+        // Sub multi-rol (F3): un cont {Profesor, Diriginte} cu dirigenție e starea CORECTĂ, nu
+        // derivă — „profesor cu clasă" semnalează doar conturile care NU poartă și rolul Diriginte
+        // (membria pe care sincronizarea o adaugă).
+        if ($role === UserRole::Profesor && $hasHomeroom) {
+            $query->whereDoesntHave('roles', fn (Builder $q) => $q->where('name', UserRole::Diriginte->value));
+        }
+
         return $hasHomeroom
             ? $query->whereHas('teacher.homeroomClasses')
             : $query->whereDoesntHave('teacher.homeroomClasses');

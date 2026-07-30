@@ -210,6 +210,53 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * CONTEXTUL PEDAGOGIC activ (F3 — separarea Profesor/Diriginte, doc pct. 5).
+     *
+     * Non-null DOAR pentru conturile MULTI-rol cu rolul activ Profesor sau Diriginte: separarea
+     * de vizibilitate există exact acolo unde există comutator. Conturile mono-rol păstrează
+     * perimetrul istoric fuzionat (predate ∪ dirigenție) — contractul F0: nimic nu se schimbă
+     * pentru conturile existente. Cine vrea separarea o primește odată cu al doilea rol
+     * (automat, prin membria de dirigenție din F5).
+     */
+    public function teachingContext(): ?UserRole
+    {
+        if (! $this->isMultiRole()) {
+            return null;
+        }
+
+        $active = $this->activeRole();
+
+        return in_array($active, [UserRole::Profesor, UserRole::Diriginte], true) ? $active : null;
+    }
+
+    /**
+     * Clasele vizibile în contextul pedagogic activ: Profesor → predate; Diriginte → exclusiv
+     * dirigenția; fără context → reuniunea istorică. Goală pentru conturile fără fișă.
+     *
+     * @return list<int>
+     */
+    public function contextClassIds(): array
+    {
+        return $this->teacher?->contextSchoolClassIds($this->teachingContext()) ?? [];
+    }
+
+    /**
+     * Puterile de DIRIGENȚIE în contextul activ: în context Profesor sunt STINSE (doc pct. 5 —
+     * clasa de dirigenție se vede acolo „exclusiv cu drepturi de profesor"); altfel, desemnarea
+     * de pe fișă. Sursa gate-urilor de motivări, calendar de clasă și rapoarte de dirigenție.
+     *
+     * @return list<int>
+     */
+    public function contextHomeroomClassIds(): array
+    {
+        if ($this->teachingContext() === UserRole::Profesor) {
+            return [];
+        }
+
+        return $this->homeroomSchoolClassIds();
+    }
+
+    /**
      * Administrația academică (super-admin / director / prim-vicedirector / administrator
      * operațional) vede TOT catalogul, fără scoping. NU implică drept de scriere — vezi
      * capabilitățile de mai jos. Administratorul tehnic e exclus (infra, fără date academice).
@@ -794,7 +841,8 @@ class User extends Authenticatable implements Auditable, FilamentUser
      */
     public function canManageCalendarEvents(): bool
     {
-        return $this->canPublishContent() || $this->homeroomSchoolClassIds() !== [];
+        // Dirigentia pe CONTEXT (F3): in context Profesor puterea de calendar de clasa e stinsa.
+        return $this->canPublishContent() || $this->contextHomeroomClassIds() !== [];
     }
 
     /**
@@ -822,7 +870,8 @@ class User extends Authenticatable implements Auditable, FilamentUser
             return true;
         }
 
-        return in_array($schoolClassId, $this->homeroomSchoolClassIds(), true);
+        // Dirigentia pe CONTEXT (F3): in context Profesor nu motivezi — comuti pe Diriginte.
+        return in_array($schoolClassId, $this->contextHomeroomClassIds(), true);
     }
 
     /**

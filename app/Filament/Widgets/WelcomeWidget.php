@@ -101,7 +101,7 @@ class WelcomeWidget extends Widget
             return [null, null, null, null];
         }
 
-        $classIds = $teacher->visibleSchoolClassIds();
+        $classIds = $user->contextClassIds(); // contextul pedagogic activ (F3)
         $studentCount = Enrollment::query()->whereIn('school_class_id', $classIds)->distinct()->count('student_id');
         $myGrades = Grade::query()->active()->where('teacher_id', $teacher->id)->count();
 

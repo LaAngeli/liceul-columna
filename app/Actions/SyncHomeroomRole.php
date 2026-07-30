@@ -7,26 +7,30 @@ use App\Models\Teacher;
 use App\Models\User;
 
 /**
- * Rolul „Diriginte" DERIVAT din desemnare, nu ales manual (decizie 2026-07-27).
+ * MEMBRIA rolului „Diriginte", derivată din desemnare (reconvertit pentru multi-rol, 30.07.2026).
  *
- * De ce: rolul nu dădea niciun drept — toate drepturile de dirigenție vin din
- * `school_classes.homeroom_teacher_id`. Rămăsese o COPIE MANUALĂ a unei realități care se schimbă
- * fără el (o clasă reatribuită nu atingea rolul), deci eticheta putea minți: pe date reale erau
- * 23 de conturi cu rolul „Diriginte" față de 21 de fișe cu dirigenție și cont. Acum eticheta nu
- * mai e o afirmație independentă, ci o consecință — nu mai are cum să se desincronizeze.
+ * Era: „rolul derivat" ÎNLOCUIA eticheta (profesor↔diriginte) — corect în lumea un-cont-un-rol
+ * (ce6f6cb), dar DISTRUCTIV sub multi-rol: crearea unei clase cu diriginte îi ștergea persoanei
+ * rolul Profesor (prins de ContextSeparationTest la construirea F3). Acum: dirigenția ADAUGĂ
+ * rolul Diriginte pe lângă ce există; pierderea ultimei clase îl RETRAGE. Principiul rămâne
+ * neschimbat: eticheta nu poate minți, fiindcă nu e o afirmație independentă, ci o consecință —
+ * iar comutatorul de context arată doar roluri pe care persoana chiar le are.
  *
- * LIMITA DELIBERATĂ: se ating DOAR conturile al căror rol curent e `profesor` sau `diriginte`.
- * Un director sau un administrator care primește o clasă în dirigenție ÎȘI PĂSTREAZĂ rolul —
- * dirigenția e o funcție în plus, nu o retrogradare; drepturile ei le are oricum din desemnare.
- * Conturile fără rol, suspendate sau cu rol de familie nu sunt niciodată atinse.
+ * LIMITA DELIBERATĂ: se ating DOAR conturile al căror set de roluri ⊆ {profesor, diriginte}.
+ * Conducerea care primește o clasă își PĂSTREAZĂ rolurile — dirigenția e o funcție în plus, nu o
+ * retrogradare; puterile ei de context vin din desemnare ({@see User::contextHomeroomClassIds}).
+ * Familia și conturile fără rol nu sunt niciodată atinse.
  */
 class SyncHomeroomRole
 {
-    /**
-     * Aduce rolul contului în acord cu desemnarea. Întoarce rolul NOU dacă s-a schimbat ceva,
-     * null dacă nu era nimic de făcut (contul e deja corect sau nu intră sub incidența regulii).
-     */
-    public function forTeacher(?Teacher $teacher): ?UserRole
+    /** Descrierea schimbării aplicate, pentru rapoartele comenzii. */
+    public const ADDED = 'diriginte-adaugat';
+
+    public const REMOVED = 'diriginte-retras';
+
+    public const SWAPPED = 'revenit-profesor';
+
+    public function forTeacher(?Teacher $teacher): ?string
     {
         if ($teacher === null) {
             return null;
@@ -35,43 +39,57 @@ class SyncHomeroomRole
         return $this->forUser($teacher->user);
     }
 
-    public function forUser(?User $user): ?UserRole
+    /**
+     * Aduce MEMBRIA rolului Diriginte în acord cu desemnarea. Întoarce descrierea schimbării
+     * (constantele de mai sus) sau null dacă nu era nimic de făcut / contul nu intră sub regulă.
+     */
+    public function forUser(?User $user): ?string
     {
         if ($user === null) {
             return null;
         }
 
-        $current = $user->getRoleNames()->first();
+        $roles = $user->getRoleNames()->all();
 
-        // Doar corpul didactic de bază intră sub regulă (vezi limita din docblock).
-        if (! in_array($current, [UserRole::Profesor->value, UserRole::Diriginte->value], true)) {
+        if ($roles === []) {
             return null;
         }
 
-        $expected = $this->expectedRoleFor($user);
-
-        if ($current === $expected->value) {
+        // Doar corpul didactic de bază (vezi limita din docblock).
+        if (array_diff($roles, [UserRole::Profesor->value, UserRole::Diriginte->value]) !== []) {
             return null;
         }
 
-        $user->syncRoles([$expected->value]);
+        $hasHomeroom = $user->teacher?->homeroomClasses()->exists() === true;
+        $isDiriginte = in_array(UserRole::Diriginte->value, $roles, true);
 
-        return $expected;
-    }
+        if ($hasHomeroom && ! $isDiriginte) {
+            $user->assignRole(UserRole::Diriginte->value);
 
-    /** Rolul pe care desemnarea îl impune: dirigenție ⇒ Diriginte, altfel Profesor. */
-    public function expectedRoleFor(User $user): UserRole
-    {
-        return $user->teacher?->homeroomClasses()->exists() === true
-            ? UserRole::Diriginte
-            : UserRole::Profesor;
+            return self::ADDED;
+        }
+
+        if (! $hasHomeroom && $isDiriginte) {
+            $user->removeRole(UserRole::Diriginte->value);
+
+            // Contul nu are voie să rămână fără niciun rol: mono-dirigintele care pierde ultima
+            // clasă revine „Profesor" — exact semantica dinaintea reconversiei.
+            if ($user->getRoleNames()->isEmpty()) {
+                $user->assignRole(UserRole::Profesor->value);
+
+                return self::SWAPPED;
+            }
+
+            return self::REMOVED;
+        }
+
+        return null;
     }
 
     /**
-     * Conturile a căror etichetă nu mai corespunde desemnării — sursa raportului comenzii de
-     * sincronizare și a verificării „ce s-ar schimba" înainte de a schimba ceva.
+     * Conturile a căror membrie nu mai corespunde desemnării — raportul comenzii de sincronizare.
      *
-     * @return list<array{user: User, from: string, to: UserRole}>
+     * @return list<array{user: User, action: string}>
      */
     public function drifted(): array
     {
@@ -83,11 +101,22 @@ class SyncHomeroomRole
         $drifted = [];
 
         foreach ($users as $user) {
-            $current = (string) $user->getRoleNames()->first();
-            $expected = $this->expectedRoleFor($user);
+            $roles = $user->getRoleNames()->all();
 
-            if ($current !== $expected->value) {
-                $drifted[] = ['user' => $user, 'from' => $current, 'to' => $expected];
+            if (array_diff($roles, [UserRole::Profesor->value, UserRole::Diriginte->value]) !== []) {
+                continue;
+            }
+
+            $hasHomeroom = $user->teacher?->homeroomClasses()->exists() === true;
+            $isDiriginte = in_array(UserRole::Diriginte->value, $roles, true);
+
+            if ($hasHomeroom && ! $isDiriginte) {
+                $drifted[] = ['user' => $user, 'action' => self::ADDED];
+            } elseif (! $hasHomeroom && $isDiriginte) {
+                $drifted[] = [
+                    'user' => $user,
+                    'action' => count($roles) === 1 ? self::SWAPPED : self::REMOVED,
+                ];
             }
         }
 

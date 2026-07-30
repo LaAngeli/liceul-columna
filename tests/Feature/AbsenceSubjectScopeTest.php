@@ -13,6 +13,7 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\User;
+use App\Support\ActiveRole;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -75,6 +76,11 @@ it('la clasa unde e DIRIGINTE, dropdown-ul arată toate disciplinele predate în
 });
 
 it('eroarea de scope (duplicat) se AFIȘEAZĂ pe câmp — nu „nu se întâmplă nimic" (prefix data.)', function () {
+    // Multi-rol F3: contul (profesor + dirigenție) primește automat ambele roluri, iar contextul
+    // implicit e Diriginte — în care clasa B (doar predată) nu se mai vede. Consemnarea la B e un
+    // act de PROFESOR: comutăm explicit contextul, exact ce ar face persoana din comutator.
+    session()->put(ActiveRole::SESSION_KEY, UserRole::Profesor->value);
+
     $student = Student::factory()->create();
     Enrollment::factory()->for($student)->for($this->classOther)->for($this->year)->create();
 

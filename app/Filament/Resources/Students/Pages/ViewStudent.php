@@ -75,7 +75,7 @@ class ViewStudent extends ViewRecord
                     return false;
                 }
 
-                $classIds = $user->teacher?->visibleSchoolClassIds() ?? [];
+                $classIds = $user->contextClassIds(); // contextul pedagogic activ (F3)
 
                 return $classIds !== [] && $student->enrollments()->whereIn('school_class_id', $classIds)->exists();
             })

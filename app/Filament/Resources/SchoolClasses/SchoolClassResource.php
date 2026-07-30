@@ -92,7 +92,7 @@ class SchoolClassResource extends Resource
             return $query;
         }
 
-        return $query->whereKey($user->teacher?->visibleSchoolClassIds() ?? []);
+        return $query->whereKey($user->contextClassIds()); // contextul pedagogic activ (F3)
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

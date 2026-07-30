@@ -70,7 +70,7 @@ class CalendarEventPolicy
             return true;
         }
 
-        $homeroomClassIds = $user->homeroomSchoolClassIds();
+        $homeroomClassIds = $user->contextHomeroomClassIds(); // contextul pedagogic activ (F3)
 
         if ($homeroomClassIds === []) {
             return false;

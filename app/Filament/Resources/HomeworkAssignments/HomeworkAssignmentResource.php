@@ -141,7 +141,7 @@ class HomeworkAssignmentResource extends Resource
             return $query->whereRaw('1 = 0');
         }
 
-        $classIds = $teacher->visibleSchoolClassIds();
+        $classIds = $user->contextClassIds(); // contextul pedagogic activ (F3)
 
         return $query->where(function (Builder $q) use ($teacher, $classIds) {
             $q->where('teacher_id', $teacher->id);

@@ -30,6 +30,13 @@ class TeachingCapacity
             return null;
         }
 
+        // Multi-rol (F3): contextul e EXPLICIT — comutatorul din topbar spune deja sub ce
+        // calitate lucrezi, iar perimetrul e separat pe context. Indicatorul dedus devine
+        // redundant (și ar putea contrazice comutatorul); rămâne doar pentru mono-rol.
+        if ($user->isMultiRole()) {
+            return null;
+        }
+
         $teacher = $user->teacher;
 
         if ($teacher === null) {

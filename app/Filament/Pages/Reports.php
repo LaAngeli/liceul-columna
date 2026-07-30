@@ -307,7 +307,7 @@ class Reports extends Page
         $query = SchoolClass::query()->orderBy('grade_level')->orderBy('name');
 
         if ($user instanceof User && ! $user->isAdministrator() && $user->teacher !== null) {
-            $query->whereKey($user->teacher->visibleSchoolClassIds());
+            $query->whereKey($user->contextClassIds()); // contextul pedagogic activ (F3)
         }
 
         $options = [];

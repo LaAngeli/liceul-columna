@@ -121,7 +121,7 @@ class StudentResource extends Resource
             return $query;
         }
 
-        $classIds = $user->teacher?->visibleSchoolClassIds() ?? [];
+        $classIds = $user->contextClassIds(); // contextul pedagogic activ (F3)
 
         return $query->whereHas('enrollments', fn (Builder $q) => $q->whereIn('school_class_id', $classIds));
     }

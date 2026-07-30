@@ -576,7 +576,7 @@ trait HasCatalogNavigator
 
     protected function isOwnHomeroomClass(int $classId): bool
     {
-        return in_array($classId, $this->catalogTeacherModel()?->homeroomSchoolClassIds() ?? [], true);
+        return in_array($classId, $this->catalogUser()?->contextHomeroomClassIds() ?? [], true); // contextul pedagogic activ (F3)
     }
 
     /**
@@ -625,7 +625,7 @@ trait HasCatalogNavigator
             ->orderBy('section');
 
         if (($teacher = $this->catalogTeacherModel()) !== null) {
-            $query->whereKey($teacher->visibleSchoolClassIds());
+            $query->whereKey($teacher->contextSchoolClassIds($this->catalogUser()?->teachingContext())); // contextul pedagogic activ (F3)
         } elseif (($yearId = $this->currentAcademicYearId()) !== null) {
             $query->where('academic_year_id', $yearId);
         }
@@ -806,7 +806,7 @@ trait HasCatalogNavigator
         /** @var array<int, int> $ids */
         $ids = $this->catalogMemo('allowedClasses', function (): array {
             if (($teacher = $this->catalogTeacherModel()) !== null) {
-                return $teacher->visibleSchoolClassIds();
+                return $teacher->contextSchoolClassIds($this->catalogUser()?->teachingContext()); // contextul pedagogic activ (F3)
             }
 
             return SchoolClass::query()->pluck('id')->map(fn ($id): int => (int) $id)->all();

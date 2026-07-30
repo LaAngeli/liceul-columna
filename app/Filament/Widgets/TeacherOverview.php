@@ -34,13 +34,14 @@ class TeacherOverview extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        $teacher = auth('web')->user()?->teacher;
+        $user = auth('web')->user();
+        $teacher = $user?->teacher;
 
-        if (! $teacher) {
+        if (! $user || ! $teacher) {
             return [];
         }
 
-        $classIds = $teacher->visibleSchoolClassIds();
+        $classIds = $user->contextClassIds(); // contextul pedagogic activ (F3)
 
         // active(): exclude notele anulate din contor — aliniat cu chartul și mediile (§1/§3.1).
         $myGrades = Grade::query()->active()->where('teacher_id', $teacher->id)->count();

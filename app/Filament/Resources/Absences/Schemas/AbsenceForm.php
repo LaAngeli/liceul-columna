@@ -170,7 +170,7 @@ class AbsenceForm
         $query = SchoolClass::query()->orderBy('grade_level')->orderBy('name');
 
         if ($teacher = self::currentTeacher()) {
-            $query->whereKey($teacher->visibleSchoolClassIds());
+            $query->whereKey($teacher->contextSchoolClassIds(auth('web')->user()?->teachingContext())); // contextul pedagogic activ (F3)
         }
 
         $options = [];
@@ -202,7 +202,7 @@ class AbsenceForm
 
             // Dirigintele CLASEI ALESE vede toate disciplinele ei (gestionează absențele clasei);
             // orice alt profesor (chiar diriginte la ALTĂ clasă) vede doar disciplinele LUI din clasă.
-            if ($teacher !== null && ! in_array($classId, $teacher->homeroomSchoolClassIds(), true)) {
+            if ($teacher !== null && ! in_array($classId, auth('web')->user()?->contextHomeroomClassIds() ?? [], true)) { // contextul pedagogic activ (F3)
                 $ownIds = TeachingAssignment::query()
                     ->where('teacher_id', $teacher->id)
                     ->where('school_class_id', $classId)
@@ -242,7 +242,7 @@ class AbsenceForm
             return true; // profesor, fără clasă aleasă → cere disciplina
         }
 
-        return ! in_array($classId, $teacher->homeroomSchoolClassIds(), true);
+        return ! in_array($classId, auth('web')->user()?->contextHomeroomClassIds() ?? [], true); // contextul pedagogic activ (F3)
     }
 
     /**
@@ -261,10 +261,10 @@ class AbsenceForm
 
         if ($schoolClassId !== null) {
             $classIds = $teacher !== null
-                ? array_values(array_intersect([$schoolClassId], $teacher->visibleSchoolClassIds()))
+                ? array_values(array_intersect([$schoolClassId], $teacher->contextSchoolClassIds(auth('web')->user()?->teachingContext())))
                 : [$schoolClassId];
         } elseif ($teacher !== null) {
-            $classIds = $teacher->visibleSchoolClassIds();
+            $classIds = $teacher->contextSchoolClassIds(auth('web')->user()?->teachingContext()); // contextul pedagogic activ (F3)
         }
 
         if ($classIds !== null) {

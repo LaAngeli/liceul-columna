@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Sex;
+use App\Enums\UserRole;
 use Database\Factories\TeacherFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -133,6 +134,23 @@ class Teacher extends Model implements Auditable
         }
 
         return $subjectId !== null && $this->canGradeClassSubject($schoolClassId, $subjectId);
+    }
+
+    /**
+     * Clasele vizibile în CONTEXTUL pedagogic dat (multi-rol F3, doc pct. 5):
+     * Profesor → clasele PREDATE (inclusiv cea de dirigenție dacă predă acolo — dar cu drepturi
+     * de profesor); Diriginte → EXCLUSIV clasele de dirigenție; null (mono-rol / administrație)
+     * → reuniunea istorică. Sursa unică a separării — nu re-implementa pe la resurse.
+     *
+     * @return list<int>
+     */
+    public function contextSchoolClassIds(?UserRole $context): array
+    {
+        return match ($context) {
+            UserRole::Profesor => $this->taughtSchoolClassIds(),
+            UserRole::Diriginte => $this->homeroomSchoolClassIds(),
+            default => $this->visibleSchoolClassIds(),
+        };
     }
 
     /**

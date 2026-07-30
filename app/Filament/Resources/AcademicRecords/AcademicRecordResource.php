@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AcademicRecords;
 
+use App\Enums\UserRole;
 use App\Filament\Resources\AcademicRecords\Pages\ListAcademicRecords;
 use App\Filament\Resources\AcademicRecords\Pages\ViewAcademicRecord;
 use App\Filament\Resources\AcademicRecords\Schemas\AcademicRecordInfolist;
@@ -104,8 +105,8 @@ class AcademicRecordResource extends Resource
             return $query->whereRaw('1 = 0');
         }
 
-        $homeroomClassIds = $teacher->homeroomSchoolClassIds();
-        $taughtClassIds = $teacher->taughtSchoolClassIds();
+        $homeroomClassIds = $user->contextHomeroomClassIds(); // contextul pedagogic activ (F3)
+        $taughtClassIds = $user->teachingContext() === UserRole::Diriginte ? [] : $teacher->taughtSchoolClassIds();
         $taughtSubjectIds = $teacher->taughtSubjectIds();
 
         return $query->where(function (Builder $q) use ($homeroomClassIds, $taughtClassIds, $taughtSubjectIds) {
