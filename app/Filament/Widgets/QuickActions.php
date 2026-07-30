@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Pages\Calendar;
+use App\Filament\Pages\ClassRegister;
 use App\Filament\Resources\Absences\AbsenceResource;
 use App\Filament\Resources\Grades\GradeResource;
 use App\Filament\Resources\SchoolClasses\SchoolClassResource;
@@ -55,9 +56,16 @@ class QuickActions extends Widget
 
         $actions = [];
 
+        // CATALOGUL CLASEI = acțiunea PRIMARĂ a personalului didactic (cerința 2026-07-30:
+        // funcțiile zilnice imediat accesibile): toată clasa pe un ecran, notele și absențele
+        // intră în masă. Formularul „Notă nouă" rămâne pentru cazul individual, dar retrogradat.
+        if (ClassRegister::canAccess() && GradeResource::canCreate()) {
+            $actions[] = ['label' => (string) __('panel.class_register.title'), 'icon' => 'heroicon-o-table-cells', 'url' => ClassRegister::getUrl(), 'primary' => true];
+        }
+
         // Notă / absență — profesorul/dirigintele (canCreate gestionează scoping-ul, §3.2 AO/AT = nu).
         if (GradeResource::canCreate()) {
-            $actions[] = ['label' => (string) __('panel.nav.items.new_grade'), 'icon' => 'heroicon-o-plus-circle', 'url' => GradeResource::getUrl('create'), 'primary' => true];
+            $actions[] = ['label' => (string) __('panel.nav.items.new_grade'), 'icon' => 'heroicon-o-plus-circle', 'url' => GradeResource::getUrl('create'), 'primary' => false];
         }
 
         if (AbsenceResource::canCreate()) {

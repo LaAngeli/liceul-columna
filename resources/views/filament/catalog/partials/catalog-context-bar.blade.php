@@ -46,23 +46,45 @@
             @endif
         </div>
 
-        @if (count($siblings) > 1)
-            <div class="ms-auto w-full sm:w-64">
-                <label class="sr-only" for="catalog-sibling-switch">{{ __('panel.catalog_nav.switch') }}</label>
-                <x-filament::input.wrapper>
-                    <x-filament::input.select
-                        id="catalog-sibling-switch"
-                        wire:change="openCatalogEntity($event.target.value)"
-                    >
-                        @foreach ($siblings as $siblingId => $siblingLabel)
-                            <option value="{{ $siblingId }}" @selected((string) $siblingId === (string) $primaryId)>
-                                {{ $siblingLabel }}
-                            </option>
-                        @endforeach
-                    </x-filament::input.select>
-                </x-filament::input.wrapper>
-            </div>
-        @endif
+        <div class="ms-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            {{-- PUNTEA spre borderou: din contextul Note/Absențe, aceeași clasă + disciplină se
+                 deschid în Catalogul clasei — introducerea în masă e la un click, nu la o căutare. --}}
+            @if (($this instanceof \App\Filament\Resources\Grades\Pages\ListGrades
+                    || $this instanceof \App\Filament\Resources\Absences\Pages\ListAbsences)
+                && \App\Filament\Pages\ClassRegister::canAccess()
+                && $this->catalogClassIdInContext() !== null)
+                <x-filament::button
+                    tag="a"
+                    size="sm"
+                    color="gray"
+                    icon="heroicon-m-table-cells"
+                    :href="\App\Filament\Pages\ClassRegister::getUrl(array_filter([
+                        'clasa' => $this->catalogClassIdInContext(),
+                        'disciplina' => $this->catalogSubjectIdInContext(),
+                    ]))"
+                >
+                    {{ __('panel.class_register.title') }}
+                </x-filament::button>
+            @endif
+
+            @if (count($siblings) > 1)
+                <div class="w-full sm:w-64">
+                    <label class="sr-only" for="catalog-sibling-switch">{{ __('panel.catalog_nav.switch') }}</label>
+                    <x-filament::input.wrapper>
+                        <x-filament::input.select
+                            id="catalog-sibling-switch"
+                            wire:change="openCatalogEntity($event.target.value)"
+                        >
+                            @foreach ($siblings as $siblingId => $siblingLabel)
+                                <option value="{{ $siblingId }}" @selected((string) $siblingId === (string) $primaryId)>
+                                    {{ $siblingLabel }}
+                                </option>
+                            @endforeach
+                        </x-filament::input.select>
+                    </x-filament::input.wrapper>
+                </div>
+            @endif
+        </div>
     </div>
 
     @if (count($chips) > 1)
