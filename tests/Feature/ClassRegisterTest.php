@@ -286,6 +286,104 @@ it('pagina se randează cu elevii, borderoul și butonul de salvare', function (
         ->assertSee(trans('panel.class_register.entry_hint'));
 });
 
+// ── Corecturile din 2026-07-30 (data = sursă unică) ────────────────────────────────────────────
+
+it('semestrul afișat urmează DATA, nu un selector separat', function () {
+    // Semestrul I al aceluiași an, cu note în el — trebuie să apară doar când data cade acolo.
+    $first = Term::factory()->for($this->year)->create([
+        'number' => 2,
+        'name' => 'Semestrul I',
+        'is_current' => false,
+        'starts_on' => Carbon::today()->subMonths(6),
+        'ends_on' => Carbon::today()->subMonths(3),
+    ]);
+
+    actingAs($this->profUser);
+
+    $inSecond = Livewire::test(ClassRegister::class)->instance();
+    expect($inSecond->activeTerm()?->id)->toBe($this->term->id);
+
+    // Mutăm data în semestrul I → borderoul se mută cu ea, fără niciun alt control.
+    $inFirst = Livewire::test(ClassRegister::class)
+        ->set('entryDate', Carbon::today()->subMonths(4)->toDateString())
+        ->instance();
+
+    expect($inFirst->activeTerm()?->id)->toBe($first->id);
+});
+
+it('nu mai randează selector de semestru și nici tooltip pe note', function () {
+    Term::factory()->for($this->year)->create([
+        'number' => 2,
+        'name' => 'Semestrul I',
+        'is_current' => false,
+        'starts_on' => Carbon::today()->subMonths(6),
+        'ends_on' => Carbon::today()->subMonths(3),
+    ]);
+
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    Grade::query()->create([
+        'student_id' => $a->id,
+        'subject_id' => $this->subject->id,
+        'school_class_id' => $this->class->id,
+        'term_id' => $this->term->id,
+        'teacher_id' => $this->teacher->id,
+        'graded_on' => Carbon::today()->subDays(3),
+        'evaluation_type' => EvaluationType::Curenta->value,
+        'value' => 9,
+    ]);
+
+    $html = Livewire::test(ClassRegister::class)->assertOk()->html();
+
+    // Selectorul de semestru a dispărut (data îl decide), la fel butonul lui.
+    expect($html)->not->toContain('openTerm')
+        // Chipsul de notă nu mai poartă titlu („Curentă · 20.07" arăta ca o valoare în plus).
+        ->and($html)->not->toContain('title="'.EvaluationType::Curenta->label());
+});
+
+it('schimbarea datei golește intrările începute — nu se scriu pe alt semestru', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+
+    $component = Livewire::test(ClassRegister::class)
+        ->set('entries', [(string) $a->id => ['value' => '9']])
+        ->set('entryDate', Carbon::today()->subDay()->toDateString());
+
+    expect($component->get('entries'))->toBe([]);
+});
+
+it('în vacanță data implicită cade în semestru, nu pe ziua de azi', function () {
+    // Anul s-a încheiat luna trecută: „azi" nu mai aparține niciunui semestru. Fără corecție,
+    // fiecare salvare pica pe garda de rollover, deși profesorul nu greșise nimic.
+    // Query builder: gărzile de model pe intervale ar refuza mutarea în trecut a unui an care
+    // începe mai devreme — aici ne interesează doar starea rezultată, nu calea de configurare.
+    DB::table('terms')->where('id', $this->term->id)->update([
+        'starts_on' => Carbon::today()->subMonths(5)->toDateString(),
+        'ends_on' => Carbon::today()->subMonth()->toDateString(),
+    ]);
+    DB::table('academic_years')->where('id', $this->year->id)->update([
+        'starts_on' => Carbon::today()->subMonths(11)->toDateString(),
+        'ends_on' => Carbon::today()->subMonth()->toDateString(),
+    ]);
+
+    actingAs($this->profUser);
+
+    $page = Livewire::test(ClassRegister::class);
+
+    expect($page->get('entryDate'))->toBe(Carbon::today()->subMonth()->toDateString());
+
+    // Iar cu acea dată, salvarea chiar trece.
+    $a = $this->students->first();
+
+    $page->set('entries', [(string) $a->id => ['value' => '9']])
+        ->call('saveEntries')
+        ->assertHasNoErrors();
+
+    expect(Grade::query()->count())->toBe(1);
+});
+
 it('teza intră cu tipul ales și apare evidențiată în rând', function () {
     actingAs($this->profUser);
 

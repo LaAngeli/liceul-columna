@@ -16,6 +16,7 @@ use App\Models\Teacher;
 use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
+use App\Support\SchoolCalendar;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -63,9 +64,6 @@ class ClassRegister extends Page
     #[Url(as: 'disciplina', except: null)]
     public ?string $subjectParam = null;
 
-    #[Url(as: 'sem', except: null)]
-    public ?string $termParam = null;
-
     /**
      * Introducerea rapidă, per elev: nota tastată + bifa de absență. Deferred (un singur request
      * la salvare) — exact ce face posibilă viteza.
@@ -85,7 +83,7 @@ class ClassRegister extends Page
     public function mount(): void
     {
         if ($this->entryDate === '') {
-            $this->entryDate = Carbon::today()->toDateString();
+            $this->entryDate = $this->defaultEntryDate();
         }
     }
 
@@ -242,7 +240,7 @@ class ClassRegister extends Page
     }
 
     /**
-     * Semestrele anului clasei (axa de AFIȘARE; la salvare semestrul se derivă din dată).
+     * Semestrele anului clasei — axa pe care se așază borderoul.
      *
      * @return Collection<int, Term>
      */
@@ -257,20 +255,64 @@ class ClassRegister extends Page
         return $class->academicYear?->terms()->orderBy('starts_on')->get() ?? new Collection;
     }
 
+    /**
+     * Semestrul afișat = semestrul DATEI alese. O singură sursă de adevăr (cerința beneficiarului,
+     * 2026-07-30): selectorul separat de semestru era redundant lângă o dată care oricum decide
+     * unde se salvează nota — și, mai rău, sugera că se poate salva în alt semestru decât cel al
+     * datei. Acum vezi exact semestrul în care vei scrie; ca să vezi altul, schimbi data.
+     *
+     * Fallback: dacă data cade în afara oricărui interval (vacanță), rămâne semestrul curent al
+     * clasei — borderoul arată ceva util, iar salvarea e oricum arbitrată pe server de trait.
+     */
     public function activeTerm(): ?Term
     {
         $terms = $this->termOptions();
 
-        if ($this->termParam !== null && ctype_digit($this->termParam)) {
-            $found = $terms->firstWhere('id', (int) $this->termParam);
+        if ($terms->isEmpty()) {
+            return null;
+        }
 
-            if ($found !== null) {
-                return $found;
+        if ($this->entryDate !== '') {
+            $date = Carbon::parse($this->entryDate)->startOfDay();
+
+            $matching = $terms->first(function (Term $term) use ($date): bool {
+                return $term->starts_on !== null
+                    && $term->ends_on !== null
+                    && $date->betweenIncluded($term->starts_on->startOfDay(), $term->ends_on->endOfDay());
+            });
+
+            if ($matching instanceof Term) {
+                return $matching;
             }
         }
 
-        return $terms->firstWhere('is_current', true)
-            ?? $terms->first();
+        return $terms->firstWhere('is_current', true) ?? $terms->first();
+    }
+
+    /**
+     * Data implicită: AZI dacă e zi de școală, altfel ultima zi a semestrului curent.
+     *
+     * Fără asta, în vacanță (când azi nu cade în niciun semestru) fiecare salvare pica pe garda de
+     * rollover — „Nu există un semestru definit pentru această dată" — deși profesorul nu greșise
+     * nimic: doar data implicită era imposibilă. Raportat de beneficiar pe 30 iulie, cu anul
+     * încheiat pe 30 iunie.
+     */
+    private function defaultEntryDate(): string
+    {
+        $today = Carbon::today();
+
+        if (Term::forDate($today) instanceof Term) {
+            return $today->toDateString();
+        }
+
+        $current = SchoolCalendar::currentTerm();
+
+        // Ultima zi a semestrului curent, dar niciodată în viitor (garda „fără note în viitor").
+        if ($current instanceof Term && $current->ends_on !== null) {
+            return $current->ends_on->startOfDay()->min($today)->toDateString();
+        }
+
+        return $today->toDateString();
     }
 
     // ── Drepturi pe contextul activ ─────────────────────────────────────────────────────────
@@ -331,7 +373,7 @@ class ClassRegister extends Page
      *
      * @return list<array{
      *     student: Student,
-     *     grades: list<array{value: string, date: string, type: string, weighted: bool}>,
+     *     grades: list<array{value: string, weighted: bool}>,
      *     average: string|null,
      *     absences: array{total: int, unmotivated: int, dates: string}
      * }>
@@ -414,7 +456,7 @@ class ClassRegister extends Page
             $studentAbsences = $absences->get($student->getKey(), new Collection);
             $average = $averages->get($student->getKey());
 
-            /** @var list<array{value: string, date: string, type: string, weighted: bool}> $gradeChips */
+            /** @var list<array{value: string, weighted: bool}> $gradeChips */
             $gradeChips = [];
 
             foreach ($studentGrades as $grade) {
@@ -422,8 +464,8 @@ class ClassRegister extends Page
                     'value' => $grade->value !== null
                         ? (string) (int) (float) $grade->value
                         : (string) ($grade->calificativ ?? '—'),
-                    'date' => $grade->graded_on->format('d.m'),
-                    'type' => $grade->evaluation_type->label(),
+                    // Teza/ESI se disting prin culoare. Tipul și data NU se mai transportă: erau
+                    // folosite doar în tooltipul eliminat, iar datele nefolosite devin cod mort.
                     'weighted' => $grade->evaluation_type !== EvaluationType::Curenta,
                 ];
             }
@@ -472,7 +514,6 @@ class ClassRegister extends Page
     {
         $this->classParam = (string) $id;
         $this->subjectParam = null;
-        $this->termParam = null;
         $this->resetEntries();
     }
 
@@ -482,9 +523,13 @@ class ClassRegister extends Page
         $this->resetEntries();
     }
 
-    public function openTerm(int $id): void
+    /**
+     * Schimbarea datei mută borderoul în semestrul acelei date — deci rândurile afișate nu mai
+     * corespund intrărilor începute. Le golim, ca să nu se salveze note pe alt semestru decât cel
+     * pe care profesorul îl are în față.
+     */
+    public function updatedEntryDate(): void
     {
-        $this->termParam = (string) $id;
         $this->resetEntries();
     }
 

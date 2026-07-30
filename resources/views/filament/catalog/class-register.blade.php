@@ -63,24 +63,6 @@
                             @endunless
                         </button>
                     @endforeach
-
-                    @if ($terms->count() > 1)
-                        <span class="ms-auto flex shrink-0 items-center gap-2">
-                            @foreach ($terms as $term)
-                                <button
-                                    type="button"
-                                    wire:click="openTerm({{ $term->id }})"
-                                    @class([
-                                        'shrink-0 rounded-full px-3 py-1 text-xs font-medium ring-1 transition duration-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
-                                        'bg-gray-900 text-white ring-gray-900 dark:bg-white dark:text-gray-900 dark:ring-white' => $activeTerm?->id === $term->id,
-                                        'bg-white text-gray-600 ring-gray-950/10 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10' => $activeTerm?->id !== $term->id,
-                                    ])
-                                >
-                                    {{ $term->name }}
-                                </button>
-                            @endforeach
-                        </span>
-                    @endif
                 </div>
             @endif
         </div>
@@ -115,7 +97,10 @@
                 {{-- ── Bara de introducere rapidă (o singură dată pentru tot batch-ul) ──── --}}
                 @if ($canGrade || $canAbsent)
                     <div class="flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
-                        <div class="w-36">
+                        {{-- DATA e sursa UNICĂ: decide și semestrul în care intră totul, și pe cel
+                             afișat în borderou. De aceea nu mai există un selector separat de
+                             semestru — arătăm doar ce a rezultat din dată. --}}
+                        <div class="w-40">
                             <label for="borderou-date" class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
                                 {{ __('panel.fields.date') }}
                             </label>
@@ -123,10 +108,14 @@
                                 <x-filament::input
                                     id="borderou-date"
                                     type="date"
-                                    wire:model="entryDate"
+                                    wire:model.live="entryDate"
                                     max="{{ \Illuminate\Support\Carbon::today()->toDateString() }}"
                                 />
                             </x-filament::input.wrapper>
+
+                            @if ($activeTerm !== null)
+                                <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ $activeTerm->name }}</p>
+                            @endif
                         </div>
 
                         @if ($canGrade && $numeric)
@@ -240,9 +229,11 @@
                                                     <span class="text-gray-300 dark:text-gray-600">—</span>
                                                 @else
                                                     <div class="flex max-w-md flex-wrap gap-1">
+                                                        {{-- Fără tooltip: „Curentă 20.07" la survol arăta ca o valoare
+                                                             în plus și inducea în eroare (raportat 2026-07-30).
+                                                             Tipul rămâne vizibil unde contează — teza/ESI, prin culoare. --}}
                                                         @foreach ($row['grades'] as $grade)
                                                             <span
-                                                                title="{{ $grade['type'] }} · {{ $grade['date'] }}"
                                                                 @class([
                                                                     'inline-flex h-6 min-w-6 items-center justify-center rounded px-1 text-xs font-semibold tabular-nums',
                                                                     'bg-primary-50 text-primary-700 ring-1 ring-primary-600/30 dark:bg-primary-400/10 dark:text-primary-300 dark:ring-primary-400/30' => $grade['weighted'],

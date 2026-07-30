@@ -9,6 +9,7 @@ use App\Enums\EvaluationType;
 use App\Enums\RequestStatus;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
+use App\Models\AcademicYear;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
@@ -59,6 +60,14 @@ class SeedDemoLife extends Command
 
     /** @var array<string, list<int>> */
     private array $manifest = [];
+
+    /**
+     * Intervalele REALE ale semestrului/anului, dacă rularea le-a extins pentru testare —
+     * se serializează lângă manifest și se restaurează la `--remove`.
+     *
+     * @var array{term_id: int, ends_on: string, year_id: int|null, year_ends_on: string|null}|null
+     */
+    private ?array $termExtension = null;
 
     private string $manifestPath;
 
@@ -125,7 +134,9 @@ class SeedDemoLife extends Command
 
         try {
             DB::transaction(function () use ($context, $messenger): void {
-                // ÎNAINTE de note: alocările decid ce note se pot genera.
+                // ÎNAINTE de note: semestrul trebuie să acopere ziua de azi (altfel nici seederul,
+                // nici testerii nu pot scrie), iar alocările decid ce note se pot genera.
+                $this->ensureTermCoversToday($context);
                 $this->ensureSecondSubject($context);
                 $this->seedGrades($context);
                 $this->seedGradeCorrections($context);
@@ -141,7 +152,14 @@ class SeedDemoLife extends Command
         }
 
         File::ensureDirectoryExists(dirname($this->manifestPath));
-        File::put($this->manifestPath, (string) json_encode($this->manifest, JSON_PRETTY_PRINT));
+
+        $payload = $this->manifest;
+
+        if ($this->termExtension !== null) {
+            $payload['term_extension'] = $this->termExtension;
+        }
+
+        File::put($this->manifestPath, (string) json_encode($payload, JSON_PRETTY_PRINT));
 
         $this->report();
 
@@ -309,6 +327,54 @@ class SeedDemoLife extends Command
     }
 
     // ── Scenariile ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * SEMESTRUL TREBUIE SĂ ACOPERE ZIUA DE AZI (cerință 2026-07-30).
+     *
+     * Anul școlar se încheie în iunie, dar testarea continuă peste vară: pe 30 iulie nicio dată nu
+     * mai cădea într-un semestru, iar orice notă era respinsă de garda de rollover din
+     * `EnforcesGradeScope` — „Nu există un semestru definit pentru această dată". Garda e corectă
+     * (o notă de vară n-are voie să cadă tăcut în semestrul anului încheiat); ce lipsea era un
+     * semestru care să acopere perioada de test.
+     *
+     * Extindem semestrul CURENT până la sfârșitul lunii curente, împreună cu anul lui — ambele
+     * valori vechi intră în manifest și se restaurează la `--remove`. Nu inventăm un semestru nou:
+     * ar apărea în rapoarte și în foaia matricolă ca perioadă reală de studiu.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    private function ensureTermCoversToday(array $context): void
+    {
+        /** @var Term $term */
+        $term = $context['term'];
+        $today = Carbon::today();
+
+        if ($term->ends_on === null || ! $today->isAfter($term->ends_on)) {
+            return;
+        }
+
+        $newEnd = $today->copy()->endOfMonth();
+        $year = $term->academicYear;
+
+        $this->termExtension = [
+            'term_id' => (int) $term->getKey(),
+            'ends_on' => $term->ends_on->toDateString(),
+            'year_id' => $year instanceof AcademicYear ? (int) $year->getKey() : null,
+            'year_ends_on' => $year?->ends_on?->toDateString(),
+        ];
+
+        // Query builder deliberat: gărzile de model pe intervale de semestru ar respinge o
+        // extindere peste sfârșitul anului, iar aici extindem ambele deodată, coerent.
+        DB::table('terms')->where('id', $term->getKey())->update(['ends_on' => $newEnd->toDateString()]);
+
+        if ($year !== null && $year->ends_on !== null && $newEnd->isAfter($year->ends_on)) {
+            DB::table('academic_years')->where('id', $year->getKey())->update(['ends_on' => $newEnd->toDateString()]);
+        }
+
+        $term->refresh();
+
+        $this->line("Semestrul „{$term->name}” extins până la {$newEnd->format('d.m.Y')} — testarea continuă peste vacanță.");
+    }
 
     /**
      * A DOUA DISCIPLINĂ pentru contul demo de profesor (cerință 2026-07-30).
@@ -878,6 +944,8 @@ class SeedDemoLife extends Command
             ->where('data', 'like', '%'.self::MARK.'%')
             ->delete()];
 
+        $this->restoreTermExtension($manifest);
+
         File::delete($this->manifestPath);
 
         $this->table(['Tabel', 'Șterse'], $rows);
@@ -894,6 +962,33 @@ class SeedDemoLife extends Command
         $this->info('Activitatea demo a fost curățată.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Readuce semestrul (și anul) la intervalele lor reale, dacă rularea le extinsese pentru
+     * testare. Structura anului școlar nu are voie să rămână alterată după curățare.
+     *
+     * @param  array<string, mixed>  $manifest
+     */
+    private function restoreTermExtension(array $manifest): void
+    {
+        $extension = $manifest['term_extension'] ?? null;
+
+        if (! is_array($extension) || ! isset($extension['term_id'], $extension['ends_on'])) {
+            return;
+        }
+
+        DB::table('terms')
+            ->where('id', (int) $extension['term_id'])
+            ->update(['ends_on' => (string) $extension['ends_on']]);
+
+        if (isset($extension['year_id'], $extension['year_ends_on'])) {
+            DB::table('academic_years')
+                ->where('id', (int) $extension['year_id'])
+                ->update(['ends_on' => (string) $extension['year_ends_on']]);
+        }
+
+        $this->line('Semestrul a fost readus la intervalul lui real.');
     }
 
     /**
