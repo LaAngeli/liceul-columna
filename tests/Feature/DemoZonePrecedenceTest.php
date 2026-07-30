@@ -13,8 +13,25 @@
 
 use Illuminate\Support\Facades\File;
 
+/**
+ * ⚠️ `storage_path()` NU e izolat în teste — un `File::delete()` naiv ștergea manifestul REAL al
+ * zonei demo din mediul de dezvoltare, iar cu el legăturile salvate pentru `--remove`
+ * (pățit 2026-07-30). Starea se salvează și se pune la loc.
+ */
+beforeEach(function () {
+    $this->zonePath = storage_path('app/demo/zone.json');
+    $this->zoneBackup = File::exists($this->zonePath) ? File::get($this->zonePath) : null;
+});
+
 afterEach(function () {
-    File::delete(storage_path('app/demo/zone.json'));
+    if ($this->zoneBackup !== null) {
+        File::ensureDirectoryExists(dirname($this->zonePath));
+        File::put($this->zonePath, $this->zoneBackup);
+
+        return;
+    }
+
+    File::delete($this->zonePath);
 });
 
 it('refuză să lege conturile demo de fișe reale cât timp există o zonă demo', function () {

@@ -10,8 +10,33 @@
 
 use Illuminate\Support\Facades\File;
 
+/**
+ * ⚠️ Comanda citește manifestul din `storage_path()`, care în teste NU e izolat — e storage-ul real
+ * al mediului de dezvoltare. Un `File::delete()` naiv în afterEach ștergea manifestul ADEVĂRAT al
+ * zonei demo, iar cu el legăturile reale salvate pentru `app:seed-demo-zone --remove` (pățit
+ * 2026-07-30). Testele salvează starea și o pun la loc, orice cale ar lua.
+ */
+beforeEach(function () {
+    // AMBELE manifeste: testele umblă la zone.json (garda) ȘI la life.json (curățarea).
+    $this->manifestBackups = [];
+
+    foreach (['zone', 'life'] as $name) {
+        $path = storage_path("app/demo/{$name}.json");
+        $this->manifestBackups[$path] = File::exists($path) ? File::get($path) : null;
+    }
+});
+
 afterEach(function () {
-    File::delete(storage_path('app/demo/zone.json'));
+    foreach ($this->manifestBackups as $path => $contents) {
+        if ($contents === null) {
+            File::delete($path);
+
+            continue;
+        }
+
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, $contents);
+    }
 });
 
 it('refuză să genereze activitate fără zonă demo — altfel ar scrie pe elevi reali', function () {

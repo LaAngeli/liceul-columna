@@ -63,6 +63,14 @@ class SeedDemoLife extends Command
     private string $manifestPath;
 
     /**
+     * A doua disciplină a profesorului demo, în ordinea preferinței: clasele contului sunt I–III,
+     * deci „Științe" înaintea Geografiei, iar Chimia/Informatica doar dacă nimic altceva nu e liber.
+     *
+     * @var list<int>
+     */
+    private const SECOND_SUBJECT_PREFERENCE = [6, 9, 15, 13, 12];
+
+    /**
      * Nume pentru profesorii demo — realiste, DELIBERAT interne: `fake()` vine din require-dev și
      * lipsește în producție (`composer install --no-dev`), unde comanda chiar trebuie să ruleze.
      *
@@ -117,6 +125,8 @@ class SeedDemoLife extends Command
 
         try {
             DB::transaction(function () use ($context, $messenger): void {
+                // ÎNAINTE de note: alocările decid ce note se pot genera.
+                $this->ensureSecondSubject($context);
                 $this->seedGrades($context);
                 $this->seedGradeCorrections($context);
                 $this->seedAbsencesAndMotivations($context);
@@ -299,6 +309,101 @@ class SeedDemoLife extends Command
     }
 
     // ── Scenariile ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * A DOUA DISCIPLINĂ pentru contul demo de profesor (cerință 2026-07-30).
+     *
+     * Predând o singură disciplină, contul nu putea valida jumătate din logica de scoping: în
+     * navigator, dimensiunea „Discipline" arăta un card unic, chip-urile de sub-navigare nu aveau
+     * între ce comuta, iar regula „dirigintele vede toată clasa, profesorul doar disciplinele lui"
+     * nu se putea distinge de „profesorul vede tot ce predă" — cu o disciplină, cele două arată
+     * identic.
+     *
+     * Disciplina se alege LIBERĂ în clasele lui, ca să nu ia locul altui profesor demo (matematica
+     * la 1A e a lui Ursu Valentin) și potrivită treptei — clasele contului sunt I–III, deci
+     * „Științe" înaintea Chimiei sau Informaticii. Alocările intră în manifest: la `--remove`
+     * dispar, iar structura zonei rămâne cum a lăsat-o `app:seed-demo-zone`.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    private function ensureSecondSubject(array $context): void
+    {
+        /** @var User $prof */
+        $prof = $context['prof'];
+        $teacher = $prof->teacher;
+
+        if (! $teacher instanceof Teacher) {
+            return;
+        }
+
+        $taught = $teacher->taughtSubjectIds();
+        $classIds = $teacher->taughtSchoolClassIds();
+
+        // Idempotent: dacă are deja două discipline, nu inventăm a treia — dar ADOPT în manifest
+        // alocările adăugate de o rulare anterioară, altfel ele ar supraviețui unui `--remove`
+        // (aceeași clasă de scurgere pe care o prinde {@see purgeMarkedLeftovers} la rândurile
+        // marcate; alocările nu au unde să poarte marcaj, deci trebuie urmărite explicit).
+        if (count($taught) >= 2) {
+            $adopted = array_values(
+                DB::table('teaching_assignments')
+                    ->where('teacher_id', $teacher->getKey())
+                    ->whereIn('subject_id', self::SECOND_SUBJECT_PREFERENCE)
+                    ->whereNull('deleted_at')
+                    ->pluck('id')
+                    ->map(static fn ($id): int => (int) $id)
+                    ->all()
+            );
+
+            if ($adopted !== []) {
+                $this->manifest['teaching_assignments'] = $adopted;
+                $this->line('Adoptate '.count($adopted).' alocări existente ale disciplinei secundare (rămân curățabile).');
+            }
+
+            return;
+        }
+
+        if ($classIds === []) {
+            return;
+        }
+
+        // Ocupate = orice disciplină deja predată în ACESTE clase, de oricine.
+        $occupied = DB::table('teaching_assignments')
+            ->whereIn('school_class_id', $classIds)
+            ->whereNull('deleted_at')
+            ->pluck('subject_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        $subjectId = DB::table('subjects')
+            ->whereIn('id', self::SECOND_SUBJECT_PREFERENCE)
+            ->whereNotIn('id', $occupied)
+            ->whereNull('deleted_at')
+            ->orderByRaw('FIELD(id, '.implode(',', self::SECOND_SUBJECT_PREFERENCE).')')
+            ->value('id');
+
+        if ($subjectId === null) {
+            $this->warn('Nicio disciplină liberă pentru a doua alocare a profesorului demo.');
+
+            return;
+        }
+
+        foreach ($classIds as $classId) {
+            $assignmentId = DB::table('teaching_assignments')->insertGetId([
+                'teacher_id' => $teacher->getKey(),
+                'subject_id' => $subjectId,
+                'school_class_id' => $classId,
+                'english_group' => null,
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+
+            $this->manifest['teaching_assignments'][] = (int) $assignmentId;
+        }
+
+        $name = DB::table('subjects')->where('id', $subjectId)->value('name');
+
+        $this->line("Profesorul demo predă acum și „{$name}” la ".count($classIds).' clase.');
+    }
 
     /**
      * NOTE coerente: pe alocările REALE ale claselor (disciplina se predă chiar acolo), eșalonate
@@ -549,53 +654,60 @@ class SeedDemoLife extends Command
             ['Lucrare practică', 'Completați fișa de observație distribuită la oră.', null],
         ];
 
+        $profTeacherId = $context['prof']->teacher?->getKey();
+        $topicIndex = 0;
+
         foreach ($context['classes'] as $index => $class) {
-            $pair = DB::table('teaching_assignments')
+            // TOATE disciplinele profesorului demo la clasa asta, plus una a altcuiva: cabinetul
+            // elevului trebuie să arate teme de la mai mulți profesori, iar contul demo trebuie să
+            // aibă temă pe FIECARE disciplină pe care o predă (altfel a doua alocare n-are viață).
+            $pairs = DB::table('teaching_assignments')
                 ->where('school_class_id', $class->getKey())
                 ->whereNull('deleted_at')
-                ->first();
+                ->orderByRaw('CASE WHEN teacher_id = ? THEN 0 ELSE 1 END', [$profTeacherId])
+                ->limit(3)
+                ->get();
 
-            if ($pair === null) {
-                continue;
-            }
+            foreach ($pairs as $pair) {
+                $teacher = Teacher::query()->whereKey($pair->teacher_id)->first();
+                $subject = DB::table('subjects')->where('id', $pair->subject_id)->first();
+                $topic = $topics[$topicIndex % count($topics)];
+                $topicIndex++;
 
-            $teacher = Teacher::query()->whereKey($pair->teacher_id)->first();
-            $subject = DB::table('subjects')->where('id', $pair->subject_id)->first();
-            $topic = $topics[$index % count($topics)];
-
-            $homework = new HomeworkAssignment;
-            $homework->forceFill([
-                'subject_id' => $pair->subject_id,
-                'teacher_id' => $pair->teacher_id,
-                'subject_name' => $subject->name ?? '—',
-                'author_name' => $teacher instanceof Teacher ? $teacher->full_name : '—',
-                'grade_level' => $class->grade_level,
-                'section' => $class->section,
-                'assigned_on' => Carbon::now()->subDays(3)->toDateString(),
-                'due_on' => Carbon::now()->addDays(4)->toDateString(),
-                'topic' => self::MARK.' '.$topic[0],
-                'required_task' => $topic[1],
-                'optional_task' => $topic[2],
-            ])->save();
-
-            $this->manifest['homework'][] = (int) $homework->getKey();
-
-            // O singură corecție de temă, pe prima clasă: fluxul are alt aprobator decât notele
-            // (include administratorul operațional), deci merită testat explicit.
-            if ($index === 0) {
-                $correction = new HomeworkCorrection;
-                $correction->forceFill([
-                    'homework_assignment_id' => $homework->getKey(),
-                    'requested_by_user_id' => $context['prof']->getKey(),
-                    'old_topic' => $homework->topic,
-                    'new_topic' => self::MARK.' '.$topic[0].' (revizuit)',
-                    'old_required_task' => $homework->required_task,
-                    'new_required_task' => $topic[1].' Termenul se prelungește cu trei zile.',
-                    'reason' => self::MARK.' Termenul coincide cu teza la altă disciplină; solicit amânarea și reformularea cerinței.',
-                    'status' => RequestStatus::Pending->value,
+                $homework = new HomeworkAssignment;
+                $homework->forceFill([
+                    'subject_id' => $pair->subject_id,
+                    'teacher_id' => $pair->teacher_id,
+                    'subject_name' => $subject->name ?? '—',
+                    'author_name' => $teacher instanceof Teacher ? $teacher->full_name : '—',
+                    'grade_level' => $class->grade_level,
+                    'section' => $class->section,
+                    'assigned_on' => Carbon::now()->subDays(random_int(1, 5))->toDateString(),
+                    'due_on' => Carbon::now()->addDays(random_int(2, 7))->toDateString(),
+                    'topic' => self::MARK.' '.$topic[0],
+                    'required_task' => $topic[1],
+                    'optional_task' => $topic[2],
                 ])->save();
 
-                $this->manifest['homework_corrections'][] = (int) $correction->getKey();
+                $this->manifest['homework'][] = (int) $homework->getKey();
+
+                // O singură corecție de temă, pe prima temă a PROFESORULUI DEMO: el e solicitantul,
+                // iar fluxul are alt aprobator decât notele (include AO), deci merită testat explicit.
+                if ($index === 0 && $pair->teacher_id === $profTeacherId && ($this->manifest['homework_corrections'] ?? []) === []) {
+                    $correction = new HomeworkCorrection;
+                    $correction->forceFill([
+                        'homework_assignment_id' => $homework->getKey(),
+                        'requested_by_user_id' => $context['prof']->getKey(),
+                        'old_topic' => $homework->topic,
+                        'new_topic' => self::MARK.' '.$topic[0].' (revizuit)',
+                        'old_required_task' => $homework->required_task,
+                        'new_required_task' => $topic[1].' Termenul se prelungește cu trei zile.',
+                        'reason' => self::MARK.' Termenul coincide cu teza la altă disciplină; solicit amânarea și reformularea cerinței.',
+                        'status' => RequestStatus::Pending->value,
+                    ])->save();
+
+                    $this->manifest['homework_corrections'][] = (int) $correction->getKey();
+                }
             }
         }
     }
@@ -712,8 +824,11 @@ class SeedDemoLife extends Command
 
     private function remove(): int
     {
+        // Plasa de siguranță rulează ȘI fără manifest: rândurile marcate scăpate dintr-o rulare
+        // întreruptă nu au altă cale de întoarcere, iar la go-live curățarea trebuie să fie totală.
         if (! File::exists($this->manifestPath)) {
-            $this->warn('Fără manifest — nimic de curățat.');
+            $this->warn('Fără manifest — curăț doar rândurile marcate „[DEMO]" rămase.');
+            $this->table(['Tabel', 'Șterse (după marcaj)'], $this->purgeMarkedLeftovers([]));
 
             return self::SUCCESS;
         }
@@ -732,6 +847,9 @@ class SeedDemoLife extends Command
             'homework' => 'homework_assignments',
             'absences' => 'absences',
             'grades' => 'grades',
+            // Alocările LA FINAL: notele și temele le referă prin (clasă, disciplină), deci se
+            // șterg întâi ele — altfel ar rămâne date pe o disciplină care nu se mai predă.
+            'teaching_assignments' => 'teaching_assignments',
         ];
 
         $rows = [];
@@ -763,9 +881,64 @@ class SeedDemoLife extends Command
         File::delete($this->manifestPath);
 
         $this->table(['Tabel', 'Șterse'], $rows);
+
+        // Ce a scăpat manifestului (rulare întreruptă, manifest suprascris între versiuni) —
+        // raportat SEPARAT, ca diferența să fie vizibilă, nu topită în cifrele de mai sus.
+        $leftovers = $this->purgeMarkedLeftovers($manifest);
+
+        if ($leftovers !== []) {
+            $this->warn('Rânduri marcate rămase din rulări anterioare, curățate acum:');
+            $this->table(['Tabel', 'Șterse (după marcaj)'], $leftovers);
+        }
+
         $this->info('Activitatea demo a fost curățată.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * PLASĂ DE SIGURANȚĂ: rândurile purtând marcajul „[DEMO]" în text, care NU sunt în manifest.
+     *
+     * De ce e necesară: o rulare întreruptă înainte de scrierea manifestului lasă rânduri fără
+     * nicio evidență (pățit în dezvoltare — 150 de teme în bază față de 45 în manifest). Fără acest
+     * pas, ele ar supraviețui curățării de la go-live, adică exact ce principiul de delimitare
+     * demo/real trebuie să prevină.
+     *
+     * Se curăță DOAR ce poartă marcaj în conținut. Notele și absențele nu au unde să-l poarte
+     * (sunt numere și date), dar ele atârnă de elevii demo și dispar odată cu zona, la
+     * `app:seed-demo-zone --remove`.
+     *
+     * @param  array<string, list<int>>  $manifest
+     * @return list<array{0: string, 1: int}>
+     */
+    private function purgeMarkedLeftovers(array $manifest): array
+    {
+        $marked = [
+            ['homework_assignments', 'topic', 'homework'],
+            ['homework_corrections', 'reason', 'homework_corrections'],
+            ['grade_corrections', 'reason', 'grade_corrections'],
+            ['absence_motivations', 'reason', 'absence_motivations'],
+            ['messages', 'subject', 'messages'],
+        ];
+
+        $rows = [];
+
+        foreach ($marked as [$table, $column, $manifestKey]) {
+            $query = DB::table($table)->where($column, 'like', '%'.self::MARK.'%');
+
+            // Ce e deja în manifest s-a șters mai sus; aici căutăm exclusiv scăpările.
+            if (($manifest[$manifestKey] ?? []) !== []) {
+                $query->whereNotIn('id', $manifest[$manifestKey]);
+            }
+
+            $deleted = $query->delete();
+
+            if ($deleted > 0) {
+                $rows[] = [$table, $deleted];
+            }
+        }
+
+        return $rows;
     }
 
     private function report(): void
