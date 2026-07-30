@@ -23,6 +23,17 @@ class DemoAccounts extends Command
      */
     public const MARKER = '[DEMO]';
 
+    /**
+     * Numele marcat cu prefixul demo, FĂRĂ dublare: fișele demo (din zona demo) își poartă deja
+     * marcajul în nume, iar prefixarea oarbă producea „[DEMO] [DEMO] …" (observat 2026-07-31).
+     */
+    public static function markedName(string $name): string
+    {
+        return str_starts_with($name, self::MARKER)
+            ? $name
+            : self::MARKER.' '.$name;
+    }
+
     public function handle(): int
     {
         $accounts = User::query()

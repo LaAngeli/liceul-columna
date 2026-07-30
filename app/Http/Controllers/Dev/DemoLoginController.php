@@ -6,6 +6,7 @@ use App\Console\Commands\DemoAccounts;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\DemoSecurity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 
@@ -35,6 +36,11 @@ class DemoLoginController extends Controller
             ->first();
 
         abort_if($user === null, 404, "Nu există un cont demo pentru rolul „{$role}”. Rulează: php artisan db:seed --class=DemoRoleAccountsSeeder");
+
+        // AUTO-VINDECARE (2026-07-31): garantăm trecerea de securitate CHIAR ACUM, nu ne bazăm pe
+        // seed. Altfel provocarea de cod pe email reapărea de câte ori contul își pierdea starea
+        // (recreat pe altă cale, resetat) sau configul de obligativitate 2FA era cache-uit pe true.
+        DemoSecurity::pass($user);
 
         Auth::guard('web')->login($user);
 

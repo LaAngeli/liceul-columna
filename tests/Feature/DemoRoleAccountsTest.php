@@ -86,6 +86,34 @@ it('login-ul de dev duce fiecare rol la panou sau cabinet, fără redirect la se
         ->assertDontSee('configurare-2fa');
 })->with(array_map(fn (UserRole $r) => $r->value, UserRole::cases()));
 
+it('login-ul de dev SE AUTO-VINDECĂ: cont demo cu 2FA șters + obligativitate pe TRUE → tot intră', function () {
+    // Scenariul recurent (2026-07-31): `app:demo-accounts --reset-2fa` a golit 2FA de pe conturile
+    // demo, iar `SECURITY_2FA_STAFF` era cache-uit pe true → provocarea de cod reapărea. Aici
+    // reproducem exact starea stricată și verificăm că login-ul demo o repară singur.
+    $director = User::query()->where('name', 'like', '[DEMO]%')
+        ->whereHas('roles', fn ($q) => $q->where('name', UserRole::Director->value))->firstOrFail();
+
+    $director->forceFill([
+        'two_factor_email_enabled_at' => null,
+        'must_change_password' => true,
+        'privacy_acknowledged_at' => null,
+        'privacy_acknowledged_version' => null,
+    ])->save();
+
+    expect($director->fresh()->hasTwoFactorConfigured())->toBeFalse();
+
+    // Cu obligativitatea pe true (ca un config cache-uit), login-ul demo intră fără provocare.
+    config(['security.two_factor.required_staff' => true]);
+
+    get('/_demo/login/'.UserRole::Director->value)->assertRedirect('/admin');
+
+    $this->actingAs($director->fresh())->get('/admin')
+        ->assertOk()
+        ->assertDontSee('configurare-2fa');
+
+    expect($director->fresh()->hasTwoFactorConfigured())->toBeTrue();
+});
+
 it('login-ul de dev refuză un rol inexistent', function () {
     get('/_demo/login/rol-inventat')->assertNotFound();
 });

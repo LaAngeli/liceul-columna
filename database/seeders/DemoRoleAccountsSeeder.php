@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\User;
+use App\Support\DemoSecurity;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 
@@ -95,7 +96,7 @@ class DemoRoleAccountsSeeder extends Seeder
 
         if ($teacher !== null) {
             $teacher->update(['user_id' => $user->id]);
-            $user->update(['name' => DemoAccounts::MARKER.' '.$teacher->full_name]);
+            $user->update(['name' => DemoAccounts::markedName($teacher->full_name)]);
             $this->command->info(sprintf('  %-28s → %s%s', $email, $teacher->full_name, $homeroom ? ' (diriginte)' : ''));
         } else {
             $this->command->warn("  {$email}: fără fișă de profesor disponibilă (rulează app:import-legacy).");
@@ -119,7 +120,7 @@ class DemoRoleAccountsSeeder extends Seeder
 
         if ($student !== null) {
             $student->update(['user_id' => $user->id]);
-            $user->update(['name' => DemoAccounts::MARKER.' '.$student->full_name]);
+            $user->update(['name' => DemoAccounts::markedName($student->full_name)]);
             $this->command->info(sprintf('  %-28s → %s', 'elev@columna.test', $student->full_name));
         }
 
@@ -172,12 +173,7 @@ class DemoRoleAccountsSeeder extends Seeder
      */
     private function passSecurity(User $user): void
     {
-        $user->forceFill([
-            'must_change_password' => false,
-            'email_verified_at' => $user->email_verified_at ?? now(),
-            'two_factor_email_enabled_at' => now(),
-            'privacy_acknowledged_version' => (string) config('privacy.notice_version'),
-            'privacy_acknowledged_at' => now(),
-        ])->save();
+        // Sursă unică, partajată cu login-ul de dev (care se auto-vindecă apelând-o la fiecare intrare).
+        DemoSecurity::pass($user);
     }
 }
