@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Observers\TeachingAssignmentObserver;
 use Database\Factories\TeachingAssignmentFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
+#[ObservedBy(TeachingAssignmentObserver::class)]
 class TeachingAssignment extends Model implements Auditable
 {
     // Alocarea (profesor×clasă×disciplină) = cine POATE scrie note unde — schimbările ei sunt de audit.

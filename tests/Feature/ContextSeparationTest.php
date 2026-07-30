@@ -200,10 +200,16 @@ it('mono-rol păstrează perimetrul fuzionat — contractul F0 pe scoping', func
     $monoTeacher = Teacher::factory()->create(['user_id' => $mono->id]);
 
     $this->classB->update(['homeroom_teacher_id' => null]);
-    TeachingAssignment::factory()->create([
+
+    // QUERY BUILDER, nu model: pe calea aplicației, observerul de alocări i-ar acorda membria
+    // „Profesor" (cumul-ul, 2026-07-31) și contul ar deveni MULTI-rol. Aici reproducem exact
+    // starea MOȘTENITĂ din import — mono-rol, cu perimetru fuzionat.
+    TeachingAssignment::query()->insert([
         'teacher_id' => $monoTeacher->id,
         'school_class_id' => $this->classB->id,
         'subject_id' => $this->subject->id,
+        'created_at' => now(),
+        'updated_at' => now(),
     ]);
     SchoolClass::query()->whereKey($this->classC->id)->update(['homeroom_teacher_id' => $monoTeacher->id]);
 
