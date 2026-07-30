@@ -65,10 +65,14 @@ class ClassRegister extends Page
     public ?string $subjectParam = null;
 
     /**
-     * Introducerea rapidă, per elev: nota tastată + bifa de absență. Deferred (un singur request
-     * la salvare) — exact ce face posibilă viteza.
+     * Introducerea rapidă, per elev: nota tastată + STAREA absenței.
      *
-     * @var array<int|string, array{value?: string|null, absent?: bool}>
+     * `absence` ia una din trei valori: `null` (elev prezent), `motivated`, `unmotivated` — tipul
+     * se alege direct pe rând, într-un singur click (cerința beneficiarului, 2026-07-30). Varianta
+     * anterioară — bifă „absent" + un comutator global „sunt motivate" — cerea doi pași și lăsa
+     * statutul ambiguu până la salvare, iar un batch nu putea amesteca motivate cu nemotivate.
+     *
+     * @var array<int|string, array{value?: string|null, absence?: string|null}>
      */
     public array $entries = [];
 
@@ -77,8 +81,10 @@ class ClassRegister extends Page
 
     public string $entryType = EvaluationType::Curenta->value;
 
-    /** Absențele bifate se consemnează motivate/nemotivate în bloc (implicit nemotivate). */
-    public bool $entryMotivated = false;
+    /** Stările posibile ale unei absențe pe rând (o singură stare activă la un moment dat). */
+    public const ABSENCE_MOTIVATED = 'motivated';
+
+    public const ABSENCE_UNMOTIVATED = 'unmotivated';
 
     public function mount(): void
     {
@@ -373,7 +379,7 @@ class ClassRegister extends Page
      *
      * @return list<array{
      *     student: Student,
-     *     grades: list<array{value: string, weighted: bool}>,
+     *     grades: list<array{value: string, weighted: bool, tooltip: string}>,
      *     average: string|null,
      *     absences: array{total: int, unmotivated: int, dates: string}
      * }>
@@ -456,17 +462,25 @@ class ClassRegister extends Page
             $studentAbsences = $absences->get($student->getKey(), new Collection);
             $average = $averages->get($student->getKey());
 
-            /** @var list<array{value: string, weighted: bool}> $gradeChips */
+            /** @var list<array{value: string, weighted: bool, tooltip: string}> $gradeChips */
             $gradeChips = [];
 
             foreach ($studentGrades as $grade) {
+                $displayValue = $grade->value !== null
+                    ? (string) (int) (float) $grade->value
+                    : (string) ($grade->calificativ ?? '—');
+
                 $gradeChips[] = [
-                    'value' => $grade->value !== null
-                        ? (string) (int) (float) $grade->value
-                        : (string) ($grade->calificativ ?? '—'),
-                    // Teza/ESI se disting prin culoare. Tipul și data NU se mai transportă: erau
-                    // folosite doar în tooltipul eliminat, iar datele nefolosite devin cod mort.
+                    'value' => $displayValue,
+                    // Teza/ESI se disting prin culoare; tipul și DATA notei se citesc la survol.
+                    // Formulare explicită („Nota 8 · Curentă · 20.07.2026”): prima variantă arăta
+                    // doar „Curentă 20.07" și părea o a doua valoare, nu o descriere a notei.
                     'weighted' => $grade->evaluation_type !== EvaluationType::Curenta,
+                    'tooltip' => trans('panel.class_register.grade_tooltip', [
+                        'value' => $displayValue,
+                        'type' => $grade->evaluation_type->label(),
+                        'date' => $grade->graded_on->format('d.m.Y'),
+                    ]),
                 ];
             }
 
@@ -479,8 +493,9 @@ class ClassRegister extends Page
                 'absences' => [
                     'total' => $studentAbsences->count(),
                     'unmotivated' => $studentAbsences->where('is_motivated', false)->count(),
+                    // Datele absențelor, cu bifă pe cele motivate — se citesc la survol pe contor.
                     'dates' => $studentAbsences
-                        ->map(fn (Absence $absence): string => $absence->occurred_on->format('d.m').($absence->is_motivated ? ' ✓' : ''))
+                        ->map(fn (Absence $absence): string => $absence->occurred_on->format('d.m.Y').($absence->is_motivated ? ' ✓' : ''))
                         ->implode(', '),
                 ],
             ];
@@ -536,8 +551,24 @@ class ClassRegister extends Page
     private function resetEntries(): void
     {
         $this->entries = [];
-        $this->entryMotivated = false;
         $this->resetErrorBag();
+    }
+
+    /**
+     * Comută starea absenței pe un rând: click pe o opțiune o activează, click pe cea DEJA activă
+     * o anulează (elevul redevine prezent), click pe cealaltă corectează direct — fără să treci
+     * prin „deselectează, apoi alege". O singură stare activă, garantat de model: câmpul ține o
+     * valoare, nu două bife.
+     */
+    public function toggleAbsence(int $studentId, string $state): void
+    {
+        if (! in_array($state, [self::ABSENCE_MOTIVATED, self::ABSENCE_UNMOTIVATED], true)) {
+            return;
+        }
+
+        $current = $this->entries[$studentId]['absence'] ?? null;
+
+        $this->entries[$studentId]['absence'] = $current === $state ? null : $state;
     }
 
     // ── Salvarea în masă ────────────────────────────────────────────────────────────────────
@@ -581,13 +612,18 @@ class ClassRegister extends Page
             }
 
             $value = isset($entry['value']) ? trim((string) $entry['value']) : '';
-            $absent = (bool) ($entry['absent'] ?? false);
+            $absence = $entry['absence'] ?? null;
 
-            if ($value === '' && ! $absent) {
+            // Doar stările cunoscute trec; orice altceva din payload = elev prezent.
+            if (! in_array($absence, [self::ABSENCE_MOTIVATED, self::ABSENCE_UNMOTIVATED], true)) {
+                $absence = null;
+            }
+
+            if ($value === '' && $absence === null) {
                 continue;
             }
 
-            $batch[$studentId] = ['value' => $value, 'absent' => $absent];
+            $batch[$studentId] = ['value' => $value, 'absence' => $absence];
         }
 
         if ($batch === []) {
@@ -635,14 +671,15 @@ class ClassRegister extends Page
                     }
                 }
 
-                if ($entry['absent'] && $canAbsent) {
+                if ($entry['absence'] !== null && $canAbsent) {
                     try {
                         $data = $this->enforceAbsenceScope([
                             'student_id' => $studentId,
                             'subject_id' => (int) $subject->getKey(),
                             'school_class_id' => (int) $class->getKey(),
                             'occurred_on' => $date,
-                            'is_motivated' => $this->entryMotivated,
+                            // Statutul ales pe rând se scrie ca atare — fără transformări ulterioare.
+                            'is_motivated' => $entry['absence'] === self::ABSENCE_MOTIVATED,
                             'teacher_id' => $user->teacher?->getKey(),
                         ]);
 

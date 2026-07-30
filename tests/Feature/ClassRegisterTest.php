@@ -81,8 +81,8 @@ it('salvează un batch întreg — note și absențe pe mai mulți elevi — din
     Livewire::test(ClassRegister::class)
         ->set('entries', [
             (string) $a->id => ['value' => '9'],
-            (string) $b->id => ['value' => '7', 'absent' => false],
-            (string) $c->id => ['value' => '', 'absent' => true],
+            (string) $b->id => ['value' => '7', 'absence' => null],
+            (string) $c->id => ['value' => '', 'absence' => ClassRegister::ABSENCE_UNMOTIVATED],
         ])
         ->call('saveEntries')
         ->assertHasNoErrors();
@@ -143,7 +143,7 @@ it('absența duplicat (același elev, aceeași zi, aceeași disciplină) blochea
     ]);
 
     Livewire::test(ClassRegister::class)
-        ->set('entries', [(string) $a->id => ['absent' => true]])
+        ->set('entries', [(string) $a->id => ['absence' => ClassRegister::ABSENCE_UNMOTIVATED]])
         ->call('saveEntries')
         ->assertHasErrors(['entries.'.$a->id]);
 
@@ -189,8 +189,7 @@ it('dirigintele vede disciplina altuia, nu notează la ea, dar consemnează abse
     $a = $this->students->first();
 
     $component
-        ->set('entryMotivated', true)
-        ->set('entries', [(string) $a->id => ['value' => '9', 'absent' => true]])
+        ->set('entries', [(string) $a->id => ['value' => '9', 'absence' => ClassRegister::ABSENCE_MOTIVATED]])
         ->call('saveEntries')
         ->assertHasNoErrors();
 
@@ -311,7 +310,61 @@ it('semestrul afișat urmează DATA, nu un selector separat', function () {
     expect($inFirst->activeTerm()?->id)->toBe($first->id);
 });
 
-it('nu mai randează selector de semestru și nici tooltip pe note', function () {
+// ── Absența: tip ales direct, o singură stare activă (2026-07-30) ─────────────────────────────
+
+it('un batch poate amesteca absențe motivate și nemotivate', function () {
+    actingAs($this->profUser);
+
+    [$a, $b] = $this->students->all();
+
+    Livewire::test(ClassRegister::class)
+        ->set('entries', [
+            (string) $a->id => ['absence' => ClassRegister::ABSENCE_MOTIVATED],
+            (string) $b->id => ['absence' => ClassRegister::ABSENCE_UNMOTIVATED],
+        ])
+        ->call('saveEntries')
+        ->assertHasNoErrors();
+
+    // Statutul ales pe rând se scrie ca atare — fără flag global, fără transformări.
+    expect(Absence::query()->where('student_id', $a->id)->sole()->is_motivated)->toBeTrue()
+        ->and(Absence::query()->where('student_id', $b->id)->sole()->is_motivated)->toBeFalse();
+});
+
+it('comutatorul de absență ține o singură stare și se poate anula', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $component = Livewire::test(ClassRegister::class);
+
+    // Alegere directă…
+    $component->call('toggleAbsence', $a->id, ClassRegister::ABSENCE_UNMOTIVATED);
+    expect($component->get('entries')[$a->id]['absence'])->toBe(ClassRegister::ABSENCE_UNMOTIVATED);
+
+    // …corectare într-un singur click, fără pas intermediar…
+    $component->call('toggleAbsence', $a->id, ClassRegister::ABSENCE_MOTIVATED);
+    expect($component->get('entries')[$a->id]['absence'])->toBe(ClassRegister::ABSENCE_MOTIVATED);
+
+    // …iar click pe starea activă o anulează: elevul redevine prezent.
+    $component->call('toggleAbsence', $a->id, ClassRegister::ABSENCE_MOTIVATED);
+    expect($component->get('entries')[$a->id]['absence'])->toBeNull();
+
+    $component->call('saveEntries');
+    expect(Absence::query()->count())->toBe(0);
+});
+
+it('o stare de absență necunoscută din payload nu creează nimic', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+
+    Livewire::test(ClassRegister::class)
+        ->set('entries', [(string) $a->id => ['absence' => 'oricum-altcumva']])
+        ->call('saveEntries');
+
+    expect(Absence::query()->count())->toBe(0);
+});
+
+it('nu mai randează selector de semestru, dar data notei se citește la survol', function () {
     Term::factory()->for($this->year)->create([
         'number' => 2,
         'name' => 'Semestrul I',
@@ -338,8 +391,12 @@ it('nu mai randează selector de semestru și nici tooltip pe note', function ()
 
     // Selectorul de semestru a dispărut (data îl decide), la fel butonul lui.
     expect($html)->not->toContain('openTerm')
-        // Chipsul de notă nu mai poartă titlu („Curentă · 20.07" arăta ca o valoare în plus).
-        ->and($html)->not->toContain('title="'.EvaluationType::Curenta->label());
+        // Data aplicării notei e din nou la survol, formulată explicit (restabilit 2026-07-30).
+        ->and($html)->toContain(trans('panel.class_register.grade_tooltip', [
+            'value' => '9',
+            'type' => EvaluationType::Curenta->label(),
+            'date' => Carbon::today()->subDays(3)->format('d.m.Y'),
+        ]));
 });
 
 it('schimbarea datei golește intrările începute — nu se scriu pe alt semestru', function () {

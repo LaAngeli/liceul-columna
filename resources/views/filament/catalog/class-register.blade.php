@@ -79,8 +79,8 @@
                     filled: 0,
                     recount() {
                         const inputs = Array.from($el.querySelectorAll('[data-quick-input]')).filter((i) => i.value.trim() !== '').length;
-                        const checks = $el.querySelectorAll('[data-quick-check]:checked').length;
-                        this.filled = inputs + checks;
+                        const absences = $el.querySelectorAll('[data-quick-absence-active]').length;
+                        this.filled = inputs + absences;
                     },
                     focusNext(current) {
                         const inputs = Array.from($el.querySelectorAll('[data-quick-input]'));
@@ -90,75 +90,78 @@
                 }"
                 x-on:input.debounce.150ms="recount()"
                 x-on:change="recount()"
-                {{-- Primul input primește focus la deschidere: profesorul tastează direct, fără click. --}}
-                x-init="$nextTick(() => $el.querySelector('[data-quick-input]')?.focus())"
+                {{-- Primul input primește focus la deschidere: profesorul tastează direct, fără click.
+                     Contorul se recalculează și după re-randările Livewire — statutul absenței vine
+                     de la server, deci un simplu `input`/`change` nu l-ar prinde niciodată. --}}
+                x-init="
+                    $nextTick(() => $el.querySelector('[data-quick-input]')?.focus());
+                    Livewire.hook('morph.updated', () => recount());
+                "
                 class="space-y-4"
             >
                 {{-- ── Bara de introducere rapidă (o singură dată pentru tot batch-ul) ──── --}}
                 @if ($canGrade || $canAbsent)
-                    <div class="flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
-                        {{-- DATA e sursa UNICĂ: decide și semestrul în care intră totul, și pe cel
-                             afișat în borderou. De aceea nu mai există un selector separat de
-                             semestru — arătăm doar ce a rezultat din dată. --}}
-                        <div class="w-40">
-                            <label for="borderou-date" class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-                                {{ __('panel.fields.date') }}
-                            </label>
-                            <x-filament::input.wrapper>
-                                <x-filament::input
-                                    id="borderou-date"
-                                    type="date"
-                                    wire:model.live="entryDate"
-                                    max="{{ \Illuminate\Support\Carbon::today()->toDateString() }}"
-                                />
-                            </x-filament::input.wrapper>
-
-                            @if ($activeTerm !== null)
-                                <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ $activeTerm->name }}</p>
-                            @endif
-                        </div>
-
-                        @if ($canGrade && $numeric)
-                            <div class="w-44">
-                                <label for="borderou-type" class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-                                    {{ __('panel.fields.evaluation_type') }}
+                    {{-- Bara de control: fiecare câmp e o coloană cu etichetă sus, control de 2.25rem
+                         și subtitlu dedesubt — toate pe aceeași grilă, deci capetele se aliniază
+                         indiferent ce câmpuri sunt vizibile (raportat ca „unele mai sus, altele mai jos”). --}}
+                    <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+                        <div class="flex flex-wrap items-start gap-x-4 gap-y-3">
+                            {{-- DATA e sursa UNICĂ: decide și semestrul în care intră totul, și pe
+                                 cel afișat în borderou. Semestrul rezultat stă în linia de subtitlu,
+                                 aceeași pentru toate coloanele — nu împinge nimic mai jos. --}}
+                            <div class="w-40">
+                                <label for="borderou-date" class="mb-1 flex h-4 items-center text-xs font-medium text-gray-500 dark:text-gray-400">
+                                    {{ __('panel.fields.date') }}
                                 </label>
                                 <x-filament::input.wrapper>
-                                    <x-filament::input.select id="borderou-type" wire:model="entryType">
-                                        @foreach (\App\Enums\EvaluationType::cases() as $type)
-                                            <option value="{{ $type->value }}">{{ $type->label() }}</option>
-                                        @endforeach
-                                    </x-filament::input.select>
+                                    <x-filament::input
+                                        id="borderou-date"
+                                        type="date"
+                                        wire:model.live="entryDate"
+                                        max="{{ \Illuminate\Support\Carbon::today()->toDateString() }}"
+                                    />
                                 </x-filament::input.wrapper>
+                                <p class="mt-1 flex h-4 items-center text-xs text-gray-400 dark:text-gray-500">
+                                    {{ $activeTerm?->name }}
+                                </p>
                             </div>
-                        @endif
 
-                        @if ($canAbsent)
-                            <label class="flex h-9 cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                                <input
-                                    type="checkbox"
-                                    wire:model="entryMotivated"
-                                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600 dark:border-white/20 dark:bg-white/5"
-                                />
-                                {{ __('panel.class_register.absences_motivated') }}
-                            </label>
-                        @endif
+                            @if ($canGrade && $numeric)
+                                <div class="w-44">
+                                    <label for="borderou-type" class="mb-1 flex h-4 items-center text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        {{ __('panel.fields.evaluation_type') }}
+                                    </label>
+                                    <x-filament::input.wrapper>
+                                        <x-filament::input.select id="borderou-type" wire:model="entryType">
+                                            @foreach (\App\Enums\EvaluationType::cases() as $type)
+                                                <option value="{{ $type->value }}">{{ $type->label() }}</option>
+                                            @endforeach
+                                        </x-filament::input.select>
+                                    </x-filament::input.wrapper>
+                                    <p class="mt-1 h-4"></p>
+                                </div>
+                            @endif
 
-                        <div class="ms-auto flex items-center gap-3">
-                            <span class="text-xs text-gray-400 dark:text-gray-500" x-show="filled > 0" x-cloak>
-                                <span x-text="filled"></span> {{ __('panel.class_register.pending_count') }}
-                            </span>
+                            {{-- Salvarea se aliniază la aceeași bandă ca celelalte controale. --}}
+                            <div class="ms-auto flex flex-col">
+                                <span class="mb-1 flex h-4 items-center justify-end text-xs text-gray-400 dark:text-gray-500">
+                                    <span x-show="filled > 0" x-cloak>
+                                        <span x-text="filled"></span> {{ __('panel.class_register.pending_count') }}
+                                    </span>
+                                </span>
 
-                            <x-filament::button
-                                wire:click="saveEntries"
-                                wire:loading.attr="disabled"
-                                icon="heroicon-m-check"
-                            >
-                                {{ __('panel.class_register.save_all') }}
-                            </x-filament::button>
+                                <x-filament::button
+                                    wire:click="saveEntries"
+                                    wire:loading.attr="disabled"
+                                    icon="heroicon-m-check"
+                                >
+                                    {{ __('panel.class_register.save_all') }}
+                                </x-filament::button>
+                                <p class="mt-1 h-4"></p>
+                            </div>
                         </div>
 
-                        <p class="w-full text-xs text-gray-400 dark:text-gray-500">
+                        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
                             {{ __('panel.class_register.entry_hint') }}
                         </p>
                     </div>
@@ -200,7 +203,7 @@
                                         @endif
 
                                         @if ($canAbsent)
-                                            <th class="w-20 px-3 py-3 text-center font-semibold text-primary-600 dark:text-primary-400">
+                                            <th class="w-36 px-3 py-3 text-center font-semibold text-primary-600 dark:text-primary-400">
                                                 {{ __('panel.class_register.absent_column') }}
                                             </th>
                                         @endif
@@ -210,9 +213,9 @@
                                 <tbody class="divide-y divide-gray-950/5 dark:divide-white/10">
                                     @foreach ($rows as $index => $row)
                                         @php($studentId = $row['student']->getKey())
-                                        <tr wire:key="borderou-{{ $studentId }}" class="hover:bg-gray-50 dark:hover:bg-white/5">
+                                        <tr wire:key="borderou-{{ $studentId }}" class="align-middle hover:bg-gray-50 dark:hover:bg-white/5">
                                             {{-- Elevul — lipit la stânga, numerotat (ordinea din catalogul de hârtie). --}}
-                                            <td class="sticky left-0 z-[1] max-w-56 bg-white px-4 py-2 dark:bg-gray-900">
+                                            <td class="sticky left-0 z-[1] h-12 max-w-56 bg-white px-4 py-2 align-middle dark:bg-gray-900">
                                                 <div class="flex items-baseline gap-2">
                                                     <span class="w-5 shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500">{{ $index + 1 }}</span>
                                                     <span class="truncate font-medium text-gray-950 dark:text-white">{{ $row['student']->full_name }}</span>
@@ -224,16 +227,17 @@
                                             </td>
 
                                             {{-- Notele semestrului, cronologic; teza/ESI evidențiate. --}}
-                                            <td class="px-4 py-2">
+                                            <td class="h-12 px-4 py-2 align-middle">
                                                 @if ($row['grades'] === [])
                                                     <span class="text-gray-300 dark:text-gray-600">—</span>
                                                 @else
                                                     <div class="flex max-w-md flex-wrap gap-1">
-                                                        {{-- Fără tooltip: „Curentă 20.07" la survol arăta ca o valoare
-                                                             în plus și inducea în eroare (raportat 2026-07-30).
-                                                             Tipul rămâne vizibil unde contează — teza/ESI, prin culoare. --}}
+                                                        {{-- La survol: valoarea, tipul și DATA aplicării notei, formulate
+                                                             explicit („Nota 8 · Curentă · 20.07.2026"). Prima variantă
+                                                             arăta doar „Curentă 20.07" și părea o a doua valoare. --}}
                                                         @foreach ($row['grades'] as $grade)
                                                             <span
+                                                                title="{{ $grade['tooltip'] }}"
                                                                 @class([
                                                                     'inline-flex h-6 min-w-6 items-center justify-center rounded px-1 text-xs font-semibold tabular-nums',
                                                                     'bg-primary-50 text-primary-700 ring-1 ring-primary-600/30 dark:bg-primary-400/10 dark:text-primary-300 dark:ring-primary-400/30' => $grade['weighted'],
@@ -248,7 +252,7 @@
                                             </td>
 
                                             {{-- Media semestrială OFICIALĂ (MS) — sub 5 = semnal de corigență. --}}
-                                            <td class="px-3 py-2 text-center">
+                                            <td class="h-12 px-3 py-2 text-center align-middle">
                                                 @if ($row['average'] !== null)
                                                     <span @class([
                                                         'font-semibold tabular-nums',
@@ -261,7 +265,7 @@
                                             </td>
 
                                             {{-- Absențele la disciplină: total + câte nemotivate; datele la survol. --}}
-                                            <td class="px-3 py-2 text-center" title="{{ $row['absences']['dates'] }}">
+                                            <td class="h-12 px-3 py-2 text-center align-middle" title="{{ $row['absences']['dates'] }}">
                                                 @if ($row['absences']['total'] === 0)
                                                     <span class="text-gray-300 dark:text-gray-600">—</span>
                                                 @else
@@ -275,7 +279,7 @@
                                             </td>
 
                                             @if ($canGrade)
-                                                <td class="px-3 py-2 text-center">
+                                                <td class="h-12 px-3 py-2 text-center align-middle">
                                                     <input
                                                         type="text"
                                                         data-quick-input
@@ -293,14 +297,38 @@
                                             @endif
 
                                             @if ($canAbsent)
-                                                <td class="px-3 py-2 text-center">
-                                                    <input
-                                                        type="checkbox"
-                                                        data-quick-check
-                                                        wire:model="entries.{{ $studentId }}.absent"
-                                                        aria-label="{{ __('panel.class_register.absent_column') }} — {{ $row['student']->full_name }}"
-                                                        class="h-5 w-5 rounded border-gray-300 text-danger-600 focus:ring-danger-600 dark:border-white/20 dark:bg-white/5"
-                                                    />
+                                                {{-- Statutul absenței se alege DIRECT, dintr-un click: „Mot." / „Nem.".
+                                                     O singură stare activă (câmpul ține o valoare, nu două bife);
+                                                     click pe cea activă anulează absența, click pe cealaltă corectează
+                                                     pe loc. Lățime fixă a celulei → rândurile rămân aliniate. --}}
+                                                @php($absence = $this->entries[$studentId]['absence'] ?? null)
+                                                <td class="h-12 px-3 py-2 align-middle">
+                                                    <div class="flex items-center justify-center gap-1" role="group"
+                                                        aria-label="{{ __('panel.class_register.absent_column') }} — {{ $row['student']->full_name }}">
+                                                        @foreach ([
+                                                            \App\Filament\Pages\ClassRegister::ABSENCE_MOTIVATED => ['label' => __('panel.class_register.absence_motivated_short'), 'title' => __('panel.class_register.absence_motivated'), 'active' => 'bg-success-600 text-white ring-success-600'],
+                                                            \App\Filament\Pages\ClassRegister::ABSENCE_UNMOTIVATED => ['label' => __('panel.class_register.absence_unmotivated_short'), 'title' => __('panel.class_register.absence_unmotivated'), 'active' => 'bg-danger-600 text-white ring-danger-600'],
+                                                        ] as $state => $option)
+                                                            <button
+                                                                type="button"
+                                                                data-quick-absence
+                                                                @if ($absence === $state) data-quick-absence-active @endif
+                                                                wire:click="toggleAbsence({{ $studentId }}, '{{ $state }}')"
+                                                                title="{{ $option['title'] }}"
+                                                                aria-pressed="{{ $absence === $state ? 'true' : 'false' }}"
+                                                                @class([
+                                                                    'h-8 w-14 rounded-lg text-xs font-semibold ring-1 transition duration-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
+                                                                    $option['active'] => $absence === $state,
+                                                                    // Neselectat, dar cealaltă e activă: estompat, fără să devină inutilizabil —
+                                                                    // corectarea unei alegeri greșite rămâne la un singur click.
+                                                                    'bg-white text-gray-400 ring-gray-950/10 opacity-50 hover:opacity-100 dark:bg-white/5 dark:text-gray-500 dark:ring-white/10' => $absence !== null && $absence !== $state,
+                                                                    'bg-white text-gray-600 ring-gray-950/10 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10 dark:hover:bg-white/10' => $absence === null,
+                                                                ])
+                                                            >
+                                                                {{ $option['label'] }}
+                                                            </button>
+                                                        @endforeach
+                                                    </div>
                                                 </td>
                                             @endif
                                         </tr>
