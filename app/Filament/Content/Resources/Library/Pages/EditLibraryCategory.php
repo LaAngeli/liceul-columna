@@ -7,6 +7,7 @@ use App\Filament\Content\Resources\Library\LibraryCategoryResource;
 use App\Models\LibraryCategory;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Support\Icons\Heroicon;
 
@@ -41,6 +42,8 @@ class EditLibraryCategory extends EditRecord
     {
         return [
             DeleteAction::make(),
+            // Vizibilă doar pe o categorie din coș — o readuce pe site cu materialele ei.
+            RestoreAction::make(),
         ];
     }
 

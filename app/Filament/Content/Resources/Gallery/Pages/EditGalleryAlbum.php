@@ -7,6 +7,7 @@ use App\Filament\Content\Resources\Gallery\GalleryAlbumResource;
 use App\Models\GalleryAlbum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Support\Icons\Heroicon;
 
@@ -43,6 +44,8 @@ class EditGalleryAlbum extends EditRecord
     {
         return [
             DeleteAction::make(),
+            // Vizibilă doar pe un album din coș — îl readuce pe site cu imaginile lui.
+            RestoreAction::make(),
         ];
     }
 

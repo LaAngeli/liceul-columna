@@ -11,6 +11,7 @@ use App\Models\GalleryAlbum;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\PageRegistration;
 use Filament\Resources\Resource;
@@ -25,8 +26,10 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Str;
 use UnitEnum;
 
@@ -175,9 +178,13 @@ class GalleryAlbumResource extends Resource
                     ->badge()
                     ->color('success'),
             ])
+            ->filters([
+                TrashedFilter::make(),
+            ])
             ->recordActions([
                 EditAction::make(),
                 DeleteAction::make(),
+                RestoreAction::make(),
             ]);
     }
 
@@ -206,6 +213,13 @@ class GalleryAlbumResource extends Resource
         }
 
         return $slug;
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        // Fără scope-ul de soft delete: filtrul „Înregistrări șterse" gestionează coșul, iar un album
+        // șters poate fi deschis (după slug) și restaurat. Imaginile lui rămân legate în DB.
+        return parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
     }
 
     /**

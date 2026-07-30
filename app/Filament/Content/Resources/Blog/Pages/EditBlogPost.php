@@ -7,6 +7,7 @@ use App\Filament\Content\Support\BaseEditArticle;
 use App\Models\Post;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Support\Icons\Heroicon;
 
 class EditBlogPost extends BaseEditArticle
@@ -40,6 +41,8 @@ class EditBlogPost extends BaseEditArticle
     {
         return [
             DeleteAction::make(),
+            // Vizibilă doar pe un articol din coș — îl readuce pe site cu tot conținutul lui.
+            RestoreAction::make(),
         ];
     }
 }

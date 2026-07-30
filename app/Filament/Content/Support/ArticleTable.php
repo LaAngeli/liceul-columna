@@ -5,8 +5,10 @@ namespace App\Filament\Content\Support;
 use App\Models\Post;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\RestoreAction;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -52,9 +54,15 @@ class ArticleTable
                         : null)
                     ->sortable(),
             ])
+            // Coșul: implicit doar articolele active; „Înregistrări șterse" arată/filtrează coșul,
+            // de unde „Restaurează" (vizibilă doar pe rânduri șterse) le readuce pe site.
+            ->filters([
+                TrashedFilter::make(),
+            ])
             ->recordActions([
                 EditAction::make(),
                 DeleteAction::make(),
+                RestoreAction::make(),
             ]);
     }
 }

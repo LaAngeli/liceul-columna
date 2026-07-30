@@ -16,6 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use UnitEnum;
 
 class ActualitatiResource extends Resource
@@ -50,7 +51,11 @@ class ActualitatiResource extends Resource
      */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('category', PostType::Actualitati->value);
+        // Fără scope-ul de soft delete: filtrul „Înregistrări șterse" din tabel gestionează coșul,
+        // iar rutele de editare pot deschide un articol șters ca să-l restaureze.
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([SoftDeletingScope::class])
+            ->where('category', PostType::Actualitati->value);
     }
 
     public static function form(Schema $schema): Schema

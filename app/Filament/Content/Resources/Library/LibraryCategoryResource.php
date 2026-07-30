@@ -12,6 +12,7 @@ use App\Models\LibraryCategory;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -28,7 +29,10 @@ use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Str;
 use UnitEnum;
 
@@ -214,9 +218,13 @@ class LibraryCategoryResource extends Resource
                     ->badge()
                     ->color(fn (LibraryCategory $record): string => $record->published_at === null ? 'gray' : 'success'),
             ])
+            ->filters([
+                TrashedFilter::make(),
+            ])
             ->recordActions([
                 EditAction::make(),
                 DeleteAction::make(),
+                RestoreAction::make(),
             ]);
     }
 
@@ -228,6 +236,13 @@ class LibraryCategoryResource extends Resource
         return [
             ItemsRelationManager::class,
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        // Fără scope-ul de soft delete: filtrul „Înregistrări șterse" gestionează coșul, iar o
+        // categorie ștearsă poate fi deschisă (după slug) și restaurată, cu materialele ei intacte.
+        return parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
     }
 
     /**

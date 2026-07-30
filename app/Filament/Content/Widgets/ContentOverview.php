@@ -25,6 +25,9 @@ use Illuminate\Support\HtmlString;
  */
 class ContentOverview extends StatsOverviewWidget
 {
+    // Primul pe dashboard, înaintea monitorului de integritate (ContentHealth, sort 2).
+    protected static ?int $sort = 1;
+
     // Fără reîmprospătare automată: cifrele se schimbă doar la acțiuni ale utilizatorului, care
     // oricum re-randează pagina. `null` oprește `wire:poll` implicit (5s) al widget-ului.
     protected ?string $pollingInterval = null;
