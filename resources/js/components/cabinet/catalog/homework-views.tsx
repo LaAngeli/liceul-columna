@@ -13,11 +13,9 @@ import { cn } from '@/lib/utils';
 
 export interface HomeworkItem {
     id: number;
-    /** Data atribuirii (d.m.Y). */
+    /** Data lecției (d.m.Y) — axa unică după eliminarea „termenului" (2026-07-31). */
     date: string;
-    /** Termenul de predare (d.m.Y) — null la temele legacy. */
-    due: string | null;
-    /** Cheia zilei efective (Y-m-d) — gruparea cronologică. */
+    /** Cheia zilei (Y-m-d) — gruparea cronologică. */
     effectiveDate: string;
     /** Eticheta zilei, tradusă pe server („Vineri, 18 iulie"). */
     dayLabel: string;
@@ -177,11 +175,6 @@ function HomeworkDefaultView({ homework }: { homework: HomeworkItem[] }) {
                         {day.isToday && <span className="size-1.5 rounded-full bg-primary" aria-hidden />}
                         {day.label}
                         <span className="font-normal text-muted-foreground">· {day.items.length}</span>
-                        {day.isToday && (
-                            <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
-                                {t('cabinet.homework_due_badge')}
-                            </span>
-                        )}
                     </h4>
                     <div className="flex flex-col gap-3">
                         {day.items.map((h) => (
@@ -485,12 +478,6 @@ export function HomeworkCard({ h, muted = false }: { h: HomeworkItem; muted?: bo
                 <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{h.subject}</span>
                 {/* Cine a dat tema — context, nu decor: la teme neclare, familia știe pe cine întreabă. */}
                 {h.teacher && <span className="text-xs text-muted-foreground">{h.teacher}</span>}
-                {/* Termenul e informația principală; data atribuirii rămâne context secundar. */}
-                {h.due && (
-                    <span className="text-xs text-muted-foreground">
-                        {t('cabinet.homework_due_on')} <span className="font-medium text-foreground">{h.due}</span>
-                    </span>
-                )}
                 <span className="text-xs text-muted-foreground">
                     {t('cabinet.homework_assigned_on')} {h.date}
                 </span>

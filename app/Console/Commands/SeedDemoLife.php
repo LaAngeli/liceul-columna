@@ -749,7 +749,6 @@ class SeedDemoLife extends Command
                     'grade_level' => $class->grade_level,
                     'section' => $class->section,
                     'assigned_on' => Carbon::now()->subDays(random_int(1, 5))->toDateString(),
-                    'due_on' => Carbon::now()->addDays(random_int(2, 7))->toDateString(),
                     'topic' => self::MARK.' '.$topic[0],
                     'required_task' => $topic[1],
                     'optional_task' => $topic[2],
@@ -757,20 +756,20 @@ class SeedDemoLife extends Command
 
                 $this->manifest['homework'][] = (int) $homework->getKey();
 
-                // O singură corecție de temă, pe prima temă a PROFESORULUI DEMO: el e solicitantul,
-                // iar fluxul are alt aprobator decât notele (include AO), deci merită testat explicit.
+                // O singură corecție de temă, pe prima temă a PROFESORULUI DEMO — pe regimul
+                // DIRECT (2026-07-31): schimbarea se aplică pe loc, registrul reține vechi → nou.
                 if ($index === 0 && $pair->teacher_id === $profTeacherId && ($this->manifest['homework_corrections'] ?? []) === []) {
-                    $correction = new HomeworkCorrection;
-                    $correction->forceFill([
-                        'homework_assignment_id' => $homework->getKey(),
-                        'requested_by_user_id' => $context['prof']->getKey(),
-                        'old_topic' => $homework->topic,
-                        'new_topic' => self::MARK.' '.$topic[0].' (revizuit)',
-                        'old_required_task' => $homework->required_task,
-                        'new_required_task' => $topic[1].' Termenul se prelungește cu trei zile.',
-                        'reason' => self::MARK.' Termenul coincide cu teza la altă disciplină; solicit amânarea și reformularea cerinței.',
-                        'status' => RequestStatus::Pending->value,
-                    ])->save();
+                    $oldTopic = $homework->topic;
+                    $newTopic = self::MARK.' '.$topic[0].' (revizuit)';
+                    $homework->update(['topic' => $newTopic]);
+
+                    $correction = HomeworkCorrection::recordApplied(
+                        $homework,
+                        ['topic' => $oldTopic],
+                        ['topic' => $newTopic],
+                        (int) $context['prof']->getKey(),
+                        self::MARK.' Titlul revizuit după planificare — corecție directă, fără aprobare.',
+                    );
 
                     $this->manifest['homework_corrections'][] = (int) $correction->getKey();
                 }

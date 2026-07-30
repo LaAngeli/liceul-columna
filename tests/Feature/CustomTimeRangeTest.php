@@ -238,22 +238,22 @@ it('ABSENȚE: capătul superior prinde toată ziua, deși coloana e datetime', f
         ->assertCanNotSeeTableRecords([$inafara]);
 });
 
-it('TEME: intervalul liber filtrează pe data EFECTIVĂ (termenul primează asupra atribuirii)', function () {
+it('TEME: intervalul liber filtrează pe data LECȚIEI (axa unică după eliminarea termenului)', function () {
     // Tema se leagă de clasă prin (treaptă, literă), nu prin FK — vezi HomeworkNavigatorTest.
-    $dueInside = HomeworkAssignment::factory()->for($this->subject)->create([
+    $inside = HomeworkAssignment::factory()->for($this->subject)->create([
         'grade_level' => 7, 'section' => 'A',
-        'assigned_on' => '2025-11-03', 'due_on' => '2025-11-12',
+        'assigned_on' => '2025-11-12',
     ]);
-    $dueOutside = HomeworkAssignment::factory()->for($this->subject)->create([
+    $outside = HomeworkAssignment::factory()->for($this->subject)->create([
         'grade_level' => 7, 'section' => 'A',
-        'assigned_on' => '2025-11-12', 'due_on' => '2025-11-24',
+        'assigned_on' => '2025-11-24',
     ]);
 
     Livewire::withQueryParams(['mod' => 'personalizat', 'de' => '2025-11-10', 'pana' => '2025-11-20'])
         ->test(ListHomeworkAssignments::class)
         ->call('openCatalogEntity', $this->class->id)
-        ->assertCanSeeTableRecords([$dueInside])
-        ->assertCanNotSeeTableRecords([$dueOutside]);
+        ->assertCanSeeTableRecords([$inside])
+        ->assertCanNotSeeTableRecords([$outside]);
 });
 
 it('pastila „Personalizat" există în bară, pe toate cele trei module', function () {

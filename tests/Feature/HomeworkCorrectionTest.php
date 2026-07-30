@@ -1,25 +1,25 @@
 <?php
 
 /**
- * Fluxul de corecție a TEMELOR (decizia beneficiarului, 2026-07-15): profesorul-autor NU își mai
- * editează tema direct — cere corecția; Directorul / Prim-vicedirectorul / Administratorul
- * Operațional aprobă (spre deosebire de notele, unde AO doar vede arhiva). Totul rămâne în arhivă.
+ * Corecția DIRECTĂ a temelor (decizia beneficiarului, 2026-07-31 — o răstoarnă pe cea din
+ * 2026-07-15): profesorul-autor și dirigintele clasei editează conținutul FĂRĂ aprobare, iar
+ * registrul {@see HomeworkCorrection} consemnează automat vechi → nou (observer). Secțiunea
+ * „Corecții teme" e REGISTRU în grupul Catalog, EXCLUSIV al personalului pedagogic —
+ * administrația nu o mai are (supravegherea rămâne prin Jurnalul de audit).
  */
 
 use App\Enums\CorrectionStatus;
-use App\Enums\NotificationType;
 use App\Enums\UserRole;
 use App\Filament\Resources\HomeworkCorrections\HomeworkCorrectionResource;
 use App\Filament\Resources\HomeworkCorrections\Pages\ViewHomeworkCorrection;
 use App\Models\HomeworkAssignment;
 use App\Models\HomeworkCorrection;
+use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\User;
-use App\Notifications\CatalogNotification;
+use App\Support\ActiveRole;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
-use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -37,7 +37,16 @@ function hwcUser(UserRole $role): User
     return $user;
 }
 
-function hwcAssignment(?Teacher $teacher = null): HomeworkAssignment
+/** @return array{0: User, 1: Teacher} */
+function hwcTeacherUser(UserRole $role): array
+{
+    $user = hwcUser($role);
+    $teacher = Teacher::factory()->create(['user_id' => $user->id]);
+
+    return [$user, $teacher];
+}
+
+function hwcAssignment(?Teacher $teacher = null, array $attributes = []): HomeworkAssignment
 {
     return HomeworkAssignment::factory()->create([
         'subject_id' => Subject::factory(),
@@ -45,129 +54,90 @@ function hwcAssignment(?Teacher $teacher = null): HomeworkAssignment
         'topic' => 'Tema veche',
         'required_task' => 'Ex. 1-3 pagina 10',
         'optional_task' => null,
+        ...$attributes,
     ]);
 }
 
-// ─── Cine aprobă (matricea capabilității) ────────────────────────────────────────────────
+// ─── Drepturile de editare (policy — cine corectează direct) ────────────────────────────
 
-it('aprobă corecții de teme: super-admin, director, prim-vicedirector și AO; restul NU', function () {
-    $allowed = [UserRole::Admin, UserRole::Director, UserRole::PrimVicedirector, UserRole::AdministratorOperational];
-    $denied = [UserRole::AdministratorTehnic, UserRole::Diriginte, UserRole::Profesor, UserRole::Elev, UserRole::Parinte];
+it('autorul își corectează tema direct; alt profesor NU; administrația păstrează editarea', function () {
+    [$authorUser, $author] = hwcTeacherUser(UserRole::Profesor);
+    [$strangerUser] = hwcTeacherUser(UserRole::Profesor);
+    $homework = hwcAssignment($author);
 
-    foreach ($allowed as $role) {
-        expect(hwcUser($role)->canApproveHomeworkCorrections())->toBeTrue($role->value.' ar trebui să aprobe');
-    }
-
-    foreach ($denied as $role) {
-        expect(hwcUser($role)->canApproveHomeworkCorrections())->toBeFalse($role->value.' NU ar trebui să aprobe');
-    }
-});
-
-it('editarea DIRECTĂ a temei e refuzată autorului-profesor și permisă aprobatorilor (policy)', function () {
-    $teacherUser = hwcUser(UserRole::Profesor);
-    $teacher = Teacher::factory()->create(['user_id' => $teacherUser->id]);
-    $homework = hwcAssignment($teacher);
-
-    // Autorul NU mai poate edita direct — corectitudinea trece prin aprobare.
-    expect($teacherUser->can('update', $homework))->toBeFalse()
-        // Aprobatorii pot edita direct (calea excepțională).
-        ->and(hwcUser(UserRole::AdministratorOperational)->can('update', $homework))->toBeTrue()
+    expect($authorUser->can('update', $homework))->toBeTrue()
+        ->and($strangerUser->can('update', $homework))->toBeFalse()
         ->and(hwcUser(UserRole::Director)->can('update', $homework))->toBeTrue()
+        ->and(hwcUser(UserRole::AdministratorOperational)->can('update', $homework))->toBeTrue()
         // Autorul își poate în continuare RETRAGE tema (soft-delete).
-        ->and($teacherUser->can('delete', $homework))->toBeTrue();
+        ->and($authorUser->can('delete', $homework))->toBeTrue();
 });
 
-// ─── Ciclul de viață al corecției ────────────────────────────────────────────────────────
+it('dirigintele corectează temele CLASEI lui — nu ale altei clase, nu pe toată treapta', function () {
+    [$homeroomUser, $homeroom] = hwcTeacherUser(UserRole::Diriginte);
+    SchoolClass::factory()->create(['grade_level' => 7, 'section' => 'A', 'homeroom_teacher_id' => $homeroom->id]);
+    [, $author] = hwcTeacherUser(UserRole::Profesor);
 
-it('aprobarea aplică pe temă DOAR câmpurile propuse și consemnează recenzentul', function () {
-    $homework = hwcAssignment();
-    $requester = hwcUser(UserRole::Profesor);
-    $reviewer = hwcUser(UserRole::AdministratorOperational);
+    $ownClass = hwcAssignment($author, ['grade_level' => 7, 'section' => 'A']);
+    $otherClass = hwcAssignment($author, ['grade_level' => 7, 'section' => 'B']);
+    // Tema pe TOATĂ treapta ar afecta și clasele altor diriginți → rămâne pe autor/administrație.
+    $wholeGrade = hwcAssignment($author, ['grade_level' => 7, 'section' => null]);
 
-    $correction = HomeworkCorrection::create([
-        'homework_assignment_id' => $homework->id,
-        'requested_by_user_id' => $requester->id,
-        'old_topic' => $homework->topic,
-        'old_required_task' => $homework->required_task,
-        'new_required_task' => 'Ex. 1-5 pagina 12',
-        'reason' => 'Am greșit exercițiile.',
-    ]);
+    expect($homeroomUser->can('update', $ownClass))->toBeTrue()
+        ->and($homeroomUser->can('update', $otherClass))->toBeFalse()
+        ->and($homeroomUser->can('update', $wholeGrade))->toBeFalse();
+});
 
-    $correction->approve($reviewer->id, 'Corect.');
+// ─── Registrul automat (observer): editarea = corecție consemnată ───────────────────────
 
-    $homework->refresh();
-    $correction->refresh();
+it('editarea conținutului consemnează automat corecția aplicată — vechi → nou, cine, când', function () {
+    [$authorUser, $author] = hwcTeacherUser(UserRole::Profesor);
+    $homework = hwcAssignment($author);
 
-    expect($homework->required_task)->toBe('Ex. 1-5 pagina 12')
-        // Câmpul nepropus rămâne neatins.
-        ->and($homework->topic)->toBe('Tema veche')
+    $this->actingAs($authorUser);
+    $homework->update(['required_task' => 'Ex. 1-5 pagina 12']);
+
+    $correction = HomeworkCorrection::query()->sole();
+
+    expect($homework->refresh()->required_task)->toBe('Ex. 1-5 pagina 12')
+        ->and($correction->old_required_task)->toBe('Ex. 1-3 pagina 10')
+        ->and($correction->new_required_task)->toBe('Ex. 1-5 pagina 12')
+        // Câmpul neatins NU intră în consemnare.
+        ->and($correction->new_topic)->toBeNull()
         ->and($correction->status)->toBe(CorrectionStatus::Approved)
-        ->and($correction->reviewed_by_user_id)->toBe($reviewer->id)
-        ->and($correction->reviewed_at)->not->toBeNull()
-        ->and($correction->review_note)->toBe('Corect.');
+        ->and($correction->requested_by_user_id)->toBe($authorUser->id)
+        ->and($correction->reviewed_by_user_id)->toBe($authorUser->id)
+        ->and($correction->isDirect())->toBeTrue()
+        // Corecția directă nu mai cere motivare.
+        ->and($correction->reason)->toBeNull();
 });
 
-it('respingerea NU atinge tema și cere consemnarea motivului', function () {
-    $homework = hwcAssignment();
-    $correction = HomeworkCorrection::factory()->create([
-        'homework_assignment_id' => $homework->id,
-        'new_required_task' => 'Altceva',
-    ]);
+it('schimbarea câmpurilor ne-conținut (data lecției) NU aterizează în registru', function () {
+    [$authorUser, $author] = hwcTeacherUser(UserRole::Profesor);
+    $homework = hwcAssignment($author);
 
-    $correction->reject(hwcUser(UserRole::Director)->id, 'Tema originală e corectă.');
+    $this->actingAs($authorUser);
+    $homework->update(['assigned_on' => now()->addDay()->toDateString()]);
 
-    expect($homework->refresh()->required_task)->toBe('Ex. 1-3 pagina 10')
-        ->and($correction->refresh()->status)->toBe(CorrectionStatus::Rejected)
-        ->and($correction->review_note)->toBe('Tema originală e corectă.');
+    expect(HomeworkCorrection::query()->count())->toBe(0);
 });
 
-it('o temă nu poate avea două corecții în așteptare simultan (invariant pe server)', function () {
+it('editările din consolă (fără utilizator web) nu ating registrul — seed-erele se consemnează singure', function () {
     $homework = hwcAssignment();
 
-    HomeworkCorrection::factory()->create(['homework_assignment_id' => $homework->id]);
+    $homework->update(['topic' => 'Titlu schimbat din consolă']);
 
-    expect(fn () => HomeworkCorrection::factory()->create(['homework_assignment_id' => $homework->id]))
-        ->toThrow(ValidationException::class);
+    expect(HomeworkCorrection::query()->count())->toBe(0);
 });
 
-it('după soluționare se poate depune o NOUĂ cerere (invariantul e doar pe pending)', function () {
-    $homework = hwcAssignment();
+// ─── Secțiunea: grup Catalog + EXCLUSIV personalul pedagogic (punctele 1–2) ─────────────
 
-    $first = HomeworkCorrection::factory()->create(['homework_assignment_id' => $homework->id]);
-    $first->reject(hwcUser(UserRole::Director)->id, 'Nu.');
-
-    $second = HomeworkCorrection::factory()->create(['homework_assignment_id' => $homework->id]);
-
-    expect($second->exists)->toBeTrue()
-        ->and(HomeworkCorrection::query()->where('homework_assignment_id', $homework->id)->count())->toBe(2);
+it('secțiunea stă în grupul Catalog, imediat sub Teme', function () {
+    expect(HomeworkCorrectionResource::getNavigationGroup())->toBe(__('panel.nav.groups.catalog'))
+        ->and(HomeworkCorrectionResource::getNavigationSort())->toBe(35);
 });
 
-it('retragerea temei (soft-delete) expiră cererea în așteptare, fără recenzent', function () {
-    $homework = hwcAssignment();
-    $correction = HomeworkCorrection::factory()->create(['homework_assignment_id' => $homework->id]);
-
-    $homework->delete();
-
-    $correction->refresh();
-
-    expect($correction->status)->toBe(CorrectionStatus::Expired)
-        ->and($correction->reviewed_by_user_id)->toBeNull()
-        // Cererea rămâne citibilă împreună cu tema retrasă (withTrashed).
-        ->and($correction->homeworkAssignment)->not->toBeNull();
-});
-
-it('solicitantul își poate retrage cererea în așteptare (rămâne în arhivă)', function () {
-    $correction = HomeworkCorrection::factory()->create();
-
-    $correction->withdraw();
-
-    expect($correction->refresh()->status)->toBe(CorrectionStatus::Withdrawn)
-        ->and(HomeworkCorrection::query()->count())->toBe(1);
-});
-
-// ─── Accesul la resursă + curățarea demo (2026-07-20) ────────────────────────────────────
-
-it('matricea de acces la arhiva corecțiilor de teme, pe toate rolurile', function (string $role, bool $needsTeacher, bool $allowed) {
+it('matricea de acces: EXCLUSIV profesor/diriginte cu fișă — administrația nu mai are secțiunea', function (string $role, bool $needsTeacher, bool $allowed) {
     $user = hwcUser(UserRole::from($role));
 
     if ($needsTeacher) {
@@ -178,69 +148,139 @@ it('matricea de acces la arhiva corecțiilor de teme, pe toate rolurile', functi
 
     $allowed ? $response->assertOk() : $response->assertForbidden();
 })->with([
-    'super-admin' => [UserRole::Admin->value, false, true],
-    'director' => [UserRole::Director->value, false, true],
-    'prim-vicedirector' => [UserRole::PrimVicedirector->value, false, true],
-    'administrator operațional' => [UserRole::AdministratorOperational->value, false, true],
-    // Personalul pedagogic vede (arhiva PROPRIE, prin scoping); fără fișă de profesor — nu.
+    // Registrul e al celor care corectează — administrația supraveghează prin Jurnalul de audit.
+    'super-admin' => [UserRole::Admin->value, false, false],
+    'director' => [UserRole::Director->value, false, false],
+    'prim-vicedirector' => [UserRole::PrimVicedirector->value, false, false],
+    'administrator operațional' => [UserRole::AdministratorOperational->value, false, false],
+    'administrator tehnic' => [UserRole::AdministratorTehnic->value, false, false],
     'profesor cu fișă' => [UserRole::Profesor->value, true, true],
     'diriginte cu fișă' => [UserRole::Diriginte->value, true, true],
     'profesor fără fișă' => [UserRole::Profesor->value, false, false],
-    // Tehnicul n-are date academice; familia n-are panou.
-    'administrator tehnic' => [UserRole::AdministratorTehnic->value, false, false],
     'elev' => [UserRole::Elev->value, false, false],
     'părinte' => [UserRole::Parinte->value, false, false],
 ]);
 
-it('profesorul vede în arhivă DOAR cererile lui; administrația pe toate', function () {
-    $mine = hwcUser(UserRole::Profesor);
-    $mineTeacher = Teacher::factory()->create(['user_id' => $mine->id]);
-    $other = hwcUser(UserRole::Profesor);
-    $otherTeacher = Teacher::factory()->create(['user_id' => $other->id]);
+it('vitrina multi-rol: în context Director secțiunea lipsește, în context Profesor apare', function () {
+    $user = User::factory()->create();
+    $user->syncRoles([UserRole::Director->value, UserRole::Profesor->value]);
+    Teacher::factory()->create(['user_id' => $user->id]);
 
-    foreach ([[$mine, $mineTeacher], [$other, $otherTeacher]] as [$user, $teacher]) {
-        HomeworkCorrection::create([
-            'homework_assignment_id' => hwcAssignment($teacher)->id,
-            'requested_by_user_id' => $user->id,
-            'old_topic' => 'Tema veche',
-            'new_topic' => 'Tema corectată',
-            'reason' => 'motiv',
-        ]);
-    }
+    $this->actingAs($user);
 
-    $this->actingAs($mine);
-    expect(HomeworkCorrectionResource::getEloquentQuery()->count())->toBe(1);
+    session()->put(ActiveRole::SESSION_KEY, UserRole::Director->value);
+    expect(HomeworkCorrectionResource::canViewAny())->toBeFalse();
 
-    $this->actingAs(hwcUser(UserRole::Director));
-    expect(HomeworkCorrectionResource::getEloquentQuery()->count())->toBe(2);
+    session()->put(ActiveRole::SESSION_KEY, UserRole::Profesor->value);
+    expect(HomeworkCorrectionResource::canViewAny())->toBeTrue();
 });
+
+// ─── Scoping-ul registrului ─────────────────────────────────────────────────────────────
+
+it('profesorul vede corecțiile operate de el ȘI pe cele făcute de alții pe temele lui', function () {
+    [$authorUser, $author] = hwcTeacherUser(UserRole::Profesor);
+    [$strangerUser, $stranger] = hwcTeacherUser(UserRole::Profesor);
+    [$homeroomUser] = hwcTeacherUser(UserRole::Diriginte);
+
+    // A: corecția proprie; B: corecția dirigintelui pe tema lui A; C: corecția străinului pe tema lui.
+    HomeworkCorrection::recordApplied(hwcAssignment($author), ['topic' => 'v'], ['topic' => 'n'], $authorUser->id);
+    HomeworkCorrection::recordApplied(hwcAssignment($author), ['topic' => 'v'], ['topic' => 'n'], $homeroomUser->id);
+    HomeworkCorrection::recordApplied(hwcAssignment($stranger), ['topic' => 'v'], ['topic' => 'n'], $strangerUser->id);
+
+    $this->actingAs($authorUser);
+    // Autorul vede că și dirigintele i-a atins tema — 2 rânduri, nu doar al lui.
+    expect(HomeworkCorrectionResource::getEloquentQuery()->count())->toBe(2);
+
+    $this->actingAs($strangerUser);
+    expect(HomeworkCorrectionResource::getEloquentQuery()->count())->toBe(1);
+});
+
+it('dirigintele vede corecțiile pe temele clasei lui; fișa străină dă 404', function () {
+    [$homeroomUser, $homeroom] = hwcTeacherUser(UserRole::Diriginte);
+    SchoolClass::factory()->create(['grade_level' => 7, 'section' => 'A', 'homeroom_teacher_id' => $homeroom->id]);
+    [$authorUser, $author] = hwcTeacherUser(UserRole::Profesor);
+
+    $inClass = HomeworkCorrection::recordApplied(
+        hwcAssignment($author, ['grade_level' => 7, 'section' => 'A']),
+        ['topic' => 'v'], ['topic' => 'n'], $authorUser->id,
+    );
+    $outOfClass = HomeworkCorrection::recordApplied(
+        hwcAssignment($author, ['grade_level' => 9, 'section' => 'B']),
+        ['topic' => 'v'], ['topic' => 'n'], $authorUser->id,
+    );
+
+    $this->actingAs($homeroomUser);
+    expect(HomeworkCorrectionResource::getEloquentQuery()->pluck('id')->all())->toBe([$inClass->id]);
+
+    // Scoping-ul ASCUNDE rândurile străine → 404 (nici existența nu se confirmă).
+    $this->get("/admin/homework-corrections/{$outOfClass->id}")->assertNotFound();
+    $this->get("/admin/homework-corrections/{$inClass->id}")->assertOk();
+});
+
+// ─── Fișa corecției ─────────────────────────────────────────────────────────────────────
+
+it('fișa corecției directe: vechi → nou + „Corecție aplicată", fără butoane de judecată', function () {
+    [$authorUser, $author] = hwcTeacherUser(UserRole::Profesor);
+    $homework = hwcAssignment($author);
+
+    $this->actingAs($authorUser);
+    $homework->update(['required_task' => 'Ex. 1-6 pagina 14']);
+    $correction = HomeworkCorrection::query()->sole();
+
+    $component = Livewire::test(ViewHomeworkCorrection::class, ['record' => $correction->id])
+        ->assertSee('Ex. 1-3 pagina 10')
+        ->assertSee('Ex. 1-6 pagina 14')
+        ->assertSee(__('panel.homework_correction_view.applied_direct'));
+
+    // Judecata a fost demontată: cronologia are O SINGURĂ intrare, fără acțiuni de verdict.
+    expect($component->instance()->timeline())->toHaveCount(1)
+        ->and($component->instance()->getCachedHeaderActions())->toBe([]);
+});
+
+it('rândurile istorice ale fluxului vechi își păstrează cronologia depunere → verdict', function () {
+    [$authorUser, $author] = hwcTeacherUser(UserRole::Profesor);
+    $reviewer = hwcUser(UserRole::Director);
+
+    $historic = HomeworkCorrection::factory()->create([
+        'homework_assignment_id' => hwcAssignment($author)->id,
+        'requested_by_user_id' => $authorUser->id,
+        'new_required_task' => 'Propunerea de atunci',
+        'status' => CorrectionStatus::Rejected,
+        'reviewed_by_user_id' => $reviewer->id,
+        'reviewed_at' => now(),
+        'review_note' => 'Verdictul de atunci.',
+    ]);
+
+    $this->actingAs($authorUser);
+
+    $timeline = Livewire::test(ViewHomeworkCorrection::class, ['record' => $historic->id])
+        ->instance()
+        ->timeline();
+
+    expect($timeline)->toHaveCount(2)
+        ->and($timeline[1]['note'])->toBe('Verdictul de atunci.');
+});
+
+// ─── Igienă: purge demo + urmă în audit ─────────────────────────────────────────────────
 
 it('purge-ul demo șterge corecțiile [DEMO] și temele-suport, dar nu atinge datele reale', function () {
     $teacher = Teacher::factory()->create();
 
-    // Set DEMO: temă marcată + corecție marcată.
     $demoHomework = HomeworkAssignment::factory()->create([
         'teacher_id' => $teacher->id,
         'topic' => '[DEMO] Fracții ordinare',
         'required_task' => 'Ex. 1-4',
     ]);
-    HomeworkCorrection::create([
-        'homework_assignment_id' => $demoHomework->id,
-        'requested_by_user_id' => hwcUser(UserRole::Profesor)->id,
-        'old_required_task' => 'Ex. 1-4',
-        'new_required_task' => 'Ex. 1-6',
-        'reason' => '[DEMO] motiv de test',
-    ]);
+    HomeworkCorrection::recordApplied(
+        $demoHomework, ['required_task' => 'Ex. 1-4'], ['required_task' => 'Ex. 1-6'],
+        hwcUser(UserRole::Profesor)->id, '[DEMO] motiv de test',
+    );
 
-    // Set REAL: temă legacy + corecție autentică — trebuie să supraviețuiască.
     $realHomework = hwcAssignment($teacher);
-    $realCorrection = HomeworkCorrection::create([
-        'homework_assignment_id' => $realHomework->id,
-        'requested_by_user_id' => hwcUser(UserRole::Profesor)->id,
-        'old_topic' => 'Tema veche',
-        'new_topic' => 'Tema corectată',
-        'reason' => 'greșeală reală de redactare',
-    ]);
+    $realCorrection = HomeworkCorrection::recordApplied(
+        $realHomework, ['topic' => 'Tema veche'], ['topic' => 'Tema corectată'],
+        hwcUser(UserRole::Profesor)->id, 'greșeală reală de redactare',
+    );
 
     $this->artisan('app:purge-demo-data')->assertSuccessful();
 
@@ -250,150 +290,25 @@ it('purge-ul demo șterge corecțiile [DEMO] și temele-suport, dar nu atinge da
         ->and(HomeworkCorrection::query()->whereKey($realCorrection->id)->exists())->toBeTrue();
 });
 
-// ─── Fișa cererii (analiza completă înainte de decizie) ─────────────────────────────────
-
-it('fișa arată motivul integral, propunerea vechi → nou și cronologia', function () {
-    $homework = hwcAssignment();
-    $requester = hwcUser(UserRole::Profesor);
-    $reviewer = hwcUser(UserRole::Director);
-
-    $correction = HomeworkCorrection::create([
-        'homework_assignment_id' => $homework->id,
-        'requested_by_user_id' => $requester->id,
-        'old_required_task' => $homework->required_task,
-        'new_required_task' => 'Ex. 1-6 pagina 14',
-        'reason' => 'Un motiv suficient de lung încât lista îl trunchia — fișa îl arată însă integral, fără puncte de suspensie.',
-    ]);
-
-    $this->actingAs($reviewer);
-
-    Livewire::test(ViewHomeworkCorrection::class, ['record' => $correction->id])
-        ->assertSee('Un motiv suficient de lung încât lista îl trunchia — fișa îl arată însă integral, fără puncte de suspensie.')
-        ->assertSee('Ex. 1-3 pagina 10')
-        ->assertSee('Ex. 1-6 pagina 14')
-        ->assertSee(__('panel.homework_correction_view.timeline'))
-        ->assertSee(__('panel.homework_correction_view.submitted'))
-        ->assertSee(__('panel.actions.approve.label'))
-        ->assertSee(__('panel.actions.reject.label'));
-});
-
-it('respingerea din fișă CERE motiv, îl consemnează în cronologie și notifică solicitantul', function () {
-    Notification::fake();
-
-    $homework = hwcAssignment();
-    $requester = hwcUser(UserRole::Profesor);
-    $reviewer = hwcUser(UserRole::PrimVicedirector);
-
-    $correction = HomeworkCorrection::create([
-        'homework_assignment_id' => $homework->id,
-        'requested_by_user_id' => $requester->id,
-        'old_topic' => $homework->topic,
-        'new_topic' => 'Tema nouă',
-        'reason' => 'Titlul e greșit.',
-    ]);
-
-    $this->actingAs($reviewer);
-
-    // Fără motiv → refuz de validare; verdictul NU se consemnează.
-    Livewire::test(ViewHomeworkCorrection::class, ['record' => $correction->id])
-        ->callAction('reject', ['review_note' => ''])
-        ->assertHasActionErrors();
-
-    expect($correction->refresh()->status)->toBe(CorrectionStatus::Pending);
-
-    // Cu motiv → respinsă, iar solicitantul primește verdictul cu link spre fișă.
-    Livewire::test(ViewHomeworkCorrection::class, ['record' => $correction->id])
-        ->callAction('reject', ['review_note' => 'Titlul din manual e cel vechi.'])
-        ->assertNotified();
-
-    expect($correction->refresh()->status)->toBe(CorrectionStatus::Rejected)
-        ->and($correction->review_note)->toBe('Titlul din manual e cel vechi.');
-
-    Notification::assertSentTo(
-        $requester,
-        fn (CatalogNotification $n): bool => $n->type === NotificationType::HomeworkCorrectionRejected
-            && $n->url !== null && str_contains($n->url, (string) $correction->id),
-    );
-});
-
-it('aprobarea din fișă aplică schimbarea; retragerea e doar a solicitantului', function () {
-    $homework = hwcAssignment();
-    $requester = hwcUser(UserRole::Profesor);
-    $reviewer = hwcUser(UserRole::AdministratorOperational);
-
-    $correction = HomeworkCorrection::create([
-        'homework_assignment_id' => $homework->id,
-        'requested_by_user_id' => $requester->id,
-        'old_required_task' => $homework->required_task,
-        'new_required_task' => 'Ex. 7-9 pagina 20',
-        'reason' => 'Completare.',
-    ]);
-
-    // Aprobatorul NU vede „Retrage" (nu e cererea lui); solicitantul o vede pe a lui.
-    $this->actingAs($reviewer);
-    Livewire::test(ViewHomeworkCorrection::class, ['record' => $correction->id])
-        ->assertActionHidden('withdraw')
-        ->callAction('approve', ['review_note' => 'De acord.'])
-        ->assertNotified();
-
-    expect($homework->refresh()->required_task)->toBe('Ex. 7-9 pagina 20')
-        ->and($correction->refresh()->status)->toBe(CorrectionStatus::Approved);
-
-    // După verdict, judecata dispare de pe fișă.
-    Livewire::test(ViewHomeworkCorrection::class, ['record' => $correction->id])
-        ->assertActionHidden('approve')
-        ->assertActionHidden('reject');
-});
-
-it('fișa e a arhivarilor sau a solicitantului propriu — alt profesor primește 404', function () {
-    $homework = hwcAssignment();
-    $requester = hwcUser(UserRole::Profesor);
-    // Ambii cu fișă de profesor: poarta resursei (canSeeAcademicData) cere fișa.
-    Teacher::factory()->create(['user_id' => $requester->id]);
-    $stranger = hwcUser(UserRole::Profesor);
-    Teacher::factory()->create(['user_id' => $stranger->id]);
-
-    $correction = HomeworkCorrection::create([
-        'homework_assignment_id' => $homework->id,
-        'requested_by_user_id' => $requester->id,
-        'old_topic' => $homework->topic,
-        'new_topic' => 'Alt titlu',
-        'reason' => 'Motiv.',
-    ]);
-
-    // Scoping-ul din getEloquentQuery ASCUNDE cererile străine → 404 (nici măcar existența
-    // nu se confirmă), mai puternic decât un 403.
-    $this->actingAs($stranger)
-        ->get("/admin/homework-corrections/{$correction->id}")
-        ->assertNotFound();
-
-    $this->actingAs($requester)
-        ->get("/admin/homework-corrections/{$correction->id}")
-        ->assertOk();
-});
-
-it('judecata lasă urmă în jurnalul de audit (modelul e auditabil)', function () {
-    // Auditarea e oprită implicit în consolă (config audit.console=false) — pornită pentru test.
+it('corecția directă lasă urmă dublă: registrul (created) + auditul temei (updated)', function () {
     config(['audit.console' => true]);
 
-    $homework = hwcAssignment();
-    $requester = hwcUser(UserRole::Profesor);
-    $reviewer = hwcUser(UserRole::Director);
+    [$authorUser, $author] = hwcTeacherUser(UserRole::Profesor);
+    $homework = hwcAssignment($author);
 
-    $correction = HomeworkCorrection::create([
-        'homework_assignment_id' => $homework->id,
-        'requested_by_user_id' => $requester->id,
-        'old_topic' => $homework->topic,
-        'new_topic' => 'Titlu auditat',
-        'reason' => 'Motiv.',
-    ]);
+    $this->actingAs($authorUser);
+    $homework->update(['topic' => 'Titlu auditat']);
 
-    $this->actingAs($reviewer);
-    $correction->approve($reviewer->id, 'Ok.');
+    $correction = HomeworkCorrection::query()->sole();
 
     expect(DB::table('audits')
         ->where('auditable_type', HomeworkCorrection::class)
         ->where('auditable_id', $correction->id)
-        ->where('event', 'updated')
-        ->exists())->toBeTrue();
+        ->where('event', 'created')
+        ->exists())->toBeTrue()
+        ->and(DB::table('audits')
+            ->where('auditable_type', HomeworkAssignment::class)
+            ->where('auditable_id', $homework->id)
+            ->where('event', 'updated')
+            ->exists())->toBeTrue();
 });

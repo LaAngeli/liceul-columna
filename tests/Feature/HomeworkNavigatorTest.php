@@ -62,7 +62,7 @@ function hwNavDirector(): User
     return $user;
 }
 
-function hwFor(int $gradeLevel, ?string $section, Subject $subject, ?Teacher $teacher = null, string $on = '2025-10-10', ?string $due = null): HomeworkAssignment
+function hwFor(int $gradeLevel, ?string $section, Subject $subject, ?Teacher $teacher = null, string $on = '2025-10-10'): HomeworkAssignment
 {
     return HomeworkAssignment::factory()->create([
         'grade_level' => $gradeLevel,
@@ -72,7 +72,6 @@ function hwFor(int $gradeLevel, ?string $section, Subject $subject, ?Teacher $te
         'teacher_id' => $teacher?->id,
         'author_name' => $teacher?->full_name ?? 'Legacy',
         'assigned_on' => $on,
-        'due_on' => $due,
     ]);
 }
 
@@ -164,23 +163,22 @@ it('o clasă din afara alocărilor profesorului nu se pre-completează în formu
         ]);
 });
 
-// ─── Componenta TEMPORALĂ (2026-07-18): bara Zi/Săptămână/Lună + cronologie pe data efectivă ──
+// ─── Componenta TEMPORALĂ: bara Zi/Săptămână/Lună + cronologie pe DATA LECȚIEI (assigned_on) ──
 
-it('modul „săptămână" filtrează pe DATA EFECTIVĂ: termenul decide, cu fallback pe atribuire la legacy', function () {
+it('modul „săptămână" filtrează pe DATA LECȚIEI — axa unică după eliminarea termenului', function () {
     actingAs(hwNavDirector());
 
-    // Termen ÎN săptămâna de referință (10-16 nov 2025), deși atribuită în afara ei.
-    $dueInWeek = hwFor(7, 'A', $this->subject, on: '2025-11-03', due: '2025-11-12');
-    // Legacy fără termen, atribuită în săptămână → efectiva = atribuirea, intră.
-    $legacyInWeek = hwFor(7, 'A', $this->subject, on: '2025-11-13');
-    // Termen în ALTĂ săptămână → iese, chiar dacă atribuirea cade în săptămână.
-    $dueOutside = hwFor(7, 'A', $this->subject, on: '2025-11-12', due: '2025-11-24');
+    // Atribuite ÎN săptămâna de referință (10-16 nov 2025) → intră.
+    $earlyInWeek = hwFor(7, 'A', $this->subject, on: '2025-11-12');
+    $lateInWeek = hwFor(7, 'A', $this->subject, on: '2025-11-13');
+    // Atribuită în ALTĂ săptămână → iese.
+    $outside = hwFor(7, 'A', $this->subject, on: '2025-11-24');
 
     Livewire::withQueryParams(['mod' => 'saptamana', 'ref' => '2025-11-10'])
         ->test(ListHomeworkAssignments::class)
         ->call('openCatalogEntity', $this->classA->id)
-        ->assertCanSeeTableRecords([$dueInWeek, $legacyInWeek])
-        ->assertCanNotSeeTableRecords([$dueOutside]);
+        ->assertCanSeeTableRecords([$earlyInWeek, $lateInWeek])
+        ->assertCanNotSeeTableRecords([$outside]);
 
     // Mod/ref INVALIDE din URL → „Toate" (nu se ia nimic de bun).
     $component = Livewire::withQueryParams(['mod' => 'trimestru', 'ref' => 'nu-e-data'])
@@ -221,9 +219,9 @@ it('cabinetul livrează temele cronologic: azi+viitoare ASC întâi (cu status),
 
     $school = SchoolCalendar::localNow();
     $today = $school->toDateString();
-    hwFor(7, 'A', $this->subject, on: $school->copy()->subDays(10)->toDateString(), due: $school->copy()->subDays(3)->toDateString());
-    hwFor(7, 'A', $this->subject, on: $school->copy()->subDay()->toDateString(), due: $school->copy()->addDays(2)->toDateString());
-    hwFor(7, 'A', $this->subject, on: $today, due: $today);
+    hwFor(7, 'A', $this->subject, on: $school->copy()->subDays(3)->toDateString());
+    hwFor(7, 'A', $this->subject, on: $school->copy()->addDays(2)->toDateString());
+    hwFor(7, 'A', $this->subject, on: $today);
 
     $items = actingAs($elev)
         ->withSession(['auth.password_confirmed_at' => time()])
@@ -233,21 +231,19 @@ it('cabinetul livrează temele cronologic: azi+viitoare ASC întâi (cu status),
 
     expect(collect($items)->pluck('status')->all())->toBe(['today', 'upcoming', 'past'])
         ->and($items[0]['effectiveDate'])->toBe($today)
-        ->and($items[0]['due'])->toBe($school->format('d.m.Y'))
-        ->and($items[2]['due'])->toBe($school->copy()->subDays(3)->format('d.m.Y'));
+        ->and($items[2]['date'])->toBe($school->copy()->subDays(3)->format('d.m.Y'));
 
     Carbon::setTestNow();
 });
 
-it('cronologia implicită: temele se ordonează pe data efectivă (termenul primează asupra atribuirii)', function () {
+it('cronologia implicită: temele se ordonează pe data lecției, descrescător', function () {
     actingAs(hwNavDirector());
 
-    // Atribuită DEVREME dar cu termen TÂRZIU → prima în cronologia desc.
-    $lateDue = hwFor(7, 'A', $this->subject, on: '2025-10-01', due: '2025-12-01');
-    $legacy = hwFor(7, 'A', $this->subject, on: '2025-11-10');
-    $earlyDue = hwFor(7, 'A', $this->subject, on: '2025-11-01', due: '2025-11-05');
+    $late = hwFor(7, 'A', $this->subject, on: '2025-12-01');
+    $middle = hwFor(7, 'A', $this->subject, on: '2025-11-10');
+    $early = hwFor(7, 'A', $this->subject, on: '2025-11-01');
 
     Livewire::test(ListHomeworkAssignments::class)
         ->call('openCatalogEntity', $this->classA->id)
-        ->assertCanSeeTableRecords([$lateDue, $legacy, $earlyDue], inOrder: true);
+        ->assertCanSeeTableRecords([$late, $middle, $early], inOrder: true);
 });

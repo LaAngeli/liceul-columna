@@ -6,7 +6,6 @@ use App\Filament\Concerns\HasCatalogNavigator;
 use App\Filament\Concerns\HasTimeNavigator;
 use App\Filament\Contracts\CatalogNavigator;
 use App\Filament\Resources\HomeworkAssignments\HomeworkAssignmentResource;
-use App\Models\HomeworkAssignment;
 use App\Models\SchoolClass;
 use App\Models\Term;
 use Filament\Actions\CreateAction;
@@ -24,7 +23,7 @@ use Illuminate\Support\Facades\DB;
  * (grade_level, section), incluzând temele date pe TOATĂ treapta (litera goală).
  *
  * TIMPUL e a doua axă ({@see HasTimeNavigator}): bara Toate / Zi / Săptămână / Lună filtrează
- * pe DATA EFECTIVĂ a temei (termen, cu fallback pe atribuire la legacy).
+ * pe DATA LECȚIEI (assigned_on) — axa unică după eliminarea „termenului" (2026-07-31).
  */
 class ListHomeworkAssignments extends ListRecords implements CatalogNavigator
 {
@@ -37,7 +36,7 @@ class ListHomeworkAssignments extends ListRecords implements CatalogNavigator
 
     protected function timeDateExpression(): string|Expression
     {
-        return HomeworkAssignment::effectiveOnExpression();
+        return 'assigned_on';
     }
 
     protected function getHeaderActions(): array

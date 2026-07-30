@@ -102,7 +102,6 @@ it('crearea pe perechea proprie reușește: treapta+litera derivă din clasă, a
             'class_target' => 'class:'.$this->class->id,
             'subject_id' => $this->subject->id,
             'assigned_on' => now()->toDateString(),
-            'due_on' => now()->addDay()->toDateString(),
             'required_task' => 'Ex. 1-3, pag. 10',
         ])
         ->call('create')
@@ -114,40 +113,7 @@ it('crearea pe perechea proprie reușește: treapta+litera derivă din clasă, a
         ->and($homework->section)->toBe('1')
         ->and($homework->teacher_id)->toBe($this->teacher->id)
         ->and($homework->author_name)->toBe($this->teacher->full_name)
-        ->and($homework->subject_name)->toBe($this->subject->name)
-        ->and($homework->due_on?->toDateString())->toBe(now()->addDay()->toDateString());
-});
-
-// ─── Componenta temporală (2026-07-18): termenul e OBLIGATORIU și nu precede atribuirea ───
-
-it('tema fără TERMEN e respinsă — termenul e fundamentul afișărilor cronologice', function () {
-    Livewire::test(CreateHomeworkAssignment::class)
-        ->fillForm([
-            'class_target' => 'class:'.$this->class->id,
-            'subject_id' => $this->subject->id,
-            'assigned_on' => now()->toDateString(),
-            'due_on' => null,
-            'required_task' => 'Ex. 1-3, pag. 10',
-        ])
-        ->call('create')
-        ->assertHasFormErrors(['due_on']);
-
-    expect(HomeworkAssignment::query()->count())->toBe(0);
-});
-
-it('termenul dinaintea datei de atribuire e respins', function () {
-    Livewire::test(CreateHomeworkAssignment::class)
-        ->fillForm([
-            'class_target' => 'class:'.$this->class->id,
-            'subject_id' => $this->subject->id,
-            'assigned_on' => now()->toDateString(),
-            'due_on' => now()->subDay()->toDateString(),
-            'required_task' => 'Ex. 1-3, pag. 10',
-        ])
-        ->call('create')
-        ->assertHasFormErrors(['due_on']);
-
-    expect(HomeworkAssignment::query()->count())->toBe(0);
+        ->and($homework->subject_name)->toBe($this->subject->name);
 });
 
 // ─── Protecția pe SERVER — stratul 1: formularul respinge valori din afara opțiunilor ─────
@@ -159,7 +125,6 @@ it('FORMULAR: disciplina pe care N-O PREDĂ în clasa aleasă e respinsă (nu e 
             'class_target' => 'class:'.$this->class->id,
             'subject_id' => $this->foreignSubject->id,
             'assigned_on' => now()->toDateString(),
-            'due_on' => now()->addDay()->toDateString(),
             'required_task' => 'X',
         ])
         ->call('create')
@@ -174,7 +139,6 @@ it('FORMULAR: clasa fără alocare proprie e respinsă, chiar la aceeași treapt
             'class_target' => 'class:'.$this->otherClass->id,
             'subject_id' => $this->subject->id,
             'assigned_on' => now()->toDateString(),
-            'due_on' => now()->addDay()->toDateString(),
             'required_task' => 'X',
         ])
         ->call('create')
@@ -189,7 +153,6 @@ it('FORMULAR: profesorul NU poate alege „toată treapta" (grade:7 nu e în op�
             'class_target' => 'grade:7',
             'subject_id' => $this->subject->id,
             'assigned_on' => now()->toDateString(),
-            'due_on' => now()->addDay()->toDateString(),
             'required_task' => 'X',
         ])
         ->call('create')
@@ -203,11 +166,20 @@ it('FORMULAR: profesorul NU poate alege „toată treapta" (grade:7 nu e în op�
 // „manipulate" care ar fi trecut de un formular greșit configurat.
 
 /** @param array<string, mixed> $data */
-function enforceHomeworkAs(array $data, bool $creating = true): array
+function enforceHomeworkAs(array $data, bool $creating = true, ?HomeworkAssignment $record = null): array
 {
+    // Harness-ul emulează CONTRACTUL paginii: trait-ul cere `getRecord()` pe ramura de editare
+    // (dirigintele-nu-autor primește doar conținutul — decide pe înregistrarea reală).
     $enforcer = new class
     {
         use EnforcesHomeworkScope;
+
+        public ?HomeworkAssignment $record = null;
+
+        public function getRecord(): ?HomeworkAssignment
+        {
+            return $this->record;
+        }
 
         /**
          * @param  array<string, mixed>  $data
@@ -218,6 +190,8 @@ function enforceHomeworkAs(array $data, bool $creating = true): array
             return $this->enforceHomeworkScope($data, $creating);
         }
     };
+
+    $enforcer->record = $record;
 
     return $enforcer->run($data, $creating);
 }
@@ -267,16 +241,58 @@ it('TRAIT: o țintă inexistentă (class:{id fals}) e respinsă cu mesaj clar', 
 });
 
 it('TRAIT: la EDITARE autorul original NU se atinge, chiar dacă payload-ul îl injectează', function () {
+    // Autorul își editează propria temă (regimul direct) — ținta rămâne re-alegebilă în perechile
+    // lui, dar autoratul din payload se aruncă.
+    $own = HomeworkAssignment::factory()->create([
+        'teacher_id' => $this->teacher->id,
+        'grade_level' => $this->class->grade_level,
+        'section' => $this->class->section,
+    ]);
+
     $data = enforceHomeworkAs([
         'class_target' => 'class:'.$this->class->id,
         'subject_id' => $this->subject->id,
         'topic' => 'X',
         'teacher_id' => 424242,
         'author_name' => 'Uzurpator',
-    ], creating: false);
+    ], creating: false, record: $own);
 
     expect($data)->not->toHaveKey('teacher_id')
         ->not->toHaveKey('author_name');
+});
+
+it('TRAIT: dirigintele-nu-autor păstrează DOAR conținutul — ținta/disciplina/data se aruncă', function () {
+    $homeroomUser = User::factory()->create();
+    $homeroomUser->assignRole(UserRole::Diriginte->value);
+    $homeroom = Teacher::factory()->create(['user_id' => $homeroomUser->id]);
+    SchoolClass::factory()->create([
+        'grade_level' => $this->class->grade_level,
+        'section' => $this->class->section,
+        'homeroom_teacher_id' => $homeroom->id,
+    ]);
+
+    $foreign = HomeworkAssignment::factory()->create([
+        'teacher_id' => $this->teacher->id,
+        'grade_level' => $this->class->grade_level,
+        'section' => $this->class->section,
+    ]);
+
+    actingAs($homeroomUser);
+
+    // Payload manipulat: încearcă re-țintirea + schimbarea datei — serverul păstrează doar conținutul.
+    $data = enforceHomeworkAs([
+        'class_target' => 'class:'.$this->otherClass->id,
+        'subject_id' => $this->foreignSubject->id,
+        'assigned_on' => now()->addWeek()->toDateString(),
+        'topic' => 'Conținut corectat de diriginte',
+        'teacher_id' => 424242,
+    ], creating: false, record: $foreign);
+
+    expect($data)->toHaveKey('topic')
+        ->not->toHaveKey('class_target')
+        ->not->toHaveKey('subject_id')
+        ->not->toHaveKey('assigned_on')
+        ->not->toHaveKey('teacher_id');
 });
 
 // ─── Administrația: toată treapta, cu secție NULL reală ──────────────────────────────────
@@ -289,7 +305,6 @@ it('administrația poate da temă pentru toată treapta, iar secția intră NULL
             'class_target' => 'grade:7',
             'subject_id' => $this->subject->id,
             'assigned_on' => now()->toDateString(),
-            'due_on' => now()->addDay()->toDateString(),
             'topic' => 'Anunț pentru toată treapta',
         ])
         ->call('create')
@@ -313,7 +328,6 @@ it('o temă fără subiect ȘI fără sarcină obligatorie e respinsă', functio
             'class_target' => 'class:'.$this->class->id,
             'subject_id' => $this->subject->id,
             'assigned_on' => now()->toDateString(),
-            'due_on' => now()->addDay()->toDateString(),
             'optional_task' => 'doar opțională',
         ])
         ->call('create')

@@ -237,8 +237,7 @@ it('tema cu termen AZI e „today" și noaptea, când ziua UTC e încă cea prec
         'author_name' => 'Damian Iu.',
         'grade_level' => $class->grade_level,
         'section' => $class->section,
-        'assigned_on' => '2026-03-10',
-        'due_on' => '2026-03-12',
+        'assigned_on' => '2026-03-12',
         'topic' => 'Recapitulare',
         'required_task' => 'Ex. 1–3',
     ]);

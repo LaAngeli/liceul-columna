@@ -87,12 +87,13 @@ class HomeworkAssignmentResource extends Resource
     }
 
     /**
-     * Editarea DIRECTĂ = doar aprobatorii de corecții (Dir / PVD / AO + super-admin). Autorul
-     * cere corecția din listă — nu-și rescrie tema (decizia beneficiarului, 2026-07-15).
+     * Corecția DIRECTĂ (2026-07-31): autorul, dirigintele clasei vizate și administrația
+     * editează fără aprobare — regula completă e în HomeworkAssignmentPolicy::update();
+     * schimbarea de conținut se consemnează automat în registrul de corecții.
      */
     public static function canEdit(Model $record): bool
     {
-        return auth('web')->user()?->canApproveHomeworkCorrections() ?? false;
+        return auth('web')->user()?->can('update', $record) ?? false;
     }
 
     public static function canDelete(Model $record): bool

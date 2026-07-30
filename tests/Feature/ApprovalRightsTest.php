@@ -149,16 +149,16 @@ it('conducerea judecă în virtutea funcției — fără mențiunea de dirigenț
     expect($capacitate)->toBeNull();
 });
 
-it('NIMENI din corpul didactic nu aprobă corecții de notă sau de temă — nici dirigintele', function () {
+it('NIMENI din corpul didactic nu aprobă corecții de notă — nici dirigintele', function () {
+    // Corecțiile de TEME au ieșit din discuție (2026-07-31): sunt directe, fără aprobare —
+    // vezi HomeworkCorrectionTest. Aici rămâne doar matricea corecțiilor de NOTĂ (§3.1).
     foreach ([
         'profesor simplu' => approvalTeacher(UserRole::Profesor->value),
         'diriginte' => approvalTeacher(UserRole::Diriginte->value, $this->classB),
     ] as $eticheta => $user) {
-        expect($user->canApproveGradeCorrections())->toBeFalse("($eticheta) nu poate aproba corecții de notă")
-            ->and($user->canApproveHomeworkCorrections())->toBeFalse("($eticheta) nu poate aproba corecții de temă");
+        expect($user->canApproveGradeCorrections())->toBeFalse("($eticheta) nu poate aproba corecții de notă");
     }
 
-    // Aprobarea rămâne la conducere (temele includ și administratorul operațional — decizie §3.3).
     $director = User::factory()->create();
     $director->assignRole(UserRole::Director->value);
 
@@ -166,9 +166,7 @@ it('NIMENI din corpul didactic nu aprobă corecții de notă sau de temă — ni
     $operational->assignRole(UserRole::AdministratorOperational->value);
 
     expect($director->canApproveGradeCorrections())->toBeTrue()
-        ->and($director->canApproveHomeworkCorrections())->toBeTrue()
-        ->and($operational->canApproveGradeCorrections())->toBeFalse()
-        ->and($operational->canApproveHomeworkCorrections())->toBeTrue();
+        ->and($operational->canApproveGradeCorrections())->toBeFalse();
 });
 
 it('eticheta de dirigenție e goală pentru cine nu are clase în coordonare', function () {

@@ -24,8 +24,6 @@ vi.mock('@inertiajs/react', () => ({
                         homework_tomorrow: 'Mâine',
                         homework_none_upcoming: 'Nimic de predat momentan.',
                         homework_past: 'Teme anterioare',
-                        homework_due_badge: 'de predat',
-                        homework_due_on: 'termen',
                         homework_assigned_on: 'atribuită',
                         required: 'Obligatoriu:',
                         optional: 'Suplimentar:',
@@ -71,7 +69,6 @@ function hw(over: Partial<HomeworkItem> & Pick<HomeworkItem, 'id' | 'effectiveDa
 
     return {
         date: `${d}.${m}.${y}`,
-        due: null,
         dayLabel: `${d}.${m}`,
         status: 'past',
         teacher: null,

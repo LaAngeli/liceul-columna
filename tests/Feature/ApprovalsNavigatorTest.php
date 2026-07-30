@@ -18,6 +18,7 @@ use App\Models\AbsenceMotivation;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\GradeCorrection;
+use App\Models\HomeworkAssignment;
 use App\Models\HomeworkCorrection;
 use App\Models\SchoolClass;
 use App\Models\Student;
@@ -107,26 +108,24 @@ it('profesorul-solicitant păstrează tabelul plat cu TOATE cererile lui (orice 
     $component->assertCanSeeTableRecords([$pending, $rejected]);
 });
 
-// ─── Corecții de teme: aceeași rețetă ────────────────────────────────────────────────────
+// ─── Corecții de teme: REGISTRU simplu (2026-07-31), nu coadă de aprobare ────────────────
 
-it('coada corecțiilor de teme funcționează pe aceeași rețetă (solicitant → cereri)', function () {
-    $autor = User::factory()->create(['name' => 'AP-Autor']);
-    $pending = HomeworkCorrection::factory()->create(['requested_by_user_id' => $autor->id]);
-    $withdrawn = HomeworkCorrection::factory()->create([
-        'requested_by_user_id' => $autor->id, 'status' => CorrectionStatus::Withdrawn,
+it('registrul corecțiilor de teme e listă simplă, scoped pe profesor — fără navigator de aprobare', function () {
+    $autorUser = User::factory()->create(['name' => 'AP-Autor']);
+    $autorUser->assignRole(UserRole::Profesor->value);
+    $autorTeacher = Teacher::factory()->create(['user_id' => $autorUser->id]);
+
+    $mine = HomeworkCorrection::factory()->create([
+        'homework_assignment_id' => HomeworkAssignment::factory()->create(['teacher_id' => $autorTeacher->id])->id,
+        'requested_by_user_id' => $autorUser->id,
     ]);
+    $foreign = HomeworkCorrection::factory()->create();
 
-    actingAs($this->director);
+    actingAs($autorUser);
 
-    $component = Livewire::test(ListHomeworkCorrections::class);
-    $page = $component->instance();
-
-    expect(collect($page->approvalViewPills())->pluck('count')->all())->toBe([1, 1])
-        ->and(collect($page->approvalCards())->pluck('id')->all())->toBe([$autor->id]);
-
-    $component->call('openTarget', $autor->id)
-        ->assertCanSeeTableRecords([$pending])
-        ->assertCanNotSeeTableRecords([$withdrawn]);
+    Livewire::test(ListHomeworkCorrections::class)
+        ->assertCanSeeTableRecords([$mine])
+        ->assertCanNotSeeTableRecords([$foreign]);
 });
 
 // ─── Motivări: carduri pe clasa curentă a elevului ───────────────────────────────────────

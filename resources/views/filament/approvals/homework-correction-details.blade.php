@@ -105,12 +105,6 @@
                         {{ $record->status->getLabel() }}
                     </x-filament::badge>
                 </div>
-
-                @if ($record->isPending() && $this->canJudge())
-                    <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                        {{ __('panel.homework_correction_view.pending_hint') }}
-                    </p>
-                @endif
             </div>
 
             <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">

@@ -66,13 +66,12 @@ it('tema cu TERMEN se proiectează pe termen (data efectivă), nu pe ziua lecți
     $student = Student::factory()->create();
     Enrollment::factory()->for($student)->for($class)->for($year)->create();
 
-    // Atribuită în MAI (în afara ferestrei), cu termen în IUNIE → intră în fereastră, PE termen.
+    // Tema apare în calendar pe DATA LECȚIEI (axa unică după eliminarea termenului, 2026-07-31).
     HomeworkAssignment::factory()->create([
         'grade_level' => 9,
         'section' => 'A',
         'subject_name' => 'Matematică',
-        'assigned_on' => '2026-05-28',
-        'due_on' => '2026-06-03',
+        'assigned_on' => '2026-06-03',
     ]);
 
     $homework = collectCalendar(calendarScopeFor($student))->where('source', 'homework');

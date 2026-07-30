@@ -208,11 +208,11 @@ it('autorul unei teme o poate retrage, dar nu o poate șterge definitiv', functi
     expect(Gate::forUser($this->profesor)->check('restore', $homework))->toBeFalse();
 });
 
-// ─── TEME: editarea directă a dispărut pentru profesor (regula 2026-07-15) ────────────────
-// Profesorii văd temele claselor comune (by design), dar NU mai editează direct nicio temă —
-// nici pe a lor: corectarea trece prin „Solicită corecție" (vizibilă DOAR autorului), cu
-// aprobarea Dir / PVD / AO. Editarea rămâne acțiunea exclusivă a aprobatorilor.
-it('profesorul nu vede „Editare" pe nicio temă; „Solicită corecție" apare doar pe a sa', function () {
+// ─── TEME: corecția DIRECTĂ (regula 2026-07-31) — editezi ce e al tău ─────────────────────
+// Profesorii văd temele claselor comune (by design), dar „Editare" apare DOAR pe temele
+// proprii: corecția e directă (fără cerere → aprobare), consemnată automat în registru.
+// Temele altora rămân închise; administrația păstrează editarea pe oricare.
+it('profesorul vede „Editare" doar pe temele lui; ale colegilor rămân închise', function () {
     $colleagueUser = User::factory()->create();
     $colleagueUser->assignRole(UserRole::Profesor->value);
     $colleague = Teacher::factory()->create(['user_id' => $colleagueUser->id]);
@@ -235,22 +235,26 @@ it('profesorul nu vede „Editare" pe nicio temă; „Solicită corecție" apare
     actingAs($colleagueUser);
 
     // Pagina Teme e acum navigator drill-down: deschidem contextul clasei ca să vedem tabelul.
-    Livewire::test(ListHomeworkAssignments::class)
+    // Vizibilitatea acțiunii se evaluează DIRECT pe instanță (assertTableAction* pe acțiuni
+    // din ActionGroup s-a dovedit nedeterminist — cache pe prima înregistrare afirmată).
+    $component = Livewire::test(ListHomeworkAssignments::class)
         ->call('openCatalogEntity', $this->class->id)
-        ->assertCanSeeTableRecords([$ownHomework, $othersHomework])
-        ->assertTableActionHidden('edit', $ownHomework)
-        ->assertTableActionHidden('edit', $othersHomework)
-        ->assertTableActionVisible('requestCorrection', $ownHomework)
-        ->assertTableActionHidden('requestCorrection', $othersHomework);
+        ->assertCanSeeTableRecords([$ownHomework, $othersHomework]);
 
-    // Aprobatorul (AO) păstrează editarea directă.
+    $edit = $component->instance()->getTable()->getAction('edit');
+
+    expect($edit->record($ownHomework)->isVisible())->toBeTrue()
+        ->and($edit->record($othersHomework)->isVisible())->toBeFalse();
+
+    // Administrația (AO) păstrează editarea directă pe oricare.
     $ao = User::factory()->create();
     $ao->assignRole(UserRole::AdministratorOperational->value);
     actingAs($ao);
 
-    Livewire::test(ListHomeworkAssignments::class)
-        ->call('openCatalogEntity', $this->class->id)
-        ->assertTableActionVisible('edit', $ownHomework);
+    $aoComponent = Livewire::test(ListHomeworkAssignments::class)
+        ->call('openCatalogEntity', $this->class->id);
+
+    expect($aoComponent->instance()->getTable()->getAction('edit')->record($othersHomework)->isVisible())->toBeTrue();
 });
 
 // ─── SISTEMIC: nomenclatoarele nu se scriu de profesor ──────────────────────────────────

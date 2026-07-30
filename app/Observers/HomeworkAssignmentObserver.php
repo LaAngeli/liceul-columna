@@ -2,25 +2,42 @@
 
 namespace App\Observers;
 
-use App\Enums\CorrectionStatus;
 use App\Models\HomeworkAssignment;
+use App\Models\HomeworkCorrection;
 
 /**
- * Igiena corecțiilor la retragerea temei: o cerere în așteptare pe o temă ștearsă „moale" rămâne
- * fără obiect → expiră (administrația nu mai are ce judeca). La ștergerea PERMANENTĂ, corecțiile
- * se curăță prin FK cascade (tema dispare definitiv, împreună cu arhiva ei).
+ * Registrul corecțiilor DIRECTE (2026-07-31): orice schimbare a CONȚINUTULUI temei (subiect /
+ * sarcină obligatorie / sarcină opțională) operată din interfață se consemnează automat în
+ * {@see HomeworkCorrection} — vechi → nou, cine, când. Fără aprobare: dreptul de editare e
+ * tranșat de policy (autor / dirigintele clasei / administrația); aici doar se lasă urma.
+ *
+ * DOAR pe cereri autentificate web: seed-erele și comenzile de consolă își consemnează singure
+ * corecțiile (cu marcajele lor) — altfel fiecare rulare ar dubla registrul.
  */
 class HomeworkAssignmentObserver
 {
-    public function deleted(HomeworkAssignment $homework): void
+    private const CONTENT_FIELDS = ['topic', 'required_task', 'optional_task'];
+
+    public function updated(HomeworkAssignment $homework): void
     {
-        if ($homework->isForceDeleting()) {
+        if (! auth('web')->check()) {
             return;
         }
 
-        $homework->corrections()
-            ->where('status', CorrectionStatus::Pending)
-            ->get()
-            ->each(fn ($correction) => $correction->expire());
+        $changed = [];
+        $old = [];
+
+        foreach (self::CONTENT_FIELDS as $field) {
+            if ($homework->wasChanged($field)) {
+                $changed[$field] = $homework->getAttribute($field);
+                $old[$field] = $homework->getOriginal($field);
+            }
+        }
+
+        if ($changed === []) {
+            return;
+        }
+
+        HomeworkCorrection::recordApplied($homework, $old, $changed, (int) auth('web')->id());
     }
 }

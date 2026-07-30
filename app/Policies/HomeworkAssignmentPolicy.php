@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\HomeworkAssignment;
+use App\Models\SchoolClass;
 use App\Models\User;
 
 /**
@@ -28,14 +29,40 @@ class HomeworkAssignmentPolicy
     }
 
     /**
-     * Editarea DIRECTĂ a temei = doar administrația care aprobă corecții (Director /
-     * Prim-vicedirector / Administrator Operațional + super-admin). Profesorul-autor NU își mai
-     * rescrie tema: cere corecția, administrația aprobă (decizia beneficiarului, 2026-07-15) —
-     * simetric cu regula notelor (§3.1), dar cu AO inclus între aprobatori.
+     * Corecția DIRECTĂ (decizia beneficiarului, 2026-07-31, o răstoarnă pe cea din 2026-07-15):
+     * AUTORUL și DIRIGINTELE clasei vizate corectează fără aprobare — fluxul cerere → judecată a
+     * fost eliminat; schimbarea de conținut se consemnează automat în registrul de corecții.
+     * Administrația păstrează editarea directă. Dreptul dirigintelui vine din DESEMNARE, pe
+     * contextul activ (multi-rol în context Profesor = puteri de dirigenție stinse, F3).
      */
     public function update(User $user, HomeworkAssignment $homework): bool
     {
-        return $user->canApproveHomeworkCorrections();
+        return $this->isAuthorOrAdministration($user, $homework)
+            || $this->isHomeroomTeacherOfClass($user, $homework);
+    }
+
+    /**
+     * Tema vizează exact clasa de dirigenție a userului (treaptă + literă)? Temele pe TOATĂ
+     * treapta (litera goală) NU intră: ar afecta și clasele altor diriginți — rămân pe
+     * autor/administrație.
+     */
+    private function isHomeroomTeacherOfClass(User $user, HomeworkAssignment $homework): bool
+    {
+        if ($homework->section === null) {
+            return false;
+        }
+
+        $classIds = $user->contextHomeroomClassIds();
+
+        if ($classIds === []) {
+            return false;
+        }
+
+        return SchoolClass::query()
+            ->whereKey($classIds)
+            ->where('grade_level', (int) $homework->grade_level)
+            ->where('section', $homework->section)
+            ->exists();
     }
 
     public function delete(User $user, HomeworkAssignment $homework): bool

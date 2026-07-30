@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\HomeworkAssignments\Schemas;
 
 use App\Filament\Concerns\EnforcesHomeworkScope;
+use App\Models\HomeworkAssignment;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
@@ -33,6 +34,8 @@ class HomeworkAssignmentForm
             ->components([
                 // Ținta temei: `class:{id}` (clasă reală) sau `grade:{n}` (toată treapta, doar
                 // administrația). Profesorul vede DOAR clasele din alocările proprii.
+                // Dirigintele-NU-autor (corecția directă) editează DOAR conținutul: ținta,
+                // disciplina și data lecției rămân ale autorului (blocate aici, ignorate pe server).
                 Select::make('class_target')
                     ->label(__('panel.fields.class'))
                     ->options(fn (): array => self::classTargetOptions())
@@ -40,7 +43,9 @@ class HomeworkAssignmentForm
                     // DOAR dacă e printre țintele permise rolului (un id străin e ignorat).
                     ->default(fn (): ?string => self::requestedContextTarget())
                     ->searchable()
-                    ->required()
+                    ->required(fn (?HomeworkAssignment $record, string $operation): bool => ! self::contentOnlyEdit($record, $operation))
+                    ->disabled(fn (?HomeworkAssignment $record, string $operation): bool => self::contentOnlyEdit($record, $operation))
+                    ->dehydrated(fn (?HomeworkAssignment $record, string $operation): bool => ! self::contentOnlyEdit($record, $operation))
                     ->live()
                     ->afterStateUpdated(fn (Set $set): mixed => $set('subject_id', null)),
                 Select::make('subject_id')
@@ -53,24 +58,17 @@ class HomeworkAssignmentForm
                     ))
                     ->default(fn (): ?int => self::requestedContextSubjectId())
                     ->searchable()
-                    ->required(),
+                    ->required(fn (?HomeworkAssignment $record, string $operation): bool => ! self::contentOnlyEdit($record, $operation))
+                    ->disabled(fn (?HomeworkAssignment $record, string $operation): bool => self::contentOnlyEdit($record, $operation))
+                    ->dehydrated(fn (?HomeworkAssignment $record, string $operation): bool => ! self::contentOnlyEdit($record, $operation)),
                 DatePicker::make('assigned_on')
                     ->label(__('panel.forms.homework.assigned_on'))
-                    ->required()
+                    ->required(fn (?HomeworkAssignment $record, string $operation): bool => ! self::contentOnlyEdit($record, $operation))
+                    ->disabled(fn (?HomeworkAssignment $record, string $operation): bool => self::contentOnlyEdit($record, $operation))
+                    ->dehydrated(fn (?HomeworkAssignment $record, string $operation): bool => ! self::contentOnlyEdit($record, $operation))
                     // Data lecției poate fi și în viitor (planificare) — digestul zilnic o preia
                     // în ziua respectivă. Decizie asumată, spre deosebire de note/absențe.
                     ->default(now()),
-                // TERMENUL („pentru ce zi e tema") — OBLIGATORIU (cerința beneficiarului
-                // 2026-07-18): e axa tuturor afișărilor cronologice (elev, filtre, digest).
-                // Nu poate preceda atribuirea.
-                DatePicker::make('due_on')
-                    ->label(__('panel.forms.homework.due_on'))
-                    ->helperText(__('panel.forms.homework.due_on_hint'))
-                    ->required()
-                    ->afterOrEqual('assigned_on')
-                    ->validationMessages([
-                        'after_or_equal' => __('panel.forms.homework.due_before_assigned'),
-                    ]),
                 // O temă fără subiect ȘI fără sarcină obligatorie e goală — cel puțin unul.
                 Textarea::make('topic')
                     ->label(__('panel.forms.homework.topic'))
@@ -107,6 +105,28 @@ class HomeworkAssignmentForm
         $user = auth('web')->user();
 
         return ($user && ! $user->isAdministrator()) ? $user->teacher : null;
+    }
+
+    /**
+     * Editare „doar conținut": dirigintele clasei corectează tema ALTUI profesor (corecția
+     * directă, 2026-07-31) — ținta/disciplina/data lecției rămân ale autorului. Autorul și
+     * administrația păstrează formularul întreg.
+     */
+    private static function contentOnlyEdit(?HomeworkAssignment $record, string $operation): bool
+    {
+        if ($operation !== 'edit' || $record === null) {
+            return false;
+        }
+
+        $user = auth('web')->user();
+
+        if ($user === null || $user->isAdministrator()) {
+            return false;
+        }
+
+        $teacher = $user->teacher;
+
+        return $teacher === null || (int) $record->teacher_id !== (int) $teacher->id;
     }
 
     /**

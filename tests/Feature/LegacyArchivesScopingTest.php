@@ -135,9 +135,9 @@ it('profesorul vede temele claselor lui și temele proprii, nu și altele', func
         ->not->toContain($unrelated->id);
 });
 
-it('profesorul NU editează teme direct (nici pe ale lui) — doar aprobatorii de corecții', function () {
-    // Regula 2026-07-15: autorul cere corecția (flux cu aprobare Dir / PVD / AO); editarea
-    // directă rămâne calea excepțională a administrației. Vezi HomeworkCorrectionTest.
+it('profesorul își editează DOAR temele proprii — cele străine rămân închise', function () {
+    // Regula 2026-07-31 (corecția directă): autorul editează fără aprobare; temele altora
+    // rămân pe autor / dirigintele clasei / administrație. Vezi HomeworkCorrectionTest.
     $user = User::factory()->create();
     $user->assignRole(UserRole::Profesor->value);
     $teacher = Teacher::factory()->create(['user_id' => $user->id]);
@@ -146,7 +146,7 @@ it('profesorul NU editează teme direct (nici pe ale lui) — doar aprobatorii d
     $foreign = HomeworkAssignment::factory()->create(['teacher_id' => null]);
 
     $this->actingAs($user);
-    expect(HomeworkAssignmentResource::canEdit($own))->toBeFalse()
+    expect(HomeworkAssignmentResource::canEdit($own))->toBeTrue()
         ->and(HomeworkAssignmentResource::canEdit($foreign))->toBeFalse();
 
     $this->actingAs(adminUser());

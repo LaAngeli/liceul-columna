@@ -2,6 +2,7 @@
 
 namespace App\Filament\Concerns;
 
+use App\Models\HomeworkAssignment;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use Illuminate\Validation\ValidationException;
@@ -39,6 +40,47 @@ trait EnforcesHomeworkScope
 
         $isAdministrator = $user->isAdministrator();
         $teacher = $user->teacher;
+
+        // ── DIRIGINTELE-NU-AUTOR (corecția directă, 2026-07-31): DOAR conținutul ────────────
+        // Dreptul lui vine din desemnarea pe clasă (policy `update`), nu din alocările de predare
+        // — deci nu trece verificarea de pereche și nici nu are voie să re-țintească tema altui
+        // profesor (clasa/disciplina/data lecției rămân ale autorului; UI-ul le blochează,
+        // serverul le ignoră chiar și la un POST manipulat).
+        if (! $creating && ! $isAdministrator) {
+            /** @var HomeworkAssignment $record */
+            $record = $this->getRecord();
+
+            if ($teacher === null || (int) $record->teacher_id !== (int) $teacher->id) {
+                if (! $user->can('update', $record)) {
+                    throw ValidationException::withMessages([
+                        'data.class_target' => __('panel.validation.scope.not_your_class_subject'),
+                    ]);
+                }
+
+                unset(
+                    $data['class_target'],
+                    $data['subject_id'],
+                    $data['assigned_on'],
+                    $data['teacher_id'],
+                    $data['author_name'],
+                );
+
+                if (blank($data['topic'] ?? null) && blank($data['required_task'] ?? null)) {
+                    throw ValidationException::withMessages([
+                        'data.topic' => __('panel.validation.homework.content_required'),
+                    ]);
+                }
+
+                if (array_key_exists('links', $data)) {
+                    $data['links'] = array_values(array_filter(
+                        (array) $data['links'],
+                        static fn (mixed $link): bool => filled($link),
+                    ));
+                }
+
+                return $data;
+            }
+        }
 
         // ── Ținta: un singur câmp → treaptă + literă derivate pe server ────────────────────
         $target = (string) ($data['class_target'] ?? '');

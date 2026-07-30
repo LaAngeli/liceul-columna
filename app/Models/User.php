@@ -503,21 +503,9 @@ class User extends Authenticatable implements Auditable, FilamentUser
         ]);
     }
 
-    /**
-     * Aprobă corecțiile de TEME solicitate de profesorul-autor. Spre deosebire de corecțiile de
-     * notă (unde administratorul operațional doar vede arhiva), aici AO PARTICIPĂ la aprobare —
-     * decizie explicită a beneficiarului (2026-07-15): Director / Prim-vicedirector /
-     * Administrator Operațional, plus super-adminul break-glass.
-     */
-    public function canApproveHomeworkCorrections(): bool
-    {
-        return $this->activeRoleIs([
-            UserRole::Admin->value,
-            UserRole::Director->value,
-            UserRole::PrimVicedirector->value,
-            UserRole::AdministratorOperational->value,
-        ]);
-    }
+    // `canApproveHomeworkCorrections()` a fost ELIMINATĂ (2026-07-31): corecțiile de teme sunt
+    // DIRECTE — autorul/dirigintele clasei editează fără aprobare (HomeworkAssignmentPolicy);
+    // registrul consemnează automat schimbarea. Fluxul cerere → judecată din 2026-07-15 nu mai există.
 
     /**
      * Operarea DIRECTĂ a catalogului (editare/anulare note, editare absențe) ca autoritate

@@ -4,20 +4,18 @@ namespace App\Filament\Resources\HomeworkCorrections\Tables;
 
 use App\Enums\CorrectionStatus;
 use App\Filament\Resources\HomeworkCorrections\HomeworkCorrectionResource;
-use App\Filament\Resources\HomeworkCorrections\Pages\ListHomeworkCorrections;
 use App\Models\HomeworkCorrection;
 use App\Support\ContentTranslator;
-use Filament\Actions\BulkAction;
-use Filament\Actions\BulkActionGroup;
-use Filament\Forms\Components\Textarea;
-use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 
+/**
+ * REGISTRUL corecțiilor aplicate (v2, 2026-07-31): cine a corectat ce temă, când și ce s-a
+ * schimbat. Fără coadă de aprobare — rândurile istorice ale fluxului vechi rămân cu stările lor.
+ */
 class HomeworkCorrectionsTable
 {
     public static function configure(Table $table): Table
@@ -27,15 +25,7 @@ class HomeworkCorrectionsTable
             ->emptyStateDescription(__('panel.empty.homework_corrections.description'))
             ->emptyStateIcon('heroicon-o-clipboard-document-check')
             ->defaultSort('created_at', 'desc')
-            ->poll('30s') // coadă de aprobare — aliniat cu badge-ul de sidebar.
-            ->modifyQueryUsing(function (Builder $query, $livewire): Builder {
-                $query->with(['homeworkAssignment', 'requestedBy']);
-
-                // Contextul navigatorului de aprobare (vedere + solicitant) — vezi ListHomeworkCorrections.
-                return $livewire instanceof ListHomeworkCorrections
-                    ? $livewire->applyApprovalContext($query)
-                    : $query;
-            })
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['homeworkAssignment', 'requestedBy']))
             ->columns([
                 // TEMA: disciplina + clasa și data lecției ca sub-text.
                 TextColumn::make('homeworkAssignment.subject_name')
@@ -45,91 +35,43 @@ class HomeworkCorrectionsTable
                         ? trim($record->homeworkAssignment->grade_level.' '.($record->homeworkAssignment->section ?? ''))
                             .' · '.$record->homeworkAssignment->assigned_on->format('d.m.Y')
                         : null),
-                // CE SE SCHIMBĂ: câmpurile propuse, ca listă scurtă.
+                // CE S-A SCHIMBAT: câmpurile atinse, ca listă scurtă; textul integral la survol.
                 TextColumn::make('change')
                     ->label(__('panel.tables.homework_corrections.change'))
                     ->state(fn (HomeworkCorrection $record): string => self::changedFieldsSummary($record))
                     ->wrap()
-                    // Textul integral al propunerii, la survol.
                     ->tooltip(fn (HomeworkCorrection $record): string => self::proposalTooltip($record)),
-                // MOTIV + tooltip pentru textul complet. Pe telefon rămân tema, schimbarea și starea.
-                TextColumn::make('reason')
-                    ->label(__('panel.fields.reason'))
-                    ->wrap()
-                    ->limit(50)
-                    ->tooltip(fn (HomeworkCorrection $record): ?string => mb_strlen((string) $record->reason) > 50 ? $record->reason : null)
-                    ->visibleFrom('sm'),
-                // STARE (badge)
+                // STARE (badge) — rândurile directe sunt „aprobate" din naștere; cele istorice
+                // (fluxul vechi cerere → judecată) își păstrează verdictul.
                 TextColumn::make('status')
                     ->label(__('panel.fields.status'))
                     ->badge()
                     ->color(fn (CorrectionStatus $state): string => $state->color()),
-                // DATA + solicitantul ca sub-text.
+                // DATA + operatorul ca sub-text.
                 TextColumn::make('created_at')
                     ->label(__('panel.fields.date'))
                     ->dateTime('d.m.Y H:i')
                     ->sortable()
-                    ->visibleFrom('lg')
                     ->description(fn (HomeworkCorrection $record): ?string => $record->requestedBy?->name),
-                // REVIZUITĂ DE — ascunsă default.
-                TextColumn::make('reviewedBy.name')
-                    ->label(__('panel.fields.reviewed_by'))
+                // MOTIVUL — doar la rândurile istorice (corecția directă nu mai cere motivare).
+                TextColumn::make('reason')
+                    ->label(__('panel.fields.reason'))
                     ->placeholder(__('panel.common.dash'))
+                    ->wrap()
+                    ->limit(50)
+                    ->tooltip(fn (HomeworkCorrection $record): ?string => mb_strlen((string) $record->reason) > 50 ? $record->reason : null)
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                // În coada „De procesat" starea e constantă — filtrul rămâne pentru arhivă
-                // și pentru tabelul plat al solicitantului.
                 SelectFilter::make('status')
                     ->label(__('panel.fields.status'))
-                    ->options(CorrectionStatus::class)
-                    ->visible(fn ($livewire): bool => ! $livewire instanceof ListHomeworkCorrections
-                        || ! $livewire->isQueueManagerView()
-                        || $livewire->isArchiveView()),
+                    ->options(CorrectionStatus::class),
             ])
-            // Rândul întreg deschide FIȘA cererii — acolo stau motivul integral, propunerea
-            // vechi → nou, cronologia și judecata (Aprobă / Respinge / Retrage). Din listă rămân
-            // doar operațiunile în masă: decizia individuală se ia cu tot contextul în față.
-            ->recordUrl(fn (HomeworkCorrection $record): string => HomeworkCorrectionResource::getUrl('view', ['record' => $record]))
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    BulkAction::make('approveSelected')
-                        ->label(__('panel.actions.approve_bulk.label'))
-                        ->icon('heroicon-o-check')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->modalHeading(fn (): string => __('panel.actions.approve_bulk.heading'))
-                        ->modalDescription(fn (): string => __('panel.actions.homework_correction.approve_description'))
-                        ->schema([
-                            Textarea::make('review_note')
-                                ->label(__('panel.common.review_note'))
-                                ->maxLength(255),
-                        ])
-                        ->action(function (Collection $records, array $data): void {
-                            self::reviewBulk($records, $data['review_note'] ?? null, approve: true);
-                        })
-                        ->deselectRecordsAfterCompletion(),
-                    BulkAction::make('rejectSelected')
-                        ->label(__('panel.actions.reject_bulk.label'))
-                        ->icon('heroicon-o-x-mark')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->modalHeading(fn (): string => __('panel.actions.reject_bulk.heading'))
-                        ->schema([
-                            Textarea::make('review_note')
-                                ->label(__('panel.common.rejection_reason'))
-                                ->required()
-                                ->maxLength(255),
-                        ])
-                        ->action(function (Collection $records, array $data): void {
-                            self::reviewBulk($records, $data['review_note'] ?? null, approve: false);
-                        })
-                        ->deselectRecordsAfterCompletion(),
-                ])->visible(fn (): bool => auth('web')->user()?->canApproveHomeworkCorrections() ?? false),
-            ]);
+            // Rândul întreg deschide FIȘA corecției — vechi → nou integral + cronologia.
+            ->recordUrl(fn (HomeworkCorrection $record): string => HomeworkCorrectionResource::getUrl('view', ['record' => $record]));
     }
 
-    /** Rezumatul câmpurilor propuse spre schimbare (etichetele lor, nu textul integral). */
+    /** Rezumatul câmpurilor schimbate (etichetele lor, nu textul integral). */
     private static function changedFieldsSummary(HomeworkCorrection $record): string
     {
         $fields = array_keys(array_filter([
@@ -141,7 +83,7 @@ class HomeworkCorrectionsTable
         return $fields === [] ? (string) __('panel.common.dash') : implode(' · ', $fields);
     }
 
-    /** Textul integral al propunerii, pentru tooltip (vechi → nou pe fiecare câmp schimbat). */
+    /** Textul integral al schimbării, pentru tooltip (vechi → nou pe fiecare câmp atins). */
     private static function proposalTooltip(HomeworkCorrection $record): string
     {
         $lines = [];
@@ -157,30 +99,5 @@ class HomeworkCorrectionsTable
         }
 
         return implode("\n", $lines);
-    }
-
-    /**
-     * Aplică în masă aprobarea/respingerea corecțiilor în așteptare din selecție și anunță câte.
-     *
-     * @param  Collection<int, HomeworkCorrection>  $records
-     */
-    private static function reviewBulk(Collection $records, ?string $note, bool $approve): void
-    {
-        $userId = (int) auth()->id();
-        $count = 0;
-
-        foreach ($records as $record) {
-            if (! $record->isPending()) {
-                continue;
-            }
-
-            $approve ? $record->approve($userId, $note) : $record->reject($userId, $note);
-            $count++;
-        }
-
-        Notification::make()
-            ->{$approve ? 'success' : 'warning'}()
-            ->title(__('panel.actions.'.($approve ? 'approve_bulk' : 'reject_bulk').'.success_count', ['count' => $count]))
-            ->send();
     }
 }

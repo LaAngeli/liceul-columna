@@ -913,28 +913,27 @@ trait BuildsStudentCatalogData
             return [];
         }
 
-        // TIMPUL e axa (2026-07-18): temele „de făcut" (data efectivă azi/viitor) vin TOATE,
-        // cronologic ASC — elevul vede întâi ce urmează; istoricul recent (DESC) vine separat,
-        // limitat, și e pliat în UI. Data efectivă = termen ?? atribuire (legacy fără termen).
+        // TIMPUL e axa: temele pe DATA LECȚIEI (assigned_on — axa unică după eliminarea
+        // „termenului", 2026-07-31): cele de azi/viitor vin TOATE, cronologic ASC — elevul vede
+        // întâi ce urmează; istoricul recent (DESC) vine separat, limitat, și e pliat în UI.
         $base = fn (): Builder => HomeworkAssignment::query()
             ->where('grade_level', $class->grade_level)
             ->where(function (Builder $query) use ($class): void {
                 $query->where('section', $class->section)->orWhereNull('section');
             });
 
-        $expression = HomeworkAssignment::effectiveOnExpression();
         // Ziua ȘCOLII, nu UTC (regula de fus a proiectului): `today()` e cu 2–3 ore în urmă, deci
         // între 00:00 și 03:00 ora Chișinăului temele DE AZI cădeau în „viitor", iar fereastra
         // „De predat în această zi" apărea goală. Prins pe date demo, 2026-07-23.
         $today = SchoolCalendar::localNow()->toDateString();
 
         $upcoming = $base()
-            ->where($expression, '>=', $today)
-            ->orderBy($expression)
+            ->where('assigned_on', '>=', $today)
+            ->orderBy('assigned_on')
             ->get();
         $past = $base()
-            ->where($expression, '<', $today)
-            ->orderByDesc($expression)
+            ->where('assigned_on', '<', $today)
+            ->orderByDesc('assigned_on')
             ->limit(20)
             ->get();
 
@@ -966,7 +965,6 @@ trait BuildsStudentCatalogData
             return [];
         }
 
-        $expression = HomeworkAssignment::effectiveOnExpression();
         $today = SchoolCalendar::localNow()->toDateString();
         $yearStart = $this->currentAcademicYearStart();
 
@@ -975,12 +973,12 @@ trait BuildsStudentCatalogData
             ->where(function (Builder $query) use ($class): void {
                 $query->where('section', $class->section)->orWhereNull('section');
             })
-            ->when($yearStart !== null, fn (Builder $query) => $query->where($expression, '>=', $yearStart));
+            ->when($yearStart !== null, fn (Builder $query) => $query->where('assigned_on', '>=', $yearStart));
 
         // Aceeași ordine ca vederea implicită: viitorul cronologic ASC, apoi trecutul DESC (fără
         // limită). Filtrul de calendar re-taie oricum client-side pe fereastra aleasă.
-        $upcoming = $base()->where($expression, '>=', $today)->orderBy($expression)->get();
-        $past = $base()->where($expression, '<', $today)->orderByDesc($expression)->get();
+        $upcoming = $base()->where('assigned_on', '>=', $today)->orderBy('assigned_on')->get();
+        $past = $base()->where('assigned_on', '<', $today)->orderByDesc('assigned_on')->get();
 
         return $upcoming->concat($past)
             ->map(fn (HomeworkAssignment $homework): array => $this->homeworkRow($homework, $today))
@@ -1005,24 +1003,22 @@ trait BuildsStudentCatalogData
     }
 
     /**
-     * O temă, în forma pe care o consumă cabinetul (data efectivă = termen ?? atribuire, statut pe
-     * ziua ȘCOLII, disciplină/autor traduse). Sursă unică pentru vederea windowed și cea completă.
+     * O temă, în forma pe care o consumă cabinetul (axa = data lecției, statut pe ziua ȘCOLII,
+     * disciplină/autor traduse). Sursă unică pentru vederea windowed și cea completă.
      *
      * @return array<string, mixed>
      */
     private function homeworkRow(HomeworkAssignment $homework, string $today): array
     {
-        $effective = $homework->effectiveOn();
-        $effectiveDate = $effective->toDateString();
+        $effectiveDate = $homework->assigned_on->toDateString();
 
         return [
             'id' => $homework->id,
             'date' => $homework->assigned_on->format('d.m.Y'),
-            'due' => $homework->due_on?->format('d.m.Y'),
             // Cheia de GRUPARE pe zile (stabilă, sortabilă) + eticheta zilei tradusă în limba
             // interfeței (serverul cunoaște locale-ul; frontend-ul n-are formatter).
             'effectiveDate' => $effectiveDate,
-            'dayLabel' => ucfirst($effective->translatedFormat('l, j F')),
+            'dayLabel' => ucfirst($homework->assigned_on->translatedFormat('l, j F')),
             // Comparație pe ZIUA ȘCOLII (`$today`), nu `isToday()/isFuture()` — acelea se raportează
             // la UTC și mutau temele de azi în „viitor" noaptea.
             'status' => match (true) {
