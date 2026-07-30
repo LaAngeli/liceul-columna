@@ -180,8 +180,8 @@ trait ManagesAccountForm
         }
 
         DB::transaction(function () use ($user): void {
-            $role = $this->selectedRole;
-            $isPedagogic = in_array($role, [UserRole::Profesor->value, UserRole::Diriginte->value], true);
+            $roles = $this->selectedRoles;
+            $isPedagogic = array_intersect($roles, [UserRole::Profesor->value, UserRole::Diriginte->value]) !== [];
 
             // ONBOARDING: fișa NOUĂ se naște din datele contului (numele din Identitate) —
             // e-mailul fișei de profesor = e-mailul contului (o singură sursă de contact).
@@ -196,7 +196,7 @@ trait ManagesAccountForm
                 $this->linkedTeacherId = (int) $fiche->getKey();
             }
 
-            if ($role === UserRole::Elev->value && $this->studentFicheMode === UserForm::FICHE_CREATE && $this->linkedStudentId === null) {
+            if (in_array(UserRole::Elev->value, $roles, true) && $this->studentFicheMode === UserForm::FICHE_CREATE && $this->linkedStudentId === null) {
                 $fiche = Student::query()->create([
                     'last_name' => $this->accountLastName,
                     'first_name' => $this->accountFirstName,
@@ -225,7 +225,7 @@ trait ManagesAccountForm
             }
 
             // Fișa de ELEV: aceeași regulă, pentru rolul elev.
-            $studentId = $role === UserRole::Elev->value ? $this->linkedStudentId : null;
+            $studentId = in_array(UserRole::Elev->value, $roles, true) ? $this->linkedStudentId : null;
 
             Student::query()
                 ->where('user_id', $user->getKey())
@@ -241,7 +241,7 @@ trait ManagesAccountForm
 
             // Copiii părintelui (pivotul guardian_student); alt rol → fără copii. Id-urile trec
             // prin registru (selectul cu căutare pe server nu are listă statică de validat).
-            $childIds = $role === UserRole::Parinte->value ? ($this->guardianStudentIds ?? []) : [];
+            $childIds = in_array(UserRole::Parinte->value, $roles, true) ? ($this->guardianStudentIds ?? []) : [];
 
             if ($childIds !== []) {
                 $childIds = Student::query()->whereKey($childIds)->pluck('id')->all();
@@ -249,7 +249,7 @@ trait ManagesAccountForm
 
             $user->students()->sync($childIds);
 
-            $this->integrateTeacher($teacherId, $role);
+            $this->integrateTeacher($teacherId, $roles);
             $this->integrateStudent($studentId);
 
             // Rolul „Diriginte" e DERIVAT din desemnare, nu din ce s-a bifat în formular: cine a
@@ -279,7 +279,8 @@ trait ManagesAccountForm
      * Integrarea pedagogică: alocările clasă×disciplină (fundamentul scoping-ului din catalog)
      * + clasa de diriginție. Se aplică pe fișa legată — nouă sau existentă.
      */
-    private function integrateTeacher(?int $teacherId, ?string $role): void
+    /** @param  list<string>  $roles */
+    private function integrateTeacher(?int $teacherId, array $roles): void
     {
         if ($teacherId === null) {
             return;
@@ -307,7 +308,7 @@ trait ManagesAccountForm
             }
         }
 
-        if ($role === UserRole::Diriginte->value && $this->homeroomClassId !== null) {
+        if (in_array(UserRole::Diriginte->value, $roles, true) && $this->homeroomClassId !== null) {
             // Doar o clasă rămasă FĂRĂ diriginte poate primi unul — dacă a fost ocupată între
             // timp, rândul nu se atinge (opțiunile formularului listează doar clasele libere).
             SchoolClass::query()

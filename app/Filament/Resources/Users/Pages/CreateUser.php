@@ -23,7 +23,7 @@ class CreateUser extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data = $this->pullAccountExtras($this->pullAndGuardRole($data));
+        $data = $this->pullAccountExtras($this->pullAndGuardRoles($data));
 
         // Contul nou primește o parolă TEMPORARĂ: schimbarea la prima autentificare e obligatorie.
         $data['must_change_password'] = true;
@@ -33,7 +33,7 @@ class CreateUser extends CreateRecord
 
     protected function afterCreate(): void
     {
-        $this->syncSelectedRole();
+        $this->syncSelectedRoles();
         $this->applyAccountExtras();
     }
 

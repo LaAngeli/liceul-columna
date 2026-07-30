@@ -50,7 +50,7 @@ it('retrogradarea golește domeniile de audiență și stinge dreptul derivat di
 
     Livewire::test(EditUser::class, ['record' => $user->getRouteKey()])
         ->fillForm([
-            'role' => UserRole::Profesor->value,
+            'roles' => [UserRole::Profesor->value],
             'teacher_fiche_mode' => 'link',
             'teacher_id' => $teacher->id,
         ])

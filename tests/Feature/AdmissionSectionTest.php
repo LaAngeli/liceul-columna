@@ -209,7 +209,7 @@ it('cererea înmatriculată întinde puntea spre onboarding: rol elev + numele p
     Livewire::withQueryParams(['rol' => UserRole::Elev->value, 'nume' => 'Popescu', 'prenume' => 'Ana Maria'])
         ->test(CreateUser::class)
         ->assertFormSet([
-            'role' => UserRole::Elev->value,
+            'roles' => [UserRole::Elev->value],
             'last_name' => 'Popescu',
             'first_name' => 'Ana Maria',
         ]);

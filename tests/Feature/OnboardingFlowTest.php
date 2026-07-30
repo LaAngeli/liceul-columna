@@ -55,7 +55,7 @@ it('onboarding profesor: contul, fișa și alocările se nasc împreună, gata d
             'last_name' => 'Onboard', 'first_name' => 'Profesoara',
             'username' => 'onboard.prof',
             'email' => 'onboard.prof@test.columna',
-            'role' => UserRole::Profesor->value,
+            'roles' => [UserRole::Profesor->value],
             'teacher_fiche_mode' => 'create',
             'teacher_fiche_sex' => Sex::Female->value,
             'teaching_pairs' => [
@@ -93,7 +93,7 @@ it('onboarding diriginte: primește pe loc clasa de diriginție (doar clasele li
         ->fillForm([
             'last_name' => 'Onboard', 'first_name' => 'Diriginta',
             'username' => 'onboard.dir',
-            'role' => UserRole::Diriginte->value,
+            'roles' => [UserRole::Diriginte->value],
             'teacher_fiche_mode' => 'create',
             'teacher_fiche_sex' => Sex::Female->value,
             'teaching_pairs' => [
@@ -109,7 +109,7 @@ it('onboarding diriginte: primește pe loc clasa de diriginție (doar clasele li
         ->fillForm([
             'last_name' => 'Onboard', 'first_name' => 'Diriginta',
             'username' => 'onboard.dir',
-            'role' => UserRole::Diriginte->value,
+            'roles' => [UserRole::Diriginte->value],
             'teacher_fiche_mode' => 'create',
             'teacher_fiche_sex' => Sex::Female->value,
             'teaching_pairs' => [
@@ -134,7 +134,7 @@ it('onboarding profesor NOU fără alocări nu trece: perimetrul e obligatoriu',
         ->fillForm([
             'last_name' => 'Fara', 'first_name' => 'Alocari',
             'username' => 'fara.alocari',
-            'role' => UserRole::Profesor->value,
+            'roles' => [UserRole::Profesor->value],
             'teacher_fiche_mode' => 'create',
             'teacher_fiche_sex' => Sex::Male->value,
             'teaching_pairs' => [],
@@ -152,7 +152,7 @@ it('perechile clasă×disciplină duplicate sunt respinse cu mesaj clar', functi
         ->fillForm([
             'last_name' => 'Pereche', 'first_name' => 'Dubla',
             'username' => 'pereche.dubla',
-            'role' => UserRole::Profesor->value,
+            'roles' => [UserRole::Profesor->value],
             'teacher_fiche_mode' => 'create',
             'teacher_fiche_sex' => Sex::Male->value,
             'teaching_pairs' => [
@@ -174,7 +174,7 @@ it('fișa existentă se leagă fără să se creeze alta; alocările din flux se
         ->fillForm([
             'last_name' => 'Legare', 'first_name' => 'Fisa',
             'username' => 'legare.fisa',
-            'role' => UserRole::Profesor->value,
+            'roles' => [UserRole::Profesor->value],
             'teacher_fiche_mode' => 'link',
             'teacher_id' => $fiche->id,
             'teaching_pairs' => [
@@ -197,7 +197,7 @@ it('la creare, fișa e OBLIGATORIE și în modul „fișă existentă" (fără f
         ->fillForm([
             'last_name' => 'Fara', 'first_name' => 'Fisa',
             'username' => 'fara.fisa',
-            'role' => UserRole::Profesor->value,
+            'roles' => [UserRole::Profesor->value],
             'teacher_fiche_mode' => 'link',
             'password' => 'Temp-Onboard-6',
         ])
@@ -217,7 +217,7 @@ it('onboarding elev: contul, fișa, înmatricularea și părinții se leagă îm
         ->fillForm([
             'last_name' => 'Onboard', 'first_name' => 'Elevul',
             'username' => 'onboard.elev',
-            'role' => UserRole::Elev->value,
+            'roles' => [UserRole::Elev->value],
             'student_fiche_mode' => 'create',
             'student_fiche_sex' => Sex::Male->value,
             'student_fiche_register_number' => 'R-778',
@@ -252,7 +252,7 @@ it('elevul NOU fără clasă nu trece: înmatricularea e parte din flux', functi
         ->fillForm([
             'last_name' => 'Fara', 'first_name' => 'Clasa',
             'username' => 'fara.clasa',
-            'role' => UserRole::Elev->value,
+            'roles' => [UserRole::Elev->value],
             'student_fiche_mode' => 'create',
             'student_fiche_sex' => Sex::Female->value,
             'password' => 'Temp-Onboard-8',
@@ -270,7 +270,7 @@ it('elevul nou se creează complet FĂRĂ părinți; legătura se face ulterior,
         ->fillForm([
             'last_name' => 'Fara', 'first_name' => 'Parinti',
             'username' => 'fara.parinti',
-            'role' => UserRole::Elev->value,
+            'roles' => [UserRole::Elev->value],
             'student_fiche_mode' => 'create',
             'student_fiche_sex' => Sex::Male->value,
             'enroll_class_id' => $this->classA->id,
@@ -307,7 +307,7 @@ it('editarea contului de elev nu cere părinți și păstrează legăturile exis
         ->fillForm([
             'last_name' => 'Editabil', 'first_name' => 'Elev',
             'username' => 'editabil.elev',
-            'role' => UserRole::Elev->value,
+            'roles' => [UserRole::Elev->value],
             'student_fiche_mode' => 'create',
             'student_fiche_sex' => Sex::Male->value,
             'enroll_class_id' => $this->classA->id,
@@ -339,7 +339,7 @@ it('părintele se creează FĂRĂ copii (câmpul e opțional — copiii se pot l
         ->fillForm([
             'last_name' => 'Parinte', 'first_name' => 'Devreme',
             'username' => 'parinte.devreme',
-            'role' => UserRole::Parinte->value,
+            'roles' => [UserRole::Parinte->value],
             'password' => 'Temp-Onboard-11',
         ])
         ->call('create')
@@ -360,7 +360,7 @@ it('doar conturile cu rol de părinte pot fi legate drept părinți (id străin 
         ->fillForm([
             'last_name' => 'Parinti', 'first_name' => 'Filtrati',
             'username' => 'parinti.filtrati',
-            'role' => UserRole::Elev->value,
+            'roles' => [UserRole::Elev->value],
             'student_fiche_mode' => 'create',
             'student_fiche_sex' => Sex::Male->value,
             'enroll_class_id' => $this->classA->id,

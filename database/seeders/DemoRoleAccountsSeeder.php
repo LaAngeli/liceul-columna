@@ -47,7 +47,10 @@ class DemoRoleAccountsSeeder extends Seeder
 
         // Conturi cu FIȘĂ — pentru scoping real.
         $this->teacherAccount('profesor@columna.test', 'profesor', UserRole::Profesor, homeroom: false);
-        $this->teacherAccount('diriginte@columna.test', 'diriginte', UserRole::Diriginte, homeroom: true);
+        // MULTI-ROL (F5): dirigintele real ESTE și profesor — contul demo poartă ambele roluri,
+        // deci comutatorul de context din topbar și separarea Profesor/Diriginte se pot testa
+        // direct pe el (exact cumulul din documentul beneficiarului, 30.07.2026).
+        $this->teacherAccount('diriginte@columna.test', 'diriginte', UserRole::Diriginte, homeroom: true, extraRoles: [UserRole::Profesor]);
         $this->studentAccount();
         $this->parentAccount();
 
@@ -71,14 +74,21 @@ class DemoRoleAccountsSeeder extends Seeder
         return $user;
     }
 
-    /** Cont legat de o fișă de profesor (reutilizează fișa deja legată sau alege una distinctă). */
-    private function teacherAccount(string $email, string $username, UserRole $role, bool $homeroom): void
+    /**
+     * Cont legat de o fișă de profesor (reutilizează fișa deja legată sau alege una distinctă).
+     *
+     * @param  list<UserRole>  $extraRoles  roluri suplimentare (cumulul multi-rol, F5)
+     */
+    private function teacherAccount(string $email, string $username, UserRole $role, bool $homeroom, array $extraRoles = []): void
     {
         $user = User::updateOrCreate(
             ['email' => $email],
             ['name' => DemoAccounts::MARKER.' Profesor', 'username' => $username, 'password' => 'password'],
         );
-        $user->syncRoles([$role->value]);
+        $user->syncRoles([
+            $role->value,
+            ...array_map(static fn (UserRole $extra): string => $extra->value, $extraRoles),
+        ]);
 
         $teacher = Teacher::query()->where('user_id', $user->id)->first()
             ?? $this->pickTeacher($homeroom, $user->id);

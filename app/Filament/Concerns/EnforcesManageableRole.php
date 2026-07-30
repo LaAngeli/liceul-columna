@@ -2,54 +2,77 @@
 
 namespace App\Filament\Concerns;
 
+use App\Actions\SyncHomeroomRole;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Un utilizator are EXACT un rol. Câmpul `role` din formular nu e o coloană pe users —
- * se extrage, se validează contra ierarhiei (rolul ∈ rolurile pe care actorul le poate
- * atribui) și se aplică separat cu syncRoles. Apărare pe SERVER, nu doar în UI.
+ * SETUL de roluri al unui cont, impus pe SERVER (multi-rol F4, doc pct. 8).
+ *
+ * Câmpul `roles` din formular nu e o coloană pe users — se extrage, se validează și se aplică
+ * separat cu syncRoles. Regulile:
+ *  - FIECARE rol din set trebuie să fie în ierarhia actorului ({@see User::manageableRoleValues});
+ *  - rolurile de FAMILIE (elev/părinte) sunt EXCLUSIVE: exact un rol, fără cumul — nici între
+ *    ele, nici cu staff (decizia beneficiarului, 30.07.2026: comutarea există doar în panoul
+ *    staff; cabinetul familiei nu are și nu va avea switch);
+ *  - rolurile de STAFF se pot cumula liber (Director+Profesor etc.); membria „Diriginte" rămâne
+ *    oricum arbitrată de desemnarea de dirigenție ({@see SyncHomeroomRole}).
  */
 trait EnforcesManageableRole
 {
-    protected ?string $selectedRole = null;
+    /** @var list<string> */
+    protected array $selectedRoles = [];
 
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    protected function pullAndGuardRole(array $data): array
+    protected function pullAndGuardRoles(array $data): array
     {
-        $this->selectedRole = isset($data['role']) ? (string) $data['role'] : null;
-        unset($data['role']);
+        // `roles` (checkbox-uri, F4); `role` (string) rămâne acceptat pentru compatibilitate.
+        $raw = $data['roles'] ?? $data['role'] ?? [];
+        unset($data['roles'], $data['role']);
+
+        $roles = array_values(array_unique(array_map(
+            static fn (mixed $value): string => (string) $value,
+            is_array($raw) ? $raw : [$raw],
+        )));
 
         $manageable = auth('web')->user()?->manageableRoleValues() ?? [];
 
-        if ($this->selectedRole === null || ! in_array($this->selectedRole, $manageable, true)) {
+        if ($roles === [] || array_diff($roles, $manageable) !== []) {
             throw ValidationException::withMessages([
-                'role' => 'Nu ai dreptul să atribui acest rol.',
+                'roles' => __('panel.forms.user.roles_not_manageable'),
             ]);
         }
+
+        $familyValues = [UserRole::Elev->value, UserRole::Parinte->value];
+
+        if (array_intersect($roles, $familyValues) !== [] && count($roles) > 1) {
+            throw ValidationException::withMessages([
+                'roles' => __('panel.forms.user.roles_family_exclusive'),
+            ]);
+        }
+
+        $this->selectedRoles = $roles;
 
         return $data;
     }
 
-    protected function syncSelectedRole(): void
+    protected function syncSelectedRoles(): void
     {
-        if ($this->selectedRole === null || ! $this->record instanceof User) {
+        if ($this->selectedRoles === [] || ! $this->record instanceof User) {
             return;
         }
 
-        $this->record->syncRoles([$this->selectedRole]);
+        $this->record->syncRoles($this->selectedRoles);
 
         // REZIDUU DE PRIVILEGIU (audit 2026-07-20): `audience_domains` e afișat doar pentru rolurile
         // de conducere, iar Filament NU dehidratează componentele ascunse — la retrogradare valoarea
-        // supraviețuia în coloană. Consecințe reale, nu teoretice: `canManageCorigenta()` rămânea
-        // true prin `handlesAudienceDomain()`, iar rutările din SendMessage/AbsenceMotivationObserver
-        // interoghează coloana în SQL — o semnalare comportamentală despre un MINOR putea ateriza la
-        // un cont fără drept. Domeniile aparțin exclusiv rolurilor care le pot exercita.
-        if (! in_array($this->selectedRole, UserRole::audienceDomainHolderValues(), true)) {
+        // supraviețuia în coloană. Domeniile aparțin exclusiv rolurilor care le pot exercita: dacă
+        // NICIUN rol din noul set nu e purtător, desemnarea se golește.
+        if (array_intersect($this->selectedRoles, UserRole::audienceDomainHolderValues()) === []) {
             $this->record->forceFill(['audience_domains' => null])->save();
         }
     }

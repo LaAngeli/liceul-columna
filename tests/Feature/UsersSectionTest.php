@@ -98,7 +98,7 @@ it('directorul creează conturi pentru fiecare rol pe care îl poate atribui', f
             ->fillForm([
                 'last_name' => 'Cont', 'first_name' => $role,
                 'username' => 'cont-'.$role,
-                'role' => $role,
+                'roles' => [$role],
                 'password' => 'Parola-Temp-'.$index,
                 'account_status' => 'active',
                 ...$fiche,
@@ -142,7 +142,7 @@ it('identitatea e validată: numele fără cifre, utilizatorul în format strict
             'last_name' => 'Popescu2', 'first_name' => 'Ana3',
             'username' => 'nume cu spații',
             'email' => 'nu-e-email',
-            'role' => UserRole::Elev->value,
+            'roles' => [UserRole::Elev->value],
             'password' => 'Temp-Parola-8',
         ])
         ->call('create')
@@ -160,7 +160,7 @@ it('un id de copil care nu există în registru respinge selecția (validarea pe
         ->fillForm([
             'last_name' => 'Părinte', 'first_name' => 'Filtrat',
             'username' => 'parinte.filtrat',
-            'role' => UserRole::Parinte->value,
+            'roles' => [UserRole::Parinte->value],
             'guardian_student_ids' => [$copil->id, 999999],
             'password' => 'Temp-Parola-9',
         ])
@@ -175,7 +175,7 @@ it('contul nou se autentifică cu parola temporară și e dus la schimbarea paro
         ->fillForm([
             'last_name' => 'Elev', 'first_name' => 'Onboarding',
             'username' => 'elev.onboarding',
-            'role' => UserRole::Elev->value,
+            'roles' => [UserRole::Elev->value],
             'student_fiche_mode' => 'link',
             'student_id' => Student::factory()->create()->id,
             'password' => 'Temp-Parola-9',
@@ -196,12 +196,12 @@ it('contul nou se autentifică cu parola temporară și e dus la schimbarea paro
 it('rolul din contextul navigatorului pre-completează formularul, iar un rol neatribuibil nu', function () {
     Livewire::withQueryParams(['rol' => UserRole::Profesor->value])
         ->test(CreateUser::class)
-        ->assertFormSet(['role' => UserRole::Profesor->value]);
+        ->assertFormSet(['roles' => [UserRole::Profesor->value]]);
 
     // Directorul nu poate atribui super-admin → default-ul se ignoră.
     Livewire::withQueryParams(['rol' => UserRole::Admin->value])
         ->test(CreateUser::class)
-        ->assertFormSet(['role' => null]);
+        ->assertFormSet(['roles' => []]);
 });
 
 // ─── Asocierile per rol ──────────────────────────────────────────────────────────────────
@@ -214,7 +214,7 @@ it('contul de elev se leagă de fișa lui, iar re-legarea eliberează fișa vech
         ->fillForm([
             'last_name' => 'Elev', 'first_name' => 'Legat',
             'username' => 'elev.legat',
-            'role' => UserRole::Elev->value,
+            'roles' => [UserRole::Elev->value],
             'student_fiche_mode' => 'link',
             'student_id' => $ficheA->id,
             'password' => 'Temp-Parola-1',
@@ -242,7 +242,7 @@ it('contul de profesor se leagă de fișa de profesor, iar schimbarea rolului o 
         ->fillForm([
             'last_name' => 'Prof', 'first_name' => 'Legat',
             'username' => 'prof.legat',
-            'role' => UserRole::Profesor->value,
+            'roles' => [UserRole::Profesor->value],
             'teacher_fiche_mode' => 'link',
             'teacher_id' => $fiche->id,
             'password' => 'Temp-Parola-2',
@@ -253,13 +253,56 @@ it('contul de profesor se leagă de fișa de profesor, iar schimbarea rolului o 
     $user = User::query()->where('username', 'prof.legat')->sole();
     expect($fiche->fresh()->user_id)->toBe($user->id);
 
-    // Rolul devine administrativ → fișa pedagogică se dezleagă (perimetrul nu mai are sens).
+    // Setul devine pur administrativ → fișa pedagogică se dezleagă (perimetrul nu mai are sens).
     Livewire::test(EditUser::class, ['record' => $user->getRouteKey()])
-        ->fillForm(['role' => UserRole::PrimVicedirector->value])
+        ->fillForm(['roles' => [UserRole::PrimVicedirector->value]])
         ->call('save')
         ->assertHasNoFormErrors();
 
     expect($fiche->fresh()->user_id)->toBeNull();
+});
+
+// ── Multi-rol F4 (doc pct. 8) ──────────────────────────────────────────────────────────────────
+
+it('funcțiile de staff se pot CUMULA la creare — contul iese multi-rol, cu comutator', function () {
+    // Fișă existentă (modul „link") — fluxul „fișă nouă" are testele lui dedicate.
+    $fiche = Teacher::factory()->create();
+
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'last_name' => 'Popescu', 'first_name' => 'Ion',
+            'username' => 'ion.popescu',
+            'roles' => [UserRole::Director->value, UserRole::Profesor->value],
+            'teacher_fiche_mode' => 'link',
+            'teacher_id' => $fiche->id,
+            'password' => 'Temp-Parola-9',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $user = User::query()->where('username', 'ion.popescu')->sole();
+
+    expect($user->getRoleNames()->all())
+        ->toEqualCanonicalizing([UserRole::Director->value, UserRole::Profesor->value])
+        ->and($user->isMultiRole())->toBeTrue()
+        // Fișa pedagogică s-a creat (setul conține un rol pedagogic).
+        ->and($user->teacher)->not->toBeNull()
+        // Contextul implicit = rolul cu prioritatea cea mai înaltă.
+        ->and($user->activeRole())->toBe(UserRole::Director);
+});
+
+it('familia nu se cumulează — nici cu staff, nici între ele (gardă pe server)', function () {
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'last_name' => 'Amestec', 'first_name' => 'Interzis',
+            'username' => 'amestec.interzis',
+            'roles' => [UserRole::Elev->value, UserRole::Profesor->value],
+            'password' => 'Temp-Parola-8',
+        ])
+        ->call('create')
+        ->assertHasErrors();
+
+    expect(User::query()->where('username', 'amestec.interzis')->exists())->toBeFalse();
 });
 
 it('domeniile de audiență NU se atribuie la creare (nici trimise pe furiș), ci doar la editare', function () {
@@ -269,7 +312,7 @@ it('domeniile de audiență NU se atribuie la creare (nici trimise pe furiș), c
         ->fillForm([
             'last_name' => 'Vice', 'first_name' => 'Nou',
             'username' => 'vice.nou',
-            'role' => UserRole::PrimVicedirector->value,
+            'roles' => [UserRole::PrimVicedirector->value],
             'audience_domains' => [AudienceDomain::Educatie->value],
             'password' => 'Temp-Parola-20',
         ])
@@ -297,7 +340,7 @@ it('părintele primește copiii selectați (pivotul guardian_student)', function
         ->fillForm([
             'last_name' => 'Părinte', 'first_name' => 'Nou',
             'username' => 'parinte.nou',
-            'role' => UserRole::Parinte->value,
+            'roles' => [UserRole::Parinte->value],
             'guardian_student_ids' => [$copil1->id, $copil2->id],
             'password' => 'Temp-Parola-3',
         ])
@@ -320,7 +363,7 @@ it('trimite credențialele pe e-mail când opțiunea e bifată, cu parola tempor
             'last_name' => 'Cont', 'first_name' => 'Cu Email',
             'username' => 'cont.cu.email',
             'email' => 'cont@test.columna',
-            'role' => UserRole::Profesor->value,
+            'roles' => [UserRole::Profesor->value],
             'teacher_fiche_mode' => 'link',
             'teacher_id' => Teacher::factory()->create()->id,
             'password' => 'Temp-Parola-4',
@@ -346,7 +389,7 @@ it('opțiunea de trimitere fără e-mail completat e respinsă', function () {
             'last_name' => 'Cont', 'first_name' => 'Fara Email',
             'username' => 'cont.fara.email',
             'email' => null,
-            'role' => UserRole::Elev->value,
+            'roles' => [UserRole::Elev->value],
             'password' => 'Temp-Parola-5',
             'send_credentials' => true,
         ])

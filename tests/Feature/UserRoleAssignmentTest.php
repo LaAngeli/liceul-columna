@@ -29,12 +29,13 @@ function roleGuardHarness(): object
          */
         public function guard(array $data): array
         {
-            return $this->pullAndGuardRole($data);
+            return $this->pullAndGuardRoles($data);
         }
 
-        public function role(): ?string
+        /** @return list<string> */
+        public function roles(): array
         {
-            return $this->selectedRole;
+            return $this->selectedRoles;
         }
     };
 }
@@ -75,7 +76,7 @@ it('un rol permis trece, iar `role` e scos din datele modelului', function () {
 
     expect($data)->not->toHaveKey('role')
         ->and($data)->toHaveKey('name')
-        ->and($harness->role())->toBe(UserRole::Profesor->value);
+        ->and($harness->roles())->toBe([UserRole::Profesor->value]);
 });
 
 it('rolul lipsă e respins', function () {

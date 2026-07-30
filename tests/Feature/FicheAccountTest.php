@@ -46,7 +46,7 @@ it('fișa de profesor fără cont primește un cont creat DIN ea, cu identitatea
         'username' => 'iorga.alida',
         'email' => 'iorga@columna.test',
         'password' => 'Parola-Temp-1',
-        'role' => UserRole::Profesor->value,
+        'roles' => [UserRole::Profesor->value],
     ]);
 
     expect($fiche->fresh()->user_id)->toBe($user->id)
@@ -64,7 +64,7 @@ it('fișa de elev determină singură rolul contului — nu se poate alege altul
         'username' => 'elev.nou',
         'password' => 'Parola-Temp-2',
         // Rol strecurat: fișa de elev îl ignoră.
-        'role' => UserRole::Director->value,
+        'roles' => [UserRole::Director->value],
     ]);
 
     expect($user->getRoleNames()->all())->toBe([UserRole::Elev->value])
@@ -78,7 +78,7 @@ it('o fișă care are DEJA cont nu primește un al doilea', function () {
     app(CreateAccountForFiche::class)->create($fiche, [
         'username' => 'al.doilea',
         'password' => 'Parola-Temp-3',
-        'role' => UserRole::Profesor->value,
+        'roles' => [UserRole::Profesor->value],
     ]);
 })->throws(ValidationException::class);
 
@@ -89,6 +89,8 @@ it('nu se poate atribui un rol din afara ierarhiei celui care creează contul', 
     app(CreateAccountForFiche::class)->create($fiche, [
         'username' => 'rol.interzis',
         'password' => 'Parola-Temp-4',
+        // API-ul acțiunii rămâne single-rol (contul se naște PENTRU o fișă pedagogică);
+        // cumulul se acordă ulterior, din editarea contului (multi-rol F4).
         'role' => UserRole::Director->value,
     ]);
 })->throws(ValidationException::class);
@@ -112,7 +114,7 @@ it('credențialele pleacă pe e-mail doar dacă operatorul a cerut asta', functi
         'username' => 'cu.credentiale',
         'email' => 'prof@columna.test',
         'password' => 'Parola-Temp-5',
-        'role' => UserRole::Profesor->value,
+        'roles' => [UserRole::Profesor->value],
         'send_credentials' => true,
     ]);
 
@@ -126,7 +128,7 @@ it('acțiunea din fișa profesorului creează și leagă contul, cu doar câmpur
     // paginii → se adresează prin TestAction::schemaComponent, altfel Filament n-o găsește.
     Livewire::test(EditTeacher::class, ['record' => $fiche->getRouteKey()])
         ->callAction(TestAction::make('createFicheAccount')->schemaComponent('ficheAccountActions'), [
-            'role' => UserRole::Profesor->value,
+            'roles' => [UserRole::Profesor->value],
             'username' => 'munteanu.radu',
             'password' => 'Parola-Temp-6',
         ]);
@@ -142,7 +144,7 @@ it('la CREARE cu fișă existentă, identitatea nu se mai cere: numele contului 
 
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'role' => UserRole::Profesor->value,
+            'roles' => [UserRole::Profesor->value],
             'teacher_fiche_mode' => UserForm::FICHE_LINK,
             'teacher_id' => $fiche->id,
             'username' => 'balan.vera',
@@ -161,7 +163,7 @@ it('la CREARE cu fișă existentă, identitatea nu se mai cere: numele contului 
 it('rolurile FĂRĂ fișă cer în continuare numele (nu există registru din care să vină)', function () {
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'role' => UserRole::Parinte->value,
+            'roles' => [UserRole::Parinte->value],
             'username' => 'parinte.fara.nume',
             'password' => 'Parola-Temp-8',
         ])
@@ -172,7 +174,7 @@ it('rolurile FĂRĂ fișă cer în continuare numele (nu există registru din ca
 it('secțiunea de identitate dispare DOAR când fișa existentă e chiar aleasă', function () {
     $page = Livewire::test(CreateUser::class)
         ->fillForm([
-            'role' => UserRole::Profesor->value,
+            'roles' => [UserRole::Profesor->value],
             'teacher_fiche_mode' => UserForm::FICHE_LINK,
         ]);
 

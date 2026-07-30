@@ -62,17 +62,29 @@ class UserForm
                 Section::make(__('panel.forms.user.section_role'))
                     ->columns(2)
                     ->schema([
-                        Select::make('role')
-                            ->label(__('panel.forms.user.role'))
-                            // Un singur rol per utilizator. Opțiunile sunt limitate la ierarhie (§3.3):
-                            // directorul nu atribuie super-admin/administrator tehnic; administratorul
-                            // operațional doar conturi de familie + personal pedagogic.
+                        CheckboxList::make('roles')
+                            ->label(__('panel.forms.user.roles'))
+                            ->helperText(__('panel.forms.user.roles_hint'))
+                            // MULTI-ROL (F4, doc pct. 8): funcțiile de STAFF se pot cumula
+                            // (Director + Profesor); familia rămâne un singur rol, fără cumul.
+                            // Opțiunile respectă ierarhia (§3.3); serverul re-validează setul
+                            // (EnforcesManageableRole). Membria „Diriginte" e oricum arbitrată
+                            // de desemnarea de dirigenție (SyncHomeroomRole).
                             ->options(fn (): array => self::roleOptions())
-                            // Din navigatorul pe roluri, contextul pre-completează rolul (validat).
-                            ->default(fn (): ?string => self::requestedRoleDefault())
-                            ->native(false)
+                            ->default(fn (): array => array_filter([self::requestedRoleDefault()]))
+                            ->columns(2)
                             ->live()
-                            ->required(),
+                            ->required()
+                            // Exclusivitatea familiei, aplicată și în UI: un amestec familie+staff
+                            // păstrează staff-ul (conturile de familie se creează separat, câte unul).
+                            ->afterStateUpdated(function (Set $set, ?array $state): void {
+                                $roles = array_values(array_unique(array_map(strval(...), $state ?? [])));
+                                $family = [UserRole::Elev->value, UserRole::Parinte->value];
+
+                                if (array_intersect($roles, $family) !== [] && count($roles) > 1) {
+                                    $set('roles', array_values(array_diff($roles, $family)));
+                                }
+                            }),
                         // Domeniile de audiență NU apar la CREARE (feedback beneficiar): ele nu
                         // sunt un drept implicit al rolului, ci o DESEMNARE per persoană —
                         // responsabilul de Instruire/Educație primește rutarea audiențelor,
@@ -85,7 +97,7 @@ class UserForm
                             ->options(AudienceDomain::options())
                             ->columns(2)
                             ->visible(fn (Get $get, string $operation): bool => $operation !== 'create'
-                                && in_array($get('role'), UserRole::audienceDomainHolderValues(), true)),
+                                && array_intersect(self::selectedRoles($get), UserRole::audienceDomainHolderValues()) !== []),
                         // ── Onboarding PROFESOR/DIRIGINTE: fișa (nouă sau existentă) + integrarea ──
                         // Fișa e sursa perimetrului (alocări, diriginție): un cont pedagogic nou
                         // nu poate exista fără ea. Implicit se CREEAZĂ o fișă nouă din datele de
@@ -192,11 +204,11 @@ class UserForm
                             ->options(fn (): array => self::freeHomeroomClassOptions())
                             ->searchable()
                             ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
-                                && $get('role') === UserRole::Diriginte->value)
+                                && in_array(UserRole::Diriginte->value, self::selectedRoles($get), true))
                             // Dirigintele NOU primește clasa pe loc; la fișă existentă e opțional
                             // (poate fi deja diriginte al unei clase).
                             ->required(fn (Get $get, string $operation): bool => $operation === 'create'
-                                && $get('role') === UserRole::Diriginte->value
+                                && in_array(UserRole::Diriginte->value, self::selectedRoles($get), true)
                                 && $get('teacher_fiche_mode') === self::FICHE_CREATE),
 
                         // ── Onboarding ELEV: fișa + înmatricularea + legătura cu părinții ──
@@ -214,7 +226,7 @@ class UserForm
                             ->columnSpanFull()
                             ->afterStateUpdated(fn (Set $set) => $set('student_id', null))
                             ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
-                                && $get('role') === UserRole::Elev->value),
+                                && in_array(UserRole::Elev->value, self::selectedRoles($get), true)),
                         Select::make('student_fiche_sex')
                             ->label(__('panel.fields.sex'))
                             ->options(Sex::class)
@@ -238,10 +250,10 @@ class UserForm
                             ->options(fn (?Model $record): array => self::studentOptions($record))
                             ->searchable()
                             ->live()
-                            ->visible(fn (Get $get, string $operation): bool => $get('role') === UserRole::Elev->value
+                            ->visible(fn (Get $get, string $operation): bool => in_array(UserRole::Elev->value, self::selectedRoles($get), true)
                                 && ($operation !== 'create' || $get('student_fiche_mode') === self::FICHE_LINK))
                             ->required(fn (Get $get, string $operation): bool => $operation === 'create'
-                                && $get('role') === UserRole::Elev->value
+                                && in_array(UserRole::Elev->value, self::selectedRoles($get), true)
                                 && $get('student_fiche_mode') === self::FICHE_LINK)
                             ->afterStateUpdated(function (Get $get, Set $set, mixed $state): void {
                                 self::suggestUsernameFromFiche($get, $set, self::findStudent($state));
@@ -270,7 +282,7 @@ class UserForm
                             ->getOptionLabelsUsing(fn (array $values): array => self::guardianAccountLabels($values))
                             ->columnSpanFull()
                             ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
-                                && $get('role') === UserRole::Elev->value),
+                                && in_array(UserRole::Elev->value, self::selectedRoles($get), true)),
                         Select::make('guardian_student_ids')
                             ->label(__('panel.forms.user.children'))
                             // Aceeași regulă și pe partea părintelui: contul se creează și fără
@@ -284,7 +296,7 @@ class UserForm
                             ->getSearchResultsUsing(fn (string $search): array => self::searchStudents($search))
                             ->getOptionLabelsUsing(fn (array $values): array => self::studentLabels($values))
                             ->columnSpanFull()
-                            ->visible(fn (Get $get): bool => $get('role') === UserRole::Parinte->value),
+                            ->visible(fn (Get $get): bool => in_array(UserRole::Parinte->value, self::selectedRoles($get), true)),
                     ]),
 
                 // PERSOANA: numele se cere DOAR când chiar e nevoie de el — adică pentru o fișă
@@ -392,7 +404,25 @@ class UserForm
 
     private static function isPedagogicRole(Get $get): bool
     {
-        return in_array($get('role'), [UserRole::Profesor->value, UserRole::Diriginte->value], true);
+        return array_intersect(
+            self::selectedRoles($get),
+            [UserRole::Profesor->value, UserRole::Diriginte->value],
+        ) !== [];
+    }
+
+    /**
+     * Rolurile bifate în formular, normalizate (multi-rol F4).
+     *
+     * @return list<string>
+     */
+    private static function selectedRoles(Get $get): array
+    {
+        $raw = $get('roles');
+
+        return array_values(array_unique(array_map(
+            static fn (mixed $value): string => (string) $value,
+            is_array($raw) ? $raw : array_filter([$raw]),
+        )));
     }
 
     /**
@@ -409,7 +439,7 @@ class UserForm
             return $get('teacher_fiche_mode') === self::FICHE_LINK && filled($get('teacher_id'));
         }
 
-        if ($get('role') === UserRole::Elev->value) {
+        if (in_array(UserRole::Elev->value, self::selectedRoles($get), true)) {
             return $get('student_fiche_mode') === self::FICHE_LINK && filled($get('student_id'));
         }
 
@@ -476,7 +506,7 @@ class UserForm
     private static function creatingStudentFiche(Get $get, string $operation): bool
     {
         return $operation === 'create'
-            && $get('role') === UserRole::Elev->value
+            && in_array(UserRole::Elev->value, self::selectedRoles($get), true)
             && $get('student_fiche_mode') === self::FICHE_CREATE;
     }
 

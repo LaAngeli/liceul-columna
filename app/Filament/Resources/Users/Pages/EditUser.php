@@ -32,7 +32,7 @@ class EditUser extends EditRecord
     {
         $record = $this->getRecord();
         if ($record instanceof User) {
-            $data['role'] = $record->getRoleNames()->first();
+            $data['roles'] = $record->getRoleNames()->all(); // multi-rol F4
         }
 
         return $this->fillAccountExtras($data);
@@ -44,12 +44,12 @@ class EditUser extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        return $this->pullAccountExtras($this->pullAndGuardRole($data));
+        return $this->pullAccountExtras($this->pullAndGuardRoles($data));
     }
 
     protected function afterSave(): void
     {
-        $this->syncSelectedRole();
+        $this->syncSelectedRoles();
         $this->applyAccountExtras();
     }
 

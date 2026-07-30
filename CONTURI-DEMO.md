@@ -28,7 +28,7 @@ Alternativ, autentificare clasică: e-mail (mai jos) + parola `password`.
 | Prim-vicedirector | `/_demo/login/prim-vicedirector` | `vicedirector@columna.test` | Panou `/admin` | — (vede tot) |
 | Administrator Operațional | `/_demo/login/administrator-operational` | `operational@columna.test` | Panou `/admin` | — (vede tot) |
 | Administrator Tehnic | `/_demo/login/administrator-tehnic` | `tehnic@columna.test` | Panou `/admin` | — (fără date academice) |
-| Diriginte | `/_demo/login/diriginte` | `diriginte@columna.test` | Panou `/admin` | fișă de profesor cu clasă de dirigenție |
+| Diriginte | `/_demo/login/diriginte` | `diriginte@columna.test` | Panou `/admin` | **MULTI-ROL: Diriginte + Profesor** — fișă cu clase de dirigenție ȘI clase predate; comutatorul „Rol activ" din bara de sus schimbă contextul (Diriginte = exclusiv clasele lui + motivări; Profesor = clasele predate, fără puteri de diriginte) |
 | Profesor | `/_demo/login/profesor` | `profesor@columna.test` | Panou `/admin` | fișă de profesor (clase + discipline) |
 | Elev | `/_demo/login/elev` | `elev@columna.test` | Cabinet `/dashboard` | propria fișă de elev (cu note) |
 | Părinte | `/_demo/login/parinte` | `parinte@columna.test` | Cabinet `/dashboard` | tutore a doi elevi |
