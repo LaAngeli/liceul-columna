@@ -110,7 +110,9 @@ it('profesorul fără repartizări nu vede nicio foaie matricolă', function () 
 
 // ---- Teme (homework_assignments) ----
 
-it('profesorul vede temele claselor lui și temele proprii, nu și altele', function () {
+it('profesorul vede temele DISCIPLINEI lui și temele proprii, nu și altele', function () {
+    // Aliniat la regula notelor (01.08.2026): perimetrul e perechea (clasă, disciplină), nu
+    // clasa întreagă — vezi HomeworkVisibilityTest pentru matricea completă.
     $year = AcademicYear::factory()->create();
     $myClass = SchoolClass::factory()->for($year)->create(['grade_level' => 9, 'section' => 'A']);
 
@@ -124,14 +126,23 @@ it('profesorul vede temele claselor lui și temele proprii, nu și altele', func
         'school_class_id' => $myClass->id,
     ]);
 
-    $forMyClass = HomeworkAssignment::factory()->create(['grade_level' => 9, 'section' => 'A', 'teacher_id' => null]);
+    // Disciplina LUI la clasa lui — o vede, chiar dacă a scris-o altcineva (grupele au doi profesori).
+    $mySubjectInMyClass = HomeworkAssignment::factory()->create([
+        'grade_level' => 9, 'section' => 'A', 'subject_id' => $subject->id, 'teacher_id' => null,
+    ]);
+    // ALTĂ disciplină, aceeași clasă — conținutul unui coleg: NU se mai vede (scurgerea închisă).
+    $otherSubjectInMyClass = HomeworkAssignment::factory()->create([
+        'grade_level' => 9, 'section' => 'A', 'subject_id' => Subject::factory()->create()->id, 'teacher_id' => null,
+    ]);
+    // Tema PROPRIE rămâne a lui oriunde ar fi.
     $mineAuthored = HomeworkAssignment::factory()->create(['grade_level' => 11, 'section' => 'B', 'teacher_id' => $teacher->id]);
     $unrelated = HomeworkAssignment::factory()->create(['grade_level' => 11, 'section' => 'B', 'teacher_id' => null]);
 
     $this->actingAs($user);
 
     expect(HomeworkAssignmentResource::getEloquentQuery()->pluck('id'))
-        ->toContain($forMyClass->id, $mineAuthored->id)
+        ->toContain($mySubjectInMyClass->id, $mineAuthored->id)
+        ->not->toContain($otherSubjectInMyClass->id)
         ->not->toContain($unrelated->id);
 });
 

@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources\HomeworkAssignments;
 
+use App\Enums\UserRole;
 use App\Filament\Resources\HomeworkAssignments\Pages\CreateHomeworkAssignment;
 use App\Filament\Resources\HomeworkAssignments\Pages\EditHomeworkAssignment;
 use App\Filament\Resources\HomeworkAssignments\Pages\ListHomeworkAssignments;
 use App\Filament\Resources\HomeworkAssignments\Schemas\HomeworkAssignmentForm;
 use App\Filament\Resources\HomeworkAssignments\Tables\HomeworkAssignmentsTable;
+use App\Models\Concerns\ScopedToTeachingCapacity;
 use App\Models\HomeworkAssignment;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -124,8 +126,21 @@ class HomeworkAssignmentResource extends Resource
     }
 
     /**
-     * Scoping: administrația vede toate temele. Profesorul vede temele proprii și
-     * temele claselor pe care le predă/este diriginte (după treaptă + literă).
+     * Scoping ALINIAT la regula notelor (decizia beneficiarului, 01.08.2026). Până acum
+     * profesorul vedea temele oricărei CLASE unde preda, indiferent de disciplină — deci
+     * conținutul colegilor de la aceeași clasă (raportat cu captură: profesorul de matematică
+     * de la 1 A citea temele de română și istorie). Note/Absențe/Medii filtrau deja pe perechea
+     * (clasă, disciplină) prin {@see ScopedToTeachingCapacity}; temele erau
+     * singura excepție.
+     *
+     * Regula, pe cele trei ramuri (contextul pedagogic F3 decide care sunt active):
+     *  - AUTORUL își vede întotdeauna temele proprii — chiar dacă alocarea i-a fost retrasă
+     *    între timp (munca lui rămâne a lui, ca nota al cărei autor e pe rând);
+     *  - ca DIRIGINTE: toate temele clasei lui, orice disciplină (identic cu notele);
+     *  - ca PROFESOR: doar temele disciplinelor pe care le PREDĂ, la treapta+litera potrivită.
+     *
+     * Temele pe TOATĂ TREAPTA (fără literă) intră sub aceeași regulă de disciplină (decizia
+     * beneficiarului): le vede profesorul care predă acea disciplină undeva în treaptă.
      */
     public static function getEloquentQuery(): Builder
     {
@@ -142,16 +157,37 @@ class HomeworkAssignmentResource extends Resource
             return $query->whereRaw('1 = 0');
         }
 
-        $classIds = $user->contextClassIds(); // contextul pedagogic activ (F3)
+        $context = $user->teachingContext();
+        // Dirigenția e STINSĂ în context Profesor, predarea în context Diriginte (F3, doc pct. 5);
+        // mono-rol = ambele, contractul F0.
+        $homeroomClassIds = $user->contextHomeroomClassIds();
+        $taughtBranch = $context !== UserRole::Diriginte;
 
-        return $query->where(function (Builder $q) use ($teacher, $classIds) {
+        return $query->where(function (Builder $q) use ($teacher, $homeroomClassIds, $taughtBranch) {
             $q->where('teacher_id', $teacher->id);
 
-            if ($classIds !== []) {
-                $q->orWhereExists(function (QueryBuilder $sub) use ($classIds) {
+            if ($homeroomClassIds !== []) {
+                $q->orWhereExists(function (QueryBuilder $sub) use ($homeroomClassIds) {
                     $sub->selectRaw('1')
                         ->from('school_classes as sc')
-                        ->whereIn('sc.id', $classIds)
+                        ->whereIn('sc.id', $homeroomClassIds)
+                        ->whereColumn('sc.grade_level', 'homework_assignments.grade_level')
+                        ->where(function (QueryBuilder $w) {
+                            $w->whereColumn('sc.section', 'homework_assignments.section')
+                                ->orWhereNull('homework_assignments.section');
+                        });
+                });
+            }
+
+            if ($taughtBranch) {
+                $q->orWhereExists(function (QueryBuilder $sub) use ($teacher) {
+                    $sub->selectRaw('1')
+                        ->from('teaching_assignments as ta')
+                        ->join('school_classes as sc', 'sc.id', '=', 'ta.school_class_id')
+                        ->where('ta.teacher_id', $teacher->id)
+                        ->whereNull('ta.deleted_at')
+                        // Disciplina e condiția care lipsea — inima alinierii.
+                        ->whereColumn('ta.subject_id', 'homework_assignments.subject_id')
                         ->whereColumn('sc.grade_level', 'homework_assignments.grade_level')
                         ->where(function (QueryBuilder $w) {
                             $w->whereColumn('sc.section', 'homework_assignments.section')
