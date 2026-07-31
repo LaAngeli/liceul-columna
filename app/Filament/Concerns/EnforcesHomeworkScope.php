@@ -71,12 +71,7 @@ trait EnforcesHomeworkScope
                     ]);
                 }
 
-                if (array_key_exists('links', $data)) {
-                    $data['links'] = array_values(array_filter(
-                        (array) $data['links'],
-                        static fn (mixed $link): bool => filled($link),
-                    ));
-                }
+                $data = self::pruneBlankResourceLists($data);
 
                 return $data;
             }
@@ -162,12 +157,25 @@ trait EnforcesHomeworkScope
             unset($data['teacher_id'], $data['author_name']);
         }
 
-        // Rândul gol al repeater-ului ajungea în DB ca `[null]`, iar cabinetul afișa un chip gol.
-        if (array_key_exists('links', $data)) {
-            $data['links'] = array_values(array_filter(
-                (array) $data['links'],
-                static fn (mixed $link): bool => filled($link),
-            ));
+        return self::pruneBlankResourceLists($data);
+    }
+
+    /**
+     * Rândurile goale ale repeater-elor (link + resurse tipărite) ajungeau în DB ca `[null]`,
+     * iar cabinetul afișa un chip gol — le curățăm în ambele fluxuri (autor + corecție directă).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function pruneBlankResourceLists(array $data): array
+    {
+        foreach (['links', 'printed_resources'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $data[$key] = array_values(array_filter(
+                    (array) $data[$key],
+                    static fn (mixed $value): bool => filled($value),
+                ));
+            }
         }
 
         return $data;

@@ -273,9 +273,13 @@ class DemoTestDataSeeder extends Seeder
             'required_task' => $task,
         ]);
 
+        // ⚠️ Subiectele rămân NEUTRE față de disciplină (01.08.2026): alocarea aleasă e prima a
+        // profesorului demo — poate fi orice. Textele hardcodate de matematică apăreau sub
+        // „Limba și literatura română" și lăsau impresia unei erori de alocare (raportat).
+
         // 1) Corecție de SUBIECT — titlul trunchiat se completează, direct pe temă.
-        $renamed = $makeHomework(self::MARKER.' Ecuații de gradul I', 'Fișa de lucru nr. 3');
-        $newTopic = self::MARKER.' Ecuații de gradul I cu o necunoscută';
+        $renamed = $makeHomework(self::MARKER.' Recapitulare', 'Fișa de lucru nr. 3');
+        $newTopic = self::MARKER.' Recapitulare pentru evaluarea sumativă';
         $oldTopic = $renamed->topic;
         $renamed->update(['topic' => $newTopic]);
         HomeworkCorrection::recordApplied(
@@ -287,7 +291,7 @@ class DemoTestDataSeeder extends Seeder
         );
 
         // 2) Corecție de SARCINĂ — lista de exerciții transcrisă greșit se repară pe loc.
-        $extended = $makeHomework(self::MARKER.' Fracții ordinare — recapitulare', 'Ex. 1–4, pag. 52');
+        $extended = $makeHomework(self::MARKER.' Exerciții de consolidare', 'Ex. 1–4, pag. 52');
         $newTask = 'Ex. 1–6, pag. 52 (două exerciții omise la dictare)';
         $oldTask = $extended->required_task;
         $extended->update(['required_task' => $newTask]);
@@ -684,13 +688,14 @@ class DemoTestDataSeeder extends Seeder
         // săptămâna viitoare și IERI (istoric proaspăt, ca plierea „Teme anterioare" să aibă și
         // conținut [DEMO], nu doar teme legacy). Sarcinile sunt generice, plauzibile pe orice
         // disciplină — seeder-ul nu inventează conținut didactic specific.
+        // Tuplu: [subiect, obligatoriu, suplimentar, linkuri(URL), resurse tipărite(text), offset].
         $stories = [
-            ['Recapitulare pentru ora de azi', 'Ex. 3–5, pag. 48', null, [], 0],
-            ['Fișă de lucru cu resurse online', 'Fișa nr. 2, itemii 1–4', 'Itemul 5 — pentru cei care doresc', ['https://www.digitaliada.ro/', 'Manualul digital, cap. 4'], 0],
-            ['Pregătire pentru evaluarea de mâine', 'Repetarea temelor din unitatea curentă', null, [], 1],
-            ['Lectură suplimentară', 'Textul de la pag. 60, cu fișă de idei', null, [], 2],
-            ['Proiect în echipă', 'Prezentare de 5 minute (în perechi)', 'Poster A3 — opțional', [], 7],
-            ['Exerciții de consolidare', 'Ex. 1–2, pag. 44', null, [], -1],
+            ['Recapitulare pentru ora de azi', 'Ex. 3–5, pag. 48', null, [], [], 0],
+            ['Fișă de lucru cu resurse online', 'Fișa nr. 2, itemii 1–4', 'Itemul 5 — pentru cei care doresc', ['https://www.digitaliada.ro/'], ['Manualul digital, cap. 4'], 0],
+            ['Pregătire pentru evaluarea de mâine', 'Repetarea temelor din unitatea curentă', null, [], [], 1],
+            ['Lectură suplimentară', 'Textul de la pag. 60, cu fișă de idei', null, [], ['Manualul de literatură, pag. 60'], 2],
+            ['Proiect în echipă', 'Prezentare de 5 minute (în perechi)', 'Poster A3 — opțional', [], [], 7],
+            ['Exerciții de consolidare', 'Ex. 1–2, pag. 44', null, [], [], -1],
         ];
 
         $created = 0;
@@ -713,7 +718,7 @@ class DemoTestDataSeeder extends Seeder
                 continue;
             }
 
-            foreach ($stories as $index => [$topic, $required, $optional, $links, $dueOffset]) {
+            foreach ($stories as $index => [$topic, $required, $optional, $links, $printedResources, $dueOffset]) {
                 // Disciplinele se rotesc pe alocările REALE ale clasei — filtrul pe discipline
                 // din modul are astfel mai multe pastile cu contoare diferite.
                 $assignment = $assignments[$index % $assignments->count()];
@@ -740,6 +745,7 @@ class DemoTestDataSeeder extends Seeder
                     'required_task' => $required,
                     'optional_task' => $optional,
                     'links' => $links,
+                    'printed_resources' => $printedResources,
                 ]);
                 $created++;
             }

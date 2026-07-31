@@ -27,6 +27,8 @@ export interface HomeworkItem {
     required: string | null;
     optional: string | null;
     links: string[];
+    /** Resurse tipărite/fizice (manuale, pagini) — chip-uri gri lângă linkuri. */
+    resources: string[];
 }
 
 /** Data locală ca Y-m-d (NU toISOString — UTC-ul ar aluneca o zi noaptea). */
@@ -495,12 +497,14 @@ export function HomeworkCard({ h, muted = false }: { h: HomeworkItem; muted?: bo
                     {h.optional}
                 </p>
             )}
-            {h.links.filter(Boolean).length > 0 && (
+            {(h.links.filter(Boolean).length > 0 || h.resources.filter(Boolean).length > 0) && (
                 <div className="mt-2 flex flex-wrap gap-2">
+                    {/* Linkuri deschizabile (URL) — restul intrărilor rămase în `links` (legacy)
+                        se afișează tot ca chip gri, la fel ca resursele tipărite. */}
                     {h.links.filter(Boolean).map((link, i) =>
                         isUrl(link) ? (
                             <a
-                                key={i}
+                                key={`l${i}`}
                                 href={link}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -509,11 +513,17 @@ export function HomeworkCard({ h, muted = false }: { h: HomeworkItem; muted?: bo
                                 {t('cabinet.link')} {i + 1}
                             </a>
                         ) : (
-                            <span key={i} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            <span key={`l${i}`} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                                 {link}
                             </span>
                         ),
                     )}
+                    {/* Resurse tipărite/fizice — chip gri, lângă linkuri (aceeași linie). */}
+                    {h.resources.filter(Boolean).map((res, i) => (
+                        <span key={`r${i}`} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            {res}
+                        </span>
+                    ))}
                 </div>
             )}
         </article>

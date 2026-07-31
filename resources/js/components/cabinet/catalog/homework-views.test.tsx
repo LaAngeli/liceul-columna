@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { HomeworkByDay, localIso } from './homework-views';
+import { HomeworkByDay, HomeworkCard, localIso } from './homework-views';
 import type { HomeworkItem } from './homework-views';
 
 /**
@@ -76,6 +76,7 @@ function hw(over: Partial<HomeworkItem> & Pick<HomeworkItem, 'id' | 'effectiveDa
         required: null,
         optional: null,
         links: [],
+        resources: [],
         ...over,
     };
 }
@@ -173,5 +174,40 @@ describe('HomeworkByDay — filtrul de calendar', () => {
         expect(screen.getByRole('button', { name: 'Toate zilele' })).toHaveAttribute('aria-pressed', 'true');
         // Istoricul pliat reapare (item cu status „past").
         expect(screen.getByText(/Teme anterioare/)).toBeInTheDocument();
+    });
+});
+
+describe('HomeworkCard — linkuri + resurse tipărite', () => {
+    it('linkul URL e clickabil, iar resursa fizică apare ca chip gri, pe aceeași linie', () => {
+        render(
+            <HomeworkCard
+                h={hw({
+                    id: 9,
+                    effectiveDate: dayIso(3),
+                    subject: 'Istorie',
+                    links: ['https://www.digitaliada.ro/'],
+                    resources: ['Manualul Istoria Românilor, pag. 20, cap. 4'],
+                })}
+            />,
+        );
+
+        // URL → ancoră care se deschide în tab nou.
+        const link = screen.getByRole('link');
+        expect(link).toHaveAttribute('href', 'https://www.digitaliada.ro/');
+        expect(link).toHaveAttribute('target', '_blank');
+
+        // Resursa tipărită → text simplu (nu link).
+        expect(screen.getByText('Manualul Istoria Românilor, pag. 20, cap. 4')).toBeInTheDocument();
+    });
+
+    it('resursa fizică se afișează și fără niciun link', () => {
+        render(
+            <HomeworkCard
+                h={hw({ id: 10, effectiveDate: dayIso(3), subject: 'Literatură', resources: ['Manualul de literatură, pag. 60'] })}
+            />,
+        );
+
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        expect(screen.getByText('Manualul de literatură, pag. 60')).toBeInTheDocument();
     });
 });

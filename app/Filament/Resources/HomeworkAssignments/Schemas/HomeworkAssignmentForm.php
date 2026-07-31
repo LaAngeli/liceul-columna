@@ -90,9 +90,16 @@ class HomeworkAssignmentForm
                     ->columnSpanFull(),
                 Repeater::make('links')
                     ->label(__('panel.forms.homework.links'))
+                    ->helperText(__('panel.forms.homework.links_hint'))
                     ->simple(
                         TextInput::make('url')
-                            ->url()
+                            // Regula `url` pe SERVER — NU `->url()`, care ar seta `type="url"` și
+                            // ar lăsa browserul să blocheze cu mesajul lui generic („Please enter a
+                            // URL", în engleză, fără îndrumare). Așa apare mesajul NOSTRU, localizat,
+                            // care trimite un text obișnuit („Manualul digital, cap. 4") spre câmpul
+                            // „Resurse tipărite" de mai jos.
+                            ->rule('url')
+                            ->validationMessages(['url' => __('panel.forms.homework.link_invalid')])
                             ->placeholder('https://…')
                             // Sincronizare la ieșirea din câmp, ca butonul „deschide" să vadă
                             // valoarea proaspăt introdusă (fără asta, la creare linkul nou nu ar
@@ -112,6 +119,18 @@ class HomeworkAssignmentForm
                             )
                     )
                     ->addActionLabel(fn (): string => __('panel.forms.homework.add_link'))
+                    ->columnSpanFull(),
+                // Resurse TIPĂRITE/fizice (text liber): manuale, culegeri, pagini — NU URL-uri.
+                // Se afișează în cabinet ca chip-uri gri, lângă linkuri (aceeași linie).
+                Repeater::make('printed_resources')
+                    ->label(__('panel.forms.homework.printed_resources'))
+                    ->helperText(__('panel.forms.homework.printed_resources_hint'))
+                    ->simple(
+                        TextInput::make('reference')
+                            ->maxLength(255)
+                            ->placeholder(__('panel.forms.homework.printed_resources_placeholder'))
+                    )
+                    ->addActionLabel(fn (): string => __('panel.forms.homework.add_printed_resource'))
                     ->columnSpanFull(),
                 // Autorul (teacher_id + author_name) NU mai trece prin formular: se forțează pe
                 // server la creare și nu se atinge la editare (EnforcesHomeworkScope).

@@ -35,6 +35,7 @@ use OwenIt\Auditing\Contracts\Auditable;
  * @property string|null $section
  * @property Carbon $assigned_on
  * @property array<int, string>|null $links
+ * @property array<int, string>|null $printed_resources
  */
 #[ObservedBy(HomeworkAssignmentObserver::class)]
 class HomeworkAssignment extends Model implements Auditable
@@ -57,6 +58,7 @@ class HomeworkAssignment extends Model implements Auditable
         'required_task',
         'optional_task',
         'links',
+        'printed_resources',
     ];
 
     protected function casts(): array
@@ -65,6 +67,7 @@ class HomeworkAssignment extends Model implements Auditable
             'grade_level' => 'integer',
             'assigned_on' => 'date',
             'links' => 'array',
+            'printed_resources' => 'array',
         ];
     }
 

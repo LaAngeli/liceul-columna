@@ -352,3 +352,40 @@ it('normalizează linkul pentru butonul de deschidere din panou', function (?str
     'gol → null' => ['', null],
     'null → null' => [null, null],
 ]);
+
+// ─── Link strict URL + câmp separat pentru resurse tipărite (cerință 2026-07-31) ──────────
+
+it('câmpul de link respinge un text obișnuit (ne-URL): tema NU se creează', function () {
+    // Eroarea de tip `url` cade pe câmpul intern al repeater-ului (`data.links.<uuid>.url`),
+    // deci aserția non-fragilă e comportamentală: cu un link invalid, tema nu se salvează.
+    Livewire::test(CreateHomeworkAssignment::class)
+        ->fillForm([
+            'class_target' => 'class:'.$this->class->id,
+            'subject_id' => $this->subject->id,
+            'assigned_on' => now()->toDateString(),
+            'required_task' => 'Ex. 1',
+            'links' => [['url' => 'Manualul digital, cap. 4']],
+        ])
+        ->call('create');
+
+    expect(HomeworkAssignment::query()->count())->toBe(0);
+});
+
+it('linkul valid și resursa tipărită se salvează în câmpuri SEPARATE', function () {
+    Livewire::test(CreateHomeworkAssignment::class)
+        ->fillForm([
+            'class_target' => 'class:'.$this->class->id,
+            'subject_id' => $this->subject->id,
+            'assigned_on' => now()->toDateString(),
+            'required_task' => 'Ex. 1',
+            'links' => [['url' => 'https://www.digitaliada.ro/']],
+            'printed_resources' => [['reference' => 'Manualul Istoria Românilor, pag. 20, cap. 4']],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $h = HomeworkAssignment::query()->sole();
+
+    expect($h->links)->toBe(['https://www.digitaliada.ro/'])
+        ->and($h->printed_resources)->toBe(['Manualul Istoria Românilor, pag. 20, cap. 4']);
+});

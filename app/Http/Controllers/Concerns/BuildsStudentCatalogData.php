@@ -1034,6 +1034,8 @@ trait BuildsStudentCatalogData
             'required' => $homework->required_task,
             'optional' => $homework->optional_task,
             'links' => $homework->links ?? [],
+            // Resurse tipărite/fizice — chip-uri gri lângă linkuri, aceeași linie.
+            'resources' => $homework->printed_resources ?? [],
         ];
     }
 }
