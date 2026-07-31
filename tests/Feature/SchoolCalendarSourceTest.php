@@ -12,8 +12,8 @@
 use App\Console\Commands\SyncCurrentTerm;
 use App\Enums\UserRole;
 use App\Filament\Concerns\EnforcesGradeScope;
-use App\Filament\Resources\Teachers\Pages\ListTeachers;
 use App\Filament\Resources\Terms\Pages\ListTerms;
+use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Widgets\AcademicYearNeedsTerms;
 use App\Models\AcademicYear;
 use App\Models\SchoolClass;
@@ -66,31 +66,37 @@ it('sincronizarea zilnică oglindește anul curent pe flag, ca cele două să nu
         ->and(SchoolCalendar::currentYearId())->toBe($nou->id);
 });
 
-it('registrul de profesori numără diriginții pe anul DERIVAT, nu pe flagul manual', function () {
+it('dirigenția de pe fișa persoanei se listează pe anul DERIVAT, nu pe flagul manual', function () {
+    // Fostul „registru Profesori" a fost consolidat în Utilizatori (2026-07-31) — semantica
+    // anului derivat trăiește acum în câmpul de dirigenție al fișei persoanei (EditUser).
     $vechi = AcademicYear::factory()->create(['is_current' => true]);
     $nou = AcademicYear::factory()->create(['is_current' => false]);
 
     Term::factory()->for($nou)->create(['is_current' => true]);
 
-    $dirigVechi = Teacher::factory()->create();
-    $dirigNou = Teacher::factory()->create();
-    SchoolClass::factory()->for($vechi)->create(['homeroom_teacher_id' => $dirigVechi->id]);
-    SchoolClass::factory()->for($nou)->create(['homeroom_teacher_id' => $dirigNou->id]);
+    $account = User::factory()->create();
+    $account->assignRole(UserRole::Diriginte->value);
+    $diriginte = Teacher::factory()->create(['user_id' => $account->id]);
+    $clasaVeche = SchoolClass::factory()->for($vechi)->create(['homeroom_teacher_id' => $diriginte->id]);
+    $clasaNoua = SchoolClass::factory()->for($nou)->create(['homeroom_teacher_id' => $diriginte->id]);
 
     $admin = User::factory()->create();
     $admin->assignRole(UserRole::Director->value);
     actingAs($admin);
 
-    $component = Livewire::test(ListTeachers::class)->call('openView', 'diriginti');
+    // Doar clasa anului DERIVAT (nou) apare în dirigenția gestionabilă; cea a anului
+    // marcat manual (vechi) rămâne istorie — nu se listează și nu se poate „elibera" de aici.
+    Livewire::test(EditUser::class, ['record' => $account->getRouteKey()])
+        ->assertFormSet(['homeroom_class_ids' => [$clasaNoua->id]]);
 
-    // Dirigintele anului DERIVAT (nou) apare; cel al anului marcat manual (vechi) — nu.
-    expect(collect($component->instance()->teacherCards())->pluck('id')->all())
-        ->toBe([$dirigNou->id]);
+    expect($clasaVeche->refresh()->homeroom_teacher_id)->toBe($diriginte->id);
 });
 
-it('fără niciun semestru curent, registrul nu inventează un an: vederea „Diriginți" e goală', function () {
+it('fără niciun semestru curent, dirigenția nu inventează un an: câmpul rămâne gol', function () {
     $an = AcademicYear::factory()->create(['is_current' => true]);
-    $diriginte = Teacher::factory()->create();
+    $account = User::factory()->create();
+    $account->assignRole(UserRole::Diriginte->value);
+    $diriginte = Teacher::factory()->create(['user_id' => $account->id]);
     SchoolClass::factory()->for($an)->create(['homeroom_teacher_id' => $diriginte->id]);
 
     // Niciun Term cu is_current → SchoolCalendar::currentYearId() = null.
@@ -100,13 +106,8 @@ it('fără niciun semestru curent, registrul nu inventează un an: vederea „Di
     $admin->assignRole(UserRole::Director->value);
     actingAs($admin);
 
-    $component = Livewire::test(ListTeachers::class);
-
-    // Numărătoarea e 0 (nu o eroare, nu tot corpul didactic), iar vederea e goală.
-    expect(collect($component->instance()->viewPills())->firstWhere('key', 'diriginti')['count'])->toBe(0);
-
-    $component->call('openView', 'diriginti');
-    expect($component->instance()->teacherCards())->toBe([]);
+    Livewire::test(EditUser::class, ['record' => $account->getRouteKey()])
+        ->assertFormSet(['homeroom_class_ids' => []]);
 });
 
 it('widgetul semnalează anul fără semestre în fereastra de rollover, nu tot timpul', function () {

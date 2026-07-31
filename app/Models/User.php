@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -705,6 +706,17 @@ class User extends Authenticatable implements Auditable, FilamentUser
     public function teacher(): HasOne
     {
         return $this->hasOne(Teacher::class);
+    }
+
+    /**
+     * Alocările de predare ale contului, PRIN fișa de profesor — registrul „clasă × disciplină"
+     * administrat din Utilizatori (consolidarea Profesori→Utilizatori, 2026-07-31).
+     *
+     * @return HasManyThrough<TeachingAssignment, Teacher, $this>
+     */
+    public function teachingAssignments(): HasManyThrough
+    {
+        return $this->hasManyThrough(TeachingAssignment::class, Teacher::class);
     }
 
     /**

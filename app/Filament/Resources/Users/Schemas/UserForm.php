@@ -109,7 +109,9 @@ class UserForm
                                 self::FICHE_CREATE => __('panel.forms.user.fiche_mode_create'),
                                 self::FICHE_LINK => __('panel.forms.user.fiche_mode_link'),
                             ])
-                            ->default(self::FICHE_CREATE)
+                            // Puntea `?fisa=` (bucket-ul „Fișe fără cont"): fluxul aterizează
+                            // direct pe modul „fișă existentă", cu fișa pre-selectată.
+                            ->default(fn (): string => self::requestedFicheId() !== null ? self::FICHE_LINK : self::FICHE_CREATE)
                             ->live()
                             ->inline()
                             ->inlineLabel(false)
@@ -129,6 +131,7 @@ class UserForm
                             ->label(__('panel.forms.user.teacher_link'))
                             ->helperText(__('panel.forms.user.teacher_link_hint'))
                             ->options(fn (?Model $record): array => self::teacherOptions($record))
+                            ->default(fn (): ?int => self::requestedFicheId())
                             ->searchable()
                             ->live()
                             ->visible(fn (Get $get, string $operation): bool => self::isPedagogicRole($get)
@@ -210,6 +213,20 @@ class UserForm
                             ->required(fn (Get $get, string $operation): bool => $operation === 'create'
                                 && in_array(UserRole::Diriginte->value, self::selectedRoles($get), true)
                                 && $get('teacher_fiche_mode') === self::FICHE_CREATE),
+                        // DIRIGENȚIA la EDITARE (consolidarea 2026-07-31): desemnarea se
+                        // gestionează de pe fișa persoanei, nu dintr-o secțiune separată.
+                        // Adăugarea = doar clase libere ale anului curent; scoaterea eliberează
+                        // clasa; rolul „Diriginte" URMEAZĂ desemnarea automat (SyncHomeroomRole).
+                        Select::make('homeroom_class_ids')
+                            ->label(__('panel.forms.user.homeroom_classes'))
+                            ->helperText(__('panel.forms.user.homeroom_classes_hint'))
+                            ->options(fn (?Model $record): array => self::editableHomeroomOptions($record))
+                            ->multiple()
+                            ->searchable()
+                            ->columnSpanFull()
+                            ->visible(fn (?Model $record, string $operation): bool => $operation === 'edit'
+                                && $record instanceof User
+                                && $record->teacher !== null),
 
                         // ── Onboarding ELEV: fișa + înmatricularea + legătura cu părinții ──
                         Radio::make('student_fiche_mode')
@@ -302,6 +319,8 @@ class UserForm
                 // PERSOANA: numele se cere DOAR când chiar e nevoie de el — adică pentru o fișă
                 // nouă sau pentru un rol fără fișă (părinte, administrație). La „fișă existentă"
                 // identitatea vine din registru, iar rezumatul de mai sus o arată pentru verificare.
+                // O PERSOANĂ = UN NUME (consolidarea 2026-07-31): la editare, câmpurile scriu
+                // ȘI fișa legată (profesor/elev) — contul și registrul nu mai pot diverge.
                 Section::make(__('panel.forms.user.section_identity'))
                     ->columns(2)
                     ->visible(fn (Get $get, string $operation): bool => ! self::usesExistingFiche($get, $operation))
@@ -323,6 +342,14 @@ class UserForm
                             ->validationMessages(['regex' => __('panel.forms.user.name_letters')])
                             ->default(fn (): ?string => self::requestedNameDefault('prenume'))
                             ->maxLength(120),
+                        // Sexul de pe fișa legată — editabil de pe fișa persoanei, ca restul identității.
+                        Select::make('fiche_sex')
+                            ->label(__('panel.fields.sex'))
+                            ->options(Sex::class)
+                            ->native(false)
+                            ->visible(fn (?Model $record, string $operation): bool => $operation === 'edit'
+                                && $record instanceof User
+                                && ($record->teacher !== null || $record->student !== null)),
                     ]),
 
                 Section::make(__('panel.forms.user.section_access'))
@@ -586,6 +613,38 @@ class UserForm
     }
 
     /**
+     * Opțiunile de dirigenție la EDITARE: clasele anului curent LIBERE + cele deja coordonate de
+     * fișa contului (ca să rămână bifate și de-selectabile). Serverul re-validează la aplicare.
+     *
+     * @return array<int, string>
+     */
+    private static function editableHomeroomOptions(?Model $record): array
+    {
+        $teacherId = $record instanceof User ? $record->teacher?->getKey() : null;
+
+        $options = [];
+
+        $classes = SchoolClass::query()
+            ->when(self::currentYearId() !== null, fn ($query) => $query->where('academic_year_id', self::currentYearId()))
+            ->where(function ($query) use ($teacherId): void {
+                $query->whereNull('homeroom_teacher_id');
+
+                if ($teacherId !== null) {
+                    $query->orWhere('homeroom_teacher_id', $teacherId);
+                }
+            })
+            ->orderBy('grade_level')
+            ->orderBy('name')
+            ->get();
+
+        foreach ($classes as $class) {
+            $options[$class->id] = trim($class->name.' '.($class->section ?? ''));
+        }
+
+        return $options;
+    }
+
+    /**
      * Clasele anului curent — destinația înmatriculării elevului nou.
      *
      * @return array<int, string>
@@ -680,6 +739,23 @@ class UserForm
         }
 
         return $options;
+    }
+
+    /**
+     * Fișa cerută prin `?fisa=` (bucket-ul „Fișe fără cont") — doar dacă e o fișă LIBERĂ reală;
+     * un id străin/ocupat se ignoră (opțiunile select-ului o validează oricum la salvare).
+     */
+    private static function requestedFicheId(): ?int
+    {
+        $raw = request()->query('fisa');
+
+        if (! is_string($raw) || ! ctype_digit($raw)) {
+            return null;
+        }
+
+        $id = (int) $raw;
+
+        return Teacher::query()->whereKey($id)->whereNull('user_id')->exists() ? $id : null;
     }
 
     /** Rolul din contextul navigatorului (`?rol=`), doar dacă actorul îl poate atribui. */

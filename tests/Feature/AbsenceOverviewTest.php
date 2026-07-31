@@ -13,6 +13,7 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\User;
+use App\Support\SchoolCalendar;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
@@ -30,7 +31,13 @@ beforeEach(function () {
         Role::findOrCreate($role->value, 'web');
     }
     $this->withoutVite();
+
+    // ANCORĂ temporală: fixturile poartă date FIXE (ian–apr 2026), dar seriile se întind până la
+    // „azi" — fără ancoră, testele picau din august încolo (prins la trecerea 31.07 → 01.08).
+    Carbon::setTestNow(Carbon::parse('2026-04-22 12:00', SchoolCalendar::TIMEZONE));
 });
+
+afterEach(fn () => Carbon::setTestNow());
 
 /**
  * Familie + an cu două semestre (al doilea curent).

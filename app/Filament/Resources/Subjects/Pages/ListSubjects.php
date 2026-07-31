@@ -7,7 +7,7 @@ use App\Filament\Resources\Absences\AbsenceResource;
 use App\Filament\Resources\Grades\GradeResource;
 use App\Filament\Resources\HomeworkAssignments\HomeworkAssignmentResource;
 use App\Filament\Resources\Subjects\SubjectResource;
-use App\Filament\Resources\Teachers\TeacherResource;
+use App\Filament\Resources\Users\UserResource;
 use App\Models\Enrollment;
 use App\Models\Subject;
 use App\Models\Teacher;
@@ -255,7 +255,8 @@ class ListSubjects extends ListRecords
         }
 
         $assignments = TeachingAssignment::query()
-            ->with(['teacher:id,last_name,first_name', 'schoolClass:id,name,section,grade_level'])
+            // `user_id` e necesar punții spre fișa persoanei din Utilizatori (consolidarea 2026-07-31).
+            ->with(['teacher:id,last_name,first_name,user_id', 'schoolClass:id,name,section,grade_level'])
             ->where('subject_id', $subject->id)
             ->get()
             ->filter(fn (TeachingAssignment $a): bool => $a->teacher !== null && $a->schoolClass !== null);
@@ -273,9 +274,12 @@ class ListSubjects extends ListRecords
 
                 return [
                     'name' => trim($teacher->last_name.' '.$teacher->first_name),
-                    // Puntea spre fișa profesorului din registrul „Profesori" (admin-only, ca și
-                    // această vedere — cele două secțiuni se leagă natural).
-                    'url' => TeacherResource::getUrl('index', ['profesor' => $teacher->id]),
+                    // Puntea spre FIȘA PERSOANEI din Utilizatori (consolidarea 2026-07-31 —
+                    // registrul „Profesori" nu mai există): editarea contului fișei; o fișă
+                    // fără cont rămâne fără punte (contul se creează din bucket-ul dedicat).
+                    'url' => ($userId = $teacher->user_id) !== null && UserResource::canAccess()
+                        ? UserResource::getUrl('edit', ['record' => $userId])
+                        : null,
                     'classes' => $classes->all(),
                 ];
             })

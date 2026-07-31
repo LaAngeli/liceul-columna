@@ -130,6 +130,16 @@ class Subject extends Model implements Auditable
         ];
     }
 
+    /**
+     * Disciplina e limba ENGLEZĂ (singura împărțită pe grupe): „Limba străină 1 (engleza)",
+     * „Limba engleză (opț)" etc. Sursă unică pentru regula „grupa DOAR la engleză" —
+     * formularul de alocare, garda de pe model și importul o folosesc identic.
+     */
+    public function isEnglishLanguage(): bool
+    {
+        return str_contains(mb_strtolower((string) $this->name), 'englez');
+    }
+
     /** @return HasMany<TeachingAssignment, $this> */
     public function teachingAssignments(): HasMany
     {

@@ -11,7 +11,6 @@
 use App\Enums\Sex;
 use App\Enums\UserRole;
 use App\Filament\Resources\Students\Pages\ListStudents;
-use App\Filament\Resources\Teachers\Pages\ListTeachers;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\UserResource;
@@ -377,15 +376,12 @@ it('doar conturile cu rol de părinte pot fi legate drept părinți (id străin 
 
 it('paginile directe de creare a fișelor sunt închise pentru toți (inclusiv director)', function () {
     $this->get('/admin/students/create')->assertForbidden();
-    $this->get('/admin/teachers/create')->assertForbidden();
+    // Registrul „Profesori" a fost ELIMINAT complet (consolidarea 2026-07-31) — ruta nu mai există.
+    $this->get('/admin/teachers/create')->assertNotFound();
 });
 
 it('butoanele de adăugare din registre duc în fluxul de cont, cu rolul pre-completat', function () {
     Livewire::withQueryParams(['arhiva' => '1'])->test(ListStudents::class)
         ->assertActionVisible('create')
         ->assertActionHasUrl('create', UserResource::getUrl('create', ['rol' => UserRole::Elev->value]));
-
-    Livewire::test(ListTeachers::class)
-        ->assertActionVisible('create')
-        ->assertActionHasUrl('create', UserResource::getUrl('create', ['rol' => UserRole::Profesor->value]));
 });

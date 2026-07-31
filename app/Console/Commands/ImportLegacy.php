@@ -158,6 +158,11 @@ class ImportLegacy extends Command
         }
 
         $this->info('6/9 Repartizări profesor-clasă…');
+        // Grupa există DOAR la limba engleză (regula consolidării 2026-07-31): legacy purta
+        // `engl_gr` pe orice rând, iar copierea necondiționată planta grupe pe discipline
+        // străine. Importul scrie prin query builder (fără observers) → regula se aplică aici.
+        $englishSubjectIds = DB::table('subjects')->where('name', 'like', '%nglez%')->pluck('id')
+            ->map(fn ($id): int => (int) $id)->all();
         $assignments = [];
         foreach ($legacy->table('bdn_prof_cl')->get() as $a) {
             $teacherId = $this->teacherMap[(int) $a->id_pr] ?? null;
@@ -168,7 +173,8 @@ class ImportLegacy extends Command
                     'teacher_id' => $teacherId,
                     'subject_id' => $subjectId,
                     'school_class_id' => $classId,
-                    'english_group' => in_array((int) $a->engl_gr, [1, 2, 3], true) ? (int) $a->engl_gr : null,
+                    'english_group' => in_array($subjectId, $englishSubjectIds, true)
+                        && in_array((int) $a->engl_gr, [1, 2, 3], true) ? (int) $a->engl_gr : null,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];

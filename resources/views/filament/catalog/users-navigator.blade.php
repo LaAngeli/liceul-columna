@@ -25,7 +25,34 @@
                 </div>
             </div>
 
-            {{ $this->table }}
+            @if ($role === \App\Filament\Resources\Users\Pages\ListUsers::FICHES)
+                {{-- Panoul FIȘELOR fără cont: persoana e în registru, contul se creează de aici. --}}
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    @foreach ($this->ficheCards() as $fiche)
+                        <div class="flex min-w-0 items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-semibold text-gray-950 dark:text-white">
+                                    {{ $fiche['name'] }}
+                                </p>
+                                <p class="truncate text-xs text-gray-500 dark:text-gray-400">
+                                    {{ $fiche['subjects'] ?? __('panel.teachers_registry.no_assignments') }}
+                                </p>
+                            </div>
+
+                            <x-filament::button
+                                tag="a"
+                                size="sm"
+                                icon="heroicon-o-user-plus"
+                                :href="$fiche['createUrl']"
+                            >
+                                {{ __('panel.users_nav.create_account_for_fiche') }}
+                            </x-filament::button>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                {{ $this->table }}
+            @endif
         </div>
     @else
         {{-- ── Aterizare: cardurile rolurilor ─────────────────────────────────────────── --}}

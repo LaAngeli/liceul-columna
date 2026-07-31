@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\Teachers\RelationManagers;
+namespace App\Filament\Resources\Users\RelationManagers;
 
 use App\Models\SchoolClass;
 use App\Models\Subject;
@@ -25,11 +25,18 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * ALOCĂRILE profesorului (clasă ↔ disciplină ± grupă engleză) — până acum NU exista nicio cale
- * în panou de a aloca un profesor: o disciplină/clasă nouă era o fundătură (profesorii nu puteau
- * preda/nota niciodată la ea fără tinker/import). Alocarea e fundamentul scoping-ului catalogului
+ * ALOCĂRILE contului pedagogic (clasă ↔ disciplină ± grupă) — mutate pe fișa persoanei din
+ * Utilizatori (consolidarea Profesori→Utilizatori, 2026-07-31): un singur loc de administrare
+ * a personalului. Alocarea e fundamentul scoping-ului catalogului
  * ({@see Teacher::canGradeClassSubject}); scrierea = configuratori (§3.3, prin
- * {@see TeachingAssignmentPolicy} — acțiunile Filament se autorizează prin Gate).
+ * {@see TeachingAssignmentPolicy}).
+ *
+ * Diferențe față de registrul vechi (erorile semnalate NU s-au preluat):
+ *  - eticheta de MODEL e tradusă (modalul spunea „Creare Teaching Assignment");
+ *  - grupa apare DOAR când disciplina aleasă e limba engleză — singura împărțită pe grupe
+ *    (garda de pe model o impune oricum, pe orice cale);
+ *  - crearea trece prin model cu `teacher_id` explicit (HasManyThrough nu știe să creeze) —
+ *    observerul de membrie (rolul Profesor urmează alocările) rămâne activ.
  */
 class TeachingAssignmentsRelationManager extends RelationManager
 {
@@ -42,9 +49,22 @@ class TeachingAssignmentsRelationManager extends RelationManager
         return __('panel.resources.teaching_assignments.plural');
     }
 
+    public static function getModelLabel(): ?string
+    {
+        return __('panel.resources.teaching_assignments.single');
+    }
+
+    public static function getPluralModelLabel(): ?string
+    {
+        return __('panel.resources.teaching_assignments.plural');
+    }
+
+    /** Registrul are sens doar pe un cont CU fișă pedagogică; vizibil personalului academic. */
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
-        return auth('web')->user()?->canSeeAcademicData() ?? false;
+        return $ownerRecord instanceof User
+            && $ownerRecord->teacher !== null
+            && (auth('web')->user()?->canSeeAcademicData() ?? false);
     }
 
     public function form(Schema $schema): Schema
@@ -61,6 +81,7 @@ class TeachingAssignmentsRelationManager extends RelationManager
                     ->options(fn (): array => self::subjectOptions())
                     ->searchable()
                     ->required()
+                    ->live()
                     // Anti-duplicat cu mesaj clar (indexul unic vede ȘI alocările arhivate — un
                     // duplicat mergea direct în eroarea SQL; cel ARHIVAT se restaurează, nu se recreează).
                     ->rules([
@@ -71,11 +92,16 @@ class TeachingAssignmentsRelationManager extends RelationManager
                                 return;
                             }
 
+                            $teacherId = $this->ownerTeacherId();
+
+                            if ($teacherId === null) {
+                                return;
+                            }
+
                             $group = $get('english_group');
-                            $ownerTeacherId = (int) $this->getOwnerRecord()->getKey();
 
                             $conflict = TeachingAssignment::withTrashed()
-                                ->where('teacher_id', $ownerTeacherId)
+                                ->where('teacher_id', $teacherId)
                                 ->where('subject_id', (int) $value)
                                 ->where('school_class_id', (int) $classId)
                                 ->when(
@@ -97,7 +123,11 @@ class TeachingAssignmentsRelationManager extends RelationManager
                     ->helperText(__('panel.forms.teaching_assignment.english_group_hint'))
                     ->numeric()
                     ->minValue(1)
-                    ->maxValue(9),
+                    ->maxValue(9)
+                    // Grupa există DOAR la limba engleză — pe orice altă disciplină câmpul
+                    // dispare (eroarea „grupă pe discipline fără legătură" nu se mai poate produce).
+                    ->visible(fn (Get $get): bool => self::isEnglishSubject($get('subject_id')))
+                    ->dehydrated(fn (Get $get): bool => self::isEnglishSubject($get('subject_id'))),
             ]);
     }
 
@@ -129,7 +159,15 @@ class TeachingAssignmentsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
-                    ->label(__('panel.forms.teaching_assignment.add')),
+                    ->label(__('panel.forms.teaching_assignment.add'))
+                    // HasManyThrough nu poate crea — alocarea se naște explicit pe fișa
+                    // profesorului (prin MODEL: garda de grupă + membria de rol rămân active).
+                    ->using(function (array $data): TeachingAssignment {
+                        return TeachingAssignment::create([
+                            ...$data,
+                            'teacher_id' => $this->ownerTeacherId(),
+                        ]);
+                    }),
             ])
             ->recordActions([
                 // Retragerea alocării = soft delete: notele consemnate rămân (autorul e pe notă,
@@ -137,6 +175,23 @@ class TeachingAssignmentsRelationManager extends RelationManager
                 DeleteAction::make(),
                 RestoreAction::make(),
             ]);
+    }
+
+    /** Fișa de profesor a contului deschis — sursa `teacher_id` la creare și în anti-duplicat. */
+    private function ownerTeacherId(): ?int
+    {
+        $owner = $this->getOwnerRecord();
+
+        return $owner instanceof User ? ($owner->teacher?->getKey() !== null ? (int) $owner->teacher->getKey() : null) : null;
+    }
+
+    private static function isEnglishSubject(mixed $subjectId): bool
+    {
+        if (! filled($subjectId) || ! is_scalar($subjectId)) {
+            return false;
+        }
+
+        return Subject::query()->find((int) $subjectId)?->isEnglishLanguage() ?? false;
     }
 
     /**

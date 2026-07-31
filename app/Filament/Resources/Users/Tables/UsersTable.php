@@ -3,6 +3,9 @@
 namespace App\Filament\Resources\Users\Tables;
 
 use App\Enums\UserRole;
+use App\Filament\Resources\Absences\AbsenceResource;
+use App\Filament\Resources\Grades\GradeResource;
+use App\Filament\Resources\HomeworkAssignments\HomeworkAssignmentResource;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\User;
 use App\Notifications\TemporaryCredentials;
@@ -150,6 +153,23 @@ class UsersTable
             ->recordActions([
                 ActionGroup::make([
                     EditAction::make(),
+                    // Punțile de catalog pe dimensiunea „profesor" (moștenite din fosta secțiune
+                    // Profesori): activitatea DIN platformă a fișei legate de cont.
+                    Action::make('teacherGrades')
+                        ->label(__('panel.resources.grades.label'))
+                        ->icon('heroicon-o-pencil-square')
+                        ->visible(fn (User $record): bool => $record->teacher !== null)
+                        ->url(fn (User $record): string => GradeResource::getUrl('index', ['vedere' => 'profesori', 'profesor' => $record->teacher?->getKey()])),
+                    Action::make('teacherAbsences')
+                        ->label(__('panel.resources.absences.label'))
+                        ->icon('heroicon-o-calendar-days')
+                        ->visible(fn (User $record): bool => $record->teacher !== null)
+                        ->url(fn (User $record): string => AbsenceResource::getUrl('index', ['vedere' => 'profesori', 'profesor' => $record->teacher?->getKey()])),
+                    Action::make('teacherHomework')
+                        ->label(__('panel.resources.homework.label'))
+                        ->icon('heroicon-o-book-open')
+                        ->visible(fn (User $record): bool => $record->teacher !== null)
+                        ->url(fn (User $record): string => HomeworkAssignmentResource::getUrl('index', ['vedere' => 'profesori', 'profesor' => $record->teacher?->getKey()])),
                     // Parolă temporară NOUĂ, generată — fluxul de recuperare de zi cu zi („mi-am uitat
                     // parola"): admin-ul o vede/copiază din notificare și, opțional, o trimite pe e-mail.
                     Action::make('newPassword')

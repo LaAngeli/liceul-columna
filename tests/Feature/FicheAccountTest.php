@@ -13,7 +13,7 @@
 
 use App\Actions\CreateAccountForFiche;
 use App\Enums\UserRole;
-use App\Filament\Resources\Teachers\Pages\EditTeacher;
+use App\Filament\Resources\Students\Pages\EditStudent;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Schemas\UserForm;
 use App\Models\Student;
@@ -121,14 +121,16 @@ it('credențialele pleacă pe e-mail doar dacă operatorul a cerut asta', functi
     Notification::assertSentTo($user, TemporaryCredentials::class);
 });
 
-it('acțiunea din fișa profesorului creează și leagă contul, cu doar câmpurile de acces', function () {
-    $fiche = Teacher::factory()->create(['last_name' => 'Munteanu', 'first_name' => 'Radu', 'user_id' => null]);
+it('acțiunea din fișa ELEVULUI creează și leagă contul, cu doar câmpurile de acces', function () {
+    // Consolidarea 2026-07-31: fișa de PROFESOR nu mai are pagină proprie (registrul a dispărut) —
+    // conturile pedagogice se creează din bucket-ul „Fișe fără cont" al Utilizatorilor
+    // (vezi TeachersSectionTest). Secțiunea „Cont de acces" trăiește în continuare pe fișa de ELEV.
+    $fiche = Student::factory()->create(['last_name' => 'Munteanu', 'first_name' => 'Radu', 'user_id' => null]);
 
     // Acțiunea trăiește într-o componentă de SCHEMA (secțiunea „Cont de acces"), nu în antetul
     // paginii → se adresează prin TestAction::schemaComponent, altfel Filament n-o găsește.
-    Livewire::test(EditTeacher::class, ['record' => $fiche->getRouteKey()])
+    Livewire::test(EditStudent::class, ['record' => $fiche->getRouteKey()])
         ->callAction(TestAction::make('createFicheAccount')->schemaComponent('ficheAccountActions'), [
-            'roles' => [UserRole::Profesor->value],
             'username' => 'munteanu.radu',
             'password' => 'Parola-Temp-6',
         ]);

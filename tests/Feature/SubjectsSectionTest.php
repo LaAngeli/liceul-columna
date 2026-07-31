@@ -120,7 +120,9 @@ it('contextul disciplinei (admin): TOȚI profesorii care o predau, fiecare cu cl
     $mine = collect($context['teachers'])->firstWhere('name', trim($this->teacher->last_name.' '.$this->teacher->first_name));
     expect(collect($mine['classes'])->pluck('label')->all())->toBe(['VII A'])
         ->and($mine['classes'][0]['url'])->toContain('clasa='.$this->classA->id)
-        ->and($mine['url'])->toContain('profesor='.$this->teacher->id);
+        // Consolidarea 2026-07-31: puntea duce la fișa PERSOANEI din Utilizatori (registrul
+        // „Profesori" nu mai există); fără cont legat, puntea lipsește.
+        ->and($mine['url'])->toContain('/admin/users/'.$this->teacher->user_id.'/edit');
 
     foreach ($context['links'] as $url) {
         expect($url)->toContain('disciplina='.$this->chemistry->id);

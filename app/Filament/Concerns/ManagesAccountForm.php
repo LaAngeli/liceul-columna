@@ -3,6 +3,7 @@
 namespace App\Filament\Concerns;
 
 use App\Actions\SyncHomeroomRole;
+use App\Enums\Sex;
 use App\Enums\UserRole;
 use App\Filament\Resources\Users\Schemas\UserForm;
 use App\Models\Enrollment;
@@ -12,6 +13,7 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\User;
 use App\Notifications\TemporaryCredentials;
+use App\Support\SchoolCalendar;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -59,6 +61,18 @@ trait ManagesAccountForm
     protected array $teachingPairs = [];
 
     protected ?int $homeroomClassId = null;
+
+    /**
+     * Dirigenția gestionată la EDITARE (lista completă dorită); null = câmpul n-a fost trimis.
+     *
+     * @var list<int>|null
+     */
+    protected ?array $homeroomClassIds = null;
+
+    /** Sexul fișei legate, editat de pe fișa persoanei (consolidarea 2026-07-31). */
+    protected ?string $ficheSex = null;
+
+    protected bool $ficheSexSubmitted = false;
 
     protected ?int $enrollClassId = null;
 
@@ -120,6 +134,11 @@ trait ManagesAccountForm
             ? array_values(array_filter($data['teaching_pairs'], is_array(...)))
             : [];
         $this->homeroomClassId = filled($data['homeroom_class_id'] ?? null) ? (int) $data['homeroom_class_id'] : null;
+        $this->homeroomClassIds = isset($data['homeroom_class_ids']) && is_array($data['homeroom_class_ids'])
+            ? array_values(array_map(intval(...), $data['homeroom_class_ids']))
+            : null;
+        $this->ficheSexSubmitted = array_key_exists('fiche_sex', $data);
+        $this->ficheSex = $this->scalarFormValue($data['fiche_sex'] ?? null);
         $this->enrollClassId = filled($data['enroll_class_id'] ?? null) ? (int) $data['enroll_class_id'] : null;
         $this->studentGuardianUserIds = isset($data['student_guardian_user_ids']) && is_array($data['student_guardian_user_ids'])
             ? array_map(intval(...), $data['student_guardian_user_ids'])
@@ -138,6 +157,8 @@ trait ManagesAccountForm
             $data['student_fiche_second_language'],
             $data['teaching_pairs'],
             $data['homeroom_class_id'],
+            $data['homeroom_class_ids'],
+            $data['fiche_sex'],
             $data['enroll_class_id'],
             $data['student_guardian_user_ids'],
         );
@@ -252,6 +273,15 @@ trait ManagesAccountForm
             $this->integrateTeacher($teacherId, $roles);
             $this->integrateStudent($studentId);
 
+            // O PERSOANĂ = O IDENTITATE (consolidarea 2026-07-31): numele/sexul editate pe cont
+            // se propagă pe fișa legată, iar e-mailul fișei de profesor urmează contul —
+            // registrul și contul nu mai pot diverge.
+            $this->syncFicheIdentity($user, $teacherId, $studentId);
+
+            // Dirigenția gestionată la EDITARE: lista dorită se aplică prin diff, cu gărzi
+            // (doar clase ale anului curent; adăugarea doar pe clase rămase libere).
+            $this->applyHomeroomSelection($teacherId);
+
             // Rolul „Diriginte" e DERIVAT din desemnare, nu din ce s-a bifat în formular: cine a
             // fost pus diriginte primește eticheta, cine a fost ales „Diriginte" fără să i se dea
             // o clasă rămâne „Profesor". Apelul e EXPLICIT fiindcă atribuirea de mai sus trece
@@ -262,6 +292,83 @@ trait ManagesAccountForm
         // Credențialele pleacă DUPĂ tranzacție: un rollback nu trebuie să lase e-mailuri trimise.
         if ($this->sendCredentials && $this->plainTemporaryPassword !== null && filled($user->email)) {
             $user->notify(new TemporaryCredentials($this->plainTemporaryPassword));
+        }
+    }
+
+    /**
+     * Identitatea fișei urmează contul: nume/prenume (+ sexul, când câmpul a fost trimis) pe
+     * fișa de profesor SAU de elev; e-mailul fișei de profesor = e-mailul contului (aceeași
+     * regulă ca la creare — o singură sursă de contact).
+     */
+    private function syncFicheIdentity(User $user, ?int $teacherId, ?int $studentId): void
+    {
+        if (blank($this->accountLastName) && blank($this->accountFirstName) && ! $this->ficheSexSubmitted) {
+            return;
+        }
+
+        $identity = array_filter([
+            'last_name' => filled($this->accountLastName) ? $this->accountLastName : null,
+            'first_name' => filled($this->accountFirstName) ? $this->accountFirstName : null,
+        ], fn (?string $value): bool => $value !== null);
+
+        if ($this->ficheSexSubmitted) {
+            $identity['sex'] = $this->ficheSex;
+        }
+
+        if ($teacherId !== null && $identity !== []) {
+            Teacher::query()->whereKey($teacherId)->update([...$identity, 'email' => $user->email]);
+        }
+
+        if ($studentId !== null && $identity !== []) {
+            Student::query()->whereKey($studentId)->update($identity);
+        }
+    }
+
+    /**
+     * Aplică lista de dirigenție dorită (EDITARE): clasele scoase se eliberează, cele adăugate se
+     * ocupă DOAR dacă au rămas libere; totul limitat la anul curent. Rolul „Diriginte" urmează
+     * desemnarea prin SyncHomeroomRole::forUser (apelat imediat după).
+     */
+    private function applyHomeroomSelection(?int $teacherId): void
+    {
+        if ($this->homeroomClassIds === null || $teacherId === null) {
+            return;
+        }
+
+        $currentYearId = SchoolCalendar::currentYearId();
+
+        if ($currentYearId === null) {
+            return;
+        }
+
+        $owned = SchoolClass::query()
+            ->where('homeroom_teacher_id', $teacherId)
+            ->where('academic_year_id', $currentYearId)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
+        $wanted = $this->homeroomClassIds;
+
+        // Eliberare: clasele coordonate care nu mai apar în listă.
+        $released = array_values(array_diff($owned, $wanted));
+
+        if ($released !== []) {
+            SchoolClass::query()
+                ->whereKey($released)
+                ->where('homeroom_teacher_id', $teacherId)
+                ->update(['homeroom_teacher_id' => null]);
+        }
+
+        // Ocupare: clasele noi din listă, doar dacă sunt încă libere (și din anul curent).
+        $added = array_values(array_diff($wanted, $owned));
+
+        if ($added !== []) {
+            SchoolClass::query()
+                ->whereKey($added)
+                ->where('academic_year_id', $currentYearId)
+                ->whereNull('homeroom_teacher_id')
+                ->update(['homeroom_teacher_id' => $teacherId]);
         }
     }
 
@@ -383,6 +490,22 @@ trait ManagesAccountForm
             $data['student_id'] = $record->student?->getKey();
             $data['guardian_student_ids'] = $record->students()->pluck('students.id')->all();
             $data['account_status'] = $record->isSuspended() ? 'suspended' : 'active';
+
+            // Fișa persoanei (consolidarea 2026-07-31): sexul de pe fișă + dirigenția curentă
+            // (anul curent), gestionabile direct din editarea contului. Fișa de elev poartă
+            // sexul ca enum castat; cea de profesor la fel — dar normalizăm defensiv (string).
+            $fiche = $record->teacher ?? $record->student;
+            $sex = $fiche?->sex;
+            $data['fiche_sex'] = $sex instanceof Sex ? $sex->value : $sex;
+
+            if ($record->teacher !== null) {
+                $currentYearId = SchoolCalendar::currentYearId();
+                $data['homeroom_class_ids'] = $currentYearId === null ? [] : SchoolClass::query()
+                    ->where('homeroom_teacher_id', $record->teacher->getKey())
+                    ->where('academic_year_id', $currentYearId)
+                    ->pluck('id')
+                    ->all();
+            }
         }
 
         return $data;

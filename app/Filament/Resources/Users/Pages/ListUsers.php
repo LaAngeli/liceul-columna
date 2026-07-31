@@ -32,6 +32,13 @@ class ListUsers extends ListRecords
     /** Bucket-ul conturilor fără rol (apare doar când există astfel de conturi). */
     private const NO_ROLE = 'fara-rol';
 
+    /**
+     * Bucket-ul FIȘELOR de profesor fără cont (consolidarea 2026-07-31, fosta vedere „Fără cont"
+     * din registrul Profesori): fișele nu sunt conturi, deci nu pot fi rânduri în listă — au
+     * panoul lor, cu crearea contului pre-completată pe fișă.
+     */
+    public const FICHES = 'fise-fara-cont';
+
     /** @var array<string, array{total: int, suspended: int, temp: int}>|null */
     private ?array $roleCountsMemo = null;
 
@@ -46,7 +53,7 @@ class ListUsers extends ListRecords
                 ->url(function (): string {
                     $role = $this->activeRole();
 
-                    return UserResource::getUrl('create', $role !== null && $role !== self::NO_ROLE
+                    return UserResource::getUrl('create', $role !== null && ! in_array($role, [self::NO_ROLE, self::FICHES], true)
                         ? ['rol' => $role]
                         : []);
                 }),
@@ -82,9 +89,52 @@ class ListUsers extends ListRecords
             return '';
         }
 
-        return $role === self::NO_ROLE
-            ? (string) __('panel.users_nav.no_role')
-            : (UserRole::tryFrom($role)?->label() ?? $role);
+        return match ($role) {
+            self::NO_ROLE => (string) __('panel.users_nav.no_role'),
+            self::FICHES => (string) __('panel.users_nav.fiches_without_account'),
+            default => UserRole::tryFrom($role)?->label() ?? $role,
+        };
+    }
+
+    /**
+     * Panoul fișelor fără cont: fiecare fișă activă de profesor rămasă fără utilizator, cu
+     * acoperirea ei și puntea de creare a contului (pre-completată pe fișă, mod „fișă existentă").
+     *
+     * @return array<int, array{id: int, name: string, subjects: string|null, createUrl: string}>
+     */
+    public function ficheCards(): array
+    {
+        return Teacher::query()
+            ->whereNull('user_id')
+            ->with(['teachingAssignments:id,teacher_id,subject_id', 'teachingAssignments.subject:id,name'])
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(fn (Teacher $teacher): array => [
+                'id' => (int) $teacher->id,
+                'name' => trim($teacher->last_name.' '.$teacher->first_name),
+                'subjects' => $teacher->teachingAssignments
+                    ->filter(fn ($a): bool => $a->subject !== null)
+                    ->pluck('subject.name')
+                    ->unique()
+                    ->sort()
+                    ->take(3)
+                    ->implode(' · ') ?: null,
+                'createUrl' => UserResource::getUrl('create', ['rol' => UserRole::Profesor->value, 'fisa' => $teacher->id]),
+            ])
+            ->all();
+    }
+
+    /** Fișe ACTIVE de profesor fără cont de utilizator (bucket-ul acționabil). */
+    public function fichesWithoutAccount(): int
+    {
+        return Teacher::query()->whereNull('user_id')->count();
+    }
+
+    /** Fișe ACTIVE fără nicio alocare de predare (semnal pe cardul „Profesor"). */
+    public function fichesWithoutAssignments(): int
+    {
+        return Teacher::query()->whereDoesntHave('teachingAssignments')->count();
     }
 
     /**
@@ -101,9 +151,12 @@ class ListUsers extends ListRecords
             return $query;
         }
 
-        return $role === self::NO_ROLE
-            ? $query->whereDoesntHave('roles')
-            : $query->whereHas('roles', fn (Builder $q) => $q->where('name', $role));
+        return match ($role) {
+            self::NO_ROLE => $query->whereDoesntHave('roles'),
+            // Bucket-ul fișelor nu listează conturi — panoul lui e randat separat în blade.
+            self::FICHES => $query->whereRaw('1 = 0'),
+            default => $query->whereHas('roles', fn (Builder $q) => $q->where('name', $role)),
+        };
     }
 
     // ── Carduri ─────────────────────────────────────────────────────────────────────────────
@@ -143,6 +196,12 @@ class ListUsers extends ListRecords
                 $stats[] = (string) __('panel.users_nav.profesor_with_class', ['count' => $mismatches['profesor_with_class']]);
             }
 
+            // Semnal operațional moștenit din registrul Profesori: fișe active fără nicio alocare
+            // (persoana nu poate preda/nota nimic — alocările se dau de pe fișa contului).
+            if ($role === UserRole::Profesor && ($unassigned = $this->fichesWithoutAssignments()) > 0) {
+                $stats[] = (string) __('panel.users_nav.fiches_without_assignments', ['count' => $unassigned]);
+            }
+
             $cards[] = [
                 'id' => $role->value,
                 'title' => $role->label(),
@@ -151,6 +210,18 @@ class ListUsers extends ListRecords
                 'badge' => $row['suspended'] > 0
                     ? (string) __('panel.users_nav.suspended_count', ['count' => $row['suspended']])
                     : null,
+            ];
+        }
+
+        // FIȘELE de profesor fără cont — persoana există în registru, dar n-are utilizator.
+        // Bucket acționabil (consolidarea 2026-07-31): din el se creează contul, pe fișă.
+        if (($fiches = $this->fichesWithoutAccount()) > 0) {
+            $cards[] = [
+                'id' => self::FICHES,
+                'title' => (string) __('panel.users_nav.fiches_without_account'),
+                'subtitle' => (string) __('panel.users_nav.fiches_without_account_description'),
+                'stats' => [(string) trans_choice('panel.users_nav.fiches_count', $fiches, ['count' => $fiches])],
+                'badge' => null,
             ];
         }
 
@@ -226,6 +297,10 @@ class ListUsers extends ListRecords
     {
         if ($value === self::NO_ROLE) {
             return ($this->roleCounts()[self::NO_ROLE]['total'] ?? 0) > 0;
+        }
+
+        if ($value === self::FICHES) {
+            return $this->fichesWithoutAccount() > 0;
         }
 
         return UserRole::tryFrom($value) !== null;

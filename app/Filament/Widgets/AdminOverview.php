@@ -2,8 +2,8 @@
 
 namespace App\Filament\Widgets;
 
+use App\Enums\UserRole;
 use App\Filament\Resources\Students\StudentResource;
-use App\Filament\Resources\Teachers\TeacherResource;
 use App\Filament\Resources\Users\UserResource;
 use App\Filament\Widgets\Concerns\CockpitStats;
 use App\Models\Grade;
@@ -57,7 +57,9 @@ class AdminOverview extends StatsOverviewWidget
                 ->description(__('panel.widgets.admin_overview.teachers_desc'))
                 ->descriptionIcon(Heroicon::OutlinedUserGroup)
                 ->extraAttributes(self::cockpit())
-                ->url(TeacherResource::canAccess() ? TeacherResource::getUrl('index') : null),
+                // Consolidarea 2026-07-31: personalul se administrează din Utilizatori
+                // (contextul rolului Profesor), nu dintr-un registru separat.
+                ->url(UserResource::canAccess() ? UserResource::getUrl('index', ['rol' => UserRole::Profesor->value]) : null),
             // Aliniat la scope-ul active() (consecvent cu ActivityMonitor și motorul de medii): notele
             // anulate (annulled_at) sunt păstrate în istoric dar NU se numără în „note în catalog".
             Stat::make(__('panel.widgets.admin_overview.grades_count'), Grade::query()->active()->count())

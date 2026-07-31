@@ -20,7 +20,8 @@ it('adminul poate deschide paginile principale ale panoului', function (string $
     '/admin/academic-years',
     '/admin/terms',
     '/admin/students',
-    '/admin/teachers',
+    // „/admin/teachers" a dispărut odată cu secțiunea (consolidarea 2026-07-31) — personalul
+    // trăiește în /admin/users; ruta veche dă acum 404 (verificat în TeachersSectionTest).
     '/admin/subjects',
     '/admin/school-classes',
     '/admin/enrollments',

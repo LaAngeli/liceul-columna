@@ -8,8 +8,8 @@
  */
 
 use App\Enums\UserRole;
-use App\Filament\Resources\Teachers\Pages\EditTeacher;
-use App\Filament\Resources\Teachers\RelationManagers\TeachingAssignmentsRelationManager;
+use App\Filament\Resources\Users\Pages\EditUser;
+use App\Filament\Resources\Users\RelationManagers\TeachingAssignmentsRelationManager;
 use App\Models\AcademicYear;
 use App\Models\SchoolClass;
 use App\Models\Subject;
@@ -31,7 +31,10 @@ beforeEach(function () {
     $this->year = AcademicYear::factory()->create();
     $this->class = SchoolClass::factory()->for($this->year)->create();
     $this->subject = Subject::factory()->create();
-    $this->teacher = Teacher::factory()->create();
+    // Consolidarea 2026-07-31: RM-ul trăiește pe fișa PERSOANEI (owner = contul, nu fișa).
+    $this->teacherUser = User::factory()->create();
+    $this->teacherUser->assignRole(UserRole::Profesor->value);
+    $this->teacher = Teacher::factory()->create(['user_id' => $this->teacherUser->id]);
 
     $this->director = User::factory()->create();
     $this->director->assignRole(UserRole::Director->value);
@@ -41,8 +44,8 @@ beforeEach(function () {
 function assignmentsManager($test)
 {
     return Livewire::test(TeachingAssignmentsRelationManager::class, [
-        'ownerRecord' => $test->teacher,
-        'pageClass' => EditTeacher::class,
+        'ownerRecord' => $test->teacherUser,
+        'pageClass' => EditUser::class,
     ]);
 }
 

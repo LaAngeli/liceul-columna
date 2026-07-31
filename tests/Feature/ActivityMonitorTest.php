@@ -12,6 +12,8 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\User;
+use App\Support\SchoolCalendar;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -19,7 +21,16 @@ beforeEach(function () {
     foreach (UserRole::cases() as $role) {
         Role::findOrCreate($role->value, 'web');
     }
+
+    // ANCORĂ temporală: rândurile se creează la now(), iar ferestrele monitorului depind de
+    // ziua/luna curentă — fără ancoră, numărătorile derivau la granițele de lună (prins la
+    // trecerea 31.07 → 01.08, când 6 teste au picat fără nicio schimbare de cod).
+    Carbon::setTestNow(
+        Carbon::parse('2026-04-22 12:00', SchoolCalendar::TIMEZONE),
+    );
 });
+
+afterEach(fn () => Carbon::setTestNow());
 
 function activityStaffUser(UserRole $role): User
 {

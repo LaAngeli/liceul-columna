@@ -6,7 +6,6 @@ use App\Filament\Resources\AcademicYears\AcademicYearResource;
 use App\Filament\Resources\ConsentAcknowledgments\ConsentAcknowledgmentResource;
 use App\Filament\Resources\Grades\GradeResource;
 use App\Filament\Resources\Students\StudentResource;
-use App\Filament\Resources\Teachers\TeacherResource;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\Teacher;
@@ -103,19 +102,17 @@ it('prim-vicedirectorul NU poate ForceDelete/Restore resurse de configurare', fu
         ->and(AcademicYearResource::canRestoreAny())->toBeTrue();
 });
 
-// ─── M-6: fișele de profesor = configurare (nu prim-vicedirector) ───────────────────────
+// ─── M-6: fișele de profesor = configurare (consolidate în Utilizatori, 2026-07-31) ─────
 
-it('fișele de profesor: prim-vicedirectorul le vede dar NU le editează; AO da', function () {
-    // Onboarding unificat (2026-07-16): fișa NU se mai creează separat — canCreate e închis
-    // pentru TOȚI (fluxul trece prin Utilizatori). Configurarea = editarea fișei existente.
-    $teacher = Teacher::factory()->create();
-
+it('fișa profesională se administrează din Utilizatori: PVD fără secțiune; AO cu tot fluxul', function () {
+    // Consolidarea 2026-07-31: registrul „Profesori" nu mai există — fișa (identitate, alocări,
+    // dirigenție, arhivare) trăiește pe fișa PERSOANEI din Utilizatori, gate-uită pe
+    // canManageAccounts (super/dir/AO). Prim-vicedirectorul nu gestionează personal.
     actingAs(lotARoleUser(UserRole::PrimVicedirector->value));
-    expect(TeacherResource::canAccess())->toBeTrue()   // vede (isAdministrator)
-        ->and(TeacherResource::canCreate())->toBeFalse()
-        ->and(TeacherResource::canEdit($teacher))->toBeFalse(); // dar nu configurează
+    expect(UserResource::canAccess())->toBeFalse();
 
     actingAs(lotARoleUser(UserRole::AdministratorOperational->value));
-    expect(TeacherResource::canCreate())->toBeFalse()
-        ->and(TeacherResource::canEdit($teacher))->toBeTrue();
+    expect(UserResource::canAccess())->toBeTrue()
+        // Arhivarea fișei rămâne un act de CONFIGURARE (canConfigureSchool) — AO îl are.
+        ->and(auth('web')->user()?->canConfigureSchool())->toBeTrue();
 });
