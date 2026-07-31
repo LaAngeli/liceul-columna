@@ -90,7 +90,11 @@ class HomeworkAssignmentForm
                     ->columnSpanFull(),
                 Repeater::make('links')
                     ->label(__('panel.forms.homework.links'))
-                    ->helperText(__('panel.forms.homework.links_hint'))
+                    // `hint`, nu `helperText` (01.08.2026): indicația stă pe ACEEAȘI linie cu
+                    // eticheta, în dreapta — nu mai adaugă un rând sub câmp. Cele două repeatere
+                    // aveau împreună patru rânduri de text lung, care împingeau butoanele
+                    // formularului sub linia de plutire. Exemplele rămân în placeholder.
+                    ->hint(__('panel.forms.homework.links_hint'))
                     ->simple(
                         TextInput::make('url')
                             // Regula `url` pe SERVER — NU `->url()`, care ar seta `type="url"` și
@@ -124,7 +128,7 @@ class HomeworkAssignmentForm
                 // Se afișează în cabinet ca chip-uri gri, lângă linkuri (aceeași linie).
                 Repeater::make('printed_resources')
                     ->label(__('panel.forms.homework.printed_resources'))
-                    ->helperText(__('panel.forms.homework.printed_resources_hint'))
+                    ->hint(__('panel.forms.homework.printed_resources_hint'))
                     ->simple(
                         TextInput::make('reference')
                             ->maxLength(255)
