@@ -127,6 +127,27 @@ it('pagina de panou vorbește limba contului (middleware-ul de grup nu rulează 
         ->assertSee('lang="ru"', escape: false);
 });
 
+// ─── Fundalul: al APLICAȚIEI, nu banda navy a site-ului ─────────────────────────────────
+
+it('pagina din panou stă pe suprafețele aplicației, nu pe banda navy a site-ului', function () {
+    // Corecția cerută de beneficiar (01.08.2026): din pagina publică se împrumută DESIGNUL
+    // (numeral, busolă, accent verde), NU fundalul — altfel eroarea rupea continuitatea cu
+    // cabinetul. Tokenii sunt exact cei din `resources/css/app.css`.
+    $html = $this->actingAs(errorPageStaff(UserRole::Director))
+        ->get('/admin/ruta-care-nu-exista')
+        ->assertNotFound()
+        ->getContent();
+
+    expect($html)
+        // Suprafețele aplicației: gheață în light, navy profund în dark.
+        ->toContain('--background: oklch(0.9735 0.0075 235)')
+        ->toContain('--background: oklch(0.272 0.046 244.4)')
+        // Tema urmează cheia PARTAJATĂ cu panoul Filament (nu doar cookie-ul de server).
+        ->toContain("localStorage.getItem('theme')")
+        // Banda navy plină a site-ului nu are ce căuta în interiorul aplicației.
+        ->not->toContain('radial-gradient(120% 90% at 50% 0%');
+});
+
 // ─── Celelalte coduri folosesc aceeași pagină ───────────────────────────────────────────
 
 it('403 în zonele autentificate folosește aceeași pagină brand-uită', function () {
