@@ -734,6 +734,7 @@ return [
             'optional_task' => 'Optional task',
             'links' => 'Resource links',
             'add_link' => 'Add link',
+            'open_link' => 'Open link',
             'topic_column' => 'Topic',
             'class_column' => 'Class',
             'assigned_on' => 'Assigned on (lesson date)',

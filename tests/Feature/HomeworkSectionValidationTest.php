@@ -335,3 +335,20 @@ it('o temă fără subiect ȘI fără sarcină obligatorie e respinsă', functio
 
     expect(HomeworkAssignment::query()->count())->toBe(0);
 });
+
+/**
+ * Linkul-resursă trebuie să se poată DESCHIDE din panou (până acum trăia doar ca text editabil,
+ * fără cale de deschidere — bug raportat 2026-07-31). `openableUrl` alimentează acțiunea „↗":
+ * URL cu schemă rămâne neatins, unul fără schemă (date legacy) primește https://, golul se ascunde.
+ */
+it('normalizează linkul pentru butonul de deschidere din panou', function (?string $input, ?string $expected) {
+    expect(HomeworkAssignmentForm::openableUrl($input))->toBe($expected);
+})->with([
+    'https păstrat' => ['https://www.digitaliada.ro/', 'https://www.digitaliada.ro/'],
+    'http păstrat' => ['http://exemplu.md/pagina', 'http://exemplu.md/pagina'],
+    'fără schemă → https' => ['www.exemplu.md', 'https://www.exemplu.md'],
+    'domeniu simplu → https' => ['exemplu.md/resursa', 'https://exemplu.md/resursa'],
+    'spații tăiate' => ['  https://a.md  ', 'https://a.md'],
+    'gol → null' => ['', null],
+    'null → null' => [null, null],
+]);

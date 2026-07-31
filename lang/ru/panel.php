@@ -732,6 +732,7 @@ return [
             'optional_task' => 'Дополнительное задание',
             'links' => 'Ссылки-ресурсы',
             'add_link' => 'Добавить ссылку',
+            'open_link' => 'Открыть ссылку',
             'topic_column' => 'Тема',
             'class_column' => 'Класс',
             'assigned_on' => 'Задано (дата урока)',

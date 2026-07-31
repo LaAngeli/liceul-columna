@@ -10,6 +10,7 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Support\ContentTranslator;
+use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -18,6 +19,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
 
 /**
@@ -92,12 +94,44 @@ class HomeworkAssignmentForm
                         TextInput::make('url')
                             ->url()
                             ->placeholder('https://…')
+                            // Sincronizare la ieșirea din câmp, ca butonul „deschide" să vadă
+                            // valoarea proaspăt introdusă (fără asta, la creare linkul nou nu ar
+                            // avea încă state pe server când se randează acțiunea).
+                            ->live(onBlur: true)
+                            // Butonul care DESCHIDE linkul într-un tab nou — până acum linkul
+                            // salvat trăia doar ca text editabil (nici pagină de vizualizare, nici
+                            // coloană), deci nu se putea deschide din panou. Apare doar când
+                            // câmpul are o valoare.
+                            ->suffixAction(
+                                Action::make('openLink')
+                                    ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
+                                    ->label(__('panel.forms.homework.open_link'))
+                                    ->tooltip(__('panel.forms.homework.open_link'))
+                                    ->url(fn (?string $state): ?string => self::openableUrl($state), shouldOpenInNewTab: true)
+                                    ->visible(fn (?string $state): bool => filled($state)),
+                            )
                     )
                     ->addActionLabel(fn (): string => __('panel.forms.homework.add_link'))
                     ->columnSpanFull(),
                 // Autorul (teacher_id + author_name) NU mai trece prin formular: se forțează pe
                 // server la creare și nu se atinge la editare (EnforcesHomeworkScope).
             ]);
+    }
+
+    /**
+     * URL-ul deschizabil al unui câmp de link: gol → null (acțiunea se ascunde); un link fără
+     * schemă (date legacy, importate fără `http(s)://`) primește `https://`, altfel browserul
+     * l-ar trata ca legătură relativă și „nu s-ar întâmpla nimic".
+     */
+    public static function openableUrl(?string $state): ?string
+    {
+        $state = trim((string) $state);
+
+        if ($state === '') {
+            return null;
+        }
+
+        return preg_match('#^[a-z][a-z0-9+.\-]*://#i', $state) === 1 ? $state : 'https://'.$state;
     }
 
     private static function currentTeacher(): ?Teacher

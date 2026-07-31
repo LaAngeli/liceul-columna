@@ -747,6 +747,7 @@ return [
             'optional_task' => 'Sarcina suplimentară',
             'links' => 'Linkuri-resursă',
             'add_link' => 'Adaugă link',
+            'open_link' => 'Deschide linkul',
             'topic_column' => 'Subiectul',
             'class_column' => 'Clasa',
             'assigned_on' => 'Atribuită la (data lecției)',
