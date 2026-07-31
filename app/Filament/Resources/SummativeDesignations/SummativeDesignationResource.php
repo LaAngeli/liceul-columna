@@ -25,7 +25,7 @@ class SummativeDesignationResource extends Resource
 {
     protected static ?string $model = SummativeDesignation::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTag;
 
     protected static ?int $navigationSort = 45;
 

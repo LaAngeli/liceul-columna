@@ -26,7 +26,7 @@ use ReflectionMethod;
  */
 class RoleMatrix extends Page
 {
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;
 
     protected static ?string $slug = 'matrice-roluri';
 

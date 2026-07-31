@@ -34,7 +34,7 @@ class CalendarEventResource extends Resource
 {
     protected static ?string $model = CalendarEvent::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedFlag;
 
     protected static ?int $navigationSort = 30;
 

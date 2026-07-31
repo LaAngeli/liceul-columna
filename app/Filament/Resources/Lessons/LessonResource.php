@@ -25,7 +25,7 @@ class LessonResource extends Resource
 {
     protected static ?string $model = Lesson::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
     protected static ?int $navigationSort = 50;
 

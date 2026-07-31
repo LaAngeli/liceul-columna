@@ -18,7 +18,7 @@ class GradeCorrectionResource extends Resource
 {
     protected static ?string $model = GradeCorrection::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPencilSquare;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCheckCircle;
 
     protected static ?int $navigationSort = 40;
 

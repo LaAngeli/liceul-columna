@@ -21,7 +21,7 @@ class CorigentaExamResource extends Resource
 {
     protected static ?string $model = CorigentaExam::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentCheck;
 
     protected static ?int $navigationSort = 80;
 

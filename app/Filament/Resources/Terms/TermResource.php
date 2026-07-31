@@ -23,7 +23,7 @@ class TermResource extends Resource
 
     protected static ?string $model = Term::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendar;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDateRange;
 
     protected static ?int $navigationSort = 20;
 

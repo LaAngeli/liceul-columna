@@ -24,7 +24,7 @@ class EnrollmentResource extends Resource
 
     protected static ?string $model = Enrollment::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserPlus;
 
     protected static ?int $navigationSort = 25;
 

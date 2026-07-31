@@ -24,7 +24,7 @@ class CorigentaSessionResource extends Resource
 {
     protected static ?string $model = CorigentaSession::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowPathRoundedSquare;
 
     protected static ?int $navigationSort = 60;
 

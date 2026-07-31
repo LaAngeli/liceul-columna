@@ -23,7 +23,7 @@ class ExamCommissionResource extends Resource
 {
     protected static ?string $model = ExamCommission::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBriefcase;
 
     protected static ?int $navigationSort = 70;
 

@@ -21,7 +21,7 @@ class AbsenceResource extends Resource
 {
     protected static ?string $model = Absence::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDateRange;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserMinus;
 
     protected static ?int $navigationSort = 20;
 

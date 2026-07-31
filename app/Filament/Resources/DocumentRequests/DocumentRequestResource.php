@@ -22,7 +22,7 @@ class DocumentRequestResource extends Resource
 {
     protected static ?string $model = DocumentRequest::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentPlus;
 
     protected static ?int $navigationSort = 20;
 

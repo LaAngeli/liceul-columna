@@ -18,7 +18,7 @@ class ConsentAcknowledgmentResource extends Resource
 {
     protected static ?string $model = ConsentAcknowledgment::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCheckBadge;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedFingerPrint;
 
     protected static ?int $navigationSort = 30;
 
