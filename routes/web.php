@@ -224,6 +224,9 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     Route::get('cabinet/absente', [CabinetCatalogController::class, 'absences'])
         ->middleware(EnsureFamilyCabinet::class)
         ->name('cabinet.absences');
+    Route::get('cabinet/cronologie', [CabinetCatalogController::class, 'timeline'])
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.timeline');
     Route::get('cabinet/orar', [CabinetCatalogController::class, 'schedule'])
         ->middleware(EnsureFamilyCabinet::class)
         ->name('cabinet.schedule');

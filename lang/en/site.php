@@ -640,6 +640,7 @@ return [
         'grp_catalog' => 'Gradebook',
         'nav_grades' => 'Grades',
         'nav_absences' => 'Absences',
+        'nav_timeline' => 'Timeline',
         'nav_schedule' => 'Schedule',
         'nav_homework' => 'Homework',
         'catalog_sec_current' => 'Current grades',
@@ -704,6 +705,9 @@ return [
         'sched_view_days' => 'By day',
         'catalog_grades_hint' => 'Grades by subject, term averages and how results evolve.',
         'catalog_absences_hint' => 'Absences by subject and their excusal.',
+        // === The „Timeline" module — grades + absences on one calendar thread ===
+        'catalog_timeline_hint' => 'Grades and absences together, in the order they happened.',
+        'tl_empty' => 'No activity recorded this semester yet.',
         'catalog_schedule_hint' => 'Today’s lessons and the weekly class schedule.',
         'catalog_homework_hint' => 'Class homework, organized by day.',
         // === Date filter in the „Homework" module ===

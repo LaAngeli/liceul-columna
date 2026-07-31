@@ -638,10 +638,11 @@ return [
         'nav_messages' => 'Mesaje',
         'nav_notifications' => 'Notificări',
         'nav_documents' => 'Documente',
-        // Grupul „Catalog" din sidebar: modulele Note / Absențe / Orar / Teme + subsecțiunile lor.
+        // Grupul „Catalog" din sidebar: modulele Note / Absențe / Cronologie / Orar / Teme + subsecțiunile lor.
         'grp_catalog' => 'Catalog',
         'nav_grades' => 'Note',
         'nav_absences' => 'Absențe',
+        'nav_timeline' => 'Cronologie',
         'nav_schedule' => 'Orar',
         'nav_homework' => 'Teme',
         'catalog_sec_current' => 'Note curente',
@@ -706,6 +707,9 @@ return [
         'sched_view_days' => 'Pe zile',
         'catalog_grades_hint' => 'Notele pe discipline, mediile semestriale și evoluția rezultatelor.',
         'catalog_absences_hint' => 'Absențele pe discipline și motivarea lor.',
+        // === Modulul „Cronologie" — notele + absențele pe același fir calendaristic ===
+        'catalog_timeline_hint' => 'Notele și absențele împreună, în ordinea în care s-au produs.',
+        'tl_empty' => 'Nicio activitate înregistrată în acest semestru.',
         'catalog_schedule_hint' => 'Lecțiile zilei și orarul săptămânal al clasei.',
         'catalog_homework_hint' => 'Temele clasei, organizate pe zile.',
         // === Filtrul de dată din modulul „Teme" ===

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\BuildsActivityTimeline;
 use App\Http\Controllers\Concerns\BuildsStudentCatalogData;
 use App\Models\Student;
 use Illuminate\Http\Request;
@@ -9,8 +10,8 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Modulele de CATALOG ale cabinetului familiei — Note / Absențe / Orar / Teme — ca destinații
- * DIRECTE în meniul lateral (un click, nu Acasă → card copil → tab). Fiecare modul:
+ * Modulele de CATALOG ale cabinetului familiei — Note / Absențe / Cronologie / Orar / Teme — ca
+ * destinații DIRECTE în meniul lateral (un click, nu Acasă → card copil → tab). Fiecare modul:
  *   • încarcă DOAR datele lui (și doar SECȚIUNEA activă) — fără interogări pentru celelalte module;
  *   • are comutator de copil (`?copil=`) validat pe server la familia utilizatorului;
  *   • are subsecțiuni adresabile (`?sectiune=`) — aceleași ținte ca sub-linkurile din sidebar.
@@ -21,6 +22,7 @@ use Inertia\Response;
  */
 class CabinetCatalogController extends Controller
 {
+    use BuildsActivityTimeline;
     use BuildsStudentCatalogData;
 
     /**
@@ -99,6 +101,20 @@ class CabinetCatalogController extends Controller
             'module' => $module,
             // Tot setul anului (nu doar ultimele 20) — filtrul de calendar navighează la orice zi.
             'homework' => $student !== null ? $this->classHomework($student) : null,
+        ]);
+    }
+
+    /**
+     * Modulul „Cronologie": notele și absențele ÎMPREUNĂ, în ordinea producerii — părintele
+     * urmărește evoluția copilului calendaristic, nu pe tipuri de informație.
+     */
+    public function timeline(Request $request): Response
+    {
+        [$module, $student] = $this->moduleContext($request, []);
+
+        return Inertia::render('cabinet/cronologie', [
+            'module' => $module,
+            'timeline' => $student !== null ? $this->activityTimeline($student) : null,
         ]);
     }
 

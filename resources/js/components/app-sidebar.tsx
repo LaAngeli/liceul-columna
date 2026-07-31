@@ -8,6 +8,7 @@ import {
     ClipboardList,
     Clock3,
     FileText,
+    History,
     LayoutGrid,
     MessageSquare,
 } from 'lucide-react';
@@ -83,6 +84,14 @@ export function AppSidebar() {
                 { title: t('cabinet.catalog_sec_register', 'Registru'), section: 'registru' },
                 { title: t('cabinet.catalog_sec_motivations', 'Motivări'), section: 'motivari' },
             ],
+        },
+        {
+            // Vederea UNITĂ (cerința părinților): notele + absențele în ordinea producerii —
+            // evoluția copilului se urmărește calendaristic, nu pe tipuri de informație.
+            title: t('cabinet.nav_timeline', 'Cronologie'),
+            path: '/cabinet/cronologie',
+            icon: History,
+            subs: [],
         },
         {
             title: t('cabinet.nav_schedule', 'Orar'),
