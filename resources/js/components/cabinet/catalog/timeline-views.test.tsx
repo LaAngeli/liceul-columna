@@ -1,11 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ActivityTimeline } from './timeline-views';
 import type { ActivityTimelineData, TimelineEntry } from './timeline-views';
 
 /**
  * „Cronologie" — promisiunea modulului: notele și absențele stau pe ACELAȘI fir, în ordinea
- * producerii, grupate pe zile; comutarea semestrului filtrează instant (fără alt request).
+ * producerii, grupate pe zile, CONTINUU peste tot anul (fără împărțire pe semestre).
  */
 
 // Etichetele RO pe care se sprijină aserțiunile — copiate din `lang/ro/site.php`. Paritatea
@@ -17,18 +17,15 @@ vi.mock('@inertiajs/react', () => ({
             messages: {
                 ro: {
                     cabinet: {
-                        gb_term: 'Semestrul',
-                        gb_term_current: 'în curs',
                         gb_grades_one: 'notă',
                         gb_grades_other: 'note',
                         abs_one: 'absență',
                         abs_many: 'absențe',
                         abs_lesson: 'Lecția',
-                        motivated: 'Motivată',
-                        unmotivated: 'Nemotivată',
+                        motivated_one: 'motivată',
                         unmotivated_one: 'nemotivată',
                         unmotivated_other: 'nemotivate',
-                        tl_empty: 'Nicio activitate înregistrată în acest semestru.',
+                        tl_empty: 'Nicio activitate înregistrată în acest an școlar.',
                         summative_legend: 'Notă sumativă (ESS/teză) — pondere 50% în media semestrială.',
                     },
                 },
@@ -42,7 +39,6 @@ vi.mock('@inertiajs/react', () => ({
 
 function entry(over: Partial<TimelineEntry> & Pick<TimelineEntry, 'key' | 'kind' | 'iso' | 'date'>): TimelineEntry {
     return {
-        term: 1,
         weekday: 'joi',
         monthKey: over.iso.slice(0, 7),
         monthLabel: 'Martie 2026',
@@ -58,46 +54,56 @@ function entry(over: Partial<TimelineEntry> & Pick<TimelineEntry, 'key' | 'kind'
     };
 }
 
-function data(entries: TimelineEntry[]): ActivityTimelineData {
-    return {
-        terms: [
-            { number: 1, label: 'Semestrul I', current: true },
-            { number: 2, label: 'Semestrul II', current: false },
-        ],
-        currentTerm: 1,
-        entries,
-    };
-}
-
-const fixture = data([
-    // Ziua nouă: notă + absență nemotivată (serverul le trimite deja în ordinea asta).
-    entry({ key: 'g-2', kind: 'grade', iso: '2026-03-12', date: '12.03.2026', label: '10', value: 10, typeLabel: 'Notă curentă' }),
-    entry({ key: 'a-1', kind: 'absence', iso: '2026-03-12', date: '12.03.2026', motivated: false, lesson: { number: 3, room: null } }),
-    // Ziua veche: doar o notă.
-    entry({ key: 'g-1', kind: 'grade', iso: '2026-03-10', date: '10.03.2026', label: '9', value: 9, typeLabel: 'Notă curentă' }),
-    // Semestrul II — nu trebuie să apară cât timp e selectat Semestrul I.
-    entry({ key: 'g-9', kind: 'grade', iso: '2026-06-02', date: '02.06.2026', term: 2, label: '8', value: 8, typeLabel: 'Notă curentă', monthLabel: 'Iunie 2026' }),
-]);
+const fixture: ActivityTimelineData = {
+    entries: [
+        // Ziua nouă: notă + absență nemotivată (serverul le trimite deja în ordinea asta).
+        entry({ key: 'g-2', kind: 'grade', iso: '2026-03-12', date: '12.03.2026', label: '10', value: 10, typeLabel: 'Notă curentă' }),
+        entry({ key: 'a-1', kind: 'absence', iso: '2026-03-12', date: '12.03.2026', motivated: false, lesson: { number: 3, room: null } }),
+        // Ziua veche, din altă lună → separator de lună propriu.
+        entry({
+            key: 'g-1',
+            kind: 'grade',
+            iso: '2026-02-10',
+            date: '10.02.2026',
+            monthLabel: 'Februarie 2026',
+            label: '9',
+            value: 9,
+            typeLabel: 'Notă curentă',
+        }),
+    ],
+};
 
 describe('ActivityTimeline', () => {
-    it('randează firul: separatorul de lună, zilele și AMBELE tipuri de intrări', () => {
+    it('randează firul: separatoarele de lună, zilele și AMBELE tipuri de intrări', () => {
         render(<ActivityTimeline timeline={fixture} />);
 
-        // Separatorul de lună + antetele celor două zile.
+        // Firul e continuu: ambele luni ale anului apar, fără comutator de perioadă.
         expect(screen.getByText('Martie 2026')).toBeInTheDocument();
+        expect(screen.getByText('Februarie 2026')).toBeInTheDocument();
         expect(screen.getByText('12.03.2026')).toBeInTheDocument();
-        expect(screen.getByText('10.03.2026')).toBeInTheDocument();
+        expect(screen.getByText('10.02.2026')).toBeInTheDocument();
 
         // Nota: pastila cu valoarea; absența: chip-ul de status + lecția dedusă din orar.
         expect(screen.getByText('10')).toBeInTheDocument();
-        expect(screen.getByText('Nemotivată')).toBeInTheDocument();
+        expect(screen.getByText('9')).toBeInTheDocument();
         expect(screen.getByText(/Lecția\s*3/)).toBeInTheDocument();
-
-        // Semestrul II rămâne ascuns cât e selectat Semestrul I.
-        expect(screen.queryByText('02.06.2026')).not.toBeInTheDocument();
     });
 
-    it('bilanțul semestrului numără notele, absențele și nemotivatele', () => {
+    it('eticheta absenței e la SINGULAR — chip-ul califică o absență, nu un grup', () => {
+        render(<ActivityTimeline timeline={fixture} />);
+
+        expect(screen.getByText('nemotivată')).toBeInTheDocument();
+        expect(screen.queryByText('nemotivate')).not.toBeInTheDocument();
+    });
+
+    it('NU afișează comutator de semestru (firul e continuu peste tot anul)', () => {
+        render(<ActivityTimeline timeline={fixture} />);
+
+        expect(screen.queryByRole('button', { name: /Semestrul/ })).not.toBeInTheDocument();
+        expect(screen.queryAllByRole('button')).toHaveLength(0);
+    });
+
+    it('bilanțul anului numără notele, absențele și nemotivatele', () => {
         const { container } = render(<ActivityTimeline timeline={fixture} />);
         const text = container.textContent ?? '';
 
@@ -106,23 +112,9 @@ describe('ActivityTimeline', () => {
         expect(text).toContain('1 nemotivată');
     });
 
-    it('comutarea semestrului filtrează instant, fără alt request', () => {
-        render(<ActivityTimeline timeline={fixture} />);
+    it('anul fără activitate arată starea goală, nu un ecran alb', () => {
+        render(<ActivityTimeline timeline={{ entries: [] }} />);
 
-        fireEvent.click(screen.getByRole('button', { name: /Semestrul II/ }));
-
-        expect(screen.getByText('02.06.2026')).toBeInTheDocument();
-        expect(screen.getByText('8')).toBeInTheDocument();
-        expect(screen.queryByText('12.03.2026')).not.toBeInTheDocument();
-    });
-
-    it('semestrul fără activitate arată starea goală, nu un ecran alb', () => {
-        // Doar Semestrul I are intrări → comutarea pe II trebuie să explice golul.
-        const onlyFirst = data([entry({ key: 'g-1', kind: 'grade', iso: '2026-03-10', date: '10.03.2026', label: '9', value: 9 })]);
-        render(<ActivityTimeline timeline={onlyFirst} />);
-
-        fireEvent.click(screen.getByRole('button', { name: /Semestrul II/ }));
-
-        expect(screen.getByText('Nicio activitate înregistrată în acest semestru.')).toBeInTheDocument();
+        expect(screen.getByText('Nicio activitate înregistrată în acest an școlar.')).toBeInTheDocument();
     });
 });

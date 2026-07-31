@@ -86,14 +86,6 @@ export function AppSidebar() {
             ],
         },
         {
-            // Vederea UNITĂ (cerința părinților): notele + absențele în ordinea producerii —
-            // evoluția copilului se urmărește calendaristic, nu pe tipuri de informație.
-            title: t('cabinet.nav_timeline', 'Cronologie'),
-            path: '/cabinet/cronologie',
-            icon: History,
-            subs: [],
-        },
-        {
             title: t('cabinet.nav_schedule', 'Orar'),
             path: '/cabinet/orar',
             icon: Clock3,
@@ -113,7 +105,12 @@ export function AppSidebar() {
     const groups: { label: string; items: NavItem[] }[] = [
         {
             label: t('cabinet.grp_main', 'Principal'),
-            items: [{ title: t('cabinet.nav_home', 'Acasă'), href: dashboard(), icon: LayoutGrid }],
+            items: [
+                { title: t('cabinet.nav_home', 'Acasă'), href: dashboard(), icon: LayoutGrid },
+                // Cronologia stă lângă „Acasă", nu în Catalog: e vederea de ANSAMBLU asupra
+                // activității (note + absențe pe un fir), nu un registru de aprofundat.
+                { title: t('cabinet.nav_timeline', 'Cronologie'), href: '/cabinet/cronologie', icon: History },
+            ],
         },
     ];
 

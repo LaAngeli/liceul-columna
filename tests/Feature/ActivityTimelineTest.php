@@ -57,8 +57,6 @@ it('modulul Cronologie se randează pentru părinte cu datele DOAR ale modulului
             ->where('module.currentId', $student->id)
             ->has('module.students', 1)
             ->has('timeline.entries')
-            ->has('timeline.terms', 1)
-            ->where('timeline.currentTerm', 1)
             // Modulul încarcă DOAR datele lui — nimic din celelalte module.
             ->missing('gradebook')
             ->missing('overview')
@@ -100,6 +98,31 @@ it('fuzionează notele și absențele cronologic: zile descrescător, notele în
             ->where('timeline.entries.1.motivated', false)
             ->where('timeline.entries.2.key', 'g-'.$oldGrade->id)
             ->where('timeline.entries.2.date', '10.03.2026'));
+});
+
+it('firul e CONTINUU peste tot anul școlar — fără împărțire pe semestre', function () {
+    [$parent, $student, $currentTerm, $class] = timelineFamily();
+    $year = $class->academic_year_id;
+    $otherTerm = Term::factory()->create(['academic_year_id' => $year, 'number' => 2, 'is_current' => false]);
+    $subject = Subject::factory()->create();
+
+    Grade::factory()->for($student)->for($class)->for($currentTerm)->create([
+        'subject_id' => $subject->id, 'graded_on' => '2025-11-05', 'value' => 8,
+    ]);
+    Grade::factory()->for($student)->for($class)->for($otherTerm)->create([
+        'subject_id' => $subject->id, 'graded_on' => '2026-04-20', 'value' => 9,
+    ]);
+
+    $this->actingAs($parent)->get(route('cabinet.timeline'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            // Ambele semestre pe același fir, în ordine calendaristică.
+            ->has('timeline.entries', 2)
+            ->where('timeline.entries.0.date', '20.04.2026')
+            ->where('timeline.entries.1.date', '05.11.2025')
+            // Payload-ul nu mai poartă axa semestrelor — nimic nu o consumă.
+            ->missing('timeline.terms')
+            ->missing('timeline.currentTerm'));
 });
 
 it('nota ANULATĂ nu apare în cronologie (§1: rămâne doar în istoricul de audit)', function () {

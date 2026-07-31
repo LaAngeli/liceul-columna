@@ -111,19 +111,22 @@ function SplitBar({ motivated, unmotivated, className }: { motivated: number; un
     );
 }
 
-/** Eticheta de status a unei absențe — singurul loc care decide culoarea. */
+/**
+ * Eticheta de status a unei absențe — singurul loc care decide culoarea. Textul e la SINGULAR
+ * („motivată" / „nemotivată"): chip-ul califică O absență; pluralul rămâne pentru contoare.
+ */
 function StatusChip({ motivated, className }: { motivated: boolean; className?: string }) {
     const t = useTranslations();
 
     return (
         <span
             className={cn(
-                'inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-semibold',
+                'inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-semibold first-letter:uppercase',
                 motivated ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-destructive/10 text-destructive',
                 className,
             )}
         >
-            {t(motivated ? 'cabinet.motivated' : 'cabinet.unmotivated')}
+            {t(motivated ? 'cabinet.motivated_one' : 'cabinet.unmotivated_one')}
         </span>
     );
 }

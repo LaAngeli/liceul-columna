@@ -1,5 +1,4 @@
 import { History, UserRound } from 'lucide-react';
-import { useState } from 'react';
 import { EmptyState } from '@/components/cabinet/empty-state';
 import { pluralKey, useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -18,12 +17,6 @@ import { cn } from '@/lib/utils';
  * gruparea pe zile și separatoarele de lună se formează liniar, fără alt request.
  */
 
-export interface TimelineTerm {
-    number: number;
-    label: string;
-    current: boolean;
-}
-
 export interface TimelineLesson {
     number: number;
     room: string | null;
@@ -32,7 +25,6 @@ export interface TimelineLesson {
 export interface TimelineEntry {
     key: string;
     kind: 'grade' | 'absence';
-    term: number;
     iso: string;
     date: string;
     weekday: string;
@@ -51,8 +43,6 @@ export interface TimelineEntry {
 }
 
 export interface ActivityTimelineData {
-    terms: TimelineTerm[];
-    currentTerm: number | null;
     entries: TimelineEntry[];
 }
 
@@ -72,18 +62,21 @@ function GradeChip({ entry }: { entry: TimelineEntry }) {
     );
 }
 
-/** Chip-ul de status al absenței — aceeași convenție ca registrul de absențe. */
+/**
+ * Chip-ul de status al absenței. Eticheta e la SINGULAR („motivată" / „nemotivată") — chip-ul
+ * calificã O absență, nu un grup; formele de plural rămân pentru contoare și filtre.
+ */
 function AbsenceChip({ motivated }: { motivated: boolean }) {
     const t = useTranslations();
 
     return (
         <span
             className={cn(
-                'inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-semibold',
+                'inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-semibold first-letter:uppercase',
                 motivated ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-destructive/10 text-destructive',
             )}
         >
-            {t(motivated ? 'cabinet.motivated' : 'cabinet.unmotivated')}
+            {t(motivated ? 'cabinet.motivated_one' : 'cabinet.unmotivated_one')}
         </span>
     );
 }
@@ -115,9 +108,10 @@ function EntryContext({ entry }: { entry: TimelineEntry }) {
 
 export function ActivityTimeline({ timeline }: { timeline: ActivityTimelineData }) {
     const t = useTranslations();
-    const [term, setTerm] = useState<number>(timeline.currentTerm ?? timeline.terms[0]?.number ?? 0);
 
-    const entries = timeline.entries.filter((entry) => entry.term === term);
+    // Firul e continuu peste tot anul școlar — fără împărțire pe semestre (cerința
+    // beneficiarului): părintele derulează calendarul, nu comută între perioade contabile.
+    const entries = timeline.entries;
     const gradeCount = entries.filter((entry) => entry.kind === 'grade').length;
     const absenceCount = entries.length - gradeCount;
     const unmotivatedCount = entries.filter((entry) => entry.kind === 'absence' && entry.motivated === false).length;
@@ -140,31 +134,7 @@ export function ActivityTimeline({ timeline }: { timeline: ActivityTimelineData 
 
     return (
         <div className="flex flex-col gap-4">
-            {/* Comutatorul de semestru — aceleași pastile ca în Note / Absențe. */}
-            {timeline.terms.length > 0 && (
-                <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('cabinet.gb_term')}>
-                    {timeline.terms.map((item) => (
-                        <button
-                            key={item.number}
-                            type="button"
-                            onClick={() => setTerm(item.number)}
-                            aria-pressed={term === item.number}
-                            className={cn(
-                                'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
-                                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                                term === item.number
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
-                            )}
-                        >
-                            {item.label}
-                            {item.current && <span className="text-[11px] font-normal opacity-70">· {t('cabinet.gb_term_current')}</span>}
-                        </button>
-                    ))}
-                </div>
-            )}
-
-            {/* Bilanțul semestrului ales — cifrele mari, înainte de fir. */}
+            {/* Bilanțul anului școlar — cifrele mari, înainte de fir. */}
             {entries.length > 0 && (
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
                     <span>

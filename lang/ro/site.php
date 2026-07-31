@@ -709,7 +709,7 @@ return [
         'catalog_absences_hint' => 'Absențele pe discipline și motivarea lor.',
         // === Modulul „Cronologie" — notele + absențele pe același fir calendaristic ===
         'catalog_timeline_hint' => 'Notele și absențele împreună, în ordinea în care s-au produs.',
-        'tl_empty' => 'Nicio activitate înregistrată în acest semestru.',
+        'tl_empty' => 'Nicio activitate înregistrată în acest an școlar.',
         'catalog_schedule_hint' => 'Lecțiile zilei și orarul săptămânal al clasei.',
         'catalog_homework_hint' => 'Temele clasei, organizate pe zile.',
         // === Filtrul de dată din modulul „Teme" ===

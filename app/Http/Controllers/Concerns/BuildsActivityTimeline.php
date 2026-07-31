@@ -33,24 +33,24 @@ trait BuildsActivityTimeline
      * În interiorul unei zile: întâi NOTELE (informația cea mai căutată), apoi absențele în
      * ordinea lecțiilor din orar — ordine deterministă, nu întâmplarea inserării în bază.
      *
-     * @return array{terms: list<array{number: int, label: string, current: bool}>, currentTerm: int|null, entries: list<array<string, mixed>>}
+     * FĂRĂ împărțire pe semestre (cerința beneficiarului): un fir calendaristic continuu peste
+     * tot anul. Semestrul rămâne axa modulelor Note și Absențe, unde contează pentru medii.
+     *
+     * @return array{entries: list<array<string, mixed>>}
      */
     protected function activityTimeline(Student $student): array
     {
         $currentTerm = Term::query()->where('is_current', true)->first();
 
         if ($currentTerm === null) {
-            return ['terms' => [], 'currentTerm' => null, 'entries' => []];
+            return ['entries' => []];
         }
 
-        $terms = Term::query()
+        // Semestrele anului curent — folosite DOAR ca perimetru al interogărilor (anul școlar
+        // în curs), nu ca filtru pentru utilizator.
+        $termIds = Term::query()
             ->where('academic_year_id', $currentTerm->academic_year_id)
-            ->orderBy('number')
-            ->get();
-
-        $termIds = $terms->pluck('id');
-        /** @var array<int, int> $termNumberById */
-        $termNumberById = $terms->pluck('number', 'id')->map(fn ($n): int => (int) $n)->all();
+            ->pluck('id');
 
         $grades = Grade::query()
             ->where('student_id', $student->id)
@@ -87,7 +87,6 @@ trait BuildsActivityTimeline
                 // Cheie unică peste AMBELE surse (id-urile de notă și absență se pot suprapune).
                 'key' => 'g-'.$grade->id,
                 'kind' => 'grade',
-                'term' => $termNumberById[$grade->term_id] ?? 0,
                 'iso' => $grade->graded_on->toDateString(),
                 'date' => $grade->graded_on->format('d.m.Y'),
                 'weekday' => $grade->graded_on->translatedFormat('l'),
@@ -118,7 +117,6 @@ trait BuildsActivityTimeline
             $entries[] = [
                 'key' => 'a-'.$absence->id,
                 'kind' => 'absence',
-                'term' => $termNumberById[$absence->term_id] ?? 0,
                 'iso' => $absence->occurred_on->toDateString(),
                 'date' => $absence->occurred_on->format('d.m.Y'),
                 'weekday' => $absence->occurred_on->translatedFormat('l'),
@@ -157,21 +155,6 @@ trait BuildsActivityTimeline
             return strcmp((string) $a['subject'], (string) $b['subject']);
         });
 
-        $termList = [];
-        foreach ($terms as $term) {
-            $termList[] = [
-                'number' => (int) $term->number,
-                // Numele semestrului vine din BAZĂ, scris în RO de școală — trece prin dicționarul
-                // de conținut, ca interfața RU/EN să nu afișeze „Semestrul I" netradus.
-                'label' => ContentTranslator::string((string) $term->name),
-                'current' => (bool) $term->is_current,
-            ];
-        }
-
-        return [
-            'terms' => $termList,
-            'currentTerm' => (int) $currentTerm->number,
-            'entries' => $entries,
-        ];
+        return ['entries' => $entries];
     }
 }
