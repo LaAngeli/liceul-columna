@@ -138,6 +138,7 @@ class SeedDemoLife extends Command
                 // nici testerii nu pot scrie), iar alocările decid ce note se pot genera.
                 $this->ensureTermCoversToday($context);
                 $this->ensureSecondSubject($context);
+                $this->ensureDualSubjectInSameClass($context);
                 $this->seedGrades($context);
                 $this->seedGradeCorrections($context);
                 $this->seedAbsencesAndMotivations($context);
@@ -469,6 +470,185 @@ class SeedDemoLife extends Command
         $name = DB::table('subjects')->where('id', $subjectId)->value('name');
 
         $this->line("Profesorul demo predă acum și „{$name}” la ".count($classIds).' clase.');
+    }
+
+    /**
+     * ACELAȘI PROFESOR, DOUĂ DISCIPLINE LA ACEEAȘI CLASĂ (cerința beneficiarului, 01.08.2026) —
+     * scenariu real al școlii (profesorul de istorie ține și „Educație pentru societate"), care
+     * lipsea din zona demo: fiecare cont pedagogic avea cel mult o disciplină per clasă, deci
+     * selectorul de DISCIPLINĂ din „Catalogul clasei" arăta mereu un singur chip și nu se putea
+     * verifica dacă profesorul chiar poate comuta între ele după ce alege clasa.
+     *
+     * Se aplică pe VITRINA multi-rol (contul care poartă Director+Profesor+Diriginte): acolo se
+     * uită beneficiarul. Disciplina a doua se alege din ORARUL clasei, dintre cele NEALOCATE
+     * nimănui — ca să nu ia locul altui profesor demo și să rămână coerentă cu ce se predă acolo.
+     * Alocarea intră în manifest: la `--remove` dispare, structura zonei rămâne neatinsă.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    private function ensureDualSubjectInSameClass(array $context): void
+    {
+        $showcase = User::query()->where('username', 'director')->first();
+        $teacher = $showcase?->teacher;
+
+        if (! $teacher instanceof Teacher) {
+            return;
+        }
+
+        // Clasele unde predă deja — candidatele pentru a doua disciplină.
+        $taughtClassIds = DB::table('teaching_assignments')
+            ->where('teacher_id', $teacher->getKey())
+            ->whereNull('deleted_at')
+            ->pluck('school_class_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        if ($taughtClassIds === []) {
+            return;
+        }
+
+        foreach ($taughtClassIds as $classId) {
+            // Idempotent: dacă are DEJA două discipline într-o clasă, scenariul există.
+            $own = DB::table('teaching_assignments')
+                ->where('teacher_id', $teacher->getKey())
+                ->where('school_class_id', $classId)
+                ->whereNull('deleted_at')
+                ->distinct()
+                ->count('subject_id');
+
+            if ($own >= 2) {
+                return;
+            }
+        }
+
+        // Disciplinele deja alocate în clasă (de oricine) — pe acelea nu le atingem.
+        $occupied = DB::table('teaching_assignments')
+            ->whereIn('school_class_id', $taughtClassIds)
+            ->whereNull('deleted_at')
+            ->pluck('subject_id', 'school_class_id');
+
+        foreach ($taughtClassIds as $classId) {
+            $taken = DB::table('teaching_assignments')
+                ->where('school_class_id', $classId)
+                ->whereNull('deleted_at')
+                ->pluck('subject_id')
+                ->map(static fn ($id): int => (int) $id)
+                ->all();
+
+            // Din ORARUL clasei: prima disciplină reală care nu e alocată nimănui.
+            $subjectId = DB::table('lessons')
+                ->join('subjects', 'subjects.id', '=', 'lessons.subject_id')
+                ->where('lessons.school_class_id', $classId)
+                ->whereNotIn('lessons.subject_id', $taken)
+                ->whereNull('subjects.deleted_at')
+                ->orderBy('subjects.name')
+                ->value('lessons.subject_id');
+
+            if ($subjectId === null) {
+                continue;
+            }
+
+            $assignmentId = DB::table('teaching_assignments')->insertGetId([
+                'teacher_id' => $teacher->getKey(),
+                'subject_id' => (int) $subjectId,
+                'school_class_id' => $classId,
+                'english_group' => null,
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+
+            $this->manifest['teaching_assignments'][] = (int) $assignmentId;
+
+            // Query builder, nu model: id-ul vine din alocările clasei, deci rândul EXISTĂ, iar
+            // larastan tipizează `find()` ca non-null (nullsafe.neverNull) — evităm ambiguitatea.
+            $class = DB::table('school_classes')->where('id', $classId)->first(['name', 'section']);
+            $subject = DB::table('subjects')->where('id', $subjectId)->value('name');
+            $existing = DB::table('subjects')
+                ->whereIn('id', DB::table('teaching_assignments')
+                    ->where('teacher_id', $teacher->getKey())
+                    ->where('school_class_id', $classId)
+                    ->whereNull('deleted_at')
+                    ->where('subject_id', '!=', $subjectId)
+                    ->pluck('subject_id'))
+                ->pluck('name')
+                ->implode(', ');
+
+            // Activitate pe disciplina NOUĂ — altfel comutarea de disciplină ar arăta un ecran
+            // gol și nu s-ar putea urmări nimic. `seedGrades` nu o acoperă: e idempotent pe
+            // clasă, iar clasa are deja note de la prima disciplină.
+            $this->seedActivityForPair($context, $classId, (int) $subjectId, (int) $teacher->getKey());
+
+            $this->line(sprintf(
+                'Vitrina predă acum DOUĂ discipline la %s: „%s” + „%s” (cu note și temă pe a doua).',
+                trim(((string) ($class->name ?? '?')).' '.((string) ($class->section ?? ''))),
+                $existing,
+                $subject,
+            ));
+
+            return;
+        }
+
+        $this->warn('Nicio disciplină liberă în orarul claselor vitrinei — scenariul dual nu s-a creat.');
+    }
+
+    /**
+     * Note + o temă pentru O SINGURĂ pereche (clasă, disciplină) — folosit de scenariul „două
+     * discipline la aceeași clasă", unde `seedGrades` nu mai trece (e idempotent pe clasă).
+     * Prin MODELE, ca observerii (medii recalculate, notificări către familie) să ruleze.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    private function seedActivityForPair(array $context, int $classId, int $subjectId, int $teacherId): void
+    {
+        /** @var Term $term */
+        $term = $context['term'];
+
+        $studentIds = DB::table('enrollments')
+            ->where('school_class_id', $classId)
+            ->whereNull('deleted_at')
+            ->pluck('student_id');
+
+        foreach ($studentIds as $studentId) {
+            foreach (range(1, random_int(2, 3)) as $ignored) {
+                $grade = new Grade;
+                $grade->forceFill([
+                    'student_id' => $studentId,
+                    'subject_id' => $subjectId,
+                    'school_class_id' => $classId,
+                    'term_id' => $term->getKey(),
+                    'teacher_id' => $teacherId,
+                    'graded_on' => Carbon::now()->subDays(random_int(5, 60))->toDateString(),
+                    'type' => 1,
+                    'evaluation_type' => EvaluationType::Curenta->value,
+                    'value' => random_int(5, 10),
+                ])->save();
+
+                $this->manifest['grades'][] = (int) $grade->getKey();
+            }
+        }
+
+        $class = DB::table('school_classes')->where('id', $classId)->first(['grade_level', 'section']);
+        $teacher = Teacher::query()->find($teacherId);
+        $subjectName = DB::table('subjects')->where('id', $subjectId)->value('name');
+
+        if ($class === null || ! $teacher instanceof Teacher) {
+            return;
+        }
+
+        $homework = new HomeworkAssignment;
+        $homework->forceFill([
+            'subject_id' => $subjectId,
+            'teacher_id' => $teacherId,
+            'subject_name' => (string) $subjectName,
+            'author_name' => $teacher->full_name,
+            'grade_level' => (int) $class->grade_level,
+            'section' => $class->section,
+            'assigned_on' => Carbon::now()->subDay()->toDateString(),
+            'topic' => self::MARK.' Recapitulare pentru evaluare',
+            'required_task' => 'Exercițiile din fișa de lucru.',
+        ])->save();
+
+        $this->manifest['homework'][] = (int) $homework->getKey();
     }
 
     /**

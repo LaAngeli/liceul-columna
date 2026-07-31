@@ -459,3 +459,58 @@ it('teza intră cu tipul ales și apare evidențiată în rând', function () {
 
     expect($rowA['grades'][0]['weighted'])->toBeTrue();
 });
+
+// ─── Un profesor, DOUĂ discipline la aceeași clasă (cerința beneficiarului, 01.08.2026) ──
+//
+// Scenariu real al școlii (profesorul de istorie ține și „Educație pentru societate"), care
+// lipsea din zona demo: fiecare cont pedagogic avea cel mult o disciplină per clasă, deci nu se
+// putea verifica dacă profesorul chiar poate comuta între ele după ce alege clasa.
+
+it('profesorul cu două discipline la aceeași clasă le vede pe AMÂNDOUĂ și poate comuta', function () {
+    $second = Subject::factory()->create(['name' => 'Biologie', 'grading_type' => 'n']);
+    TeachingAssignment::factory()->create([
+        'teacher_id' => $this->teacher->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $second->id,
+    ]);
+
+    actingAs($this->profUser);
+
+    $options = Livewire::test(ClassRegister::class)->instance()->subjectOptions();
+
+    // Ambele apar, ambele marcate ca „ale mele" (poate nota la fiecare).
+    expect(collect($options)->pluck('id')->all())
+        ->toEqualCanonicalizing([$this->subject->id, $second->id])
+        ->and(collect($options)->pluck('mine')->all())->toBe([true, true]);
+
+    // Comutarea prin `?disciplina=` schimbă efectiv disciplina activă a borderoului.
+    foreach ([$this->subject->id, $second->id] as $subjectId) {
+        $active = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'disciplina' => (string) $subjectId])
+            ->test(ClassRegister::class)
+            ->instance()
+            ->activeSubject();
+
+        expect($active?->id)->toBe($subjectId);
+    }
+});
+
+it('notele intră pe disciplina ACTIVĂ, nu pe prima a clasei', function () {
+    $second = Subject::factory()->create(['name' => 'Biologie', 'grading_type' => 'n']);
+    TeachingAssignment::factory()->create([
+        'teacher_id' => $this->teacher->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $second->id,
+    ]);
+
+    actingAs($this->profUser);
+
+    $student = $this->students->first();
+
+    Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'disciplina' => (string) $second->id])
+        ->test(ClassRegister::class)
+        ->set('entries', [(string) $student->id => ['value' => '9']])
+        ->call('saveEntries')
+        ->assertHasNoErrors();
+
+    expect(Grade::query()->sole()->subject_id)->toBe($second->id);
+});
