@@ -262,7 +262,7 @@ export function GradeBook({
             <SubjectDetailDialog
                 subject={detail}
                 term={term}
-                entries={detail ? entries.filter((g) => g.subjectId === detail.id) : []}
+                entries={detail ? entries.filter((g) => g.subjectId === detail.id).slice().reverse() : []}
                 onClose={() => setDetailId(null)}
                 onContestGrade={
                     onContestGrade &&
@@ -348,11 +348,20 @@ function SubjectCards({
         return <EmptyState title={t('cabinet.gb_no_grades_term')} />;
     }
 
+    // Legenda apare doar dacă există efectiv ce explica (un card cu grafic) — la o disciplină cu
+    // două note n-are ce lămuri.
+    const hasChart = subjects.some((subject) => (subject.terms[term]?.series.length ?? 0) >= 3);
+
     return (
+        <div className="flex flex-col gap-3">
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {subjects.map((subject) => {
                 const stats = subject.terms[term];
-                const items = entries.filter((g) => g.subjectId === subject.id);
+                // CRONOLOGIC, ca linia graficului: cea mai veche notă în stânga, cea mai nouă în
+                // dreapta. Serverul trimite lista descrescător (util pentru jurnal, unde noutatea
+                // stă prima); aici, lângă un grafic care curge în timp, ordinea inversă făcea
+                // graficul și lista să se citească în oglindă.
+                const items = entries.filter((g) => g.subjectId === subject.id).slice().reverse();
 
                 return (
                     <li key={subject.id}>
@@ -377,15 +386,23 @@ function SubjectCards({
                                     <p className={cn('text-2xl leading-none font-bold tabular-nums', averageClass(stats.average, stats.risk))}>
                                         {stats.average ?? '—'}
                                     </p>
-                                    <p className="mt-1 flex items-center justify-end gap-1 text-[11px] text-muted-foreground">
-                                        <TrendMark trend={stats.trend} />
+                                    {/* Doar contorul. Săgeata de tendință stătea aici, lipită de el, și
+                                        se citea ca „6 note în scădere" — acum stă lângă graficul pe
+                                        care îl rezumă. */}
+                                    <p className="mt-1 text-[11px] text-muted-foreground">
                                         {stats.count} {t(pluralKey('cabinet.gb_grades', stats.count))}
                                     </p>
                                 </div>
                             </div>
 
                             {stats.series.length >= 3 && (
-                                <Sparkline values={stats.series} className={stats.risk ? 'text-destructive/60' : 'text-primary/60'} />
+                                <div className="flex items-center gap-2">
+                                    <Sparkline
+                                        values={stats.series}
+                                        className={stats.risk ? 'text-destructive/60' : 'text-primary/60'}
+                                    />
+                                    <TrendMark trend={stats.trend} />
+                                </div>
                             )}
 
                             {/* Notele semestrului, cu data pe fiecare. */}
@@ -411,6 +428,27 @@ function SubjectCards({
                 );
             })}
         </ul>
+
+            {/* Ce înseamnă fiecare element vizual de pe card. Fără explicație, linia și săgeata
+                rămân decor: cititorul nu are cum să deducă nici direcția timpului, nici ce compară
+                săgeata. Stă vizibilă (nu într-un tooltip): tooltipul nu există pe telefon. */}
+            {hasChart && (
+                <dl className="flex flex-col gap-1 rounded-lg bg-muted/30 px-3 py-2.5 text-[11px] text-muted-foreground">
+                    <div className="flex gap-1.5">
+                        <dt className="shrink-0 font-medium">{t('cabinet.gb_legend_chart_term')}</dt>
+                        <dd>{t('cabinet.gb_legend_chart')}</dd>
+                    </div>
+                    <div className="flex gap-1.5">
+                        <dt className="shrink-0 font-medium">{t('cabinet.gb_legend_trend_term')}</dt>
+                        <dd>{t('cabinet.gb_legend_trend')}</dd>
+                    </div>
+                    <div className="flex gap-1.5">
+                        <dt className="shrink-0 font-medium">{t('cabinet.gb_legend_average_term')}</dt>
+                        <dd>{t('cabinet.gb_legend_average')}</dd>
+                    </div>
+                </dl>
+            )}
+        </div>
     );
 }
 
@@ -676,7 +714,8 @@ function SubjectDetailDialog({
                                 )}
                             </div>
 
-                            {/* Fiecare notă, cu data, tipul și cine a consemnat-o. */}
+                            {/* Fiecare notă, cu data, tipul și cine a consemnat-o — în ACEEAȘI
+                                ordine cronologică precum cardul din care s-a deschis fișa. */}
                             <ul className="divide-y overflow-hidden rounded-lg border">
                                 {entries.map((entry) => (
                                     <li key={entry.id} className="flex items-center gap-3 px-3 py-2">

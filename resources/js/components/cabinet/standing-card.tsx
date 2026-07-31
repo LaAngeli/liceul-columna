@@ -119,10 +119,10 @@ export function StandingCard({ student }: { student: CockpitChild }) {
             )}
         >
             {/* Identitate — numele poartă linkul întins peste tot cardul.
-                Pe mobil badge-ul de status trece pe rândul lui (`order-last w-full`): eticheta e lungă
-                („Promovabil (situație curentă)") și, nefiind comprimabilă, storcea coloana cu numele
-                până la „L…". Identitatea elevului primește lățimea, statusul coboară. De la sm în sus
-                revine inline, între nume și săgeată, ca înainte. */}
+                Pe mobil badge-ul de status trece pe rândul lui (`order-last w-full`): eticheta lui
+                nu e comprimabilă și storcea coloana cu numele până la „L…" (mai ales în RU, unde
+                „Оставлен на второй год" e mult mai lungă decât în RO). Identitatea elevului primește
+                lățimea, statusul coboară. De la sm în sus revine inline, între nume și săgeată. */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
                 <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary ring-1 ring-primary/10">
                     {getInitials(student.name)}

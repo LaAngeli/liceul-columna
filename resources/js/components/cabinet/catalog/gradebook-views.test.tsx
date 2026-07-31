@@ -26,6 +26,12 @@ vi.mock('@inertiajs/react', () => ({
                         gb_contest: 'Contestă',
                         gb_grades_one: 'notă',
                         gb_grades_other: 'note',
+                        gb_legend_chart_term: 'Linia',
+                        gb_legend_chart: 'arată evoluția notelor în timp: cea mai veche în stânga, cea mai nouă în dreapta.',
+                        gb_legend_trend_term: 'Săgeata',
+                        gb_legend_trend: 'compară media ultimelor note cu a primelor din semestru.',
+                        gb_legend_average_term: 'Cifra mare',
+                        gb_legend_average: 'este media semestrială oficială.',
                     },
                 },
             },
@@ -126,6 +132,52 @@ describe('GradeBook', () => {
         expect(screen.queryByRole('button', { name: /Vezi toate notele/ })).not.toBeInTheDocument();
     });
 
+    it('notele se citesc CRONOLOGIC pe card, în aceeași direcție ca linia graficului', () => {
+        render(<GradeBook data={data} />);
+
+        // Cardul Matematică are notele din 01.02 și 05.02. Linia graficului curge vechi→nou
+        // (stânga→dreapta), deci și pastilele trebuie să înceapă cu cea mai veche — altfel graficul
+        // și lista se citesc în oglindă (reclamația beneficiarului).
+        const card = screen.getByRole('button', { name: /Vezi toate notele: Matematică/ });
+        const text = card.textContent ?? '';
+
+        expect(text.indexOf('01.02')).toBeGreaterThan(-1);
+        expect(text.indexOf('01.02')).toBeLessThan(text.indexOf('05.02'));
+    });
+
+    it('fișa disciplinei păstrează aceeași ordine cronologică precum cardul', async () => {
+        render(<GradeBook data={data} />);
+
+        await userEvent.click(screen.getAllByRole('button', { name: /Vezi toate notele/ })[0]);
+
+        const text = (await screen.findByRole('dialog')).textContent ?? '';
+        expect(text.indexOf('01.02.2026')).toBeLessThan(text.indexOf('05.02.2026'));
+    });
+
+    it('explică indicatorii grafici DOAR când există un grafic de explicat', () => {
+        // Fixtura de bază n-are nicio serie de 3+ note → nu se desenează linie, deci n-are ce lămuri.
+        const { unmount } = render(<GradeBook data={data} />);
+        expect(screen.queryByText(/Linia/)).not.toBeInTheDocument();
+        unmount();
+
+        const withChart: GradeBookData = {
+            ...data,
+            subjects: [
+                {
+                    ...data.subjects[0],
+                    terms: { 2: { ...data.subjects[0].terms[2], count: 4, series: [7, 8, 9, 10], trend: 'up' } },
+                },
+            ],
+        };
+        render(<GradeBook data={withChart} />);
+
+        // Săgeata și linia rămân indescifrabile fără text — legenda stă vizibilă, nu în tooltip
+        // (pe telefon nu există hover).
+        expect(screen.getByText(/Linia/)).toBeInTheDocument();
+        expect(screen.getByText(/Săgeata/)).toBeInTheDocument();
+        expect(screen.getByText(/Cifra mare/)).toBeInTheDocument();
+    });
+
     it('deschide fișa disciplinei cu toate notele semestrului', async () => {
         render(<GradeBook data={data} />);
 
@@ -154,7 +206,9 @@ describe('GradeBook', () => {
         const dialog = await screen.findByRole('dialog');
         await userEvent.click(within(dialog).getAllByRole('button', { name: 'Contestă' })[0]);
 
-        expect(onContestGrade).toHaveBeenCalledWith(30);
+        // Lista fișei e CRONOLOGICĂ → primul buton aparține celei mai VECHI note (01.02), nu celei
+        // mai noi. Dacă ordinea se inversează din nou, aserțiunea asta cade prima.
+        expect(onContestGrade).toHaveBeenCalledWith(25);
         // Contestația mută utilizatorul pe tabul „Cereri" — fișa nu rămâne deschisă peste el.
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });

@@ -401,16 +401,14 @@ export function DayPlan({ weekly, homework }: { weekly: WeeklyData | null; homew
                     )}
                 </div>
 
-                {/* Temele „pentru" ziua aleasă */}
-                <div>
-                    <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                        {t('cabinet.day_plan_homework')}
-                    </p>
-                    {dueToday.length === 0 ? (
-                        <p className="rounded-lg bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                            {t('cabinet.day_plan_no_homework')}
+                {/* Temele pentru acasă ale zilei alese. Fără teme → secțiunea NU se randează deloc:
+                    un registru școlar nu anunță absența temelor („Nimic de predat…"), rămâne spațiu
+                    gol. Titlul dispare odată cu lista, altfel ar rămâne o etichetă fără conținut. */}
+                {dueToday.length > 0 && (
+                    <div>
+                        <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            {t('cabinet.day_plan_homework')}
                         </p>
-                    ) : (
                         <ul className="flex flex-col gap-2">
                             {dueToday.map((h) => (
                                 <li key={h.id} className="rounded-lg border px-3 py-2 text-sm">
@@ -424,8 +422,8 @@ export function DayPlan({ weekly, homework }: { weekly: WeeklyData | null; homew
                                 </li>
                             ))}
                         </ul>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         </section>
     );
