@@ -26,7 +26,9 @@ use Illuminate\Console\Command;
  */
 class ImportLessonsFromSchedules extends Command
 {
-    protected $signature = 'app:import-lessons {--force : Rescrie și clasele care au deja orar structurat}';
+    protected $signature = 'app:import-lessons
+        {--force : Rescrie și clasele care au deja orar structurat}
+        {--only= : Doar clasele al căror nume începe cu acest prefix (ex. „[DEMO]")}';
 
     protected $description = 'Populează orarul structurat (Lesson) din orarele publicate ale claselor';
 
@@ -67,10 +69,19 @@ class ImportLessonsFromSchedules extends Command
 
     public function handle(): int
     {
+        $only = (string) ($this->option('only') ?? '');
+
         $schedules = Schedule::query()
             ->where('type', ScheduleType::Lessons->value)
             ->where('is_public', true)
             ->whereNotNull('school_class_id')
+            // `--force` fără filtru rescrie orarul structurat al TUTUROR claselor, inclusiv
+            // eventualele intrări manuale. `--only` restrânge la un perimetru (ex. zona demo), ca o
+            // populare de test să nu atingă clasele reale.
+            ->when($only !== '', fn ($query) => $query->whereHas(
+                'schoolClass',
+                fn ($inner) => $inner->where('name', 'like', $only.'%'),
+            ))
             ->with('schoolClass')
             ->get();
 

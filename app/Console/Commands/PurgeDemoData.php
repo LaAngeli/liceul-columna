@@ -16,7 +16,10 @@ use App\Models\GradeCorrection;
 use App\Models\Holiday;
 use App\Models\HomeworkAssignment;
 use App\Models\HomeworkCorrection;
+use App\Models\Lesson;
 use App\Models\Message;
+use App\Models\Schedule;
+use App\Models\SchoolClass;
 use App\Models\User;
 use App\Observers\AbsenceMotivationObserver;
 use App\Observers\GradeObserver;
@@ -99,6 +102,7 @@ class PurgeDemoData extends Command
             ['Documente (+ fișiere de pe disc)', $this->purgeDocuments($demoIds, $dryRun)],
             ['Evenimente de calendar', $this->purgeCalendarEvents($demoIds, $dryRun)],
             ['Zile libere [DEMO]', $this->purgeHolidays($dryRun)],
+            ['Orare [DEMO] (+ lecțiile derivate)', $this->purgeSchedules($dryRun)],
             // Examenele ÎNAINTEA sesiunilor și comisiilor: FK-urile sunt nullOnDelete — ștergerea
             // părinților întâi ar lăsa examene demo orfane (comisie/sesiune null), de negăsit.
             ['Examene de corigență [DEMO]', $this->purgeCorigentaExams($dryRun)],
@@ -503,6 +507,36 @@ class PurgeDemoData extends Command
      * Ștergerea prin MODEL (nu query builder): evenimentul `deleted` invalidează cache-ul
      * {@see Holidays} și recalculează termenele de motivare deschise.
      */
+    /**
+     * Orarele demo ({@see SeedDemoSchedule}) și orarul STRUCTURAT derivat din ele.
+     *
+     * Lecțiile nu poartă marcaj textual — n-au niciun câmp de text — deci se identifică prin clasa
+     * demo din care provin, exact ca restul datelor zonei. Ștergem întâi lecțiile: sunt derivatul,
+     * iar dacă am șterge întâi orarul-sursă n-am mai avea cum să le legăm de el.
+     */
+    private function purgeSchedules(bool $dryRun): int
+    {
+        $demoClassIds = SchoolClass::query()
+            ->where('name', 'like', self::DEMO.'%')
+            ->pluck('id');
+
+        $lessons = Lesson::query()->whereIn('school_class_id', $demoClassIds)->count();
+
+        $schedules = Schedule::query()
+            ->where('label', 'like', '%'.self::DEMO.'%')
+            ->get();
+
+        if (! $dryRun) {
+            Lesson::query()->whereIn('school_class_id', $demoClassIds)->delete();
+
+            foreach ($schedules as $schedule) {
+                $schedule->delete();
+            }
+        }
+
+        return $schedules->count() + $lessons;
+    }
+
     private function purgeHolidays(bool $dryRun): int
     {
         $holidays = Holiday::query()
