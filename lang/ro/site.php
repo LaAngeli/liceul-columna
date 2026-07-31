@@ -282,6 +282,14 @@ return [
         'eyebrow' => 'Eroare',
         'home' => 'Pagina principală',
         'back' => 'Pagina anterioară',
+        // Cele DOUĂ direcții de reluare a drumului (cerința beneficiarului, 01.08.2026),
+        // pe ORICE pagină de eroare — publică sau din zonele autentificate.
+        'dashboard' => 'Panoul meu',
+        'dashboard_hint' => 'Catalogul, notele și restul contului tău',
+        'website' => 'Pagina principală website',
+        'website_hint' => 'Site-ul public al liceului',
+        'login' => 'Autentificare',
+        'login_hint' => 'Intră în contul tău pentru a continua',
         'helpful' => 'Sau continuă spre',
         'explore' => [
             'title' => 'Sau explorează liceul',

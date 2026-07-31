@@ -312,3 +312,12 @@ if (app()->environment(['local', 'testing'])) {
     Route::get('_demo/studio-login', StudioDemoLoginController::class)
         ->name('demo.studio-login');
 }
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// 404 CU SESIUNE (01.08.2026). La o rută inexistentă, Laravel nu rulează middleware-ul de
+// grup — deci sesiunea nici nu pornește, iar paginile de eroare vedeau un vizitator ANONIM
+// chiar și pentru un utilizator autentificat (butonul „Panoul meu" apărea ca „Autentificare”).
+// Fallback-ul trăiește ÎN grupul `web`: aruncă exact aceeași excepție, dar DUPĂ pornirea
+// sesiunii, astfel încât handler-ul de erori (Inertia pentru site, Blade pentru zonele
+// autentificate) să știe cine e utilizatorul. Nu schimbă codul de răspuns: rămâne 404.
+Route::fallback(fn () => abort(404));

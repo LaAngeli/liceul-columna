@@ -282,6 +282,12 @@ return [
         'eyebrow' => 'Error',
         'home' => 'Home page',
         'back' => 'Previous page',
+        'dashboard' => 'My panel',
+        'dashboard_hint' => 'The register, grades and the rest of your account',
+        'website' => 'Website home page',
+        'website_hint' => 'The public site of the lyceum',
+        'login' => 'Sign in',
+        'login_hint' => 'Sign in to your account to continue',
         'helpful' => 'Or continue to',
         'explore' => [
             'title' => 'Or explore the lyceum',

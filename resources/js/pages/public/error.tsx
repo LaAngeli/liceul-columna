@@ -1,6 +1,5 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import {
-    ArrowLeft,
     ArrowRight,
     Atom,
     BookOpen,
@@ -11,7 +10,9 @@ import {
     GraduationCap,
     Home,
     ImageIcon,
+    LayoutGrid,
     Lightbulb,
+    LogIn,
     Lock,
     Mail,
     PenTool,
@@ -26,6 +27,7 @@ import { LocaleLink } from '@/components/locale-link';
 import { Band, BrandButton, FourStar, Reveal } from '@/components/public/brand';
 import { useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { dashboard, login } from '@/routes';
 
 /**
  * Pagină de eroare UNICĂ pentru tot site-ul public, randată prin Inertia din
@@ -226,6 +228,16 @@ const rise = (ms: number): CSSProperties =>
 
 export default function ErrorPage({ status }: { status: number }) {
     const t = useTranslations();
+    // Direcția „dashboard": contul autentificat merge acasă la el (panou staff sau cabinet,
+    // după rol); vizitatorul anonim primește poarta către el — autentificarea. Același tipar
+    // ca `site-header.tsx` (butonul de cabinet), ca destinația să nu poată diverge de el.
+    const { auth } = usePage().props;
+    const authenticated = auth?.user != null;
+    const dashboardHref = authenticated
+        ? auth.canAccessAdmin
+            ? '/admin'
+            : dashboard().url
+        : login().url;
     const key = KNOWN.includes(status) ? String(status) : 'generic';
     const isCompass = key === '404' || key === 'generic';
     const Icon = ICONS[key];
@@ -336,26 +348,33 @@ export default function ErrorPage({ status }: { status: number }) {
                         {t(`error_page.status.${key}.body`)}
                     </p>
 
+                    {/* CELE DOUĂ DIRECȚII de reluare a drumului (cerința beneficiarului,
+                        01.08.2026): panoul propriu — sau autentificarea, pentru un vizitator
+                        anonim — și pagina principală a site-ului. `BrandButton` rutează singur:
+                        `/admin` = navigare reală (Filament nu e Inertia), `/dashboard` și
+                        `/login` = vizită Inertia fără prefix, `/` = LocaleLink (cu prefix). */}
                     <div
                         data-err-rise
                         style={rise(350)}
                         className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center"
                     >
                         <BrandButton
-                            href="/"
+                            href={dashboardHref}
                             variant="primary"
+                            icon={authenticated ? LayoutGrid : LogIn}
+                            className="w-full justify-center sm:w-auto"
+                        >
+                            {authenticated
+                                ? t('error_page.dashboard', 'Panoul meu')
+                                : t('error_page.login', 'Autentificare')}
+                        </BrandButton>
+                        <BrandButton
+                            href="/"
+                            variant="ghost-navy"
                             icon={Home}
                             className="w-full justify-center sm:w-auto"
                         >
-                            {t('error_page.home', 'Pagina principală')}
-                        </BrandButton>
-                        <BrandButton
-                            onClick={() => window.history.back()}
-                            variant="ghost-navy"
-                            icon={ArrowLeft}
-                            className="w-full justify-center sm:w-auto"
-                        >
-                            {t('error_page.back', 'Pagina anterioară')}
+                            {t('error_page.website', 'Pagina principală website')}
                         </BrandButton>
                     </div>
                 </div>
