@@ -15,6 +15,7 @@ use App\Enums\GeneratedDocumentType;
 use App\Enums\RequestStatus;
 use App\Enums\StudentStatus;
 use App\Enums\UserRole;
+use App\Http\Controllers\Concerns\BuildsStudentCatalogData;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
 use App\Models\AcademicYear;
@@ -49,7 +50,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CabinetController extends Controller
 {
-    use Concerns\BuildsStudentCatalogData;
+    use BuildsStudentCatalogData;
 
     /**
      * Cabinetul personal — COCKPIT: bandă de alerte cross-copil + carduri-copil îmbogățite
