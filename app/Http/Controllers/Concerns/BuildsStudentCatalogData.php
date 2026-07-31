@@ -233,9 +233,16 @@ trait BuildsStudentCatalogData
         $subjectTeachers = $this->subjectTeachersFor($grades);
 
         $rows = [];
+        /** @var array<int, SchoolCycle> $cycleBySubject ciclul clasei în care se predă disciplina */
+        $cycleBySubject = [];
+
         foreach ($grades as $grade) {
             $subjectId = (int) $grade->subject_id;
             $register($subjectId, (string) $grade->subject->name);
+
+            // Ciclul decide dacă disciplina are sumativă (primarul nu are) — deci și formula după
+            // care se recalculează media la fiecare notă.
+            $cycleBySubject[$subjectId] ??= SchoolCycle::fromGradeLevel((int) $grade->schoolClass->grade_level);
 
             $subjectTeacher = $subjectTeachers[$grade->school_class_id.'-'.$subjectId] ?? null;
             if ($subjectTeacher !== null && ! in_array($subjectTeacher, $subjects[$subjectId]['teachers'], true)) {
@@ -296,17 +303,34 @@ trait BuildsStudentCatalogData
                     continue;
                 }
 
-                // Seria cronologică ASC a notelor NUMERICE — baza sparkline-ului și a tendinței.
-                // Calificativele (primar) nu intră: nu sunt cantități.
-                $series = array_values(array_filter(array_map(
-                    fn (array $row): ?float => $row['value'],
+                // Evoluția MEDIEI (nu a notelor): media oficială recalculată după fiecare notă, în
+                // ordine cronologică. Graficul, cifra mare și săgeata spun astfel același lucru —
+                // ultimul punct al seriei ESTE media afișată, iar săgeata e ultima ei mișcare.
+                $averageSeries = $this->runningAverages(
                     array_reverse($termGrades),
-                ), fn (?float $value): bool => $value !== null));
+                    $cycleBySubject[$subjectId] ?? SchoolCycle::Primar,
+                );
 
                 $stats = $subject['terms'][$number] ?? ['average' => null, 'mc' => null, 'summative' => null];
                 $stats['count'] = count($termGrades);
-                $stats['series'] = $series;
-                $stats['trend'] = $this->seriesTrend($series);
+                $stats['averageSeries'] = $averageSeries;
+                // Media afișată = cea OFICIALĂ din term_averages. Când lipsește (calcul nerulat
+                // încă), cade pe ultimul punct al seriei — calculat cu ACEEAȘI formulă — ca să nu
+                // apară „—" lângă o listă de note.
+                $stats['average'] ??= end($averageSeries) !== false ? end($averageSeries) : null;
+                // Săgeata = ultima mișcare a mediei: a urcat-o ultima notă, sau a coborât-o?
+                //
+                // Compararea NU trece prin `Grades::trend()`: pragul lui de 0,25 puncte există
+                // pentru tendințe pe termen lung (dinamica multi-an), iar aici ar face săgeata mută
+                // exact când e cea mai utilă — după 15 note, o notă nouă mișcă media cu ~0,03, deci
+                // ar rămâne veșnic „neutru". Mediile sunt trunchiate la sutimi, deci orice diferență
+                // reală e ≥ 0,01; epsilonul doar apără de eroarea binară a virgulei mobile.
+                $stats['trend'] = null;
+
+                if (count($averageSeries) >= 2) {
+                    $delta = $averageSeries[count($averageSeries) - 1] - $averageSeries[count($averageSeries) - 2];
+                    $stats['trend'] = abs($delta) < 0.005 ? 'stable' : ($delta > 0 ? 'up' : 'down');
+                }
                 $stats['lastDate'] = $termGrades[0]['date'] ?? null;
                 // Sub pragul de promovare (§3) → disciplina intră în riscul de corigență.
                 $stats['risk'] = $stats['average'] !== null && $stats['average'] < Grades::PASS;
@@ -446,28 +470,53 @@ trait BuildsStudentCatalogData
     }
 
     /**
-     * Tendința unei serii de note dintr-un semestru: prima jumătate vs ultima jumătate (nota din
-     * mijloc, la număr impar, nu intră în niciuna). Sub 4 note nu se pronunță — două note nu fac
-     * o traiectorie, iar o săgeată falsă e mai rea decât absența ei.
+     * Evoluția MEDIEI unei discipline: media oficială recalculată după FIECARE notă, cronologic.
      *
-     * @param  list<float>  $series
+     * De ce media și nu notele: seria notelor brute, desenată normalizat între minimul și maximul
+     * ei, arăta la fel pentru 8→9 și pentru 4→10 — o linie fără scară, care sugera dramatism unde
+     * nu era. Media are înțeles absolut (1–10), se poate compara cu pragul de promovare și e exact
+     * mărimea despre care întreabă familia.
+     *
+     * Aplică pas cu pas regula oficială ({@see Grades::semesterAverage()}), deci ULTIMUL punct
+     * coincide cu media stocată în `term_averages` — graficul nu poate contrazice cifra de lângă el.
+     *
+     * @param  list<array<string, mixed>>  $chronological  rândurile disciplinei, de la cea mai veche
+     * @return list<float>
      */
-    private function seriesTrend(array $series): ?string
+    private function runningAverages(array $chronological, SchoolCycle $cycle): array
     {
-        $count = count($series);
+        /** @var list<float> $current notele curente (curentă + ESI) de până acum */
+        $current = [];
+        /** @var list<float> $weighted sumativele (ESS/teză) de până acum */
+        $weighted = [];
+        $series = [];
 
-        if ($count < 4) {
-            return null;
+        foreach ($chronological as $row) {
+            $value = $row['value'] ?? null;
+
+            // Calificativele primarului n-au valoare numerică: nu mișcă media, deci nici graficul.
+            if ($value === null) {
+                continue;
+            }
+
+            if ($row['isSummative'] === true) {
+                $weighted[] = (float) $value;
+            } else {
+                $current[] = (float) $value;
+            }
+
+            $mc = $current !== [] ? Grades::truncate2(array_sum($current) / count($current)) : null;
+            $summative = $weighted !== [] ? Grades::truncate2(array_sum($weighted) / count($weighted)) : null;
+
+            // ACEEAȘI formulă ca motorul care persistă media (§1.3) — vezi Grades::semesterAverage().
+            $average = Grades::semesterAverage($cycle, $mc, $summative);
+
+            if ($average !== null) {
+                $series[] = $average;
+            }
         }
 
-        $half = intdiv($count, 2);
-        $first = array_slice($series, 0, $half);
-        $last = array_slice($series, $count - $half);
-
-        return Grades::trend(
-            array_sum($first) / count($first),
-            array_sum($last) / count($last),
-        );
+        return $series;
     }
 
     /**

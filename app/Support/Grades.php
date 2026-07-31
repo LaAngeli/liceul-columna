@@ -2,9 +2,14 @@
 
 namespace App\Support;
 
+use App\Actions\ComputeTermAverage;
+use App\Enums\EvaluationType;
+use App\Enums\SchoolCycle;
+
 /**
- * Reguli comune de notare (§3): pragul de promovare și trunchierea la sutimi. Sursă unică
- * pentru ambele, ca motorul de calcul, statutul elevului și afișarea să folosească aceeași regulă.
+ * Reguli comune de notare (§3): pragul de promovare, trunchierea la sutimi, tendința și formula
+ * mediei semestriale. Sursă unică pentru toate, ca motorul de calcul, statutul elevului și
+ * afișarea din cabinet să folosească aceeași regulă.
  */
 final class Grades
 {
@@ -41,5 +46,32 @@ final class Grades
         }
 
         return $delta < -self::TREND_THRESHOLD ? 'down' : 'stable';
+    }
+
+    /**
+     * Formula mediei semestriale (§1.3) — SURSĂ UNICĂ.
+     *
+     * Primar: MS = MC (nu există sumativă). Gimnaziu/liceu: MS = MC·(1−pondere) + sumativă·pondere
+     * (0,50 → (MC+sumativă)/2) când există ambele; altfel componenta prezentă. Rezultatul e
+     * trunchiat la sutimi, ca peste tot (§2.4).
+     *
+     * Trăiește aici, nu în {@see ComputeTermAverage}, fiindcă are DOI consumatori:
+     * motorul care persistă media și graficul de evoluție din cabinet, care o recalculează după
+     * fiecare notă. Două implementări ar diverge tăcut, iar ultimul punct al graficului n-ar mai
+     * coincide cu media afișată lângă el — exact tipul de contradicție pe care familia o vede.
+     */
+    public static function semesterAverage(SchoolCycle $cycle, ?float $mc, ?float $summative): ?float
+    {
+        if ($cycle === SchoolCycle::Primar) {
+            return $mc;
+        }
+
+        if ($mc !== null && $summative !== null) {
+            $weight = EvaluationType::Teza->weight() ?? 0.5;
+
+            return self::truncate2($mc * (1 - $weight) + $summative * $weight);
+        }
+
+        return $summative ?? $mc;
     }
 }

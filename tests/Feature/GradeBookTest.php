@@ -181,27 +181,51 @@ it('media sub 5 e semnalată ca restanță, în sinteză și pe disciplină', fu
             ->where('gradebook.subjects.1.terms.2.risk', false));
 });
 
-it('tendința tace sub 4 note și se pronunță peste', function () {
+it('graficul arată evoluția MEDIEI, iar săgeata ultima ei mișcare', function () {
     $fx = gradeBookFixture();
-    $few = Subject::factory()->create(['name' => 'Arte']);
-    $many = Subject::factory()->create(['name' => 'Zoologie']);
+    $one = Subject::factory()->create(['name' => 'Arte']);
+    $rising = Subject::factory()->create(['name' => 'Zoologie']);
 
-    foreach ([5, 6, 7] as $i => $value) {
-        gradeBookGrade($fx, $few, $fx['sem2'], '2026-02-0'.($i + 1), $value);
-    }
-    // Prima jumătate 5,5 → ultima 9,5: peste pragul de 0,25, deci „în creștere".
-    foreach ([5, 6, 9, 10] as $i => $value) {
-        gradeBookGrade($fx, $many, $fx['sem2'], '2026-02-0'.($i + 1), $value);
+    // O singură notă → media n-are încă istorie: nicio săgeată (o direcție inventată ar minți).
+    gradeBookGrade($fx, $one, $fx['sem2'], '2026-02-01', 7);
+
+    // 4 → 4,5 → 6: media URCĂ după fiecare notă.
+    foreach ([4, 5, 9] as $i => $value) {
+        gradeBookGrade($fx, $rising, $fx['sem2'], '2026-02-0'.($i + 1), $value);
     }
 
     $this->actingAs($fx['parent'])->get(route('cabinet.grades'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            // Trei note nu fac o traiectorie — o săgeată falsă e mai rea decât absența ei.
             ->where('gradebook.subjects.0.terms.2.trend', null)
-            ->where('gradebook.subjects.1.terms.2.trend', 'up')
-            // Seria e cronologic ASC, ca sparkline-ul să meargă în sensul timpului.
-            ->where('gradebook.subjects.1.terms.2.series', [5, 6, 9, 10]));
+            ->where('gradebook.subjects.0.terms.2.averageSeries', [7])
+            // Media recalculată după FIECARE notă, cronologic ASC.
+            ->where('gradebook.subjects.1.terms.2.averageSeries', [4, 4.5, 6])
+            ->where('gradebook.subjects.1.terms.2.trend', 'up'));
+});
+
+it('capătul graficului ESTE media afișată — inclusiv cu teză, ponderată 50%', function () {
+    $fx = gradeBookFixture();
+    $subject = Subject::factory()->create(['name' => 'Fizică']);
+
+    // Curente 6 și 8 → MC = 7. Teză 9 → MS = (7 + 9) / 2 = 8.
+    gradeBookGrade($fx, $subject, $fx['sem2'], '2026-02-01', 6);
+    gradeBookGrade($fx, $subject, $fx['sem2'], '2026-02-02', 8);
+    gradeBookGrade($fx, $subject, $fx['sem2'], '2026-02-03', 9, ['evaluation_type' => EvaluationType::Teza]);
+
+    $this->actingAs($fx['parent'])->get(route('cabinet.grades'))
+        ->assertOk()
+        ->assertInertia(function (Assert $page) {
+            $stats = $page->toArray()['props']['gradebook']['subjects'][0]['terms'][2];
+
+            // Cast explicit: JSON scrie 8.0 ca „8", deci valorile întregi ajung aici ca int.
+            // Graficul nu poate contrazice cifra de lângă el: ultimul punct = media oficială.
+            expect((float) end($stats['averageSeries']))->toBe((float) $stats['average'])
+                ->and((float) $stats['average'])->toBe(8.0)
+                // Teza a urcat media de la 7 la 8 → săgeata arată creștere.
+                ->and(array_map('floatval', $stats['averageSeries']))->toBe([6.0, 7.0, 8.0])
+                ->and($stats['trend'])->toBe('up');
+        });
 });
 
 it('calificativul apare ca notă, dar nu intră în serie (nu e cantitate)', function () {
@@ -217,7 +241,7 @@ it('calificativul apare ca notă, dar nu intră în serie (nu e cantitate)', fun
             ->where('gradebook.grades.0.label', 'B')
             ->where('gradebook.grades.0.value', null)
             ->where('gradebook.subjects.0.terms.2.count', 2)
-            ->where('gradebook.subjects.0.terms.2.series', [])
+            ->where('gradebook.subjects.0.terms.2.averageSeries', [])
             ->where('gradebook.subjects.0.terms.2.trend', null));
 });
 

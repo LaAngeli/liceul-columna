@@ -70,8 +70,8 @@ const data: GradeBookData = {
             name: 'Matematică',
             teachers: ['Popescu Ion'],
             terms: {
-                1: { average: 7.5, mc: null, summative: null, count: 1, series: [7], trend: null, lastDate: '10.10.2025', risk: false },
-                2: { average: 9, mc: null, summative: null, count: 2, series: [9, 9], trend: null, lastDate: '05.02.2026', risk: false },
+                1: { average: 7.5, mc: null, summative: null, count: 1, averageSeries: [7], trend: null, lastDate: '10.10.2025', risk: false },
+                2: { average: 9, mc: null, summative: null, count: 2, averageSeries: [9, 9], trend: null, lastDate: '05.02.2026', risk: false },
             },
         },
         {
@@ -79,7 +79,7 @@ const data: GradeBookData = {
             name: 'Chimie',
             teachers: [],
             terms: {
-                2: { average: 4.5, mc: null, summative: null, count: 1, series: [4], trend: null, lastDate: '03.02.2026', risk: true },
+                2: { average: 4.5, mc: null, summative: null, count: 1, averageSeries: [4], trend: null, lastDate: '03.02.2026', risk: true },
             },
         },
     ],
@@ -154,9 +154,34 @@ describe('GradeBook', () => {
         expect(text.indexOf('01.02.2026')).toBeLessThan(text.indexOf('05.02.2026'));
     });
 
+    it('desenează media pe scara ABSOLUTĂ 1–10, cu pragul de promovare vizibil', () => {
+        const withChart: GradeBookData = {
+            ...data,
+            subjects: [{ ...data.subjects[0], terms: { 2: { ...data.subjects[0].terms[2], count: 4, averageSeries: [6, 7], trend: 'up' } } }],
+        };
+        const { container } = render(<GradeBook data={withChart} />);
+
+        const chart = container.querySelector('svg[role="img"]');
+        expect(chart).not.toBeNull();
+
+        // Scara e FIXĂ (viewBox 0 0 100 34), nu normalizată pe minimul/maximul seriei: altfel
+        // 6→7 și 1→10 ar desena exact aceeași pantă, iar cardurile n-ar fi comparabile între ele.
+        expect(chart?.getAttribute('viewBox')).toBe('0 0 100 34');
+
+        // Pragul de promovare (5) e desenat — reperul fără de care înălțimea n-ar spune nimic.
+        const threshold = chart?.querySelector('line[stroke-dasharray]');
+        expect(threshold).not.toBeNull();
+        // y pentru 5 pe scara 1–10 înălțime 34: 34 − ((5−1)/9)·34 ≈ 18.9
+        expect(Number(threshold?.getAttribute('y1'))).toBeCloseTo(18.9, 1);
+    });
+
     it('explică indicatorii grafici DOAR când există un grafic de explicat', () => {
-        // Fixtura de bază n-are nicio serie de 3+ note → nu se desenează linie, deci n-are ce lămuri.
-        const { unmount } = render(<GradeBook data={data} />);
+        // O singură medie în serie → nu se poate desena o evoluție, deci n-are ce lămuri.
+        const flat: GradeBookData = {
+            ...data,
+            subjects: [{ ...data.subjects[0], terms: { 2: { ...data.subjects[0].terms[2], averageSeries: [9] } } }],
+        };
+        const { unmount } = render(<GradeBook data={flat} />);
         expect(screen.queryByText(/Linia/)).not.toBeInTheDocument();
         unmount();
 
@@ -165,7 +190,7 @@ describe('GradeBook', () => {
             subjects: [
                 {
                     ...data.subjects[0],
-                    terms: { 2: { ...data.subjects[0].terms[2], count: 4, series: [7, 8, 9, 10], trend: 'up' } },
+                    terms: { 2: { ...data.subjects[0].terms[2], count: 4, averageSeries: [7, 7.5, 8, 8.5], trend: 'up' } },
                 },
             ],
         };

@@ -4,7 +4,7 @@ import { FilterPills } from '@/components/cabinet/catalog/filter-pills';
 import { SemesterAveragesTable } from '@/components/cabinet/catalog/situation-views';
 import type { SemesterAveragesMatrix } from '@/components/cabinet/catalog/situation-views';
 import { EmptyState } from '@/components/cabinet/empty-state';
-import { sparklinePoints, trendSymbol } from '@/components/cabinet/student-profile/helpers';
+import { trendSymbol } from '@/components/cabinet/student-profile/helpers';
 import type { Trend } from '@/components/cabinet/student-profile/helpers';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { pluralKey, useTranslations } from '@/lib/i18n';
@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
  *   • **notele se citesc pe semestru.** Înainte chip-urile din Sem. I și Sem. II stăteau amestecate
  *     sub o medie care descria doar semestrul curent.
  *   • **evoluția e la vedere, nu după încă un click:** fiecare disciplină își poartă traiectoria
- *     (sparkline + tendință) chiar pe card.
+ *     MEDIEI (grafic pe scara 1–10 + tendință) chiar pe card.
  *
  * Publicul e format din NEspecialiști: nicio acțiune de operare, niciun jargon de catalog, iar
  * culoarea semnalează un singur lucru obiectiv — media sub pragul de promovare (§3).
@@ -40,8 +40,12 @@ export interface GradeBookSubjectTerm {
     mc: number | null;
     summative: number | null;
     count: number;
-    /** Valorile numerice, cronologic ASC — baza sparkline-ului. */
-    series: number[];
+    /**
+     * Media oficială recalculată după FIECARE notă, cronologic ASC. Ultimul punct coincide cu
+     * `average` — graficul, cifra mare și săgeata descriu același lucru.
+     */
+    averageSeries: number[];
+    /** Ultima mișcare a mediei: a crescut / a scăzut / neschimbată. */
     trend: Trend;
     lastDate: string | null;
     /** Media sub pragul de promovare → disciplină restantă. */
@@ -103,15 +107,50 @@ function averageClass(average: number | null, risk: boolean): string {
     return risk ? 'text-destructive' : 'text-foreground';
 }
 
-/** Traiectoria notelor dintr-un semestru, ca linie mică (fără bibliotecă de grafice). */
-function Sparkline({ values, className }: { values: number[]; className?: string }) {
+/**
+ * Evoluția MEDIEI, pe scara reală 1–10.
+ *
+ * Înlocuiește sparkline-ul notelor, care era normalizat între minimul și maximul propriei serii:
+ * 8→9 și 4→10 desenau exact aceeași pantă, iar o disciplină nu se putea compara cu alta. Aici
+ * scara e fixă și aceeași pe toate cardurile, iar pragul de promovare (5) e desenat — deci
+ * înălțimea liniei are înțeles, nu doar formă.
+ *
+ * Punctele sunt mediile după fiecare notă, deci ULTIMUL punct e chiar cifra mare de pe card, iar
+ * panta lui finală e ceea ce arată săgeata.
+ */
+function AverageChart({ values, risk }: { values: number[]; risk: boolean }) {
+    const t = useTranslations();
+
     if (values.length < 2) {
         return null;
     }
 
+    const W = 100;
+    const H = 34;
+    const MIN = 1;
+    const MAX = 10;
+    const y = (value: number): number => H - ((value - MIN) / (MAX - MIN)) * H;
+    const x = (index: number): number => (index / (values.length - 1)) * W;
+
+    const points = values.map((value, index) => `${x(index).toFixed(1)},${y(value).toFixed(1)}`).join(' ');
+    const last = values[values.length - 1];
+    const line = risk ? 'text-destructive' : 'text-primary';
+
     return (
-        <svg viewBox="0 0 100 24" width="100" height="24" preserveAspectRatio="none" className={cn('h-6 w-full', className)} aria-hidden>
-            <polyline points={sparklinePoints(values, 100, 24)} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+        <svg
+            viewBox={`0 0 ${W} ${H}`}
+            className="h-[34px] w-full overflow-visible"
+            preserveAspectRatio="none"
+            role="img"
+            aria-label={`${t('cabinet.gb_legend_chart_term')}: ${values.join(', ')}`}
+        >
+            {/* Pragul de promovare — reperul față de care familia citește totul (§3). */}
+            <line x1="0" y1={y(5)} x2={W} y2={y(5)} className="stroke-muted-foreground/40" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+            {/* Aria de sub linie dă greutate vizuală valorii, nu doar direcției. */}
+            <polygon points={`0,${H} ${points} ${W},${H}`} className={cn('fill-current opacity-10', line)} />
+            <polyline points={points} fill="none" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" className={cn('stroke-current', line)} vectorEffect="non-scaling-stroke" />
+            {/* Media de ACUM — capătul liniei, adică exact cifra mare de pe card. */}
+            <circle cx={x(values.length - 1)} cy={y(last)} r="2.5" className={cn('fill-current', line)} vectorEffect="non-scaling-stroke" />
         </svg>
     );
 }
@@ -350,7 +389,7 @@ function SubjectCards({
 
     // Legenda apare doar dacă există efectiv ce explica (un card cu grafic) — la o disciplină cu
     // două note n-are ce lămuri.
-    const hasChart = subjects.some((subject) => (subject.terms[term]?.series.length ?? 0) >= 3);
+    const hasChart = subjects.some((subject) => (subject.terms[term]?.averageSeries.length ?? 0) >= 2);
 
     return (
         <div className="flex flex-col gap-3">
@@ -395,12 +434,9 @@ function SubjectCards({
                                 </div>
                             </div>
 
-                            {stats.series.length >= 3 && (
-                                <div className="flex items-center gap-2">
-                                    <Sparkline
-                                        values={stats.series}
-                                        className={stats.risk ? 'text-destructive/60' : 'text-primary/60'}
-                                    />
+                            {stats.averageSeries.length >= 2 && (
+                                <div className="flex items-end gap-2">
+                                    <AverageChart values={stats.averageSeries} risk={stats.risk} />
                                     <TrendMark trend={stats.trend} />
                                 </div>
                             )}
@@ -608,7 +644,11 @@ export function GradeEvolution({ evolution }: { evolution: EvolutionData }) {
                 <section>
                     <h3 className="mb-2 text-sm font-semibold">{t('cabinet.dynamics_general')}</h3>
                     <div className="rounded-xl border bg-card p-4 shadow-sm">
-                        <Sparkline values={series} className="mb-3 text-primary/60" />
+                        {/* Aceeași scară 1–10 ca pe cardurile de disciplină: mediile anuale se
+                            citesc între ele și față de pragul de promovare, nu doar ca formă. */}
+                        <div className="mb-3">
+                            <AverageChart values={series} risk={series[series.length - 1] < 5} />
+                        </div>
                         <ol className="flex flex-wrap gap-2">
                             {milestones.map((m) => (
                                 <li

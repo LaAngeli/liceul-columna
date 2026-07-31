@@ -2,7 +2,6 @@
 
 namespace App\Actions;
 
-use App\Enums\EvaluationType;
 use App\Enums\SchoolCycle;
 use App\Models\Grade;
 use App\Models\SchoolClass;
@@ -56,7 +55,7 @@ class ComputeTermAverage
             ? Grades::truncate2((float) $weighted->avg(fn (Grade $g): float => (float) $g->value))
             : null;
 
-        $ms = $this->semesterAverage($cycle, $mc, $summative);
+        $ms = Grades::semesterAverage($cycle, $mc, $summative);
 
         if ($ms === null) {
             return null;
@@ -71,25 +70,5 @@ class ComputeTermAverage
                 'summative_value' => $summative,
             ],
         );
-    }
-
-    /**
-     * Primar: MS = MC (fără sumativă). Gimnaziu/Liceu: MS = MC·(1−pondere) + sumativă·pondere
-     * (pondere din tip_nota, 0,50 → (MC+sumativă)/2), când există ambele; altfel componenta
-     * prezentă. MC și sumativa vin deja trunchiate la sutimi; promovarea se decide pe MS (§3).
-     */
-    private function semesterAverage(SchoolCycle $cycle, ?float $mc, ?float $summative): ?float
-    {
-        if ($cycle === SchoolCycle::Primar) {
-            return $mc;
-        }
-
-        if ($mc !== null && $summative !== null) {
-            $weight = EvaluationType::Teza->weight() ?? 0.5;
-
-            return Grades::truncate2($mc * (1 - $weight) + $summative * $weight);
-        }
-
-        return $summative ?? $mc;
     }
 }
