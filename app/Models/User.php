@@ -509,6 +509,18 @@ class User extends Authenticatable implements Auditable, FilamentUser
     // registrul consemnează automat schimbarea. Fluxul cerere → judecată din 2026-07-15 nu mai există.
 
     /**
+     * Detaliile de REGISTRU ale elevului — sex, nr. matricol, limba a 2-a, grupa, contul,
+     * tutorii, istoricul de înmatriculări și foaia matricolă COMPLETĂ — sunt ale administrației
+     * și ale DIRIGINTELUI (pe contextul activ, F3). PROFESORUL vede STRICT situația pedagogică:
+     * identitatea, clasa și notele/absențele pe disciplinele lui (decizia beneficiarului,
+     * 01.08.2026 — minimizarea datelor, L133).
+     */
+    public function canSeeStudentRegistryDetails(): bool
+    {
+        return $this->isAdministrator() || $this->activeRoleIs(UserRole::Diriginte->value);
+    }
+
+    /**
      * Operarea DIRECTĂ a catalogului (editare/anulare note, editare absențe) ca autoritate
      * academică. NU include administratorul operațional (§3.2: „nu introduce/editează note")
      * și nici administratorul tehnic (infra).

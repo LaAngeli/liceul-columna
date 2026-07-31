@@ -1753,6 +1753,7 @@ return [
             'canManageSchedules' => 'Вносит и публикует расписания',
             'canPublishContent' => 'Публикует на сайте',
             'canSeeAcademicData' => 'Видит академические данные',
+            'canSeeStudentRegistryDetails' => 'Видит реестровые данные ученика',
             'canValidateSemester' => 'Утверждает семестровый статус',
             'canViewAuditLog' => 'Просматривает журнал аудита',
             'canViewCorrectionArchive' => 'Видит архив исправлений',

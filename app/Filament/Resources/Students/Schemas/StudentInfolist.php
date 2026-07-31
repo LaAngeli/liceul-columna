@@ -43,22 +43,28 @@ class StudentInfolist
                             ->hiddenLabel()
                             ->columnSpanFull()
                             ->view('filament.catalog.partials.student-identity'),
+                        // MINIMIZAREA DATELOR pentru PROFESOR (01.08.2026): sexul, limba a 2-a și
+                        // grupa sunt detalii de REGISTRU — ale administrației + dirigintelui.
+                        // Profesorul rămâne cu identitatea, clasa și situația pedagogică.
                         TextEntry::make('sex')
                             ->label(__('panel.fields.sex'))
                             ->icon(Heroicon::OutlinedUser)
-                            ->badge(),
+                            ->badge()
+                            ->visible(self::registryDetails(...)),
                         TextEntry::make('second_language')
                             ->label(__('panel.forms.student.second_language_short'))
                             ->icon(Heroicon::OutlinedLanguage)
                             ->badge()
-                            ->color('info'),
+                            ->color('info')
+                            ->visible(self::registryDetails(...)),
                         TextEntry::make('english_group')
                             ->label(__('panel.forms.student.english_group_short'))
                             ->icon(Heroicon::OutlinedUserGroup)
                             ->formatStateUsing(fn (int|string $state): string => __('panel.forms.student.english_group_value', ['group' => $state]))
                             ->badge()
                             ->color('gray')
-                            ->placeholder(__('panel.common.dash')),
+                            ->placeholder(__('panel.common.dash'))
+                            ->visible(self::registryDetails(...)),
                     ]),
 
                 Section::make(__('panel.forms.student.section_situation'))
@@ -97,6 +103,12 @@ class StudentInfolist
                             ->columnSpanFull(),
                     ]),
             ]);
+    }
+
+    /** Detaliile de registru: administrația + dirigintele (contextul activ) — nu profesorul. */
+    private static function registryDetails(): bool
+    {
+        return auth('web')->user()?->canSeeStudentRegistryDetails() ?? false;
     }
 
     /**

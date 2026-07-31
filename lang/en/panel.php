@@ -1755,6 +1755,7 @@ return [
             'canManageSchedules' => 'Enters and publishes timetables',
             'canPublishContent' => 'Publishes on the site',
             'canSeeAcademicData' => 'Views academic data',
+            'canSeeStudentRegistryDetails' => 'Views the student registry details',
             'canValidateSemester' => 'Validates term status',
             'canViewAuditLog' => 'Views the audit log',
             'canViewCorrectionArchive' => 'Views the corrections archive',

@@ -34,10 +34,12 @@ class AcademicRecordsRelationManager extends RelationManager
 
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
+        // Foaia matricolă = istoricul COMPLET, pe toate disciplinele — aceeași regulă de calitate
+        // ca la medii (un profesor de română nu citește fizica): administrația + dirigintele;
+        // profesorul rămâne cu notele/absențele disciplinelor lui (minimizarea datelor, 01.08.2026).
         $user = auth('web')->user();
 
-        return $user instanceof User
-            && ($user->isAdministrator() || $user->teacher !== null);
+        return $user instanceof User && $user->canSeeStudentRegistryDetails();
     }
 
     public function isReadOnly(): bool

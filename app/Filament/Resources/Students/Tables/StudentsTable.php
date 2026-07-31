@@ -52,6 +52,9 @@ class StudentsTable
             })
             // Mobile-first (directiva 2026-07-17): pe telefon rămâne identitatea (nume + prenume);
             // atributele de fișă intră progresiv — detaliile complete sunt oricum în fișă (View).
+            // MINIMIZAREA DATELOR pentru PROFESOR (decizia beneficiarului, 01.08.2026): detaliile
+            // de registru (sex, matricol, L2, grupă, cont) sunt ale administrației + dirigintelui;
+            // profesorul vede identitatea + situația pedagogică — restul coloanelor dispar.
             ->columns([
                 TextColumn::make('last_name')
                     ->label(__('panel.fields.last_name'))
@@ -64,23 +67,28 @@ class StudentsTable
                 TextColumn::make('sex')
                     ->label(__('panel.forms.student.sex_short'))
                     ->badge()
+                    ->visible(self::registryDetails(...))
                     ->visibleFrom('sm'),
                 TextColumn::make('register_number')
                     ->label(__('panel.fields.register_number'))
                     ->searchable()
+                    ->visible(self::registryDetails(...))
                     ->visibleFrom('md'),
                 TextColumn::make('second_language')
                     ->label(__('panel.forms.student.second_language_short'))
                     ->badge()
+                    ->visible(self::registryDetails(...))
                     ->visibleFrom('md'),
                 TextColumn::make('english_group')
                     ->label(__('panel.forms.student.english_group_short'))
                     ->numeric()
                     ->sortable()
+                    ->visible(self::registryDetails(...))
                     ->visibleFrom('lg'),
                 TextColumn::make('user.name')
                     ->label(__('panel.forms.student.account_short'))
                     ->searchable()
+                    ->visible(self::registryDetails(...))
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
@@ -254,6 +262,12 @@ class StudentsTable
         $value = Term::query()->where('is_current', true)->value('id');
 
         return $value === null ? null : (int) $value;
+    }
+
+    /** Detaliile de registru: administrația + dirigintele (contextul activ) — nu profesorul. */
+    private static function registryDetails(): bool
+    {
+        return auth('web')->user()?->canSeeStudentRegistryDetails() ?? false;
     }
 
     /**

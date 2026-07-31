@@ -27,10 +27,11 @@ class EnrollmentsRelationManager extends RelationManager
 
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
+        // Istoric de REGISTRU (administrativ): administrația + dirigintele — profesorul nu are
+        // nevoie de el pentru situația pedagogică (minimizarea datelor, 01.08.2026).
         $user = auth('web')->user();
 
-        return $user instanceof User
-            && ($user->isAdministrator() || $user->teacher !== null);
+        return $user instanceof User && $user->canSeeStudentRegistryDetails();
     }
 
     public function isReadOnly(): bool

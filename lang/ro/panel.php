@@ -1771,6 +1771,7 @@ return [
             'canManageSchedules' => 'Introduce și publică orarele',
             'canPublishContent' => 'Publică pe site',
             'canSeeAcademicData' => 'Vede datele academice',
+            'canSeeStudentRegistryDetails' => 'Vede detaliile de registru ale elevului',
             'canValidateSemester' => 'Validează statutul semestrial',
             'canViewAuditLog' => 'Consultă jurnalul de audit',
             'canViewCorrectionArchive' => 'Vede arhiva corecțiilor',

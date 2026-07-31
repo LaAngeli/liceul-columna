@@ -37,10 +37,14 @@
                 </span>
             @endif
 
-            <span class="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10">
-                <x-filament::icon icon="heroicon-o-hashtag" class="h-3.5 w-3.5" />
-                {{ __('panel.fields.register_number') }}: {{ $record->register_number ?? __('panel.common.dash') }}
-            </span>
+            {{-- Nr. matricol = detaliu de REGISTRU (administrația + dirigintele) — profesorul
+                 nu-l vede (minimizarea datelor, decizia beneficiarului 01.08.2026). --}}
+            @if (auth('web')->user()?->canSeeStudentRegistryDetails() ?? false)
+                <span class="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10">
+                    <x-filament::icon icon="heroicon-o-hashtag" class="h-3.5 w-3.5" />
+                    {{ __('panel.fields.register_number') }}: {{ $record->register_number ?? __('panel.common.dash') }}
+                </span>
+            @endif
         </span>
     </span>
 </div>
