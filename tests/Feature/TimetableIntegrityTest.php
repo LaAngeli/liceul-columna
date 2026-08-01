@@ -62,7 +62,7 @@ it('leagă disciplina de fișa TREPTEI clasei, nu de omonima altui ciclu', funct
         ->not->toBe($primar->id);
 });
 
-it('nu inventează o disciplină când nimic nu se potrivește pe treaptă — sare celula și o raportează', function () {
+it('nu inventează o disciplină când nimic nu se potrivește pe treaptă — păstrează ora ca text', function () {
     // „Chimie" există DOAR pentru treptele mari; clasa e a treia.
     Subject::factory()->create(['name' => 'Chimie', 'min_grade' => 7, 'max_grade' => 12]);
 
@@ -73,8 +73,14 @@ it('nu inventează o disciplină când nimic nu se potrivește pe treaptă — s
         ->expectsOutputToContain('Celule nerezolvate')
         ->assertSuccessful();
 
-    // Un fallback pe nume „ca să nu se piardă slotul" ar reintroduce exact bug-ul tăcut.
-    expect(Lesson::query()->where('school_class_id', $clasaMica->id)->count())->toBe(0);
+    $lesson = Lesson::query()->where('school_class_id', $clasaMica->id)->sole();
+
+    // Ora rămâne în orar (altfel ar dispărea de pe site, care se generează din sloturi), dar FĂRĂ
+    // disciplină: un fallback pe nume „ca să nu se piardă slotul" ar lega ora clasei a treia de
+    // fișa altui ciclu — exact bug-ul tăcut de la care a pornit toată verificarea.
+    expect($lesson->subject_id)->toBeNull()
+        ->and($lesson->title)->toBe('Chimie')
+        ->and($lesson->teacher_name)->toBe('Cociurca N.');
 });
 
 it('recunoaște denumirea colocvială din orar prin alias, dar nu peste una reală', function () {
@@ -93,14 +99,14 @@ it('recunoaște denumirea colocvială din orar prin alias, dar nu peste una real
         ->and($byDay[Weekday::Tuesday->value])->toBe($straina2->id);
 });
 
-it('două grupe cu limbi diferite sunt ACEEAȘI disciplină, nu un slot mixt', function () {
+it('două grupe cu limbi diferite rămân ACEEAȘI disciplină; două discipline reale se separă pe grupe', function () {
     $straina2 = Subject::factory()->create(['name' => 'Limba străină 2', 'min_grade' => 5, 'max_grade' => 12]);
     Subject::factory()->create(['name' => 'Informatică', 'min_grade' => 5, 'max_grade' => 12]);
 
     $class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 10]);
     publishedTimetable($class, [
         'Limba franceză , Golban O. (s. 28) Limba germană , Arhip S.',
-        // Aici sunt însă DOUĂ discipline reale — nereprezentabil într-un singur slot.
+        // Aici sunt DOUĂ discipline reale — separabile de când grupa face parte din slot.
         'Limba străină 2 , gr.1 Informatică , gr.2, Iurco M.',
     ]);
 
@@ -108,9 +114,19 @@ it('două grupe cu limbi diferite sunt ACEEAȘI disciplină, nu un slot mixt', f
 
     $lessons = Lesson::query()->where('school_class_id', $class->id)->get();
 
-    expect($lessons)->toHaveCount(1)
-        ->and($lessons->first()->subject_id)->toBe($straina2->id)
-        ->and($lessons->first()->day_of_week)->toBe(Weekday::Monday);
+    // Luni: franceza și germana sunt cele două grupe ale aceleiași discipline, scrise fără „gr." —
+    // un singur slot, cu textul original păstrat pentru site și legătura la fișă pentru calcule.
+    $monday = $lessons->where('day_of_week', Weekday::Monday);
+
+    expect($monday)->toHaveCount(1)
+        ->and($monday->first()->subject_id)->toBe($straina2->id)
+        ->and($monday->first()->title)->toContain('Limba germană');
+
+    // Marți: discipline diferite, dar grupele le disting → două sloturi, fiecare cu fișa lui.
+    $tuesday = $lessons->where('day_of_week', Weekday::Tuesday);
+
+    expect($tuesday)->toHaveCount(2)
+        ->and($tuesday->pluck('student_group')->sort()->values()->all())->toBe(['1', '2']);
 });
 
 it('o disciplină al cărei nume e cuprins în alta nu strică detecția grupelor', function () {
@@ -122,7 +138,7 @@ it('o disciplină al cărei nume e cuprins în alta nu strică detecția grupelo
     $class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 7]);
     publishedTimetable($class, [
         'Educație fizică , gr.1, Dumitraș V. (s. 1) Educație fizică , gr.2, Dumitraș V.',
-        // Invers: pornit cu disciplina scurtă, continuat cu cea lungă — chiar e slot mixt.
+        // Invers: pornit cu disciplina scurtă, continuat cu cea lungă — discipline chiar diferite.
         'Fizică , gr.1 Educație fizică , gr.2, Dumitraș V.',
     ]);
 
@@ -130,8 +146,12 @@ it('o disciplină al cărei nume e cuprins în alta nu strică detecția grupelo
 
     $lessons = Lesson::query()->where('school_class_id', $class->id)->get();
 
-    expect($lessons)->toHaveCount(1)
-        ->and($lessons->first()->subject_id)->toBe($educatieFizica->id);
+    // Fiecare celulă dă două sloturi (câte unul pe grupă); luni ambele au aceeași fișă, marți nu.
+    expect($lessons)->toHaveCount(4)
+        ->and($lessons->where('day_of_week', Weekday::Monday)->pluck('subject_id')->unique()->all())
+        ->toBe([$educatieFizica->id])
+        ->and($lessons->where('day_of_week', Weekday::Tuesday)->pluck('subject_id')->unique())
+        ->toHaveCount(2);
 });
 
 it('majusculele din orar nu pierd disciplina', function () {

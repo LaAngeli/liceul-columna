@@ -146,14 +146,9 @@ it('scriitorul primește scheletul cu celule libere pre-completate; cititorul do
 it('orele vin din orarul PUBLICAT al clasei, iar „Acum" se calculează din ele', function () {
     gridUser(UserRole::AdministratorOperational);
 
-    Lesson::factory()->create([
-        'school_class_id' => $this->class->id,
-        'academic_year_id' => $this->year->id,
-        'subject_id' => $this->subject->id,
-        'day_of_week' => Weekday::Monday,
-        'lesson_number' => 1,
-    ]);
-
+    // Orarul publicat ÎNTÂI: de la inversarea lanțului, un slot nou republică tabelul clasei, iar
+    // dacă tabelul nu există încă, îl CREEAZĂ. Creat după slot, ar fi ajuns al doilea tabel al
+    // aceleiași clase — o situație pe care nimic nu o produce în uz real.
     Schedule::factory()->create([
         'type' => ScheduleType::Lessons,
         'is_public' => true,
@@ -165,6 +160,14 @@ it('orele vin din orarul PUBLICAT al clasei, iar „Acum" se calculează din ele
             // Rând fără ore în etichetă — se ignoră fără eroare.
             ['Pauză mare', ''],
         ],
+    ]);
+
+    Lesson::factory()->create([
+        'school_class_id' => $this->class->id,
+        'academic_year_id' => $this->year->id,
+        'subject_id' => $this->subject->id,
+        'day_of_week' => Weekday::Monday,
+        'lesson_number' => 1,
     ]);
 
     // Luni, 08:30 ÎN FUSUL ȘCOLII — orele orarului sunt locale de Chișinău, iar comparația se face

@@ -861,6 +861,10 @@ return [
             'headers_hint' => 'E.g.:  | Mon | Tue | Wed | Thu | Fri',
             'rows' => 'Rows (one row per line; cells separated by "|")',
             'rows_hint' => 'Each line = one row. E.g.:  Period 1 | Math | English | Physics | Chemistry | Biology',
+            'website_role' => 'These tables are what the website shows, on the „Calendar" page, in the section for their type — but only those with „Published on the site" ticked. One exception: the lesson timetable is not written here, it is generated from „Structured timetable".',
+            'generated_title' => 'Table generated from „Structured timetable"',
+            'generated_body' => 'The „Period N" rows are composed from the class slots and get rewritten on every change made in „Structured timetable" — edited here, they are lost. Yours to set: the title, the order, publishing, and the day-programme rows (breaks, lunch, after-school), which slots do not describe.',
+            'generated_link' => 'Open „Structured timetable"',
             'updated_at' => 'Updated',
         ],
         'lesson' => [
@@ -890,6 +894,9 @@ return [
             'teacher_groups' => 'The subject is taught in groups in this class: :teachers — pick the group’s teacher.',
             'teacher_unassigned' => 'No teaching assignment for this (class, subject) pair — choose manually or leave empty.',
             'slots_full' => 'All 8 periods of this day are already taken for the chosen class.',
+            'student_group' => 'Group',
+            'student_group_hint' => 'Only if the lesson is taught in groups (foreign languages, IT). Empty = the whole class.',
+            'website_role' => 'This is where the school lesson timetable is written. On every change, the class table in „Timetables" is recomposed automatically and reaches the website (the „Calendar" page) and the student cabinet in that form. Do not edit the lesson timetable directly in „Timetables" — it is rewritten from here.',
         ],
         'corigenta_session' => [
             'year' => 'Year',

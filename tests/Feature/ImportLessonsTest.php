@@ -36,7 +36,7 @@ function lessonsSchedule(SchoolClass $class): Schedule
     ]);
 }
 
-it('importă sloturile certe, sare grupele mixte și rândurile non-lecție; e idempotentă', function () {
+it('importă fiecare celulă integral — grupele ca sloturi distincte, restul ca text; e idempotentă', function () {
     $year = AcademicYear::factory()->create();
     // Treaptă FIXĂ: importul rezolvă disciplina pe intervalul de trepte al fișei, iar
     // SubjectFactory acoperă 5-12. Cu treapta aleatorie a factory-ului de clasă (1-12), o clasă
@@ -54,18 +54,33 @@ it('importă sloturile certe, sare grupele mixte și rândurile non-lecție; e i
 
     $slots = Lesson::query()->where('school_class_id', $class->id)->get();
 
-    // 3 sloturi certe: Matematică (luni L1, cu sală), Ed. fizică (marți L1, sedile normalizate),
-    // Limba engleză pe 2 grupe = aceeași disciplină (luni L2). Mixtul Informatică/engleză se sare.
-    expect($slots)->toHaveCount(3)
+    // De când orarul publicat se GENEREAZĂ din sloturi, importul nu mai are voie să sară celule:
+    // ce nu intră aici dispare de pe site. Rezultă 6 sloturi — două lecții simple (luni/marți L1)
+    // plus câte două pe grupe, în ambele celule de la L2, inclusiv cea cu discipline diferite.
+    expect($slots)->toHaveCount(6)
         ->and($slots->firstWhere('lesson_number', 1)?->subject_id)->toBe($math->id)
         ->and($slots->firstWhere('lesson_number', 1)?->room)->toBe('20')
-        ->and($slots->where('day_of_week', Weekday::Tuesday)->first()?->subject_id)->toBe($pe->id)
-        ->and($slots->where('lesson_number', 2)->first()?->subject_id)->toBe($english->id)
-        ->and($slots->where('lesson_number', 2)->first()?->day_of_week)->toBe(Weekday::Monday);
+        ->and($slots->where('day_of_week', Weekday::Tuesday)->first()?->subject_id)->toBe($pe->id);
+
+    // Aceeași disciplină pe două grupe: două sloturi distincte, cu grupa ca discriminator.
+    $monday = $slots->where('lesson_number', 2)->where('day_of_week', Weekday::Monday);
+
+    expect($monday)->toHaveCount(2)
+        ->and($monday->pluck('student_group')->sort()->values()->all())->toBe(['1', '2'])
+        ->and($monday->pluck('subject_id')->unique()->all())->toBe([$english->id])
+        // Numele scris în orar se păstrează, chiar și potrivit cu o fișă: „Pascaru M." nu e
+        // același lucru cu ce s-ar deriva dintr-o fișă omonimă.
+        ->and($monday->firstWhere('student_group', '1')?->teacher_name)->toBe('Pascaru M.');
+
+    // Grupe cu discipline DIFERITE: nu se mai sar — grupa le separă în sloturi proprii.
+    $tuesday = $slots->where('lesson_number', 2)->where('day_of_week', Weekday::Tuesday);
+
+    expect($tuesday)->toHaveCount(2)
+        ->and($tuesday->pluck('student_group')->sort()->values()->all())->toBe(['1', '2']);
 
     // Idempotență: re-rularea cu --force nu duplică sloturile.
     $this->artisan('app:import-lessons --force')->assertSuccessful();
-    expect(Lesson::query()->where('school_class_id', $class->id)->count())->toBe(3);
+    expect(Lesson::query()->where('school_class_id', $class->id)->count())->toBe(6);
 });
 
 it('clasa cu orar structurat introdus deja NU e atinsă fără --force', function () {

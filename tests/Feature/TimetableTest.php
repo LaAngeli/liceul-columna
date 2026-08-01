@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\ComputeDeferralRisk;
+use App\Actions\PublishClassTimetable;
 use App\Enums\UserRole;
 use App\Enums\Weekday;
 use App\Models\Absence;
@@ -50,13 +51,16 @@ it('cabinetul afișează orarul structurat al clasei elevului (fallback fără o
     $student = Student::factory()->create();
     Enrollment::factory()->for($student)->for($class)->for($year)->create();
 
-    Lesson::factory()->create([
+    // Fără publicare automată: un slot creat normal ÎȘI compune tabelul publicat, iar cabinetul ar
+    // citi atunci sursa „published". Fallback-ul pe structurat rămâne pentru clasele al căror tabel
+    // lipsește — exact ce se verifică aici.
+    PublishClassTimetable::withoutAutoPublish(fn () => Lesson::factory()->create([
         'academic_year_id' => $year->id,
         'school_class_id' => $class->id,
         'subject_id' => $subject->id,
         'day_of_week' => Weekday::Monday,
         'lesson_number' => 1,
-    ]);
+    ]));
 
     $parent = User::factory()->create();
     $parent->assignRole(UserRole::Parinte->value);

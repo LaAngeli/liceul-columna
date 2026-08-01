@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\PublishClassTimetable;
 use App\Enums\ScheduleType;
 use App\Enums\Weekday;
 use App\Models\AcademicYear;
@@ -145,14 +146,17 @@ it('fără orar publicat cade pe structurat; fără niciunul → null', function
 
     expect(parser()->forClass($class))->toBeNull();
 
-    Lesson::factory()->create([
+    // Publicarea automată suspendată: în uz real un slot nou ÎȘI creează tabelul publicat, deci
+    // fallback-ul pe structurat rămâne pentru cazurile în care tabelul lipsește (orar nepublicat,
+    // date importate direct). Aici tocmai acela se testează.
+    PublishClassTimetable::withoutAutoPublish(fn () => Lesson::factory()->create([
         'academic_year_id' => $year->id,
         'school_class_id' => $class->id,
         'subject_id' => $subject->id,
         'day_of_week' => Weekday::Tuesday,
         'lesson_number' => 3,
         'room' => '7',
-    ]);
+    ]));
 
     $weekly = parser()->forClass($class->fresh());
 

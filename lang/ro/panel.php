@@ -874,6 +874,10 @@ return [
             'headers_hint' => 'Ex.:  | Luni | Marți | Miercuri | Joi | Vineri',
             'rows' => 'Rânduri (un rând pe linie; celulele se separă prin „|")',
             'rows_hint' => 'Fiecare linie = un rând. Ex.:  Lecția 1 | Matematică | Limba română | Fizică | Chimie | Biologie',
+            'website_role' => 'Aceste tabele sunt cele afișate pe website, la pagina „Calendar", în secțiunea tipului lor — dar numai cele cu „Publicat pe site" bifat. O singură excepție: orarul lecțiilor nu se scrie aici, ci în „Orar structurat", de unde se generează.',
+            'generated_title' => 'Tabel generat din „Orar structurat"',
+            'generated_body' => 'Rândurile „Lecția N" sunt compuse din sloturile clasei și se rescriu la fiecare modificare făcută în „Orar structurat" — modificate aici, se pierd. Rămân ale dumneavoastră: titlul, ordinea, publicarea și rândurile de program (pauze, dejun, program prelungit), pe care sloturile nu le descriu.',
+            'generated_link' => 'Deschideți „Orar structurat"',
             'updated_at' => 'Actualizat',
         ],
         'lesson' => [
@@ -903,6 +907,9 @@ return [
             'teacher_groups' => 'Disciplina se predă pe grupe la această clasă: :teachers — alegeți profesorul grupei.',
             'teacher_unassigned' => 'Nicio alocare didactică pentru această pereche (clasă, disciplină) — alegeți manual sau lăsați gol.',
             'slots_full' => 'Toate cele 8 lecții ale acestei zile sunt deja ocupate pentru clasa aleasă.',
+            'student_group' => 'Grupa',
+            'student_group_hint' => 'Doar dacă ora se ține pe grupe (limbi străine, informatică). Gol = toată clasa.',
+            'website_role' => 'Aici se scrie orarul de lecții al școlii. La fiecare modificare, tabelul clasei din „Orare" se recompune automat și ajunge așa pe website (pagina „Calendar") și în cabinetul elevilor. Nu modificați orarul lecțiilor direct în „Orare" — se rescrie de aici.',
         ],
         'corigenta_session' => [
             'year' => 'An',

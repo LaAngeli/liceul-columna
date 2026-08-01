@@ -2,27 +2,37 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\PublishClassTimetable;
 use App\Enums\ScheduleType;
 use App\Enums\Weekday;
 use App\Models\Lesson;
 use App\Models\Schedule;
 use App\Models\Subject;
+use App\Models\Teacher;
+use App\Support\WeeklySchedule;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\App;
 
 /**
- * Populează orarul STRUCTURAT (Lesson) din orarele PUBLICATE ale claselor (best-effort, calendar
- * v3): fără el, riscul de amânare (spec §2.1 — lecții programate/săptămână) nu se poate calcula.
- * Se parsează doar ce e cert:
- *   • rândurile cu eticheta „Lecția N" (rândurile de program prelungit/pauze se sar natural);
- *   • coloanele ale căror antete sunt zile de școală (Luni–Sâmbătă);
- *   • celulele care ÎNCEP cu o disciplină VALABILĂ PE TREAPTA CLASEI (normalizare ş/ţ→ș/ț și
- *     minuscule; cel mai lung prefix câștigă); sala se extrage din „(s. NN)";
- *   • celulele pe grupe se importă doar dacă TOATE grupele fac aceeași disciplină — un slot cu
- *     discipline diferite pe grupe nu se poate reprezenta în modelul actual și se sare.
- * Profesorul rămâne null (numele din celule sunt prescurtate — maparea ar fi nesigură).
- * Ce nu s-a putut rezolva se RAPORTEAZĂ la final, grupat: o celulă pierdută în tăcere e exact ce a
- * ascuns luni de zile legarea lecțiilor de fișa altui ciclu.
- * Clasele care AU deja orar structurat se sar (protejăm intrările manuale); `--force` le rescrie.
+ * MIGRAREA orarelor scrise ca text în orarul STRUCTURAT (Lesson) — pasul unic prin care lanțul se
+ * inversează: de aici înainte sloturile sunt sursa, iar tabelul publicat pe site se GENEREAZĂ din
+ * ele ({@see PublishClassTimetable}).
+ *
+ * Pentru că orarul publicat nu mai e scris de om, importul nu mai are voie să piardă nimic din ce
+ * se vedea pe site. De aceea celula se ia INTEGRAL, prin segmentarea deja folosită la afișare
+ * ({@see WeeklySchedule::parseCell}), iar fiecare parte are unde să aterizeze:
+ *   • grupele („gr.1"/„gr.2") → sloturi distincte pe aceeași oră (coloana `student_group`);
+ *   • disciplina → `subject_id` dacă e în nomenclatorul TREPTEI, altfel `title` (orarele conțin
+ *     și ore care nu sunt discipline: „Managementul clasei", „Consultații…");
+ *   • profesorul → fișa reală dacă numele prescurtat („Buga A.") o identifică univoc, altfel
+ *     `teacher_name` (trei persoane din orare nu au încă fișă — numele lor rămâne pe site);
+ *   • sala → `room`.
+ * Un singur caz rămâne nestructurabil și e tratat explicit: mai multe discipline în aceeași celulă
+ * FĂRĂ grupe care să le separe. Acolo nu există structură de descoperit, deci celula intră ca UN
+ * slot cu textul ei — fidel, chiar dacă nu analizabil. Nimic nu se sare în tăcere.
+ *
+ * Rândurile fără etichetă „Lecția N" (pauze, program prelungit) nu sunt sloturi. Clasele care AU
+ * deja orar structurat se sar, ca să nu calce peste intrările manuale; `--force` le rescrie.
  */
 class ImportLessonsFromSchedules extends Command
 {
@@ -58,17 +68,26 @@ class ImportLessonsFromSchedules extends Command
     /** @var array<int, array<string, int>> treaptă → (nume normalizat → id disciplină) */
     private array $subjectsByGrade = [];
 
-    /** @var list<string> nume din nomenclator + aliasuri, normalizate, cele mai lungi întâi */
-    private array $allNames = [];
-
-    /** @var array<string, string> nume → denumirea canonică (aliasul se rezolvă la ținta lui) */
-    private array $canonicalNames = [];
+    /** @var array<int, string> id disciplină → denumirea din nomenclator */
+    private array $subjectNames = [];
 
     /** @var array<string, int> celulă (prescurtată) → de câte ori n-a putut fi rezolvată */
     private array $unresolved = [];
 
+    /** @var array<string, list<array{id: int, first: string}>> nume de familie normalizat → fișe */
+    private array $teachersByLastName = [];
+
+    public function __construct(private readonly WeeklySchedule $weekly)
+    {
+        parent::__construct();
+    }
+
     public function handle(): int
     {
+        // Segmentarea trece prin ContentTranslator (traduce disciplina în limba activă). La import
+        // avem nevoie de forma din nomenclator, deci de română — indiferent de locale-ul din config.
+        App::setLocale('ro');
+
         $only = (string) ($this->option('only') ?? '');
 
         $schedules = Schedule::query()
@@ -92,6 +111,7 @@ class ImportLessonsFromSchedules extends Command
         }
 
         $this->loadNomenclature();
+        $this->loadTeachers();
 
         $totalImported = 0;
 
@@ -114,56 +134,40 @@ class ImportLessonsFromSchedules extends Command
                 Lesson::query()->where('school_class_id', $class->id)->delete();
             }
 
-            [$imported, $skipped] = $this->importSchedule($schedule);
+            // Publicarea automată se SUSPENDĂ pe durata importului — nu din motive de viteză, ci de
+            // corectitudine: sursa citită aici e chiar tabelul pe care publicarea l-ar rescrie.
+            // Regenerarea rămâne un pas separat și deliberat (`app:publish-timetables`), rulat după
+            // ce diferențele au fost verificate.
+            [$imported, $unstructured] = PublishClassTimetable::withoutAutoPublish(
+                fn (): array => $this->importSchedule($schedule),
+            );
             $totalImported += $imported;
 
             $this->info(sprintf(
-                '%s: %d sloturi importate, %d celule sărite.',
+                '%s: %d sloturi, din care %d ca text nestructurat.',
                 trim($class->name.' '.($class->section ?? '')),
                 $imported,
-                $skipped,
+                $unstructured,
             ));
         }
 
         $this->info("Total: {$totalImported} sloturi.");
         $this->reportUnresolved();
+        $this->newLine();
+        $this->comment('Orarele publicate NU au fost atinse. Regenerează-le cu `app:publish-timetables`.');
 
         return self::SUCCESS;
     }
 
     /**
-     * Nomenclatorul, în două forme cu roluri DIFERITE:
-     *   • `subjectsByGrade` — pentru SELECȚIE: doar fișele valabile pe treapta clasei. Zece denumiri
-     *     există în câte 2-3 fișe, una per ciclu („Matematică" [1-4] și [5-12]); o hartă globală
-     *     nume→id păstrează una singură și leagă tăcut lecțiile de a XII-a de fișa ciclului primar
-     *     (starea găsită în producție: 219 din 507 lecții). Pe o treaptă dată denumirile sunt unice.
-     *   • `allNames` — pentru DETECȚIA grupelor mixte: numele întregului nomenclator, indiferent de
-     *     treaptă. Garda trebuie să recunoască prezența unei a doua discipline chiar dacă aceasta nu
-     *     e valabilă pe treapta clasei, altfel slotul mixt intră ca și cum ar fi fost simplu.
+     * `subjectsByGrade` — doar fișele valabile pe treapta clasei. Zece denumiri există în câte 2-3
+     * fișe, una per ciclu („Matematică" [1-4] și [5-12]); o hartă globală nume→id păstrează una
+     * singură și leagă tăcut lecțiile de a XII-a de fișa ciclului primar (starea găsită în
+     * producție: 219 din 507 lecții). Pe o treaptă dată denumirile sunt unice.
      */
     private function loadNomenclature(): void
     {
         $subjects = Subject::query()->get(['id', 'name', 'min_grade', 'max_grade']);
-
-        $names = $subjects
-            ->map(fn (Subject $subject): string => self::normalize($subject->name))
-            ->unique()
-            ->values()
-            ->all();
-
-        foreach ($names as $name) {
-            $this->canonicalNames[$name] = $name;
-        }
-
-        foreach (self::ALIASES as $alias => $target) {
-            $this->canonicalNames[$alias] = $target;
-            $names[] = $alias;
-        }
-
-        // Cele mai LUNGI întâi: prefix-match corect („Limba engleză (opț)" înaintea lui „Limba
-        // engleză"), iar la scanarea restului celulei numele scurt cuprins în altul nu-l fură.
-        usort($names, fn (string $a, string $b): int => strlen($b) <=> strlen($a));
-        $this->allNames = $names;
 
         foreach (range(1, 12) as $grade) {
             $forGrade = $subjects
@@ -175,6 +179,7 @@ class ImportLessonsFromSchedules extends Command
 
             foreach ($forGrade as $subject) {
                 $map[self::normalize($subject->name)] ??= $subject->id;
+                $this->subjectNames[$subject->id] = $subject->name;
             }
 
             // Aliasul intră doar dacă ținta lui e valabilă pe treaptă — și doar dacă nu calcă peste
@@ -217,7 +222,7 @@ class ImportLessonsFromSchedules extends Command
     }
 
     /**
-     * @return array{0: int, 1: int} [importate, sărite]
+     * @return array{0: int, 1: int} [sloturi scrise, celule intrate ca text nestructurat]
      */
     private function importSchedule(Schedule $schedule): array
     {
@@ -234,7 +239,7 @@ class ImportLessonsFromSchedules extends Command
         $days = $this->dayColumns(array_values($schedule->headers));
 
         $imported = 0;
-        $skipped = 0;
+        $unstructured = 0;
 
         foreach ($schedule->rows as $row) {
             $row = array_values($row);
@@ -254,34 +259,189 @@ class ImportLessonsFromSchedules extends Command
                     continue;
                 }
 
-                $slot = $this->parseCell($cell, $subjects);
+                $slots = $this->slotsFromCell($cell, $subjects);
 
-                if ($slot === null) {
-                    $skipped++;
+                if (count($slots) === 1 && $slots[0]['subject_id'] === null) {
+                    $unstructured++;
                     $key = mb_substr(preg_replace('/\s+/u', ' ', $cell) ?? $cell, 0, 60);
                     $this->unresolved[$key] = ($this->unresolved[$key] ?? 0) + 1;
-
-                    continue;
                 }
 
-                Lesson::query()->updateOrCreate(
-                    [
-                        'school_class_id' => $class->id,
-                        'academic_year_id' => $class->academic_year_id,
-                        'day_of_week' => $weekday,
-                        'lesson_number' => $lessonNumber,
-                    ],
-                    [
-                        'subject_id' => $slot['subject_id'],
-                        'teacher_id' => null,
-                        'room' => $slot['room'],
-                    ],
-                );
-                $imported++;
+                foreach ($slots as $slot) {
+                    Lesson::query()->updateOrCreate(
+                        [
+                            'school_class_id' => $class->id,
+                            'academic_year_id' => $class->academic_year_id,
+                            'day_of_week' => $weekday,
+                            'lesson_number' => $lessonNumber,
+                            'student_group' => $slot['student_group'],
+                        ],
+                        [
+                            'subject_id' => $slot['subject_id'],
+                            'title' => $slot['title'],
+                            'teacher_id' => $slot['teacher_id'],
+                            'teacher_name' => $slot['teacher_name'],
+                            'room' => $slot['room'],
+                        ],
+                    );
+                    $imported++;
+                }
             }
         }
 
-        return [$imported, $skipped];
+        return [$imported, $unstructured];
+    }
+
+    /**
+     * O celulă → sloturile ei. Segmentarea e cea de la AFIȘARE (sursă unică de adevăr pentru „ce
+     * scrie în celulă"), ca importul și cabinetul să nu poată diverge în interpretare.
+     *
+     * Mai multe segmente se pot păstra separate doar dacă grupele le disting — indexul unic e pe
+     * (clasă, an, zi, oră, grupă). Două discipline în aceeași celulă fără grupe n-au cum să ocupe
+     * ambele slotul, așa că celula intră ÎNTREAGĂ ca text: pierderea ar fi fost tăcută, textul nu e.
+     *
+     * @param  array<string, int>  $subjects  denumiri valabile pe treaptă (normalizate)
+     * @return list<array{student_group: string, subject_id: int|null, title: string|null, teacher_id: int|null, teacher_name: string|null, room: string|null}>
+     */
+    private function slotsFromCell(string $cell, array $subjects): array
+    {
+        $parsed = $this->weekly->parseCell($cell);
+        $segments = $parsed['segments'];
+
+        $groups = array_map(
+            static fn (array $segment): string => self::groupKey($segment['group']),
+            $segments,
+        );
+
+        $distinctGroups = count(array_unique($groups)) === count($groups);
+
+        // Segmentarea a eșuat dacă ce a rămas ca denumire mai poartă structură — o a doua grupă, o a
+        // doua sală, un al doilea nume. Se întâmplă când celula conține o disciplină ABSENTĂ din
+        // nomenclator („Robotică"), pe care parserul nu are cum s-o vadă ca graniță. Fără această
+        // verificare, disciplina negăsită rămânea lipită de prima, iar generarea adăuga peste ea
+        // încă o dată grupa, profesorul și sala.
+        $residue = array_filter(
+            $segments,
+            static fn (array $segment): bool => preg_match('/\bgr\.|\(s\.|\p{Lu}[\p{L}\'’\-]+\s+\p{Lu}\p{Ll}{0,2}\./u', $segment['subject']) === 1,
+        );
+
+        if ((count($segments) > 1 && ! $distinctGroups) || $residue !== []) {
+            // Celula intră ca text — dar dacă toate bucățile ei duc la ACEEAȘI disciplină, legătura
+            // se păstrează: „Limba franceză … Limba germană" sunt cele două grupe ale disciplinei
+            // „Limba străină 2", iar fără `subject_id` orele acelea ar dispărea din numitorul
+            // riscului de amânare. Textul rămâne cel original, deci afișarea nu se schimbă.
+            $ids = array_map(
+                fn (array $segment): ?int => $this->matchSubject($segment['subject'], $subjects)[0],
+                $segments,
+            );
+            $unique = array_values(array_unique(array_filter($ids, is_int(...))));
+
+            return [[
+                'student_group' => '',
+                'subject_id' => count($unique) === 1 && count($ids) === count(array_filter($ids, is_int(...)))
+                    ? $unique[0]
+                    : null,
+                // Sala NU se extrage separat aici: textul brut o poartă deja (uneori pe mai multe,
+                // câte una per disciplină), iar adăugată din nou ar apărea de două ori pe site.
+                'title' => $parsed['raw'],
+                'teacher_id' => null,
+                'teacher_name' => null,
+                'room' => null,
+            ]];
+        }
+
+        $slots = [];
+
+        foreach ($segments as $index => $segment) {
+            [$subjectId, $subjectName] = $this->matchSubject($segment['subject'], $subjects);
+            $label = trim($segment['subject']);
+            $teacher = trim((string) $segment['teacher']);
+
+            $slots[] = [
+                'student_group' => $groups[$index],
+                'subject_id' => $subjectId,
+                // Eticheta se păstrează doar când spune ALTCEVA decât fișa: „Limba germană" pentru
+                // fișa „Limba străină 2", „Limba română" pentru „Limba și literatura română".
+                // Identică cu fișa, ar fi doar o copie care se învechește la prima redenumire.
+                'title' => $subjectName !== null && self::normalize($label) === self::normalize($subjectName)
+                    ? null
+                    : $label,
+                'teacher_id' => $this->matchTeacher($segment['teacher']),
+                'teacher_name' => $teacher !== '' ? $teacher : null,
+                'room' => $parsed['room'],
+            ];
+        }
+
+        return $slots;
+    }
+
+    /** „gr. 1" → „1"; fără grupă → șirul gol (santinela indexului unic). */
+    private static function groupKey(?string $group): string
+    {
+        if ($group === null) {
+            return '';
+        }
+
+        return preg_match('/(\d+|[IVX]+)/u', $group, $m) === 1 ? $m[1] : '';
+    }
+
+    /**
+     * Denumirea din celulă → fișa de disciplină a TREPTEI. Fără fallback pe alte trepte: a lega
+     * lecția de fișa altui ciclu „ca să nu se piardă" e bug-ul tăcut reparat în LOT 6.
+     *
+     * @param  array<string, int>  $subjects
+     * @return array{0: int|null, 1: string|null} [id fișă, denumirea potrivită]
+     */
+    private function matchSubject(string $name, array $subjects): array
+    {
+        $normalized = self::normalize(trim($name));
+
+        if ($normalized === '') {
+            return [null, null];
+        }
+
+        // Potrivire exactă întâi; apoi prefix (celula poate purta un sufix: „Matematică opțional").
+        // Se întoarce numele REAL al fișei, nu cheia potrivită: cheile includ aliasurile („limba
+        // română" → fișa „Limba și literatura română"), iar comparând cu aliasul ar ieși că eticheta
+        // coincide cu fișa și denumirea din orar s-ar pierde.
+        if (isset($subjects[$normalized])) {
+            return [$subjects[$normalized], $this->subjectNames[$subjects[$normalized]] ?? null];
+        }
+
+        foreach ($subjects as $candidate => $id) {
+            if (str_starts_with($normalized, $candidate)) {
+                return [$id, $this->subjectNames[$id] ?? null];
+            }
+        }
+
+        return [null, null];
+    }
+
+    /**
+     * Numele prescurtat din orar („Buga A.", „Bujor-Cobili C.") → fișa de profesor.
+     *
+     * Se acceptă DOAR potrivirea univocă: nume de familie identic (sau ultimul segment al unui nume
+     * compus) ȘI prenumele care începe cu inițiala scrisă. Doi omonimi cu aceeași inițială → nu se
+     * alege niciunul. Măsurat pe orarele reale: 601 din 712 apariții se rezolvă univoc, zero
+     * ambigue; restul sunt persoane fără fișă în sistem — pe site rămân prin `teacher_name`.
+     */
+    private function matchTeacher(?string $label): ?int
+    {
+        $label = trim((string) $label);
+
+        if ($label === '' || preg_match('/^(\p{L}[\p{L}\'’\-]*)\s+(\p{L})/u', $label, $m) !== 1) {
+            return null;
+        }
+
+        $lastName = self::normalize($m[1]);
+        $initial = self::normalize($m[2]);
+
+        $matching = array_values(array_filter(
+            $this->teachersByLastName[$lastName] ?? [],
+            static fn (array $teacher): bool => str_starts_with($teacher['first'], $initial),
+        ));
+
+        return count($matching) === 1 ? $matching[0]['id'] : null;
     }
 
     /**
@@ -318,94 +478,27 @@ class ImportLessonsFromSchedules extends Command
     }
 
     /**
-     * O celulă → slot, doar dacă e CERTĂ: începe cu o disciplină valabilă PE TREAPTA CLASEI, iar
-     * dacă are grupe, toate grupele fac ACEEAȘI disciplină. Sala = primul „(s. NN)".
-     *
-     * Fără fallback pe nume când nimic nu se potrivește pe treaptă: a lega celula de fișa altui
-     * ciclu „ca să nu se piardă slotul" e exact bug-ul tăcut reparat aici. Celula se sare și se
-     * raportează.
-     *
-     * @param  array<string, int>  $subjects  numele valabile pe treaptă (normalizate), lungi întâi
-     * @return array{subject_id: int, room: string|null}|null
+     * Fișele de profesor indexate pe numele de familie — și pe ULTIMUL segment al numelor compuse:
+     * orarele scriu „Cobili C." pentru fișa „Bujor-Cobili Carolina" (23 de apariții pe date reale).
      */
-    private function parseCell(string $cell, array $subjects): ?array
+    private function loadTeachers(): void
     {
-        $normalized = self::normalize($cell);
+        foreach (Teacher::query()->get(['id', 'last_name', 'first_name']) as $teacher) {
+            $entry = ['id' => $teacher->id, 'first' => self::normalize($teacher->first_name)];
+            $last = self::normalize($teacher->last_name);
 
-        $matchedId = null;
-        $matchedName = null;
+            $this->teachersByLastName[$last][] = $entry;
 
-        foreach ($subjects as $name => $id) {
-            if (str_starts_with($normalized, $name)) {
-                $matchedId = $id;
-                $matchedName = $name;
+            $segments = preg_split('/[\s\-]+/u', $last) ?: [];
 
-                break; // numele sunt sortate descrescător — primul match e cel mai lung
-            }
-        }
+            if (count($segments) > 1) {
+                $tail = (string) end($segments);
 
-        if ($matchedId === null || $matchedName === null) {
-            return null;
-        }
-
-        if ($this->hasOtherSubject(substr($normalized, strlen($matchedName)), $matchedName)) {
-            return null;
-        }
-
-        preg_match('/\(s\.\s*([^)]+)\)/u', $cell, $room);
-
-        return [
-            'subject_id' => $matchedId,
-            'room' => isset($room[1]) ? trim($room[1]) : null,
-        ];
-    }
-
-    /**
-     * Restul celulei conține o disciplină DIFERITĂ de cea deja identificată?
-     *
-     * Scanare stânga→dreapta care consumă, la fiecare poziție, CEL MAI LUNG nume care se potrivește
-     * — nu `str_contains` peste tot restul. Două denumiri din nomenclator se cuprind una pe alta
-     * („Fizică" ⊂ „Educație fizică", „Geografie" ⊂ „Geografie aplicată"), iar căutarea naivă le
-     * confunda în ambele sensuri: „Educație fizică gr.1 / Educație fizică gr.2" era respinsă ca slot
-     * mixt (găsea „Fizică" în a doua apariție a ACELEIAȘI discipline), iar un slot pornit cu
-     * „Fizică" și continuat cu „Educație fizică" trecea drept simplu. Consumând cel mai lung nume,
-     * a doua apariție a disciplinei proprii se sare întreagă, iar una străină se vede întreagă.
-     *
-     * @param  string  $rest  restul celulei, normalizat
-     * @param  string  $matched  numele deja identificat, normalizat
-     */
-    private function hasOtherSubject(string $rest, string $matched): bool
-    {
-        $length = strlen($rest);
-        $position = 0;
-
-        while ($position < $length) {
-            $found = null;
-
-            foreach ($this->allNames as $name) {
-                if (str_starts_with(substr($rest, $position), $name)) {
-                    $found = $name;
-
-                    break; // sortate descrescător după lungime — primul e cel mai lung
+                if ($tail !== '' && $tail !== $last) {
+                    $this->teachersByLastName[$tail][] = $entry;
                 }
             }
-
-            if ($found === null) {
-                $position++;
-
-                continue;
-            }
-
-            // Comparație pe denumirea CANONICĂ: „Limba franceză" și „Limba germană" sunt cele două
-            // grupe ale aceleiași discipline („Limba străină 2"), nu un slot mixt.
-            if (($this->canonicalNames[$found] ?? $found) !== ($this->canonicalNames[$matched] ?? $matched)) {
-                return true;
-            }
-
-            $position += strlen($found);
         }
-
-        return false;
     }
 
     /** Diacriticele legacy cu sedilă (ş/ţ) → forma standard cu virgulă (ș/ț). */

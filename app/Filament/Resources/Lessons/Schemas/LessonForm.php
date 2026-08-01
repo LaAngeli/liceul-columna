@@ -13,6 +13,7 @@ use App\Observers\LessonObserver;
 use Closure;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
@@ -35,6 +36,13 @@ class LessonForm
     {
         return $schema
             ->components([
+                // Ce se întâmplă cu ce se scrie aici — spus în fereastră: sloturile nu rămân în
+                // panou, ele COMPUN orarul publicat al clasei. Fără indicație, „Orare" și „Orar
+                // structurat" par două locuri echivalente pentru aceeași treabă.
+                Callout::make(__('panel.forms.lesson.website_role'))
+                    ->info()
+                    ->columnSpanFull(),
+
                 Section::make(__('panel.forms.lesson.section_context'))
                     ->description(__('panel.forms.lesson.section_context_hint'))
                     ->schema([
@@ -161,6 +169,13 @@ class LessonForm
                             ->datalist(fn (): array => self::knownRooms())
                             ->live(onBlur: true)
                             ->helperText(fn (Get $get, ?Lesson $record): ?string => self::conflictWarning($get, $record, 'room', 'clash_room')),
+                        // Grupa face slotul unic împreună cu (clasă, zi, oră): două grupe pot avea
+                        // discipline diferite la aceeași oră. Gol = ora e a întregii clase.
+                        TextInput::make('student_group')
+                            ->label(__('panel.forms.lesson.student_group'))
+                            ->helperText(__('panel.forms.lesson.student_group_hint'))
+                            ->maxLength(16)
+                            ->live(onBlur: true),
                     ]),
             ]);
     }

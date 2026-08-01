@@ -43,11 +43,20 @@ class ComputeDeferralRisk
 
         $weeks = self::workingWeeks($term);
 
+        // Sloturi DISTINCTE (zi, oră), nu rânduri: de când orarul reprezintă grupele, aceeași oră
+        // apare o dată pe grupă (gr.1 și gr.2 la limbi străine). Numărând rânduri, o disciplină pe
+        // două grupe ieșea cu numitor dublu, iar procentul de absențe se înjumătățea tăcut.
+        // Sloturile fără disciplină din nomenclator („Consultații…") nu au ce numitor să dea.
+        // Numărarea se face pe rândurile DISTINCTE (disciplină, zi, oră) și se grupează în PHP:
+        // `count(distinct a, b)` e sintaxă MySQL, pe care SQLite (folosit în teste) o respinge.
         $lessonsPerWeek = Lesson::query()
             ->where('school_class_id', $class->id)
-            ->selectRaw('subject_id, count(*) as cnt')
+            ->whereNotNull('subject_id')
+            ->select('subject_id', 'day_of_week', 'lesson_number')
+            ->distinct()
+            ->get()
             ->groupBy('subject_id')
-            ->pluck('cnt', 'subject_id');
+            ->map(fn ($slots): int => $slots->count());
 
         // Disciplinele la care elevul CHIAR are absențe, dar care lipsesc din orarul structurat:
         // acolo numitorul nu există, deci riscul nu se poate calcula. Până acum astfel de discipline
