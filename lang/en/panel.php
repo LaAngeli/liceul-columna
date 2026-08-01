@@ -898,6 +898,7 @@ return [
             'planner_add' => 'Add menu',
             'planner_take_prev' => 'Copy from last week',
             'planner_edit' => 'Edit',
+            'planner_none_yet' => 'No menu published yet — switch to "Day", "Week" or "Month" and add the first day.',
             'empty_reader' => 'The administration has not published the canteen menu yet.',
         ],
         'lesson' => [

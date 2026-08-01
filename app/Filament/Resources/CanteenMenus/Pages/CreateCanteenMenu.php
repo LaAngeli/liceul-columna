@@ -64,13 +64,13 @@ class CreateCanteenMenu extends CreateRecord
             : null;
     }
 
-    /** După salvare → planificatorul, ancorat pe săptămâna zilei abia salvate. */
+    /** După salvare → planificatorul, ancorat pe săptămâna zilei abia salvate (modul implicit). */
     protected function getRedirectUrl(): string
     {
         $date = $this->record->menu_date ?? null;
 
         return $this->getResource()::getUrl(parameters: array_filter([
-            'saptamana' => $date?->toDateString(),
+            'ref' => $date?->toDateString(),
         ]));
     }
 }

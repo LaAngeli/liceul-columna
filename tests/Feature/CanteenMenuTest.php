@@ -82,6 +82,49 @@ it('planificatorul arată comenzile DOAR administratorului operațional — citi
     }
 });
 
+it('axa temporală comută vederea: zi/săptămână/lună planifică, toate/personalizat consultă', function () {
+    // Miercuri, pe ORA ȘCOLII.
+    Carbon::setTestNow(Carbon::parse('2026-09-09 10:00', SchoolCalendar::TIMEZONE));
+    $this->actingAs(canteenUser(UserRole::AdministratorOperational));
+
+    CanteenMenu::factory()->create(['menu_date' => '2026-09-09', 'lunch_second' => 'FEL-SAPTAMANA-CURENTA']);
+    CanteenMenu::factory()->create(['menu_date' => '2026-09-21', 'lunch_second' => 'FEL-ACEEASI-LUNA']);
+    CanteenMenu::factory()->create(['menu_date' => '2026-10-05', 'lunch_second' => 'FEL-LUNA-VIITOARE']);
+
+    // Implicit (fără ?mod) = Săptămâna curentă: grila ei, cu restul perioadelor nevăzute.
+    $this->get('/admin/canteen-menus')
+        ->assertOk()
+        ->assertSee('FEL-SAPTAMANA-CURENTA')
+        ->assertDontSee('FEL-ACEEASI-LUNA')
+        ->assertDontSee('FEL-LUNA-VIITOARE');
+
+    // Zi: doar ziua de referință.
+    $this->get('/admin/canteen-menus?mod=zi')
+        ->assertOk()
+        ->assertSee('FEL-SAPTAMANA-CURENTA')
+        ->assertDontSee('FEL-ACEEASI-LUNA');
+
+    // Luna: toate săptămânile lunii de referință.
+    $this->get('/admin/canteen-menus?mod=luna')
+        ->assertOk()
+        ->assertSee('FEL-SAPTAMANA-CURENTA')
+        ->assertSee('FEL-ACEEASI-LUNA')
+        ->assertDontSee('FEL-LUNA-VIITOARE');
+
+    // Toate: arhiva completă, indiferent de perioadă.
+    $this->get('/admin/canteen-menus?mod=toate')
+        ->assertOk()
+        ->assertSee('FEL-SAPTAMANA-CURENTA')
+        ->assertSee('FEL-ACEEASI-LUNA')
+        ->assertSee('FEL-LUNA-VIITOARE');
+
+    // Personalizat: doar intervalul ales.
+    $this->get('/admin/canteen-menus?mod=personalizat&de=2026-10-01&pana=2026-10-31')
+        ->assertOk()
+        ->assertSee('FEL-LUNA-VIITOARE')
+        ->assertDontSee('FEL-SAPTAMANA-CURENTA');
+});
+
 it('administratorul operațional creează o zi de meniu; a doua zi pe aceeași dată e respinsă', function () {
     $this->actingAs(canteenUser(UserRole::AdministratorOperational));
 

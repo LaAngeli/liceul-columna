@@ -30,7 +30,7 @@ class EditCanteenMenu extends EditRecord
         $date = $this->record->menu_date ?? null;
 
         return $this->getResource()::getUrl(parameters: array_filter([
-            'saptamana' => $date?->toDateString(),
+            'ref' => $date?->toDateString(),
         ]));
     }
 }

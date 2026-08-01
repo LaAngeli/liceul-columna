@@ -911,6 +911,7 @@ return [
             'planner_add' => 'Adaugă meniu',
             'planner_take_prev' => 'Preia de săptămâna trecută',
             'planner_edit' => 'Modifică',
+            'planner_none_yet' => 'Niciun meniu publicat încă — treceți pe „Zi", „Săptămână" sau „Lună" și adăugați prima zi.',
             'empty_reader' => 'Administrația nu a publicat încă meniul cantinei.',
         ],
         'lesson' => [
