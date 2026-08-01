@@ -8,14 +8,16 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Callout;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 /**
  * O zi de meniu = structura FIXĂ a meniului oficial al cantinei (sursa: PDF-ul lunar): dejunul pe
- * patru poziții, prânzul pe șase. Câmpuri numite, nu repeater liber — administratorul operațional
- * completează zece rubrici cunoscute, iar afișarea are mereu aceeași formă. Toate rubricile sunt
- * opționale (în meniul real unele zile n-au garnitură sau salată); obligatorie e doar data.
+ * patru poziții, prânzul pe șase. Câmpuri numite, nu repeater liber. Formularul se completează ca
+ * foaia reală: data (de regulă DEJA aleasă — se vine din cardul zilei din planificator), apoi
+ * dejunul și prânzul unul lângă altul, de sus în jos, cu sugestii din felurile deja folosite.
+ * Toate rubricile sunt opționale (în meniul real unele zile n-au garnitură sau salată).
  */
 class CanteenMenuForm
 {
@@ -48,45 +50,19 @@ class CanteenMenuForm
                             $fail(__('panel.forms.canteen.date_taken'));
                         }
                     }),
-                Section::make(__('panel.forms.canteen.breakfast'))
-                    ->description(__('panel.forms.canteen.breakfast_hint'))
-                    ->columns(2)
+                // Cele două mese UNA LÂNGĂ ALTA (pe ecran lat), fiecare cu rubricile în ordinea
+                // foii oficiale, de sus în jos — forma în care bucătăria își citește propriul meniu.
+                Grid::make(['lg' => 2])
+                    ->columnSpanFull()
                     ->schema([
-                        TextInput::make('breakfast_main')
-                            ->label(__('panel.forms.canteen.breakfast_main'))
-                            ->maxLength(200),
-                        TextInput::make('breakfast_fruit')
-                            ->label(__('panel.forms.canteen.breakfast_fruit'))
-                            ->maxLength(200),
-                        TextInput::make('breakfast_bakery')
-                            ->label(__('panel.forms.canteen.breakfast_bakery'))
-                            ->maxLength(200),
-                        TextInput::make('breakfast_drink')
-                            ->label(__('panel.forms.canteen.breakfast_drink'))
-                            ->maxLength(200),
-                    ]),
-                Section::make(__('panel.forms.canteen.lunch'))
-                    ->description(__('panel.forms.canteen.lunch_hint'))
-                    ->columns(2)
-                    ->schema([
-                        TextInput::make('lunch_first')
-                            ->label(__('panel.forms.canteen.lunch_first'))
-                            ->maxLength(200),
-                        TextInput::make('lunch_second')
-                            ->label(__('panel.forms.canteen.lunch_second'))
-                            ->maxLength(200),
-                        TextInput::make('lunch_side')
-                            ->label(__('panel.forms.canteen.lunch_side'))
-                            ->maxLength(200),
-                        TextInput::make('lunch_salad')
-                            ->label(__('panel.forms.canteen.lunch_salad'))
-                            ->maxLength(200),
-                        TextInput::make('lunch_drink')
-                            ->label(__('panel.forms.canteen.lunch_drink'))
-                            ->maxLength(200),
-                        TextInput::make('lunch_fruit')
-                            ->label(__('panel.forms.canteen.lunch_fruit'))
-                            ->maxLength(200),
+                        Section::make(__('panel.forms.canteen.breakfast'))
+                            ->description(__('panel.forms.canteen.breakfast_hint'))
+                            ->icon('heroicon-o-sun')
+                            ->schema(self::dishInputs(CanteenMenu::breakfastFields())),
+                        Section::make(__('panel.forms.canteen.lunch'))
+                            ->description(__('panel.forms.canteen.lunch_hint'))
+                            ->icon('heroicon-o-fire')
+                            ->schema(self::dishInputs(CanteenMenu::lunchFields())),
                     ]),
                 Textarea::make('notes')
                     ->label(__('panel.forms.canteen.notes'))
@@ -95,5 +71,31 @@ class CanteenMenuForm
                     ->maxLength(500)
                     ->columnSpanFull(),
             ]);
+    }
+
+    /**
+     * Câmpurile unei mese, fiecare cu SUGESTII din felurile deja introduse la aceeași rubrică:
+     * meniul revine ciclic la aceleași preparate, iar câteva litere + alegerea din listă bat
+     * re-tastarea denumirii întregi (și țin denumirile consecvente între zile).
+     *
+     * @param  list<string>  $fields
+     * @return list<TextInput>
+     */
+    private static function dishInputs(array $fields): array
+    {
+        return array_map(
+            fn (string $field): TextInput => TextInput::make($field)
+                ->label(__('panel.forms.canteen.'.$field))
+                ->maxLength(200)
+                ->datalist(fn (): array => CanteenMenu::query()
+                    ->whereNotNull($field)
+                    ->where($field, '!=', '')
+                    ->distinct()
+                    ->orderBy($field)
+                    ->limit(60)
+                    ->pluck($field)
+                    ->all()),
+            $fields,
+        );
     }
 }

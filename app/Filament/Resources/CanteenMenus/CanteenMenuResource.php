@@ -2,32 +2,30 @@
 
 namespace App\Filament\Resources\CanteenMenus;
 
+use App\Filament\Resources\CanteenMenus\Pages\CanteenMenuPlanner;
 use App\Filament\Resources\CanteenMenus\Pages\CreateCanteenMenu;
 use App\Filament\Resources\CanteenMenus\Pages\EditCanteenMenu;
-use App\Filament\Resources\CanteenMenus\Pages\ListCanteenMenus;
 use App\Filament\Resources\CanteenMenus\Schemas\CanteenMenuForm;
-use App\Filament\Resources\CanteenMenus\Tables\CanteenMenusTable;
 use App\Models\CanteenMenu;
 use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Meniul cantinei (cerință 2026-08-01). CITIREA e a întregului personal — resursa apare tuturor în
- * grupul Comunicare, cu previzualizarea zilei; SCRIEREA (creare/editare/ștergere) aparține exclusiv
- * administratorului operațional, cu break-glass-ul obișnuit al super-adminului
- * ({@see User::canManageCanteenMenu}). Familia consultă același meniu în cabinet
+ * Meniul cantinei (cerință 2026-08-01, UI v2). CITIREA e a întregului personal — pagina-index e un
+ * PLANIFICATOR săptămânal ({@see CanteenMenuPlanner}), nu un tabel; SCRIEREA (creare/editare/
+ * ștergere) aparține exclusiv administratorului operațional, cu break-glass-ul obișnuit al
+ * super-adminului ({@see User::canManageCanteenMenu}). Familia consultă același meniu în cabinet
  * (/cabinet/meniu). Fără cache pe nicio cale de citire — salvarea se vede instant peste tot.
  */
 class CanteenMenuResource extends Resource
 {
     protected static ?string $model = CanteenMenu::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCake;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingStorefront;
 
     protected static ?int $navigationSort = 40;
 
@@ -82,15 +80,10 @@ class CanteenMenuResource extends Resource
         return CanteenMenuForm::configure($schema);
     }
 
-    public static function table(Table $table): Table
-    {
-        return CanteenMenusTable::configure($table);
-    }
-
     public static function getPages(): array
     {
         return [
-            'index' => ListCanteenMenus::route('/'),
+            'index' => CanteenMenuPlanner::route('/'),
             'create' => CreateCanteenMenu::route('/create'),
             'edit' => EditCanteenMenu::route('/{record}/edit'),
         ];

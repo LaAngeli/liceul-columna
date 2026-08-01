@@ -23,4 +23,14 @@ class EditCanteenMenu extends EditRecord
             DeleteAction::make(),
         ];
     }
+
+    /** După salvare/ștergere → planificatorul, ancorat pe săptămâna zilei editate. */
+    protected function getRedirectUrl(): string
+    {
+        $date = $this->record->menu_date ?? null;
+
+        return $this->getResource()::getUrl(parameters: array_filter([
+            'saptamana' => $date?->toDateString(),
+        ]));
+    }
 }

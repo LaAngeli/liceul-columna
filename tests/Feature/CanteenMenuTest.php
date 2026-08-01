@@ -1,18 +1,17 @@
 <?php
 
 /**
- * Meniul cantinei (cerință 2026-08-01): scrierea aparține EXCLUSIV administratorului operațional
- * (super-adminul păstrează break-glass), consultarea e a toată platforma — personalul în panou,
- * familia în cabinet. Fără cache: o salvare din panou se vede în cabinet la următorul request.
+ * Meniul cantinei (cerință 2026-08-01, UI v2 = planificator săptămânal): scrierea aparține
+ * EXCLUSIV administratorului operațional (super-adminul păstrează break-glass), consultarea e a
+ * întregii platforme — personalul în planificatorul din panou, familia în cabinet. Fără cache:
+ * o salvare din panou se vede în cabinet la următorul request.
  */
 
 use App\Enums\UserRole;
 use App\Filament\Resources\CanteenMenus\Pages\CreateCanteenMenu;
-use App\Filament\Resources\CanteenMenus\Pages\ListCanteenMenus;
 use App\Models\CanteenMenu;
 use App\Models\User;
 use App\Support\SchoolCalendar;
-use Filament\Actions\Testing\TestAction;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia;
 use Livewire\Livewire;
@@ -40,7 +39,9 @@ it('scrierea e exclusiv a administratorului operațional; consultarea e a între
     $director = canteenUser(UserRole::Director);
     $super = canteenUser(UserRole::Admin);
 
-    // Toți cei din panou pot consulta lista.
+    $menu = CanteenMenu::factory()->create(['menu_date' => SchoolCalendar::localNow()->toDateString()]);
+
+    // Toți cei din panou pot consulta planificatorul.
     $this->actingAs($ao)->get('/admin/canteen-menus')->assertOk();
     $this->actingAs($profesor)->get('/admin/canteen-menus')->assertOk();
     $this->actingAs($director)->get('/admin/canteen-menus')->assertOk();
@@ -53,24 +54,32 @@ it('scrierea e exclusiv a administratorului operațional; consultarea e a între
     $this->actingAs($director)->get('/admin/canteen-menus/create')->assertForbidden();
 
     // Editarea urmează aceeași linie — verificat pe gardă, nu doar pe pagina de creare.
-    $menu = CanteenMenu::factory()->create();
     $this->actingAs($director)->get("/admin/canteen-menus/{$menu->id}/edit")->assertForbidden();
     $this->actingAs($ao)->get("/admin/canteen-menus/{$menu->id}/edit")->assertOk();
+});
 
-    // Afordanțele din listă spun adevărul: cititorul nu vede „Editare"/„Duplică" (evaluare
-    // directă pe instanță — assertTableAction* e nedeterminist pe acțiuni de rând).
-    $this->actingAs($profesor);
-    $readerTable = Livewire::test(ListCanteenMenus::class)->instance()->getTable();
+it('planificatorul arată comenzile DOAR administratorului operațional — cititorii nu văd niciun buton', function () {
+    // Regresie (raportat 2026-08-01): directorul vedea „Adăugare meniu" care ducea la 403.
+    $ao = canteenUser(UserRole::AdministratorOperational);
+    $director = canteenUser(UserRole::Director);
+    $profesor = canteenUser(UserRole::Profesor);
 
-    expect($readerTable->getAction('edit')->record($menu)->isVisible())->toBeFalse()
-        ->and($readerTable->getAction('duplicate')->record($menu)->isVisible())->toBeFalse()
-        ->and($readerTable->getAction('preview')->record($menu)->isVisible())->toBeTrue();
+    $menu = CanteenMenu::factory()->create(['menu_date' => SchoolCalendar::localNow()->toDateString()]);
 
-    $this->actingAs($ao);
-    $managerTable = Livewire::test(ListCanteenMenus::class)->instance()->getTable();
+    // AO: adăugare în antet + „Modifică" pe ziua publicată + „Adaugă" pe zilele goale.
+    $this->actingAs($ao)->get('/admin/canteen-menus')
+        ->assertOk()
+        ->assertSee('canteen-menus/create')
+        ->assertSee("canteen-menus/{$menu->id}/edit");
 
-    expect($managerTable->getAction('edit')->record($menu)->isVisible())->toBeTrue()
-        ->and($managerTable->getAction('duplicate')->record($menu)->isVisible())->toBeTrue();
+    // Cititorii: aceeași grilă, ZERO linkuri de scriere.
+    foreach ([$director, $profesor] as $reader) {
+        $this->actingAs($reader)->get('/admin/canteen-menus')
+            ->assertOk()
+            ->assertSee($menu->lunch_second)
+            ->assertDontSee('canteen-menus/create')
+            ->assertDontSee("canteen-menus/{$menu->id}/edit");
+    }
 });
 
 it('administratorul operațional creează o zi de meniu; a doua zi pe aceeași dată e respinsă', function () {
@@ -96,25 +105,26 @@ it('administratorul operațional creează o zi de meniu; a doua zi pe aceeași d
         ->assertHasFormErrors(['menu_date']);
 });
 
-it('duplicarea copiază rubricile pe altă dată; data ocupată e refuzată', function () {
+it('din planificator, ziua vine gata aleasă, iar „Preia de săptămâna trecută" umple rubricile sursei', function () {
     $this->actingAs(canteenUser(UserRole::AdministratorOperational));
 
-    $menu = CanteenMenu::factory()->create(['menu_date' => '2026-09-07']);
-    CanteenMenu::factory()->create(['menu_date' => '2026-09-08']);
+    $source = CanteenMenu::factory()->create([
+        'menu_date' => '2026-09-07',
+        'lunch_second' => 'Gulaș din carne de porc cu legume înăbușite',
+    ]);
 
-    Livewire::test(ListCanteenMenus::class)
-        ->callAction(TestAction::make('duplicate')->table($menu), ['target_date' => '2026-09-14'])
-        ->assertHasNoErrors();
+    Livewire::withQueryParams(['data' => '2026-09-14', 'sursa' => (string) $source->id])
+        ->test(CreateCanteenMenu::class)
+        ->assertSchemaStateSet([
+            'menu_date' => '2026-09-14',
+            'lunch_second' => 'Gulaș din carne de porc cu legume înăbușite',
+            'breakfast_main' => $source->breakfast_main,
+        ]);
 
-    $copy = CanteenMenu::query()->whereDate('menu_date', '2026-09-14')->first();
-
-    expect($copy)->not->toBeNull()
-        ->and($copy->lunch_second)->toBe($menu->lunch_second);
-
-    // Ținta deja ocupată → eroare de formular pe acțiune.
-    Livewire::test(ListCanteenMenus::class)
-        ->callAction(TestAction::make('duplicate')->table($menu), ['target_date' => '2026-09-08'])
-        ->assertHasFormErrors(['target_date']);
+    // Sursa coruptă e ignorată, nu o eroare — data rămâne cea a zilei-țintă.
+    Livewire::withQueryParams(['data' => '2026-09-14', 'sursa' => 'abc'])
+        ->test(CreateCanteenMenu::class)
+        ->assertSchemaStateSet(['menu_date' => '2026-09-14', 'lunch_second' => null]);
 });
 
 it('familia vede în cabinet meniul săptămânii, cu ziua curentă evidențiată', function () {
