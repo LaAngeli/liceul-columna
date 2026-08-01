@@ -146,6 +146,30 @@ class AdminPanelProvider extends PanelProvider
                     // efemere își păstrează închiderea. Serverul e oricum neutralizat
                     // (PanelNotifications) — CSS-ul doar aliniază UI-ul cu realitatea.
                     .'.fi-no-database .fi-no-notification-close-btn{display:none}'
+                    // Etichete inline lipite de câmpul lor (raportat 2026-08-01 pe „Date de
+                    // contact"): containerul etichetei e de lățime FIXĂ, deci un text scurt
+                    // („Viber") lăsa 71px de gol față de 16px la un text lung („Adresă de email").
+                    // Se strânge la conținut DOAR unde secțiunea o cere explicit — acolo unde
+                    // câmpurile stau pe coloane diferite și lățimea fixă nu aliniază nimic.
+                    // Cauza reală: câmpul cu etichetă inline e el însuși o GRILĂ care moștenește
+                    // coloanele secțiunii (`columns(3)` → `88px 88px 88px`), iar eticheta ocupă o
+                    // coloană întreagă indiferent cât e textul. De aici golul: 88−33+16 = 71px la
+                    // „Viber", față de 16px la „Adresă de email", care umple coloana. Trecem câmpul
+                    // pe flex: eticheta ia exact cât scrie, inputul umple restul, iar distanța
+                    // rămâne gap-ul — aceeași peste tot.
+                    // Între `sm` și `lg` câmpurile se stivuiesc dar eticheta rămâne inline: acolo
+                    // flex-ul ar porni fiecare input din alt loc (zigzag), deci păstrăm coloana fixă
+                    // și doar împingem eticheta la dreapta ei — distanța devine tot gap-ul, iar
+                    // inputurile rămân aliniate. Sub `sm` Filament trece eticheta DEASUPRA câmpului,
+                    // deci nu e nimic de aliniat pe orizontală.
+                    .'@media (min-width:640px) and (max-width:1023.98px){'
+                    .'.fi-inline-label-tight .fi-fo-field-label-col{justify-items:end;text-align:right}'
+                    .'}'
+                    .'@media (min-width:1024px){'
+                    .'.fi-inline-label-tight .fi-fo-field-has-inline-label{display:flex;align-items:center;gap:1rem}'
+                    .'.fi-inline-label-tight .fi-fo-field-has-inline-label>.fi-fo-field-label-col{display:block;width:auto;flex:0 0 auto}'
+                    .'.fi-inline-label-tight .fi-fo-field-has-inline-label>.fi-fo-field-content-col{flex:1 1 auto;min-width:0}'
+                    .'}'
                     .'</style>',
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')

@@ -89,6 +89,13 @@ class EditProfile extends BaseEditProfile
                 Section::make(__('panel.pages.profile.section_contacts'))
                     ->description(__('panel.pages.profile.section_contacts_hint'))
                     ->columns(3)
+                    // Etichetele inline au container de lățime FIXĂ (88px): „Adresă de email"
+                    // îl umple (gol de 16px până la input), dar „Telegram" (57px) lăsa 47px, iar
+                    // „Viber" (33px) — 71px, deci câmpurile păreau rupte de eticheta lor. Aici
+                    // cele trei stau pe rânduri diferite ale grilei, deci lățimea fixă nu aliniază
+                    // nimic — o strângem la conținut, ca distanța să fie aceeași peste tot
+                    // (regula CSS e în AdminPanelProvider, STYLES_AFTER — supraviețuiește morphing-ului).
+                    ->extraAttributes(['class' => 'fi-inline-label-tight'])
                     ->schema([
                         // helperText nu se poate seta după `getEmailFormComponent()` (întoarce
                         // `Component` generic în signatura BaseEditProfile). Textul informativ e
