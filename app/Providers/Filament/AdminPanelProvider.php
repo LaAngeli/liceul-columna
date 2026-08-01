@@ -120,6 +120,14 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): string => View::make('filament.topbar.live-datetime')->render(),
             )
+            // Componenta Alpine a calendarului de interval (bara temporală, „Personalizat") —
+            // înregistrată GLOBAL, pe `alpine:init`: markup-ul ei apare prin morph abia la
+            // activarea modului, moment în care un @script local ar rula prea târziu (elementul
+            // e procesat de Alpine înainte) — panou mort, raportat 2026-08-01 pe cantina.
+            ->renderHook(
+                PanelsRenderHook::SCRIPTS_AFTER,
+                fn (): string => View::make('filament.catalog.partials.date-range-component')->render(),
+            )
             // Meniul mobil (audit responsiv 2026-07-21): sub `lg` sidebar-ul deschis acoperă tot
             // ecranul, iar închiderea stă în ACEEAȘI bară cu logo-ul (colțul dreapta-sus) — X-ul
             // implicit din topbar rămânea ACOPERIT de sidebar-ul full-width. Stilurile în theme.css.

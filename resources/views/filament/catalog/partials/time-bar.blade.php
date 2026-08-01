@@ -31,7 +31,8 @@
     @if ($this->timeIsCustom())
         @include('filament.catalog.partials.date-range-calendar')
     @elseif ($this->timeMode() !== null)
-        <div class="flex items-center gap-1">
+        {{-- wire:key pereche cu al calendarului — vezi avertismentul din date-range-calendar. --}}
+        <div class="flex items-center gap-1" wire:key="time-period-arrows">
             <x-filament::icon-button
                 icon="heroicon-m-chevron-left"
                 color="gray"

@@ -8,13 +8,23 @@
      cuvânt în ea, deci merge identic în RO/RU/EN. --}}
 @php($calendarLocale = $this->timeCalendarLocale())
 
+{{-- ⚠️ wire:key OBLIGATORIU: fără el, la intrarea în modul Personalizat morph-ul Livewire
+     REFOLOSEȘTE div-ul săgeților (aceeași poziție în DOM) și doar îi schimbă atributele — iar un
+     `x-data` apărut pe un element deja existent NU se mai inițializează. Copiii (noi) se evaluau
+     atunci fără scope: „open"/„view is not defined", panou mort. Cheia forțează element proaspăt. --}}
 <div
+    wire:key="time-range-calendar"
     x-data="cxDateRange({
         start: @js($this->timeFrom),
         end: @js($this->timeUntil),
         today: @js($calendarLocale['today']),
         months: @js($calendarLocale['months']),
         weekdays: @js($calendarLocale['weekdays']),
+        hints: {
+            extend: @js(__('panel.homework_time.hint_extend')),
+            restart: @js(__('panel.homework_time.hint_restart')),
+            start: @js(__('panel.homework_time.hint_start')),
+        },
     })"
     x-on:keydown.escape.window="close()"
     class="relative max-sm:w-full"
@@ -181,192 +191,9 @@
     </div>
 </div>
 
-@script
-<script>
-    Alpine.data('cxDateRange', (config) => ({
-        open: false,
-        view: 'days',
-        year: 2026,
-        month: 0,
-        start: null,
-        end: null,
-        hover: null,
-        // „extindere" = s-a ales o zi și următorul clic o transformă în interval. Tot atunci
-        // funcționează previzualizarea la trecerea cursorului.
-        extending: false,
-
-        init() {
-            this.start = config.start || null;
-            this.end = config.end || null;
-            this.moveTo(this.start || config.today);
-        },
-
-        get today() {
-            return config.today;
-        },
-
-        get months() {
-            return config.months;
-        },
-
-        get weekdays() {
-            return config.weekdays;
-        },
-
-        get title() {
-            return config.months[this.month] + ' ' + this.year;
-        },
-
-        get hint() {
-            if (this.extending) {
-                return @js(__('panel.homework_time.hint_extend'));
-            }
-
-            return this.start
-                ? @js(__('panel.homework_time.hint_restart'))
-                : @js(__('panel.homework_time.hint_start'));
-        },
-
-        /** Casetele lunii afișate: 0-6 goale pentru aliniere + zilele reale (săptămâna începe luni). */
-        get cells() {
-            const first = new Date(this.year, this.month, 1);
-            const lead = (first.getDay() + 6) % 7;
-            const total = new Date(this.year, this.month + 1, 0).getDate();
-            const cells = [];
-
-            for (let i = 0; i < lead; i++) {
-                cells.push({ key: 'blank-' + i, date: null, day: null });
-            }
-
-            for (let day = 1; day <= total; day++) {
-                const date = this.iso(this.year, this.month, day);
-                cells.push({ key: date, date, day });
-            }
-
-            return cells;
-        },
-
-        iso(year, month, day) {
-            return year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-        },
-
-        moveTo(date) {
-            const [year, month] = (date || config.today).split('-');
-            this.year = Number(year);
-            this.month = Number(month) - 1;
-        },
-
-        // Capetele PREVIZUALIZATE: în timpul extinderii, ziua de sub cursor ține locul capătului
-        // care încă nu a fost ales — utilizatorul vede intervalul înainte să-l confirme.
-        get previewFrom() {
-            if (this.extending && this.hover && this.start) {
-                return this.hover < this.start ? this.hover : this.start;
-            }
-
-            return this.start;
-        },
-
-        get previewTo() {
-            if (this.extending && this.hover && this.start) {
-                return this.hover < this.start ? this.start : this.hover;
-            }
-
-            return this.end;
-        },
-
-        isFrom(date) {
-            return date === this.previewFrom;
-        },
-
-        isTo(date) {
-            return date === this.previewTo;
-        },
-
-        isEdge(date) {
-            return this.isFrom(date) || this.isTo(date);
-        },
-
-        inRange(date) {
-            const from = this.previewFrom;
-            const to = this.previewTo;
-
-            return !! from && !! to && date >= from && date <= to;
-        },
-
-        /**
-         * Primul clic = ZIUA aleasă (selecție validă, aplicată pe loc — cine caută o singură zi a
-         * terminat). Al doilea clic o extinde la interval și pliază calendarul. Un clic după un
-         * interval complet reîncepe selecția.
-         */
-        select(date) {
-            if (! this.extending) {
-                this.start = date;
-                this.end = date;
-                this.extending = true;
-                this.hover = null;
-                this.apply();
-
-                return;
-            }
-
-            if (date < this.start) {
-                this.end = this.start;
-                this.start = date;
-            } else {
-                this.end = date;
-            }
-
-            this.extending = false;
-            this.hover = null;
-            this.apply();
-            this.close();
-        },
-
-        apply() {
-            this.$wire.setCustomRange(this.start, this.end);
-        },
-
-        clear() {
-            this.start = null;
-            this.end = null;
-            this.hover = null;
-            this.extending = false;
-            this.$wire.clearCustomRange();
-        },
-
-        toggle() {
-            this.open ? this.close() : this.openPanel();
-        },
-
-        openPanel() {
-            this.view = 'days';
-            this.extending = false;
-            this.hover = null;
-            this.moveTo(this.start);
-            this.open = true;
-        },
-
-        close() {
-            this.open = false;
-            this.extending = false;
-            this.hover = null;
-        },
-
-        prevMonth() {
-            this.month === 0 ? (this.month = 11, this.year--) : this.month--;
-        },
-
-        nextMonth() {
-            this.month === 11 ? (this.month = 0, this.year++) : this.month++;
-        },
-
-        prevYear() {
-            this.year--;
-        },
-
-        nextYear() {
-            this.year++;
-        },
-    }));
-</script>
-@endscript
+{{-- ⚠️ Înregistrarea `Alpine.data('cxDateRange', …)` NU stă aici: componenta e înregistrată GLOBAL
+     (partial-ul `date-range-component`, injectat de AdminPanelProvider prin SCRIPTS_AFTER, pe
+     `alpine:init`). Acest partial se randează DOAR în modul Personalizat, iar când modul se
+     activează din pastilă (morph Livewire), Alpine procesează elementul `x-data` ÎNAINTE ca un
+     @script abia adăugat să ruleze — componenta ieșea nedefinită („Illegal invocation", panou
+     mort). Raportat pe planificatorul cantinei, 2026-08-01. --}}
