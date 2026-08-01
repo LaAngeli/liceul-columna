@@ -636,6 +636,18 @@ return [
         'nav_messages' => 'Messages',
         'nav_notifications' => 'Notifications',
         'nav_documents' => 'Documents',
+        // Canteen menu: viewable by the whole family, by day/week.
+        'nav_canteen' => 'Canteen menu',
+        'canteen_title' => 'Canteen menu',
+        'canteen_hint' => 'Each day\'s breakfast and lunch, as published by the administration.',
+        'canteen_week_aria' => 'Week navigation',
+        'canteen_prev_week' => 'Previous week',
+        'canteen_next_week' => 'Next week',
+        'canteen_current_week' => 'Back to the current week',
+        'canteen_today_badge' => 'Today',
+        'canteen_breakfast' => 'Breakfast',
+        'canteen_lunch' => 'Lunch',
+        'canteen_day_empty' => 'The menu for this day has not been published yet.',
         // The "Gradebook" sidebar group: Grades / Absences / Schedule / Homework modules.
         'grp_catalog' => 'Gradebook',
         'nav_grades' => 'Grades',

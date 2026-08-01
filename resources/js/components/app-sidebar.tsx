@@ -11,6 +11,7 @@ import {
     History,
     LayoutGrid,
     MessageSquare,
+    Utensils,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -110,6 +111,8 @@ export function AppSidebar() {
                 // Cronologia stă lângă „Acasă", nu în Catalog: e vederea de ANSAMBLU asupra
                 // activității (note + absențe pe un fir), nu un registru de aprofundat.
                 { title: t('cabinet.nav_timeline', 'Cronologie'), href: '/cabinet/cronologie', icon: History },
+                // Meniul cantinei: informație zilnică pentru toată familia, nu registru de catalog.
+                { title: t('cabinet.nav_canteen', 'Meniul cantinei'), href: '/cabinet/meniu', icon: Utensils },
             ],
         },
     ];

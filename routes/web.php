@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\BibliotecaController;
 use App\Http\Controllers\BlogController;
+use App\Http\Controllers\CabinetCanteenController;
 use App\Http\Controllers\CabinetCatalogController;
 use App\Http\Controllers\CabinetController;
 use App\Http\Controllers\CabinetDocumentsController;
@@ -237,6 +238,11 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     Route::get('cabinet/documente', [CabinetDocumentsController::class, 'index'])
         ->middleware(EnsureFamilyCabinet::class)
         ->name('cabinet.documents');
+
+    // Meniul cantinei — consultare pentru familie; personalul îl are în panou (aceleași date).
+    Route::get('cabinet/meniu', [CabinetCanteenController::class, 'index'])
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.canteen');
 
     // Notificări (spec §5): inbox in-app + setări (contacte + matrice canal × tip).
     Route::get('cabinet/notificari', [NotificationsController::class, 'index'])

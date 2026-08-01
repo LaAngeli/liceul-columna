@@ -470,6 +470,16 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * Meniul cantinei (cerință 2026-08-01): scrierea aparține EXCLUSIV administratorului
+     * operațional (super-adminul păstrează break-glass-ul obișnuit). Citirea nu are capabilitate —
+     * meniul e vizibil tuturor utilizatorilor, în panou și în cabinet.
+     */
+    public function canManageCanteenMenu(): bool
+    {
+        return $this->activeRoleIs([UserRole::Admin->value, UserRole::AdministratorOperational->value]);
+    }
+
+    /**
      * VEDEREA orarelor (§3.3, rândul „Orar": Drg/VD/Dir/AO ●, Prof ◐ — scoped pe clasele lui).
      *
      * Citirea se separă de scriere: până acum ambele treceau prin `canManageSchedules()`, deci

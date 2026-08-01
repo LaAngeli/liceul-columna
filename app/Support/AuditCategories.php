@@ -9,6 +9,7 @@ use App\Models\AcademicYear;
 use App\Models\AdmissionRequest;
 use App\Models\Audit;
 use App\Models\CalendarEvent;
+use App\Models\CanteenMenu;
 use App\Models\ConsentAcknowledgment;
 use App\Models\CorigentaExam;
 use App\Models\CorigentaSession;
@@ -104,6 +105,7 @@ class AuditCategories
                 Document::class,
                 CalendarEvent::class,
                 Holiday::class,
+                CanteenMenu::class,
             ],
         ];
     }

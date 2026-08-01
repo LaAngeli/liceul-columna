@@ -638,6 +638,18 @@ return [
         'nav_messages' => 'Mesaje',
         'nav_notifications' => 'Notificări',
         'nav_documents' => 'Documente',
+        // Meniul cantinei (cerință 2026-08-01): consultare pentru toată familia, pe zile/săptămâni.
+        'nav_canteen' => 'Meniul cantinei',
+        'canteen_title' => 'Meniul cantinei',
+        'canteen_hint' => 'Dejunul și prânzul fiecărei zile, așa cum sunt publicate de administrație.',
+        'canteen_week_aria' => 'Navigare pe săptămâni',
+        'canteen_prev_week' => 'Săptămâna precedentă',
+        'canteen_next_week' => 'Săptămâna următoare',
+        'canteen_current_week' => 'Înapoi la săptămâna curentă',
+        'canteen_today_badge' => 'Azi',
+        'canteen_breakfast' => 'Dejun',
+        'canteen_lunch' => 'Prânz',
+        'canteen_day_empty' => 'Meniul zilei nu a fost publicat încă.',
         // Grupul „Catalog" din sidebar: modulele Note / Absențe / Cronologie / Orar / Teme + subsecțiunile lor.
         'grp_catalog' => 'Catalog',
         'nav_grades' => 'Note',
