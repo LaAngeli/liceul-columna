@@ -173,6 +173,15 @@ class AdminPanelProvider extends PanelProvider
                     .'@media (min-width:640px) and (max-width:1023.98px){'
                     .'.fi-inline-label-tight .fi-fo-field-label-col{justify-items:end;text-align:right}'
                     .'}'
+                    // Planificatorul cantinei pe telefon (cerință 2026-08-01): singura lui acțiune
+                    // de antet stă ÎN DREPTUL titlului, nu pe un rând propriu dedesubt — un buton
+                    // scurt lângă un titlu scurt încape, iar rândul câștigat e primul card de meniu.
+                    // Titlul primește `min-width:0` ca să se scurteze el, nu să împingă butonul.
+                    .'@media (max-width:639.98px){'
+                    .'.fi-canteen-planner .fi-header{flex-direction:row;align-items:center;justify-content:space-between;gap:.75rem}'
+                    .'.fi-canteen-planner .fi-header>:first-child{min-width:0}'
+                    .'.fi-canteen-planner .fi-header .fi-ac{flex-shrink:0}'
+                    .'}'
                     .'@media (min-width:1024px){'
                     .'.fi-inline-label-tight .fi-fo-field-has-inline-label{display:flex;align-items:center;gap:1rem}'
                     .'.fi-inline-label-tight .fi-fo-field-has-inline-label>.fi-fo-field-label-col{display:block;width:auto;flex:0 0 auto}'

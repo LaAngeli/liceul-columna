@@ -70,7 +70,10 @@ it('planificatorul arată comenzile DOAR administratorului operațional — citi
     $this->actingAs($ao)->get('/admin/canteen-menus')
         ->assertOk()
         ->assertSee('canteen-menus/create')
-        ->assertSee("canteen-menus/{$menu->id}/edit");
+        ->assertSee("canteen-menus/{$menu->id}/edit")
+        // Ancorajul regulii responsive a antetului (pe telefon butonul stă în dreptul titlului):
+        // stilul e în panou, dar clasa vine de aici — dispărută, regula ar tăcea.
+        ->assertSee('fi-canteen-planner');
 
     // Cititorii: aceeași grilă, ZERO linkuri de scriere.
     foreach ([$director, $profesor] as $reader) {

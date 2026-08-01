@@ -5,6 +5,7 @@ namespace App\Filament\Resources\CanteenMenus\Pages;
 use App\Filament\Concerns\HasTimeNavigator;
 use App\Filament\Resources\CanteenMenus\CanteenMenuResource;
 use App\Models\CanteenMenu;
+use App\Providers\Filament\AdminPanelProvider;
 use App\Support\CanteenWeek;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
@@ -33,6 +34,20 @@ class CanteenMenuPlanner extends Page
     public function getTitle(): string
     {
         return __('panel.resources.canteen_menus.label');
+    }
+
+    /**
+     * Clasa de pagină pe care se agață regula responsivă a antetului (stilurile în
+     * {@see AdminPanelProvider}): pe telefon, „Adăugare meniu" stă ÎN
+     * DREPTUL titlului, nu pe rândul de sub el — cerința 2026-08-01. Scoped la pagina asta,
+     * deliberat: paginile cu titluri lungi sau cu mai multe acțiuni în antet au nevoie de
+     * stivuirea implicită a Filament, iar o regulă globală le-ar înghesui.
+     *
+     * @return array<string>
+     */
+    public function getPageClasses(): array
+    {
+        return ['fi-canteen-planner'];
     }
 
     /**
