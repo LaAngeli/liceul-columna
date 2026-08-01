@@ -58,8 +58,16 @@ class ListSchedules extends ListRecords
         return $this->typeParam !== null ? ScheduleType::tryFrom($this->typeParam) : null;
     }
 
+    /** Gestiunea orarului (AO + super-admin, pe rolul ACTIV) — restul rolurilor CONSULTĂ. */
+    public function isManager(): bool
+    {
+        return auth('web')->user()?->canManageSchedules() ?? false;
+    }
+
     /**
-     * Constrângerea tabelului pe tipul activ (apelată din SchedulesTable).
+     * Constrângerea tabelului pe tipul activ + perimetrul de vizibilitate pe rol (apelată din
+     * SchedulesTable): cititorii văd DOAR tabelele PUBLICATE — ciornele sunt atelierul AO-ului,
+     * nu informație oficială; ce apare aici pentru un profesor coincide cu ce vede site-ul.
      *
      * @param  Builder<Model>  $query
      * @return Builder<Model>
@@ -68,20 +76,30 @@ class ListSchedules extends ListRecords
     {
         $type = $this->activeType();
 
-        return $type !== null
-            ? $query->where('type', $type->value)
-            : $query;
+        if ($type !== null) {
+            $query->where('type', $type->value);
+        }
+
+        if (! $this->isManager()) {
+            $query->where('is_public', true);
+        }
+
+        return $query;
     }
 
     /**
-     * Cardurile celor 9 tipuri: numărul de tabele + câte sunt publice; „fără date" = avertisment
-     * (obligația de completare e a administratorului operațional, spec §3.2).
+     * Cardurile celor 9 tipuri, pe ROL:
+     *  - gestionar (AO/super): tabele totale + câte publice; „fără date" = avertisment de LUCRU
+     *    (obligația de completare, spec §3.2) — badge roșu;
+     *  - cititor: DOAR numărul tabelelor publicate (ciornele nu există pentru el); tipul gol
+     *    poartă un badge neutru „fără orar publicat" — stare, nu sarcină.
      *
-     * @return array<int, array{id: string, title: string, stats: array<int, string>, badge: string|null}>
+     * @return array<int, array{id: string, title: string, stats: array<int, string>, badge: string|null, badge_color: string}>
      */
     public function typeCards(): array
     {
         $counts = $this->typeCounts();
+        $manager = $this->isManager();
 
         $cards = [];
 
@@ -90,20 +108,30 @@ class ListSchedules extends ListRecords
             $total = (int) ($row->aggregate ?? 0);
             $public = (int) ($row->public_count ?? 0);
 
-            $stats = $total > 0
-                ? [
-                    (string) trans_choice('panel.config_nav.schedule_tables', $total, ['count' => $total]),
-                    (string) __('panel.config_nav.schedule_public', ['count' => $public]),
-                ]
-                : [(string) __('panel.config_nav.schedule_empty')];
+            if ($manager) {
+                $stats = $total > 0
+                    ? [
+                        (string) trans_choice('panel.config_nav.schedule_tables', $total, ['count' => $total]),
+                        (string) __('panel.config_nav.schedule_public', ['count' => $public]),
+                    ]
+                    : [(string) __('panel.config_nav.schedule_empty')];
+
+                // „Neconfigurat" = fără tabel PUBLICAT (nu fără niciun rând): un orar scris și
+                // nepublicat nu ajunge la nimeni, deci sarcina AO nu e încheiată.
+                $badge = $public === 0 ? (string) __('panel.config_nav.schedule_missing') : null;
+                $badgeColor = 'danger';
+            } else {
+                $stats = [(string) trans_choice('panel.config_nav.schedule_public_tables', $public, ['count' => $public])];
+                $badge = $public === 0 ? (string) __('panel.config_nav.schedule_none_public') : null;
+                $badgeColor = 'gray';
+            }
 
             $cards[] = [
                 'id' => $type->value,
                 'title' => $type->label(),
                 'stats' => $stats,
-                // „Neconfigurat" = fără tabel PUBLICAT (nu fără niciun rând): un orar scris și
-                // nepublicat nu ajunge la nimeni, deci sarcina AO nu e încheiată.
-                'badge' => $public === 0 ? (string) __('panel.config_nav.schedule_missing') : null,
+                'badge' => $badge,
+                'badge_color' => $badgeColor,
             ];
         }
 
@@ -112,7 +140,9 @@ class ListSchedules extends ListRecords
 
     public function configHint(): string
     {
-        return (string) __('panel.config_nav.schedules_hint');
+        return (string) __($this->isManager()
+            ? 'panel.config_nav.schedules_hint'
+            : 'panel.config_nav.schedules_hint_reader');
     }
 
     /**

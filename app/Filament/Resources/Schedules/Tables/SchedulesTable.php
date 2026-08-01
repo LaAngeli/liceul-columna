@@ -21,7 +21,8 @@ class SchedulesTable
     {
         return $table
             ->defaultSort('position')
-            // Contextul navigatorului de configurare (tipul activ) — vezi ListSchedules.
+            // Contextul navigatorului de configurare (tipul activ) + perimetrul de vizibilitate
+            // pe rol (cititorii văd DOAR tabelele publicate) — vezi ListSchedules.
             ->modifyQueryUsing(fn (Builder $query, $livewire): Builder => $livewire instanceof ListSchedules
                 ? $livewire->applyTypeContext($query)
                 : $query)
@@ -29,11 +30,20 @@ class SchedulesTable
                 TextColumn::make('label')
                     ->label(__('panel.forms.schedule.title'))
                     ->searchable(),
+                // Ordinea de afișare pe site = detaliu de gestiune; cititorul consultă conținutul.
                 TextColumn::make('position')
                     ->label(__('panel.forms.schedule.position'))
-                    ->sortable(),
+                    ->sortable()
+                    ->visible(fn (): bool => self::canManage()),
+                // Comutatorul de PUBLICARE = doar cine gestionează orarul (AO + super-admin, pe
+                // rolul ACTIV). Coloanele editabile Filament NU trec prin policy la salvare —
+                // verifică pe server DOAR hidden/disabled (vendor CanUpdateState) — deci garda
+                // reală e exact aici: ascuns pentru cititori + dezactivat ca a doua plasă.
+                // Înainte, orice profesor cu drept de CITIRE putea răsturna publicarea din listă.
                 ToggleColumn::make('is_public')
-                    ->label(__('panel.forms.schedule.is_public_short')),
+                    ->label(__('panel.forms.schedule.is_public_short'))
+                    ->visible(fn (): bool => self::canManage())
+                    ->disabled(fn (): bool => ! self::canManage()),
                 TextColumn::make('updated_at')
                     ->label(__('panel.forms.schedule.updated_at'))
                     ->dateTime('d.m.Y H:i')
@@ -41,8 +51,10 @@ class SchedulesTable
                     ->toggleable(),
             ])
             ->filters([
+                // Cititorii văd oricum doar publicatele — filtrul ar fi un comutator mort.
                 TernaryFilter::make('is_public')
-                    ->label(__('panel.forms.schedule.is_public_filter')),
+                    ->label(__('panel.forms.schedule.is_public_filter'))
+                    ->visible(fn (): bool => self::canManage()),
             ])
             ->recordActions([
                 // Conținutul orarului nu se vedea NICĂIERI în panou: rândul arăta doar eticheta,
@@ -67,5 +79,11 @@ class SchedulesTable
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /** Gestiunea orarului (scriere/publicare): AO + super-admin, pe rolul ACTIV. */
+    private static function canManage(): bool
+    {
+        return auth('web')->user()?->canManageSchedules() ?? false;
     }
 }

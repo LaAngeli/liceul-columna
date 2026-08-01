@@ -21,10 +21,15 @@
                     <h2 class="truncate text-lg font-semibold text-gray-950 dark:text-white">
                         {{ $type->label() }}
                         @php($stats = $this->typeStats())
-                        @if ($stats !== null && $stats['total'] > 0)
+                        @if ($stats !== null && $this->isManager() && $stats['total'] > 0)
                             <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
                                 · {{ trans_choice('panel.config_nav.schedule_tables', $stats['total'], ['count' => $stats['total']]) }}
                                 · {{ __('panel.config_nav.schedule_public', ['count' => $stats['public']]) }}
+                            </span>
+                        @elseif ($stats !== null && ! $this->isManager())
+                            {{-- Cititorul numără doar ce e OFICIAL: tabelele publicate. --}}
+                            <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
+                                · {{ trans_choice('panel.config_nav.schedule_public_tables', $stats['public'], ['count' => $stats['public']]) }}
                             </span>
                         @endif
                     </h2>
@@ -53,7 +58,8 @@
                             </span>
 
                             @if ($card['badge'] !== null)
-                                <x-filament::badge color="danger" size="sm">
+                                {{-- Gestionar: roșu = sarcină de lucru; cititor: gri = stare. --}}
+                                <x-filament::badge :color="$card['badge_color'] ?? 'danger'" size="sm">
                                     {{ $card['badge'] }}
                                 </x-filament::badge>
                             @endif

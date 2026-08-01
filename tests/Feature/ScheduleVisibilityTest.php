@@ -10,9 +10,12 @@
  * care nu e PII.
  */
 
+use App\Enums\ScheduleType;
 use App\Enums\UserRole;
 use App\Filament\Resources\Holidays\HolidayResource;
 use App\Filament\Resources\Lessons\LessonResource;
+use App\Filament\Resources\Schedules\Pages\ListSchedules;
+use App\Filament\Resources\Schedules\ScheduleResource;
 use App\Models\AcademicYear;
 use App\Models\Lesson;
 use App\Models\Schedule;
@@ -21,6 +24,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\User;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
 use function Pest\Laravel\actingAs;
@@ -139,4 +143,94 @@ it('administratorul operațional păstrează scrierea completă', function () {
     expect($ao->can('update', $schedule))->toBeTrue()
         ->and($ao->can('delete', $schedule))->toBeTrue()
         ->and($ao->can('forceDelete', $schedule))->toBeTrue();
+});
+
+// ─── UI-ul pe rol al secțiunii Orare (raportat 2026-08-01: profesorul putea comuta „Publicat") ──
+
+function scheduleReader(): User
+{
+    $user = User::factory()->create();
+    $user->assignRole(UserRole::Profesor->value);
+
+    return $user;
+}
+
+function scheduleManager(): User
+{
+    $user = User::factory()->create();
+    $user->assignRole(UserRole::AdministratorOperational->value);
+
+    return $user;
+}
+
+it('comutatorul de publicare e blocat PE SERVER pentru cititori; gestionarul comută', function () {
+    $draft = Schedule::factory()->create(['is_public' => false]);
+
+    // Coloanele editabile Filament NU trec prin policy la salvare — calea Livewire directă
+    // (updateTableColumnState) trebuie să moară pe hidden/disabled, nu doar în interfață.
+    actingAs(scheduleReader());
+    Livewire::withQueryParams(['tip' => $draft->type->value])
+        ->test(ListSchedules::class)
+        ->call('updateTableColumnState', 'is_public', (string) $draft->getKey(), true);
+
+    expect($draft->fresh()->is_public)->toBeFalse();
+
+    actingAs(scheduleManager());
+    Livewire::withQueryParams(['tip' => $draft->type->value])
+        ->test(ListSchedules::class)
+        ->call('updateTableColumnState', 'is_public', (string) $draft->getKey(), true);
+
+    expect($draft->fresh()->is_public)->toBeTrue();
+});
+
+it('cititorul vede DOAR tabelele publicate, fără comutator/ordine/filtru; gestionarul vede tot', function () {
+    $public = Schedule::factory()->create(['is_public' => true, 'label' => 'Clasa I C']);
+    $draft = Schedule::factory()->create(['is_public' => false, 'label' => 'Ciornă nouă']);
+
+    actingAs(scheduleReader());
+    Livewire::withQueryParams(['tip' => ScheduleType::Lessons->value])
+        ->test(ListSchedules::class)
+        ->assertCanSeeTableRecords([$public])
+        ->assertCanNotSeeTableRecords([$draft])
+        ->assertTableColumnHidden('is_public')
+        ->assertTableColumnHidden('position');
+
+    actingAs(scheduleManager());
+    Livewire::withQueryParams(['tip' => ScheduleType::Lessons->value])
+        ->test(ListSchedules::class)
+        ->assertCanSeeTableRecords([$public, $draft])
+        ->assertTableColumnVisible('is_public')
+        ->assertTableColumnVisible('position');
+});
+
+it('cardurile pe rol: gestionarul primește semnalul de lucru (roșu), cititorul starea publicată (gri)', function () {
+    // Tipul „lecții" are DOAR o ciornă → gestionar: „fără date" (sarcină); cititor: nimic publicat.
+    Schedule::factory()->create(['is_public' => false]);
+
+    actingAs(scheduleManager());
+    $managerCard = collect(Livewire::test(ListSchedules::class)->instance()->typeCards())
+        ->firstWhere('id', ScheduleType::Lessons->value);
+
+    expect($managerCard['badge'])->toBe(__('panel.config_nav.schedule_missing'))
+        ->and($managerCard['badge_color'])->toBe('danger');
+
+    actingAs(scheduleReader());
+    $readerCard = collect(Livewire::test(ListSchedules::class)->instance()->typeCards())
+        ->firstWhere('id', ScheduleType::Lessons->value);
+
+    expect($readerCard['badge'])->toBe(__('panel.config_nav.schedule_none_public'))
+        ->and($readerCard['badge_color'])->toBe('gray')
+        ->and($readerCard['stats'])->toBe([trans_choice('panel.config_nav.schedule_public_tables', 0, ['count' => 0])]);
+});
+
+it('paginile de scriere rămân închise cititorilor (403), deschise gestionarului', function () {
+    $schedule = Schedule::factory()->create();
+
+    actingAs(scheduleReader());
+    $this->get(ScheduleResource::getUrl('create'))->assertForbidden();
+    $this->get(ScheduleResource::getUrl('edit', ['record' => $schedule]))->assertForbidden();
+
+    actingAs(scheduleManager());
+    $this->get(ScheduleResource::getUrl('create'))->assertOk();
+    $this->get(ScheduleResource::getUrl('edit', ['record' => $schedule]))->assertOk();
 });
