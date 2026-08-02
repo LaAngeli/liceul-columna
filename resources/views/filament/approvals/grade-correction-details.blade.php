@@ -143,7 +143,7 @@
 
                 @if ($record->isPending() && $this->canJudge())
                     <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                        {{ __('panel.homework_correction_view.pending_hint') }}
+                        {{ __('panel.grade_correction_view.pending_hint') }}
                     </p>
                 @endif
             </div>

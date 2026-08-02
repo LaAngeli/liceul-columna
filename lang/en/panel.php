@@ -1501,6 +1501,7 @@ return [
         'audit_annulled' => 'The grade was annulled',
         'from_contestation' => 'Born from a family contestation',
         'from_contestation_hint' => 'Open the family\'s request — the full context of the re-examination.',
+        'pending_hint' => 'The request is waiting for your decision. Approving applies the proposed grade and recalculates the average; rejecting keeps the current grade. Either way, the decision stays in the grade\'s history.',
     ],
 
     'absence_motivation_view' => [

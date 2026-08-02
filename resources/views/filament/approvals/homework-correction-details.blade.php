@@ -135,12 +135,6 @@
                             <dt class="shrink-0 text-gray-500 dark:text-gray-400">{{ __('panel.forms.homework.assigned_on') }}</dt>
                             <dd class="text-right tabular-nums text-gray-950 dark:text-white">{{ $homework->assigned_on->translatedFormat('d.m.Y') }}</dd>
                         </div>
-                        @if ($homework->due_on !== null)
-                            <div class="flex items-baseline justify-between gap-3">
-                                <dt class="shrink-0 text-gray-500 dark:text-gray-400">{{ __('panel.forms.homework.due_on') }}</dt>
-                                <dd class="text-right tabular-nums text-gray-950 dark:text-white">{{ $homework->due_on->translatedFormat('d.m.Y') }}</dd>
-                            </div>
-                        @endif
                         @if ($homework->author_name !== null)
                             <div class="flex items-baseline justify-between gap-3">
                                 <dt class="shrink-0 text-gray-500 dark:text-gray-400">{{ __('panel.homework_correction_view.homework_author') }}</dt>

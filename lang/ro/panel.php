@@ -1517,6 +1517,7 @@ return [
         'audit_annulled' => 'Nota a fost anulată',
         'from_contestation' => 'Pornită dintr-o contestație a familiei',
         'from_contestation_hint' => 'Deschide cererea familiei — contextul complet al reexaminării.',
+        'pending_hint' => 'Cererea așteaptă decizia ta. Aprobarea aplică nota propusă și recalculează media; respingerea păstrează nota actuală. În ambele cazuri decizia rămâne în istoricul notei.',
     ],
 
     'absence_motivation_view' => [
