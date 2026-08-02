@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\AcademicYear;
 use App\Models\Term;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
 /**
@@ -100,5 +101,29 @@ final class SchoolCalendar
             $year->starts_on !== null ? Carbon::parse($year->starts_on) : Carbon::create($start, 9, 1),
             $year->ends_on !== null ? Carbon::parse($year->ends_on) : Carbon::create($start + 1, 8, 31),
         ];
+    }
+
+    /**
+     * Anul școlar în al cărui interval cade data — sau null dacă data pică într-o „gaură" între
+     * ani (ex. august, când anul se încheie pe 31 iulie și următorul începe pe 1 septembrie).
+     *
+     * Sursa unică pentru „cărui an îi aparține această zi": planificatorul zilelor libere o
+     * folosește ca să întoarcă utilizatorul în anul potrivit după creare, iar formularul ca să
+     * respingă datele din afara oricărui an (o zi liberă creată acolo nu apare nicăieri în
+     * calendar, dar RĂMÂNE activă în calculul termenelor și al zilelor lucrătoare).
+     */
+    public static function yearContaining(CarbonInterface $date): ?AcademicYear
+    {
+        $day = Carbon::parse($date)->startOfDay();
+
+        foreach (AcademicYear::query()->orderBy('starts_on')->orderBy('name')->get() as $year) {
+            [$from, $to] = self::yearSpan($year);
+
+            if ($day->betweenIncluded($from->copy()->startOfDay(), $to->copy()->startOfDay())) {
+                return $year;
+            }
+        }
+
+        return null;
     }
 }

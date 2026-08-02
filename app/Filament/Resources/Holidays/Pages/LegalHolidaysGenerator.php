@@ -14,13 +14,20 @@ use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
 
 /**
- * Pagina generatorului de sărbători legale (Codul muncii, art. 111) pentru anul școlar activ.
+ * Pagina generatorului de sărbători legale (Codul muncii, art. 111) pentru anul școlar ales.
  *
  * PAGINĂ, nu modal, dintr-un motiv tehnic concret: planificatorul e un ListRecords cu view
  * custom care NU randează tabelul, iar Filament pune modalele paginilor HasTable în view-ul
  * TABELULUI — modalul unei acțiuni de header se monta pe server, dar nu se deschidea niciodată.
- * Pagina folosește tiparul formular-pe-pagină deja probat (NotificationSettings) și oferă
- * oricum mai mult spațiu listei de propuneri cu date.
+ *
+ * RESTRUCTURATĂ (raport beneficiar 2026-08-03: „nu poți bifa, butoanele nu fac nimic").
+ * Mecanica era sănătoasă — dar pe un an în care TOATE sărbătorile există deja, fiecare opțiune
+ * era dezactivată, deci pagina arăta ca un formular mort: bifele nu răspundeau, „Selectează
+ * toate" nu avea ce comuta și nimic nu explica de ce. Acum lista are DOUĂ registre distincte:
+ *  • de adăugat — singurele cu bifă, deci tot ce vezi bifabil chiar face ceva;
+ *  • deja în calendar — informație, fără bifă (nu mai există controale moarte).
+ * Plus comutator de AN pe pagină: înainte anul se putea schimba doar meșterind URL-ul, așa că
+ * un an „plin" te lăsa fără nicio ieșire.
  *
  * @property-read Schema $form
  */
@@ -34,6 +41,9 @@ class LegalHolidaysGenerator extends Page
     public ?array $data = [];
 
     public ?int $yearId = null;
+
+    /** @var array<string, array{label: string, range: string, exists: bool}>|null */
+    private ?array $rowsCache = null;
 
     public function getTitle(): string
     {
@@ -51,28 +61,36 @@ class LegalHolidaysGenerator extends Page
         $an = request()->query('an');
         $this->yearId = is_numeric($an) ? (int) $an : null;
 
-        $this->form->fill([
-            'selected' => array_keys(array_filter(
-                $this->candidateRows(),
-                fn (array $row): bool => ! $row['exists'],
-            )),
-        ]);
+        $this->fillPending();
+    }
+
+    /** Comutarea anului din pagină — lista și bifele se refac pentru anul ales. */
+    public function openYear(int $yearId): void
+    {
+        $this->yearId = $yearId;
+        $this->rowsCache = null;
+
+        $this->fillPending();
+    }
+
+    /** Toate propunerile care ÎNCĂ nu există pornesc bifate: cazul obișnuit e „le vreau pe toate". */
+    private function fillPending(): void
+    {
+        $this->form->fill(['selected' => array_keys($this->pendingRows())]);
     }
 
     public function form(Schema $schema): Schema
     {
-        $rows = $this->candidateRows();
+        $rows = $this->pendingRows();
 
         return $schema
             ->components([
                 CheckboxList::make('selected')
                     ->hiddenLabel()
                     ->options(array_map(fn (array $row): string => $row['label'], $rows))
-                    ->descriptions(array_map(
-                        fn (array $row): string => $row['range'].($row['exists'] ? ' · '.__('panel.holiday_planner.generator.already') : ''),
-                        $rows,
-                    ))
-                    ->disableOptionWhen(fn (string $value): bool => $this->candidateRows()[$value]['exists'] ?? false)
+                    ->descriptions(array_map(fn (array $row): string => $row['range'], $rows))
+                    // Fără `disableOptionWhen`: lista conține DOAR ce se poate adăuga. Opțiunile
+                    // dezactivate erau exact sursa senzației de pagină stricată.
                     ->bulkToggleable()
                     ->columns([
                         'default' => 1,
@@ -116,6 +134,28 @@ class LegalHolidaysGenerator extends Page
             ?? AcademicYear::query()->orderByDesc('starts_on')->orderByDesc('name')->first();
     }
 
+    /**
+     * Pastilele anilor — cronologic crescător, ca peste tot în panou.
+     *
+     * @return list<array{id: int, label: string, active: bool, pending: int}>
+     */
+    public function yearPills(): array
+    {
+        $activeId = $this->activeYear()?->id;
+        $pills = [];
+
+        foreach (AcademicYear::query()->orderBy('starts_on')->orderBy('name')->get() as $year) {
+            $pills[] = [
+                'id' => (int) $year->id,
+                'label' => (string) $year->name,
+                'active' => $activeId === $year->id,
+                'pending' => count($this->rowsFor($year, onlyPending: true)),
+            ];
+        }
+
+        return $pills;
+    }
+
     /** @return array{0: Carbon, 1: Carbon} */
     public function activeSpan(): array
     {
@@ -132,13 +172,41 @@ class LegalHolidaysGenerator extends Page
     }
 
     /**
+     * Propunerile care se pot adăuga (nu există încă).
+     *
+     * @return array<string, array{label: string, range: string, exists: bool}>
+     */
+    public function pendingRows(): array
+    {
+        return array_filter($this->candidateRows(), static fn (array $row): bool => ! $row['exists']);
+    }
+
+    /**
+     * Sărbătorile deja prezente în calendarul anului — afișate ca informație, fără bifă.
+     *
+     * @return array<string, array{label: string, range: string, exists: bool}>
+     */
+    public function existingRows(): array
+    {
+        return array_filter($this->candidateRows(), static fn (array $row): bool => $row['exists']);
+    }
+
+    /**
      * Candidații anului activ, cheiați `starts_on|name`, cu marcajul „există deja".
      *
      * @return array<string, array{label: string, range: string, exists: bool}>
      */
     public function candidateRows(): array
     {
-        [$from, $to] = $this->activeSpan();
+        return $this->rowsCache ??= $this->rowsFor($this->activeYear());
+    }
+
+    /**
+     * @return array<string, array{label: string, range: string, exists: bool}>
+     */
+    private function rowsFor(?AcademicYear $year, bool $onlyPending = false): array
+    {
+        [$from, $to] = $year !== null ? SchoolCalendar::yearSpan($year) : $this->activeSpan();
 
         $existing = Holiday::query()
             ->overlappingSpan($from, $to)
@@ -150,6 +218,11 @@ class LegalHolidaysGenerator extends Page
 
         foreach (app(GenerateLegalHolidays::class)->candidatesBetween($from, $to) as $candidate) {
             $key = $candidate['starts_on'].'|'.$candidate['name'];
+            $exists = in_array($key, $existing, true);
+
+            if ($onlyPending && $exists) {
+                continue;
+            }
 
             $range = Carbon::parse($candidate['starts_on'])->translatedFormat('d.m.Y');
 
@@ -160,7 +233,7 @@ class LegalHolidaysGenerator extends Page
             $rows[$key] = [
                 'label' => $candidate['name'],
                 'range' => $range,
-                'exists' => in_array($key, $existing, true),
+                'exists' => $exists,
             ];
         }
 

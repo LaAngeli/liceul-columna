@@ -10,6 +10,9 @@ use App\Actions\GenerateLegalHolidays;
 use App\Enums\HolidayType;
 use App\Enums\UserRole;
 use App\Filament\Resources\Absences\Pages\CreateAbsence;
+use App\Filament\Resources\Holidays\HolidayResource;
+use App\Filament\Resources\Holidays\Pages\CreateHoliday;
+use App\Filament\Resources\Holidays\Pages\EditHoliday;
 use App\Filament\Resources\Holidays\Pages\LegalHolidaysGenerator;
 use App\Filament\Resources\Holidays\Pages\ListHolidays;
 use App\Models\AcademicYear;
@@ -17,6 +20,7 @@ use App\Models\Holiday;
 use App\Models\Term;
 use App\Models\User;
 use App\Support\Holidays;
+use App\Support\SchoolCalendar;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -281,4 +285,91 @@ it('etichetele HolidayType există în toate cele trei limbi', function () {
     }
 
     app()->setLocale('ro');
+});
+
+// ─── Restructurare raportată 2026-08-03 ──────────────────────────────────────────────────
+
+it('ziua liberă nu poate fi pusă în afara anului școlar — nici la creare, nici la editare', function () {
+    plannerUser();
+    $year = plannerYear(); // 01.09.2025 – 31.08.2026
+
+    // Fereastra dintre ani: 15.09.2026 nu aparține niciunui an configurat.
+    Livewire::withQueryParams(['an' => $year->id])
+        ->test(CreateHoliday::class)
+        ->fillForm(['name' => 'În afara anului', 'type' => HolidayType::InstitutionalDay->value, 'starts_on' => '2026-09-15'])
+        ->call('create')
+        ->assertHasFormErrors(['starts_on']);
+
+    expect(Holiday::query()->count())->toBe(0);
+
+    // Interiorul anului trece.
+    Livewire::withQueryParams(['an' => $year->id])
+        ->test(CreateHoliday::class)
+        ->fillForm(['name' => 'În an', 'type' => HolidayType::InstitutionalDay->value, 'starts_on' => '2026-03-16'])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $holiday = Holiday::query()->sole();
+
+    // Editarea respectă aceleași limite (anul se deduce din ziua editată).
+    Livewire::test(EditHoliday::class, ['record' => $holiday->getRouteKey()])
+        ->fillForm(['ends_on' => '2026-09-20'])
+        ->call('save')
+        ->assertHasFormErrors(['ends_on']);
+});
+
+it('după creare se întoarce în PLANIFICATOR, pe anul zilei adăugate — nu în formularul de editare', function () {
+    plannerUser();
+    $year = plannerYear();
+
+    Livewire::withQueryParams(['an' => $year->id])
+        ->test(CreateHoliday::class)
+        ->fillForm(['name' => 'Zi nouă', 'type' => HolidayType::InstitutionalDay->value, 'starts_on' => '2026-03-16'])
+        ->call('create')
+        ->assertRedirect(HolidayResource::getUrl('index', ['an' => $year->id]));
+});
+
+it('yearContaining găsește anul unei date și întoarce null pentru golul dintre ani', function () {
+    $year = plannerYear(); // 01.09.2025 – 31.08.2026
+
+    expect(SchoolCalendar::yearContaining(Carbon::parse('2026-03-16'))?->id)->toBe($year->id)
+        ->and(SchoolCalendar::yearContaining(Carbon::parse('2026-09-15')))->toBeNull();
+});
+
+it('generatorul separă propunerile de adăugat de cele existente și comută anul din pagină', function () {
+    plannerUser();
+    $year = plannerYear();
+    $other = AcademicYear::factory()->create([
+        'name' => '2027–2028', 'starts_on' => '2027-09-01', 'ends_on' => '2028-08-31',
+    ]);
+
+    $page = Livewire::test(LegalHolidaysGenerator::class)->instance();
+    $totalCandidates = count($page->candidateRows());
+
+    expect($page->pendingRows())->toHaveCount($totalCandidates)
+        ->and($page->existingRows())->toBeEmpty();
+
+    // O sărbătoare introdusă trece din „de adăugat" în „deja în calendar" — fără bifă moartă.
+    $component = Livewire::test(LegalHolidaysGenerator::class)
+        ->fillForm(['selected' => ['2025-12-25|'.__('panel.holiday_planner.legal.christmas_new')]])
+        ->call('create');
+
+    $page = Livewire::test(LegalHolidaysGenerator::class)->instance();
+
+    expect($page->existingRows())->toHaveCount(1)
+        ->and($page->pendingRows())->toHaveCount($totalCandidates - 1)
+        // Bifate implicit sunt DOAR cele care se pot adăuga.
+        ->and(array_keys($page->pendingRows()))->not->toContain('2025-12-25|'.__('panel.holiday_planner.legal.christmas_new'));
+
+    // Comutarea anului din pagină schimbă lista (fără a umbla la URL).
+    $switched = Livewire::test(LegalHolidaysGenerator::class);
+    $switched->call('openYear', $other->id);
+
+    expect($switched->instance()->activeYear()?->id)->toBe($other->id)
+        ->and($switched->instance()->existingRows())->toBeEmpty();
+
+    // Pastilele arată câte mai sunt de adăugat per an.
+    $pills = collect($switched->instance()->yearPills());
+    expect($pills->firstWhere('id', $year->id)['pending'])->toBe($totalCandidates - 1)
+        ->and($pills->firstWhere('id', $other->id)['active'])->toBeTrue();
 });

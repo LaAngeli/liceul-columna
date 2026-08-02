@@ -52,9 +52,12 @@ class ListHolidays extends ListRecords
                 ->visible(fn (): bool => $this->canWrite())
                 ->url(fn (): string => HolidayResource::getUrl('legal', array_filter(['an' => $this->activeYear()?->id]))),
 
+            // Contextul anului călătorește spre formular (`?an=`): acolo el fixează limitele
+            // datelor, ca ziua nouă să nu poată ateriza în afara anului pe care îl privești.
             CreateAction::make()
                 ->label(__('panel.holiday_planner.add'))
-                ->icon('heroicon-o-plus'),
+                ->icon('heroicon-o-plus')
+                ->url(fn (): string => HolidayResource::getUrl('create', array_filter(['an' => $this->activeYear()?->id]))),
         ];
     }
 

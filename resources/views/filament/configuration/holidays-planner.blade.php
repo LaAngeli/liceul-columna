@@ -105,6 +105,18 @@
         @else
             {{-- Calendarul anual: lunile anului școlar, intervalele colorate pe categorii. --}}
             <section aria-label="{{ __('panel.holiday_planner.calendar') }}">
+                {{-- Intervalul care DEFINEȘTE lunile afișate: fără el, „de ce apare luna asta?"
+                     nu are răspuns în pagină. Lunile vin din datele anului școlar, nu dintr-o
+                     regulă fixă — dacă intervalul e greșit, se corectează în „Ani școlari". --}}
+                @php($span = $this->activeSpan())
+                <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">
+                    {{ __('panel.holiday_planner.span_caption', [
+                        'from' => $span[0]->translatedFormat('d.m.Y'),
+                        'to' => $span[1]->translatedFormat('d.m.Y'),
+                        'months' => count($months),
+                    ]) }}
+                </p>
+
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                     @foreach ($months as $month)
                         <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
