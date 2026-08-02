@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\MultiFactor\AppAuthentication;
 use App\Models\Admin;
+use App\Support\InitialsAvatarProvider;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -71,6 +72,8 @@ class ContentPanelProvider extends PanelProvider
                 'primary' => '#0f4d77',
                 'brand-green' => '#9bc31e',
             ])
+            // Aceleași avatare generate local ca în panoul academic (fără ui-avatars.com).
+            ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->navigationGroups([
                 'Conținut',
                 'Setări',

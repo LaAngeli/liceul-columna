@@ -9,11 +9,10 @@
     $record = $getRecord();
     $class = $record->currentSchoolClass();
 
-    $initials = collect([$record->last_name, $record->first_name])
-        ->filter()
-        ->map(fn (string $part): string => mb_strtoupper(mb_substr(trim($part), 0, 1)))
-        ->take(2)
-        ->implode('');
+    // Aceeași regulă ca avatarele din bară și din widget-ul „Bun venit" (App\Support\Initials):
+    // varianta veche lua primul CARACTER din last_name, deci fișele demo („[DEMO] Cojocaru")
+    // afișau „[A" în loc de „CA".
+    $initials = \App\Support\Initials::for($record->full_name);
 @endphp
 
 <div class="flex items-center gap-4">

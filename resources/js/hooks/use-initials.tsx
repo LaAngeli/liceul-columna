@@ -2,25 +2,29 @@ import { useCallback } from 'react';
 
 export type GetInitialsFn = (fullName: string) => string;
 
-function getInitial(name: string): string {
-    return Array.from(name)[0] ?? '';
+/**
+ * Inițialele afișate în avatare — OGLINDA exactă a `App\Support\Initials` din backend, ca același
+ * om să apară la fel în panou și în cabinet:
+ *  1. marcajele în paranteze drepte („[DEMO]") nu fac parte din nume și se elimină;
+ *  2. se păstrează doar cuvintele care conțin măcar o literă;
+ *  3. se iau primele litere ale PRIMELOR DOUĂ cuvinte rămase (convenția „Nume Prenume").
+ *
+ * Varianta veche lua primul + ULTIMUL cuvânt, deci „[DEMO] Ursu Valentin" dădea „[V", iar
+ * „Bujor-Cobili Carolina Maria" dădea „BM" în loc de „BC".
+ */
+export function getInitials(fullName: string): string {
+    const words = fullName
+        .replace(/\[[^\]]*\]/gu, ' ')
+        .trim()
+        .split(/\s+/u)
+        .filter((word) => /\p{L}/u.test(word));
+
+    return words
+        .slice(0, 2)
+        .map((word) => (word.match(/\p{L}/u)?.[0] ?? '').toUpperCase())
+        .join('');
 }
 
 export function useInitials(): GetInitialsFn {
-    return useCallback((fullName: string): string => {
-        const names = fullName.trim().split(/\s+/u).filter(Boolean);
-
-        if (names.length === 0) {
-            return '';
-        }
-
-        if (names.length === 1) {
-            return getInitial(names[0]).toUpperCase();
-        }
-
-        const firstInitial = getInitial(names[0]);
-        const lastInitial = getInitial(names[names.length - 1]);
-
-        return `${firstInitial}${lastInitial}`.toUpperCase();
-    }, []);
+    return useCallback(getInitials, []);
 }

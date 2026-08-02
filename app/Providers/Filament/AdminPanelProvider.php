@@ -10,6 +10,7 @@ use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\EnsureTwoFactorEnrolled;
 use App\Http\Middleware\SetUserLocale;
 use App\Livewire\PanelNotifications;
+use App\Support\InitialsAvatarProvider;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -68,6 +69,10 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => '#0f4d77',
                 'brand-green' => '#9bc31e',
             ])
+            // Avatarele se generează LOCAL din aceleași inițiale ca restul aplicației. Providerul
+            // implicit al Filament trimitea numele utilizatorului la ui-avatars.com (serviciu terț)
+            // și afișa alte inițiale decât widget-ul „Bun venit" — vezi InitialsAvatarProvider.
+            ->defaultAvatarProvider(InitialsAvatarProvider::class)
             // Ordinea grupurilor din sidebar; „Setări" la final (oglindește cabinetul elev/părinte).
             // ⚠️ Etichetele trebuie să fie ÎNCHIDERI: `panel()` rulează la boot-ul provider-ului,
             // ÎNAINTE de middleware — deci `SetUserLocale` n-a rulat încă și un `__()` direct ar

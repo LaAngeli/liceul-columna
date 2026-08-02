@@ -9,6 +9,7 @@ use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\User;
+use App\Support\Initials;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Carbon;
 
@@ -59,7 +60,7 @@ class WelcomeWidget extends Widget
         return [
             'greeting' => trans('site.dashboard.greeting_staff'),
             'name' => $user->name,
-            'initials' => self::initialsFrom($user->name),
+            'initials' => Initials::for($user->name),
             'roleLabel' => $role !== null ? trans('site.roles.'.$role->value) : null,
             'date' => $now->isoFormat('dddd, D MMMM YYYY'),
             'missingTeacherProfile' => $missingTeacherProfile,
@@ -158,27 +159,5 @@ class WelcomeWidget extends Widget
         }
 
         return implode(' ', $points);
-    }
-
-    /**
-     * Inițialele pentru avatar — primele litere ale primelor două cuvinte CU LITERE din nume
-     * („Russu Ionela" → „RI"). Cuvintele fără litere se sar: altfel „[DEMO] Bujor-Cobili Carolina"
-     * dădea „[B", iar un nume cu prefix („Gh. Popescu") ar da „GP", nu „G.".
-     */
-    private static function initialsFrom(string $name): string
-    {
-        $words = array_values(array_filter(
-            explode(' ', trim($name)),
-            static fn (string $word): bool => preg_match('/\p{L}/u', $word) === 1,
-        ));
-
-        $initials = '';
-        foreach (array_slice($words, 0, 2) as $word) {
-            if (preg_match('/\p{L}/u', $word, $match) === 1) {
-                $initials .= mb_strtoupper($match[0]);
-            }
-        }
-
-        return $initials;
     }
 }
