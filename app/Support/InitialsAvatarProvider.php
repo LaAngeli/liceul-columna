@@ -27,9 +27,12 @@ use Illuminate\Database\Eloquent\Model;
  */
 class InitialsAvatarProvider implements AvatarProvider
 {
-    private const BACKGROUND = '#9bc31e';
+    // Culorile avatarului din bară rămân cele dinainte (gray-950 pe alb, ca la providerul
+    // implicit Filament) — cerința beneficiarului: standardizăm INIȚIALELE, nu paleta.
+    // Verdele de brand rămâne al avatarului din widget-ul „Bun venit" (theme.css).
+    private const BACKGROUND = '#09090b';
 
-    private const FOREGROUND = '#1d1d1c';
+    private const FOREGROUND = '#ffffff';
 
     public function get(Model|Authenticatable $record): string
     {

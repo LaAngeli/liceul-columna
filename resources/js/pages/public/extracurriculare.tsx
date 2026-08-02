@@ -3,6 +3,7 @@ import { ArrowRight, CalendarClock, Quote } from 'lucide-react';
 import { LocaleLink } from '@/components/locale-link';
 import { Band, FourStar, Reveal, Rhombus, SectionHeader } from '@/components/public/brand';
 import { PageBanner } from '@/components/public/page-banner';
+import { getInitials } from '@/hooks/use-initials';
 import { useTranslations } from '@/lib/i18n';
 
 type Tr = (k: string, f?: string) => string;
@@ -24,14 +25,6 @@ const COORDINATORS: { name: string; photo: string | null }[] = [
     { name: 'Doriana Zubcu-Mărginean', photo: null },
 ];
 
-function initialsOf(name: string): string {
-    return name
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((w) => w.charAt(0).toUpperCase())
-        .join('');
-}
-
 function CoordinatorCard({ t, name, photo }: { t: Tr; name: string; photo: string | null }) {
     return (
         <Reveal as="div" className="h-full">
@@ -47,7 +40,7 @@ function CoordinatorCard({ t, name, photo }: { t: Tr; name: string; photo: strin
                         />
                     ) : (
                         <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-brand-navy to-[#0c3d5f]" aria-hidden="true">
-                            <span className="display text-xl text-white">{initialsOf(name)}</span>
+                            <span className="display text-xl text-white">{getInitials(name)}</span>
                         </span>
                     )}
                 </span>
