@@ -17,7 +17,9 @@ class AcademicYearsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->defaultSort('name', 'desc')
+            // Crescător, ca la cardurile din hub și la pastilele de an: anii se citesc de la mic
+            // la mare (cerința beneficiarului).
+            ->defaultSort('name')
             ->columns([
                 TextColumn::make('name')
                     ->label(__('panel.forms.academic_year.name'))

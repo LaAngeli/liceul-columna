@@ -97,8 +97,8 @@ class ListHolidays extends ListRecords
     public function yearPills(): array
     {
         $pills = AcademicYear::query()
-            ->orderByDesc('starts_on')
-            ->orderByDesc('name')
+            ->orderBy('starts_on')
+            ->orderBy('name')
             ->get()
             ->map(function (AcademicYear $year): array {
                 [$from, $to] = $this->spanFor($year);

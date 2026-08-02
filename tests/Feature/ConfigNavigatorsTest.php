@@ -39,8 +39,15 @@ beforeEach(function () {
         Role::findOrCreate($role->value, 'web');
     }
 
-    $this->oldYear = AcademicYear::factory()->create(['name' => '2019–2020']);
-    $this->year = AcademicYear::factory()->create(['name' => '2025–2026']);
+    // Datele se fixează EXPLICIT: factory-ul generează un `starts_on` aleator (2000–2090), deci
+    // suprascrierea doar a numelui lăsa anii cu o cronologie care nu corespundea etichetei —
+    // orice aserție pe ORDINE devenea aleatorie de la o rulare la alta.
+    $this->oldYear = AcademicYear::factory()->create([
+        'name' => '2019–2020', 'starts_on' => '2019-09-01', 'ends_on' => '2020-06-30',
+    ]);
+    $this->year = AcademicYear::factory()->create([
+        'name' => '2025–2026', 'starts_on' => '2025-09-01', 'ends_on' => '2026-06-30',
+    ]);
     $this->currentTerm = Term::factory()->for($this->year)->create([
         'number' => 1, 'starts_on' => '2025-09-01', 'ends_on' => '2026-01-31', 'is_current' => true,
     ]);
@@ -58,21 +65,21 @@ it('anii școlari sunt HUB-uri: badge „An curent", conținutul anului și săr
 
     $cards = collect(Livewire::test(ListAcademicYears::class)->instance()->yearCards());
 
-    // Cei mai noi întâi; anul curent poartă badge-ul.
-    expect($cards->pluck('id')->all())->toBe([$this->year->id, $this->oldYear->id])
-        ->and($cards[0]['current'])->toBeTrue()
-        ->and($cards[1]['current'])->toBeFalse()
-        // Conținutul: 1 semestru + 1 clasă în anul curent.
-        ->and($cards[0]['stats'][0])->toContain('1')
-        ->and($cards[0]['stats'][1])->toContain('1');
+    // Cronologic CRESCĂTOR (2019–2020 înaintea lui 2025–2026); anul curent poartă badge-ul.
+    expect($cards->pluck('id')->all())->toBe([$this->oldYear->id, $this->year->id])
+        ->and($cards[1]['current'])->toBeTrue()
+        ->and($cards[0]['current'])->toBeFalse()
+        // Conținutul: 1 semestru + 1 clasă în anul curent (al doilea card, cronologic).
+        ->and($cards[1]['stats'][0])->toContain('1')
+        ->and($cards[1]['stats'][1])->toContain('1');
 
     // Săriturile duc în secțiunile pre-filtrate pe an.
-    foreach ($cards[0]['links'] as $url) {
+    foreach ($cards[1]['links'] as $url) {
         expect($url)->toContain('an='.$this->year->id);
     }
 
-    expect($cards[0]['edit_url'])->not->toBeNull()
-        ->and($cards[0]['can_archive'])->toBeTrue();
+    expect($cards[1]['edit_url'])->not->toBeNull()
+        ->and($cards[1]['can_archive'])->toBeTrue();
 });
 
 it('semestrele au pastile pe ani, cu anul CURENT implicit și cardurile restrânse la anul activ', function () {
@@ -80,7 +87,7 @@ it('semestrele au pastile pe ani, cu anul CURENT implicit și cardurile restrân
     $page = $component->instance();
 
     expect($page->activeYearId())->toBe($this->year->id)
-        ->and(collect($page->yearPills())->pluck('id')->all())->toBe([$this->year->id, $this->oldYear->id]);
+        ->and(collect($page->yearPills())->pluck('id')->all())->toBe([$this->oldYear->id, $this->year->id]);
 
     // Axa + cardurile (nu mai există tabel): semestrele se recunosc după intervalele lor.
     $component

@@ -115,7 +115,7 @@ class ListSchoolClasses extends ListRecords
 
         return AcademicYear::query()
             ->whereKey($counts->keys()->all())
-            ->orderByDesc('id')
+            ->orderBy('starts_on')->orderBy('name')
             ->get()
             ->map(fn (AcademicYear $year): array => [
                 'id' => (int) $year->id,

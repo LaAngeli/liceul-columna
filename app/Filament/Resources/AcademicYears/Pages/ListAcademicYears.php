@@ -82,7 +82,11 @@ class ListAcademicYears extends ListRecords
      */
     public function yearCards(): array
     {
-        $years = AcademicYear::query()->orderByDesc('id')->get();
+        // CRONOLOGIC crescător (cerința beneficiarului): anii se citesc de la mic la mare, ca pe
+        // o axă a timpului. Ordonarea e pe `starts_on` (nu pe id = ordinea introducerii, care la
+        // un an adăugat retroactiv ar fi mințit), cu numele drept criteriu secundar — `starts_on`
+        // e nullable. Aceeași regulă la pastilele de an din celelalte secțiuni.
+        $years = AcademicYear::query()->orderBy('starts_on')->orderBy('name')->get();
 
         if ($years->isEmpty()) {
             return [];

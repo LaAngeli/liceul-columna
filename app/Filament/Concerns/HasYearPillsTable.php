@@ -70,7 +70,7 @@ trait HasYearPillsTable
 
         return AcademicYear::query()
             ->whereKey($ids->all())
-            ->orderByDesc('id')
+            ->orderBy('starts_on')->orderBy('name')
             ->get()
             ->map(fn (AcademicYear $year): array => [
                 'id' => (int) $year->id,
