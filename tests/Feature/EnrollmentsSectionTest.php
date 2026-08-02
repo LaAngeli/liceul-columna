@@ -92,72 +92,73 @@ it('o clasă inexistentă venită prin URL nu deschide registrul', function () {
     expect($component->instance()->activeClass())->toBeNull();
 });
 
-it('adăugarea din registrul clasei vine pre-completată (an + clasă), iar contextul incoerent se ignoră', function () {
-    Livewire::withQueryParams(['an' => (string) $this->year->id, 'clasa' => (string) $this->classA->id])
-        ->test(CreateEnrollment::class)
-        ->assertFormSet([
-            'academic_year_id' => $this->year->id,
-            'school_class_id' => $this->classA->id,
-        ]);
-
-    // Doar clasa în query → anul se derivă din ea (context minim, coerent).
+it('adăugarea vine pre-completată din context: clasa din registru, elevul din lista de neînmatriculați', function () {
+    // Formularul nu mai are câmp „an școlar" (restructurare 2026-08-03): anul e o consecință a
+    // clasei — se afișa doar ca să fie apoi suprascris la salvare.
     Livewire::withQueryParams(['clasa' => (string) $this->classA->id])
         ->test(CreateEnrollment::class)
-        ->assertFormSet([
-            'academic_year_id' => $this->year->id,
-            'school_class_id' => $this->classA->id,
-        ]);
+        ->assertFormSet(['school_class_id' => $this->classA->id]);
 
-    // An explicit + clasă a ALTUI an → clasa nu se pre-completează (anul rămâne cel cerut).
-    Livewire::withQueryParams(['an' => (string) $this->oldYear->id, 'clasa' => (string) $this->classA->id])
+    // Din „Neînmatriculați": elevul sosește deja bifat în selecția multiplă.
+    $nou = Student::factory()->create(['last_name' => 'EN-Prefill', 'first_name' => 'Ana']);
+
+    Livewire::withQueryParams(['clasa' => (string) $this->classA->id, 'elev' => (string) $nou->id])
         ->test(CreateEnrollment::class)
         ->assertFormSet([
-            'academic_year_id' => $this->oldYear->id,
-            'school_class_id' => null,
+            'school_class_id' => $this->classA->id,
+            'students' => [$nou->id],
         ]);
+
+    // Context inexistent → câmpurile rămân goale, fără eroare.
+    Livewire::withQueryParams(['clasa' => '999999', 'elev' => '999999'])
+        ->test(CreateEnrollment::class)
+        ->assertFormSet(['school_class_id' => null, 'students' => []]);
 });
 
 it('elevul deja înmatriculat în anul ales nu mai e oferit la selecție', function () {
     // Ana are deja înmatriculare în anul curent → nu e printre opțiuni → bariera `in` a Select-ului.
     Livewire::test(CreateEnrollment::class)
         ->fillForm([
-            'academic_year_id' => $this->year->id,
             'school_class_id' => $this->classA->id,
-            'student_id' => $this->ana->id,
+            'students' => [$this->ana->id],
             'enrolled_on' => '2025-09-15',
         ])
         ->call('create')
-        ->assertHasFormErrors(['student_id']);
+        ->assertHasFormErrors(['students']);
 
     expect(Enrollment::query()->count())->toBe(3);
 });
 
-it('înmatricularea nouă cere data și stochează anul CLASEI (derivat pe server)', function () {
-    $nou = Student::factory()->create(['last_name' => 'EN-Nou', 'first_name' => 'Radu']);
+it('înmatricularea nouă cere data, acceptă MAI MULȚI elevi și stochează anul CLASEI', function () {
+    $unu = Student::factory()->create(['last_name' => 'EN-Nou', 'first_name' => 'Radu']);
+    $doi = Student::factory()->create(['last_name' => 'EN-Nou', 'first_name' => 'Vlad']);
 
     // Fără dată → obligatorie la creare.
     Livewire::test(CreateEnrollment::class)
         ->fillForm([
-            'academic_year_id' => $this->year->id,
             'school_class_id' => $this->classA->id,
-            'student_id' => $nou->id,
+            'students' => [$unu->id],
             'enrolled_on' => null,
         ])
         ->call('create')
         ->assertHasFormErrors(['enrolled_on']);
 
+    // O singură trecere prin formular = două rânduri de registru (înmatriculare în masă).
     Livewire::test(CreateEnrollment::class)
         ->fillForm([
-            'academic_year_id' => $this->year->id,
             'school_class_id' => $this->classA->id,
-            'student_id' => $nou->id,
+            'students' => [$unu->id, $doi->id],
             'enrolled_on' => '2025-09-15',
         ])
         ->call('create')
         ->assertHasNoFormErrors();
 
-    $enrollment = Enrollment::query()->where('student_id', $nou->id)->sole();
-    expect($enrollment->academic_year_id)->toBe($this->classA->academic_year_id);
+    $enrollments = Enrollment::query()->whereIn('student_id', [$unu->id, $doi->id])->get();
+
+    expect($enrollments)->toHaveCount(2)
+        // Anul vine din CLASĂ, nu dintr-un câmp — nu mai există unul de contrazis.
+        ->and($enrollments->pluck('academic_year_id')->unique()->all())->toBe([$this->classA->academic_year_id])
+        ->and($enrollments->pluck('school_class_id')->unique()->all())->toBe([$this->classA->id]);
 });
 
 it('plecarea se marchează direct din registru, doar pe rândurile active', function () {

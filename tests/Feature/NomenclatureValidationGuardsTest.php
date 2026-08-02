@@ -45,14 +45,16 @@ beforeEach(function () {
 it('re-înmatricularea peste o înmatriculare ARHIVATĂ dă mesaj de restaurare, nu eroare SQL', function () {
     Enrollment::factory()->for($this->student)->for($this->class)->for($this->year)->create()->delete();
 
+    // Formularul restructurat (2026-08-03) alege CLASA (anul decurge din ea) și mai mulți ELEVI,
+    // deci conflictul se raportează pe selecția de elevi.
     Livewire::test(CreateEnrollment::class)
         ->fillForm([
-            'student_id' => $this->student->id,
-            'academic_year_id' => $this->year->id,
             'school_class_id' => $this->class->id,
+            'students' => [$this->student->id],
+            'enrolled_on' => '2025-09-15',
         ])
         ->call('create')
-        ->assertHasFormErrors(['academic_year_id' => __('panel.validation.enrollment.archived_duplicate')]);
+        ->assertHasFormErrors(['students' => __('panel.validation.enrollment.archived_duplicate')]);
 
     expect(Enrollment::query()->count())->toBe(0); // doar cea arhivată există (exclusă de scope)
 });
@@ -62,28 +64,31 @@ it('duplicatul ACTIV de înmatriculare păstrează mesajul clasic', function () 
 
     Livewire::test(CreateEnrollment::class)
         ->fillForm([
-            'student_id' => $this->student->id,
-            'academic_year_id' => $this->year->id,
             'school_class_id' => $this->class->id,
+            'students' => [$this->student->id],
+            'enrolled_on' => '2025-09-15',
         ])
         ->call('create')
-        ->assertHasFormErrors(['academic_year_id' => __('panel.validation.enrollment.duplicate')]);
+        ->assertHasFormErrors(['students' => __('panel.validation.enrollment.duplicate')]);
 });
 
-it('respinge înmatricularea cu clasa ALTUI an școlar decât cel ales', function () {
+it('anul nu mai poate contrazice clasa: nu mai există câmp de an de contrazis', function () {
     $otherYear = AcademicYear::factory()->create();
     $otherYearClass = SchoolClass::factory()->for($otherYear)->create();
 
+    // Vechea gardă `class_year_mismatch` apăra o incoerență pe care formularul o PUTEA produce:
+    // an ales + clasă din alt an. Cu anul scos din formular (era oricum suprascris din clasă la
+    // salvare), incoerența nu mai are cum să apară — rândul primește anul CLASEI, direct.
     Livewire::test(CreateEnrollment::class)
         ->fillForm([
-            'student_id' => $this->student->id,
-            'academic_year_id' => $this->year->id,
             'school_class_id' => $otherYearClass->id,
+            'students' => [$this->student->id],
+            'enrolled_on' => '2025-09-15',
         ])
         ->call('create')
-        ->assertHasFormErrors(['school_class_id' => __('panel.validation.enrollment.class_year_mismatch')]);
+        ->assertHasNoFormErrors();
 
-    expect(Enrollment::query()->count())->toBe(0);
+    expect(Enrollment::query()->sole()->academic_year_id)->toBe($otherYear->id);
 });
 
 // ─── Clase ───────────────────────────────────────────────────────────────────────────────

@@ -92,7 +92,7 @@ it('semestrul valid (în an, fără suprapunere) se salvează', function () {
 
 // ─── M-4: înmatriculare duplicată (elev + an) ────────────────────────────────────────────
 
-it('înmatricularea duplicată (elev + an) e prinsă ca eroare de câmp, nu 500', function () {
+it('elevul unui rând de registru nu se poate schimba din Editare — el E identitatea rândului', function () {
     $year = AcademicYear::factory()->create();
     $classA = SchoolClass::factory()->for($year)->create();
     $classB = SchoolClass::factory()->for($year)->create();
@@ -104,11 +104,13 @@ it('înmatricularea duplicată (elev + an) e prinsă ca eroare de câmp, nu 500'
 
     actingAs(lotCConfigurator());
 
+    // Restructurarea formularului (2026-08-03): elevul e afișat READ-ONLY la editare. Duplicatul
+    // (studentA, an) nu mai poate fi nici măcar produs — înainte era prins de o regulă pe câmpul
+    // „an școlar", câmp care nu mai există (anul vine din clasă).
     Livewire::test(EditEnrollment::class, ['record' => $enrollB->id])
-        ->fillForm(['student_id' => $studentA->id]) // (studentA, year) există deja
+        ->fillForm(['student_id' => $studentA->id])
         ->call('save')
-        ->assertHasFormErrors(['academic_year_id']);
+        ->assertHasNoFormErrors();
 
-    // Nu s-a scris nimic → înmatricularea lui B rămâne pe studentB.
     expect($enrollB->fresh()->student_id)->toBe($studentB->id);
 });

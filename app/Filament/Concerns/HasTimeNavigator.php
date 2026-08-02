@@ -2,6 +2,7 @@
 
 namespace App\Filament\Concerns;
 
+use App\Support\SchoolCalendar;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Builder;
@@ -71,7 +72,19 @@ trait HasTimeNavigator
             }
         }
 
-        return CarbonImmutable::today();
+        return self::timeToday();
+    }
+
+    /**
+     * „Azi" pe ORA ȘCOLII, nu a serverului. Aplicația stochează UTC, iar între miezul nopții și
+     * ora 3 la Chișinău `CarbonImmutable::today()` întoarce ÎNCĂ ziua precedentă: modul „Zi" arăta
+     * atunci ieri, iar la granița de săptămână „Săptămâna" arăta săptămâna trecută. Prins pe
+     * planificatorul cantinei (2026-08-03, 00:42 local = 21:42 UTC), dar bara e comună — regula
+     * proiectului: orice comparație „acum" trece prin {@see SchoolCalendar::localNow()}.
+     */
+    private static function timeToday(): CarbonImmutable
+    {
+        return CarbonImmutable::createFromFormat('Y-m-d', SchoolCalendar::localNow()->toDateString())->startOfDay();
     }
 
     public function setTimeMode(string $mode): void
@@ -84,7 +97,7 @@ trait HasTimeNavigator
         if ($this->timeMode === self::TIME_MODE_CUSTOM) {
             // CONTINUITATE: intervalul liber pornește de la perioada pe care utilizatorul tocmai o
             // privea (luna deschisă rămâne 1–31), nu de la câmpuri goale. Din „Toate" — luna curentă.
-            [$from, $until] = $previous ?? [CarbonImmutable::today()->startOfMonth(), CarbonImmutable::today()->endOfMonth()];
+            [$from, $until] = $previous ?? [self::timeToday()->startOfMonth(), self::timeToday()->endOfMonth()];
             $this->timeFrom = $from?->toDateString();
             $this->timeUntil = $until?->toDateString();
         } else {
@@ -189,7 +202,7 @@ trait HasTimeNavigator
         return [
             'months' => $months,
             'weekdays' => $weekdays,
-            'today' => CarbonImmutable::today()->toDateString(),
+            'today' => self::timeToday()->toDateString(),
         ];
     }
 
@@ -222,7 +235,7 @@ trait HasTimeNavigator
 
     public function timeRefIsToday(): bool
     {
-        return $this->timeRef()->isToday();
+        return $this->timeRef()->isSameDay(self::timeToday());
     }
 
     /**

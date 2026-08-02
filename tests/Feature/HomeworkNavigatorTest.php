@@ -186,7 +186,8 @@ it('modul „săptămână" filtrează pe DATA LECȚIEI — axa unică după eli
         ->instance();
 
     expect($component->timeMode())->toBeNull()
-        ->and($component->timeRef()->isToday())->toBeTrue();
+        // Referința implicită = ziua ȘCOLII (isToday() ar compara cu ziua serverului, UTC).
+        ->and($component->timeRef()->toDateString())->toBe(SchoolCalendar::localNow()->toDateString());
 });
 
 it('navigarea pe perioadă: ◀ ▶ mută referința cu pasul modului, „Azi" o resetează', function () {
@@ -203,7 +204,7 @@ it('navigarea pe perioadă: ◀ ▶ mută referința cu pasul modului, „Azi" o
     expect($component->instance()->timeRef()->toDateString())->toBe('2025-11-03');
 
     $component->call('goToTimeToday');
-    expect($component->instance()->timeRef()->isToday())->toBeTrue();
+    expect($component->instance()->timeRef()->toDateString())->toBe(SchoolCalendar::localNow()->toDateString());
 });
 
 it('cabinetul livrează temele cronologic: azi+viitoare ASC întâi (cu status), apoi istoricul DESC', function () {

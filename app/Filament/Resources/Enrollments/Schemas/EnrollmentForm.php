@@ -2,186 +2,267 @@
 
 namespace App\Filament\Resources\Enrollments\Schemas;
 
-use App\Models\AcademicYear;
+use App\Filament\Resources\Enrollments\EnrollmentResource;
 use App\Models\Enrollment;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use Closure;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
+use Filament\Schemas\Components\Callout;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
+/**
+ * Formularul de înmatriculare, restructurat 2026-08-03 („nu este logic").
+ *
+ * Ce nu era logic, punct cu punct:
+ *   • Cerea ANUL ȘCOLAR ca prim câmp — dar anul e DERIVAT din clasă și se suprascria oricum la
+ *     salvare ({@see EnrollmentResource::withCoherentYear}).
+ *     Formularul întreba deci un lucru pe care îl ignora: un pas în plus care putea doar să intre
+ *     în contradicție cu clasa.
+ *   • Punea „A PLECAT LA" în fereastra de CREARE — se înmatricula un elev deja plecat. Plecarea e
+ *     o operațiune pe un rând existent (acțiunea dedicată din registru), nu un câmp de înscriere.
+ *   • Elevul, subiectul acțiunii, venea ULTIMUL, după două alegeri tehnice.
+ *   • Se putea înscrie UN singur elev, deși registrul are acum înmatriculare în masă.
+ *
+ * Ordinea nouă e a frazei reale: „în clasa asta (deci anul ei) → îi înmatriculez pe aceștia → de la
+ * data asta". La EDITARE, formularul devine ce e cu adevărat: corectarea DATELOR unui rând existent
+ * — elevul e identitatea rândului (read-only), iar mutarea între clase are acțiunea ei auditată.
+ */
 class EnrollmentForm
 {
     public static function configure(Schema $schema): Schema
     {
         return $schema
             ->components([
-                // Anul ÎNAINTEA clasei: clasa aparține unui an, deci opțiunile ei se filtrează pe
-                // anul ales — altfel un elev putea fi înmatriculat „în anul X" la o clasă a anului Y.
-                Select::make('academic_year_id')
-                    ->label(__('panel.fields.academic_year'))
-                    ->relationship('academicYear', 'name')
-                    // Venind din registrul unei clase, contextul (an + clasă) sosește în query
-                    // string și pre-completează formularul — validat, nu preluat orbește.
-                    ->default(fn (): ?int => self::defaultYearId())
-                    ->searchable()
-                    ->preload()
-                    ->required()
-                    ->live()
-                    // Clasa depinde de an → la schimbarea lui se alege din nou. Elevul NU se
-                    // resetează: dacă a devenit ineligibil, îl prind bariera `in` + regula de duplicat.
-                    ->afterStateUpdated(fn (Set $set): mixed => $set('school_class_id', null))
-                    // Un elev = o singură înmatriculare pe an școlar (unique DB, care vede ȘI rândurile
-                    // arhivate). Prindem AMBELE cazuri ca mesaj pe câmp, nu ca eroare SQL 500 (audit M-4):
-                    // duplicat activ → mesajul clasic; duplicat ARHIVAT → îndrumare spre restaurare.
-                    ->rules([
-                        static fn (Get $get, ?Model $record): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
-                            $studentId = $get('student_id');
-
-                            if (! $studentId || ! $value) {
-                                return;
-                            }
-
-                            $conflict = Enrollment::withTrashed()
-                                ->where('student_id', $studentId)
-                                ->where('academic_year_id', $value)
-                                ->when($record !== null, fn ($query) => $query->whereKeyNot($record->getKey()))
-                                ->first();
-
-                            if ($conflict !== null) {
-                                $fail($conflict->trashed()
-                                    ? __('panel.validation.enrollment.archived_duplicate')
-                                    : __('panel.validation.enrollment.duplicate'));
-                            }
-                        },
+                // ── CREARE ────────────────────────────────────────────────────────────────────
+                Section::make(__('panel.forms.enrollment.section_where'))
+                    ->description(__('panel.forms.enrollment.section_where_hint'))
+                    ->icon('heroicon-o-building-library')
+                    ->visible(fn (string $operation): bool => $operation === 'create')
+                    ->schema([
+                        Select::make('school_class_id')
+                            ->label(__('panel.fields.class'))
+                            ->options(fn (): array => self::openClassOptions())
+                            ->default(fn (): ?int => self::contextClass()?->getKey())
+                            ->searchable()
+                            ->required()
+                            ->live()
+                            // Elevii eligibili depind de ANUL clasei — la schimbarea ei, selecția
+                            // se reface (un elev rămas din alt an ar fi respins la salvare).
+                            ->afterStateUpdated(fn (Set $set): mixed => $set('students', []))
+                            ->helperText(__('panel.forms.enrollment.class_hint')),
+                        // Anul NU e un câmp: e o consecință a clasei. Se arată, ca să fie limpede
+                        // în ce registru intră rândul.
+                        Text::make(fn (Get $get): string => self::yearLine($get('school_class_id')))
+                            ->color('gray'),
                     ]),
-                Select::make('school_class_id')
-                    ->label(__('panel.fields.class'))
-                    ->options(fn (Get $get): array => self::classOptions($get))
-                    ->default(fn (): ?int => self::defaultClassId())
-                    ->searchable()
-                    ->required()
-                    // Coerența clasă↔an și pe server (POST manipulat sau clasă schimbată de an între timp).
-                    ->rules([
-                        static fn (Get $get): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($get): void {
-                            $yearId = $get('academic_year_id');
 
-                            if (! $value || ! $yearId) {
-                                return;
-                            }
+                Section::make(__('panel.forms.enrollment.section_who'))
+                    ->description(__('panel.forms.enrollment.section_who_hint'))
+                    ->icon('heroicon-o-users')
+                    ->visible(fn (string $operation): bool => $operation === 'create')
+                    ->schema([
+                        Select::make('students')
+                            ->label(__('panel.forms.enrollment.students'))
+                            ->options(fn (Get $get): array => self::enrollableOptions($get('school_class_id')))
+                            ->default(fn (): array => self::contextStudentIds())
+                            // Eticheta unei valori DEJA selectate se rezolvă din fișă, nu din lista
+                            // de opțiuni: valoarea sosită din context (`?elev=`) e pusă înainte ca
+                            // lista să fie construită, iar chip-ul afișa id-ul brut („5").
+                            ->getOptionLabelsUsing(fn (array $values): array => Student::query()
+                                ->whereKey($values)
+                                ->get()
+                                ->mapWithKeys(fn (Student $student): array => [
+                                    (int) $student->getKey() => (string) $student->full_name,
+                                ])
+                                ->all())
+                            ->multiple()
+                            ->searchable()
+                            ->required()
+                            // Fără clasă nu există listă de elevi eligibili: întâi UNDE, apoi CINE.
+                            ->disabled(fn (Get $get): bool => blank($get('school_class_id')))
+                            ->helperText(fn (Get $get): string => blank($get('school_class_id'))
+                                ? (string) __('panel.forms.enrollment.students_pick_class')
+                                : (string) __('panel.forms.enrollment.students_hint'))
+                            // Al doilea strat, pe SERVER: lista de opțiuni îi ascunde pe cei deja
+                            // înscriși, dar un POST meșterit (sau o clasă schimbată între timp) nu
+                            // trebuie să treacă. Rândul ARHIVAT primește alt mesaj — acolo soluția
+                            // e restaurarea, nu o înmatriculare nouă (indexul unic îl vede oricum).
+                            ->rule(static fn (Get $get): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                                $yearId = SchoolClass::query()
+                                    ->whereKey((int) $get('school_class_id'))
+                                    ->value('academic_year_id');
 
-                            $belongsToYear = SchoolClass::query()
-                                ->whereKey((int) $value)
-                                ->where('academic_year_id', (int) $yearId)
-                                ->exists();
+                                if ($yearId === null || ! is_array($value) || $value === []) {
+                                    return;
+                                }
 
-                            if (! $belongsToYear) {
-                                $fail(__('panel.validation.enrollment.class_year_mismatch'));
-                            }
-                        },
+                                $conflicts = Enrollment::withTrashed()
+                                    ->whereIn('student_id', array_map(intval(...), $value))
+                                    ->where('academic_year_id', (int) $yearId)
+                                    ->get();
+
+                                if ($conflicts->isEmpty()) {
+                                    return;
+                                }
+
+                                $fail($conflicts->contains(fn (Enrollment $conflict): bool => $conflict->trashed())
+                                    ? (string) __('panel.validation.enrollment.archived_duplicate')
+                                    : (string) __('panel.validation.enrollment.duplicate'));
+                            }),
                     ]),
-                // Elevul DUPĂ an: selecția oferă doar elevii ÎNMATRICULABILI în anul ales (cei cu
-                // înmatriculare existentă — inclusiv arhivată — dispar din listă; regula de pe an
-                // rămâne al doilea strat, pentru POST-uri manipulate).
+
+                // ── EDITARE: identitatea rândului, needitabilă ────────────────────────────────
+                Callout::make(__('panel.forms.enrollment.edit_notice'))
+                    ->info()
+                    ->visible(fn (string $operation): bool => $operation === 'edit')
+                    ->columnSpanFull(),
+
                 Select::make('student_id')
                     ->label(__('panel.fields.student'))
-                    ->options(fn (Get $get, ?Model $record): array => self::studentOptions($get, $record))
-                    // Din lista „Neînmatriculați" a navigatorului, elevul sosește pre-completat
-                    // (`?elev=`) — validat (id existent), nu preluat orbește; regulile formularului
-                    // rămân stratul final.
-                    ->default(fn (): ?int => self::defaultStudentId())
+                    ->relationship('student', 'last_name')
+                    ->getOptionLabelFromRecordUsing(fn (Student $record): string => (string) $record->full_name)
+                    // Elevul E rândul: schimbarea lui ar transforma înmatricularea altcuiva în a
+                    // altcuiva, cu tot istoricul auditat pe el. Alt elev = alt rând.
+                    ->disabled()
+                    ->dehydrated(false)
+                    ->visible(fn (string $operation): bool => $operation === 'edit'),
+
+                Select::make('school_class_id')
+                    ->label(__('panel.fields.class'))
+                    // Doar clasele ACELUIAȘI an: mutarea între ani e promovarea, alt proces.
+                    ->options(fn (?Enrollment $record): array => $record !== null
+                        ? self::classOptionsForYear((int) $record->academic_year_id)
+                        : [])
                     ->searchable()
                     ->required()
-                    ->helperText(__('panel.forms.enrollment.student_hint')),
-                DatePicker::make('enrolled_on')
-                    ->label(__('panel.fields.enrolled_on'))
-                    // Registrul trebuie să știe CÂND a intrat elevul: obligatoriu la înmatriculările
-                    // noi (azi, implicit); rândurile legacy fără dată rămân editabile ca atare.
-                    ->default(now())
-                    ->required(fn (string $operation): bool => $operation === 'create')
-                    // Ordinea datelor se verifică DOAR când ambele există (before_or_equal pe un
-                    // câmp gol pică degeaba — plecarea e opțională).
-                    ->rules([
-                        static fn (Get $get): ?string => filled($get('left_on')) ? 'before_or_equal:left_on' : null,
-                    ]),
-                // Plecarea nu poate PRECEDE înmatricularea (interval negativ), dar poate fi chiar
-                // ziua ei: `after` respingea elevul înscris și retras în aceeași zi — o zi de
-                // registru validă, pe care regula veche o făcea imposibil de consemnat.
-                DatePicker::make('left_on')
-                    ->label(__('panel.fields.left_on'))
-                    ->rules([
-                        static fn (Get $get): ?string => filled($get('enrolled_on')) ? 'after_or_equal:enrolled_on' : null,
+                    ->helperText(__('panel.forms.enrollment.class_edit_hint'))
+                    ->visible(fn (string $operation): bool => $operation === 'edit'),
+
+                // ── Datele (ambele operațiuni) ────────────────────────────────────────────────
+                Section::make(__('panel.forms.enrollment.section_when'))
+                    ->description(fn (string $operation): string => $operation === 'create'
+                        ? (string) __('panel.forms.enrollment.section_when_hint_create')
+                        : (string) __('panel.forms.enrollment.section_when_hint_edit'))
+                    ->icon('heroicon-o-calendar-days')
+                    ->columns(2)
+                    ->schema([
+                        DatePicker::make('enrolled_on')
+                            ->label(__('panel.fields.enrolled_on'))
+                            ->native(false)
+                            ->displayFormat('d.m.Y')
+                            ->closeOnDateSelection()
+                            // Registrul trebuie să știe CÂND a intrat elevul: obligatoriu la
+                            // înmatriculările noi (azi, implicit); rândurile legacy fără dată
+                            // rămân editabile ca atare.
+                            ->default(now())
+                            ->required(fn (string $operation): bool => $operation === 'create')
+                            ->rules([
+                                static fn (Get $get): ?string => filled($get('left_on')) ? 'before_or_equal:left_on' : null,
+                            ]),
+                        // Plecarea NU apare la creare: un rând nou de registru nu se naște închis.
+                        // Aici rămâne pentru CORECTAREA unei date greșite; marcarea normală se face
+                        // din registru, cu acțiunea „Marchează plecarea".
+                        DatePicker::make('left_on')
+                            ->label(__('panel.fields.left_on'))
+                            ->native(false)
+                            ->displayFormat('d.m.Y')
+                            ->closeOnDateSelection()
+                            ->visible(fn (string $operation): bool => $operation === 'edit')
+                            ->helperText(__('panel.forms.enrollment.left_on_hint'))
+                            ->rules([
+                                static fn (Get $get): ?string => filled($get('enrolled_on')) ? 'after_or_equal:enrolled_on' : null,
+                            ]),
                     ]),
             ]);
     }
 
     /**
-     * Clasele selectabile: doar cele ale anului școlar ales (toate, cât timp anul nu e ales —
-     * pe Edit valorile existente se afișează oricum corect).
+     * Clasele în care se POATE înmatricula: cele ale anilor DESCHIȘI, etichetate cu anul lor —
+     * eticheta ține locul câmpului „an școlar" scos din formular.
      *
      * @return array<int, string>
      */
-    private static function classOptions(Get $get): array
+    private static function openClassOptions(): array
     {
-        $yearId = $get('academic_year_id');
+        return SchoolClass::query()
+            ->with('academicYear')
+            ->whereHas('academicYear', fn (Builder $query) => $query->whereNull('closed_at'))
+            ->orderBy('academic_year_id')
+            ->orderBy('grade_level')
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(fn (SchoolClass $class): array => [
+                (int) $class->getKey() => trim($class->name.' '.($class->section ?? ''))
+                    .' · '.($class->academicYear->name ?? '—'),
+            ])
+            ->all();
+    }
 
-        $query = SchoolClass::query()->orderBy('grade_level')->orderBy('name');
-
-        if ($yearId !== null && $yearId !== '') {
-            $query->where('academic_year_id', (int) $yearId);
-        }
-
-        $options = [];
-        foreach ($query->get() as $class) {
-            $options[$class->id] = trim($class->name.' '.($class->section ?? ''));
-        }
-
-        return $options;
+    /** @return array<int, string> */
+    private static function classOptionsForYear(int $yearId): array
+    {
+        return SchoolClass::query()
+            ->where('academic_year_id', $yearId)
+            ->orderBy('grade_level')
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(fn (SchoolClass $class): array => [
+                (int) $class->getKey() => trim($class->name.' '.($class->section ?? '')),
+            ])
+            ->all();
     }
 
     /**
-     * Elevii selectabili: fără cei DEJA înmatriculați (activ sau arhivat) în anul ales; pe Edit,
-     * elevul înmatriculării curente rămâne mereu în listă.
+     * Elevii înmatriculabili în anul clasei alese: cei fără NICIUN rând acolo (nici arhivat —
+     * indexul unic îl vede, iar recrearea ar cădea). Lista se golește pe măsură ce se înscriu.
      *
      * @return array<int, string>
      */
-    private static function studentOptions(Get $get, ?Model $record): array
+    private static function enrollableOptions(mixed $classId): array
     {
-        $yearId = $get('academic_year_id');
-
-        $query = Student::query()->orderBy('last_name')->orderBy('first_name');
-
-        if ($yearId !== null && $yearId !== '') {
-            $query->where(function (Builder $q) use ($yearId, $record): void {
-                $q->whereNotExists(function (QueryBuilder $sub) use ($yearId, $record): void {
-                    $sub->selectRaw('1')
-                        ->from('enrollments as e')
-                        ->whereColumn('e.student_id', 'students.id')
-                        ->where('e.academic_year_id', (int) $yearId);
-
-                    if ($record !== null) {
-                        $sub->where('e.id', '!=', $record->getKey());
-                    }
-                });
-
-                if ($record instanceof Enrollment) {
-                    $q->orWhere('students.id', $record->student_id);
-                }
-            });
+        if (! is_numeric($classId)) {
+            return [];
         }
 
-        $options = [];
-        foreach ($query->get() as $student) {
-            $options[$student->id] = (string) $student->full_name;
+        $yearId = SchoolClass::query()->whereKey((int) $classId)->value('academic_year_id');
+
+        if ($yearId === null) {
+            return [];
         }
 
-        return $options;
+        return Student::query()
+            ->whereDoesntHave('enrollments', fn (Builder $query) => $query
+                ->withoutGlobalScope(SoftDeletingScope::class)
+                ->where('academic_year_id', (int) $yearId))
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get()
+            ->mapWithKeys(fn (Student $student): array => [
+                (int) $student->getKey() => (string) $student->full_name,
+            ])
+            ->all();
+    }
+
+    /** Linia informativă „Anul școlar: …" — anul e consecința clasei, nu o alegere. */
+    private static function yearLine(mixed $classId): string
+    {
+        if (! is_numeric($classId)) {
+            return (string) __('panel.forms.enrollment.year_pending');
+        }
+
+        $class = SchoolClass::query()->with('academicYear')->whereKey((int) $classId)->first();
+
+        return $class?->academicYear === null
+            ? (string) __('panel.forms.enrollment.year_pending')
+            : (string) __('panel.forms.enrollment.year_line', ['year' => $class->academicYear->name]);
     }
 
     /** Clasa din contextul navigatorului (`?clasa=`), doar dacă există. */
@@ -189,44 +270,24 @@ class EnrollmentForm
     {
         $raw = request()->query('clasa');
 
-        if (! is_string($raw) || ! ctype_digit($raw)) {
-            return null;
-        }
-
-        return SchoolClass::query()->whereKey((int) $raw)->first();
+        return is_string($raw) && ctype_digit($raw)
+            ? SchoolClass::query()->whereKey((int) $raw)->first()
+            : null;
     }
 
-    private static function defaultYearId(): ?int
-    {
-        $raw = request()->query('an');
-
-        if (is_string($raw) && ctype_digit($raw) && AcademicYear::query()->whereKey((int) $raw)->exists()) {
-            return (int) $raw;
-        }
-
-        // Fără `an` explicit, anul vine din clasa contextului — mereu coerent cu ea.
-        return self::contextClass()?->academic_year_id;
-    }
-
-    private static function defaultClassId(): ?int
-    {
-        $class = self::contextClass();
-
-        if ($class === null || $class->academic_year_id !== self::defaultYearId()) {
-            return null;
-        }
-
-        return (int) $class->getKey();
-    }
-
-    private static function defaultStudentId(): ?int
+    /**
+     * Elevul venit din lista „Neînmatriculați" (`?elev=`) — validat, nu preluat orbește.
+     *
+     * @return array<int, int>
+     */
+    private static function contextStudentIds(): array
     {
         $raw = request()->query('elev');
 
-        if (is_string($raw) && ctype_digit($raw) && Student::query()->whereKey((int) $raw)->exists()) {
-            return (int) $raw;
+        if (! is_string($raw) || ! ctype_digit($raw) || ! Student::query()->whereKey((int) $raw)->exists()) {
+            return [];
         }
 
-        return null;
+        return [(int) $raw];
     }
 }

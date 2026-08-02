@@ -25,6 +25,7 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
+use App\Support\SchoolCalendar;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -159,7 +160,9 @@ it('calendarul primește lunile și zilele TRADUSE de pe server (componenta n-ar
         ->and($locale['months'][0])->toBe('Ianuarie')
         // Săptămâna începe LUNI: prima etichetă e ziua de luni, nu duminica.
         ->and($locale['weekdays'][0])->toBe('Lun')
-        ->and($locale['today'])->toBe(now()->toDateString());
+        // „Azi" e ziua ȘCOLII (Chișinău), nu a serverului (UTC): între 00:00 și 03:00 local
+        // cele două diferă, iar calendarul evidenția ziua greșită.
+        ->and($locale['today'])->toBe(SchoolCalendar::localNow()->toDateString());
 });
 
 it('capete INVERSATE se schimbă între ele — o greșeală de tastare nu întoarce zero rezultate', function () {
