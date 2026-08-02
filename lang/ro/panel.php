@@ -1248,7 +1248,7 @@ return [
         ],
         'consent' => [
             'user' => 'Utilizator',
-            'version' => 'Versiune notă',
+            'version' => 'Ultima actualizare',
             'accepted_at' => 'Confirmat la',
             'ip' => 'IP',
         ],
@@ -1947,7 +1947,7 @@ return [
     ],
 
     'consent_nav' => [
-        'hint' => 'Dovada luării la cunoștință a notei de informare (Legea 133/2011 §7). Versiunea în vigoare: :version — elevii și părinții o confirmă obligatoriu la prima autentificare; personalul prelucrează datele pe temei de rol și nu e vizat. Cardurile arată acoperirea; „De confirmat" = conturile active care nu au încă versiunea curentă (familiile plecate din școală — fișe arhivate — nu intră).',
+        'hint' => 'Dovada luării la cunoștință a notei de informare (Legea 133/2011 §7). Versiunea în vigoare: :version — elevii și părinții o confirmă obligatoriu la prima autentificare; personalul prelucrează datele pe temei de rol și nu e vizat. Cardurile arată acoperirea; „În așteptare" = conturile active care nu au încă versiunea curentă (familiile plecate din școală — fișe arhivate — nu intră).',
         'eyebrow' => 'Consimțăminte',
         'aria' => 'Vederile consimțămintelor',
         'segments' => [
@@ -1956,11 +1956,11 @@ return [
         ],
         'stat_confirmed' => 'Versiunea curentă: :confirmed din :total (:percent%)',
         'proofs_count' => '{0}fără dovezi înregistrate|{1}o dovadă înregistrată|[2,19]:count dovezi înregistrate|[20,*]:count de dovezi înregistrate',
-        'missing_badge' => 'De confirmat: :count',
-        'view_proofs' => 'Dovezi',
-        'view_missing' => 'De confirmat',
+        'missing_badge' => 'În așteptare: :count',
+        'view_proofs' => 'Confirmat',
+        'view_missing' => 'În așteptare',
         'search_placeholder' => 'Caută după nume sau utilizator…',
-        'never_confirmed' => 'Nicio confirmare',
+        'never_confirmed' => 'În așteptare',
         'old_version' => 'Versiunea :version',
         'more_missing' => 'Încă :count de conturi — folosește căutarea ca să le găsești.',
         'missing_empty_title' => 'Acoperire completă',

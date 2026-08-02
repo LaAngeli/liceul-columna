@@ -3,7 +3,7 @@
 /**
  * „Consimțăminte" restructurat (2026-07-17): secțiunea răspunde la întrebarea de conformitate —
  * cine a confirmat versiunea CURENTĂ a notei de informare și cine NU. Carduri pe segment
- * (Elevi/Părinți) cu acoperire → context cu vederile Dovezi / De confirmat.
+ * (Elevi/Părinți) cu acoperire → context cu vederile Confirmat / În așteptare.
  */
 
 use App\Enums\UserRole;
@@ -95,7 +95,7 @@ it('contextul unui segment arată doar dovezile lui; un segment inventat nu desc
         ->toBeNull();
 });
 
-it('vederea „De confirmat" listează conturile active fără versiunea curentă, cu starea lor', function () {
+it('vederea „În așteptare" listează conturile active fără versiunea curentă, cu starea lor', function () {
     consentUser(UserRole::Elev, '2026-06-28', ['name' => 'Confirmat Deja']);
     consentUser(UserRole::Elev, null, ['name' => 'Fara Confirmare']);
     consentUser(UserRole::Elev, '2025-01-01', ['name' => 'Versiune Veche']);
@@ -151,7 +151,7 @@ it('familiile PLECATE nu intră în populație: fișă arhivată = elev exclus; 
     expect(collect($missing['users'])->pluck('name')->all())->toBe(['Activ Ramas', 'Fara Fisa']);
 });
 
-it('căutarea din „De confirmat" îngustează lista, dar totalul segmentului rămâne', function () {
+it('căutarea din „În așteptare" îngustează lista, dar totalul segmentului rămâne', function () {
     consentUser(UserRole::Elev, null, ['name' => 'Popescu Ana']);
     consentUser(UserRole::Elev, null, ['name' => 'Rusu Ion']);
 

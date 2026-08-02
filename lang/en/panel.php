@@ -1235,7 +1235,7 @@ return [
         ],
         'consent' => [
             'user' => 'User',
-            'version' => 'Notice version',
+            'version' => 'Last update',
             'accepted_at' => 'Confirmed at',
             'ip' => 'IP',
         ],
@@ -1931,7 +1931,7 @@ return [
     ],
 
     'consent_nav' => [
-        'hint' => 'Proof of acknowledging the privacy notice (Law 133/2011 §7). Version in force: :version — students and parents must confirm it at first sign-in; staff processes data on a role basis and is not covered. The cards show coverage; "To confirm" lists active accounts still missing the current version (families who left the school — archived records — are not counted).',
+        'hint' => 'Proof of acknowledging the privacy notice (Law 133/2011 §7). Version in force: :version — students and parents must confirm it at first sign-in; staff processes data on a role basis and is not covered. The cards show coverage; "Pending" lists active accounts still missing the current version (families who left the school — archived records — are not counted).',
         'eyebrow' => 'Consents',
         'aria' => 'Consent views',
         'segments' => [
@@ -1940,11 +1940,11 @@ return [
         ],
         'stat_confirmed' => 'Current version: :confirmed of :total (:percent%)',
         'proofs_count' => '{0}no recorded proofs|{1}one recorded proof|[2,*]:count recorded proofs',
-        'missing_badge' => 'To confirm: :count',
-        'view_proofs' => 'Proofs',
-        'view_missing' => 'To confirm',
+        'missing_badge' => 'Pending: :count',
+        'view_proofs' => 'Confirmed',
+        'view_missing' => 'Pending',
         'search_placeholder' => 'Search by name or username…',
-        'never_confirmed' => 'Never confirmed',
+        'never_confirmed' => 'Pending',
         'old_version' => 'Version :version',
         'more_missing' => ':count more accounts — use the search to find them.',
         'missing_empty_title' => 'Full coverage',
