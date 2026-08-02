@@ -110,12 +110,13 @@ class EnrollmentForm
                     ->rules([
                         static fn (Get $get): ?string => filled($get('left_on')) ? 'before_or_equal:left_on' : null,
                     ]),
-                // Data de plecare TREBUIE să fie după înmatriculare — altfel intervalul e negativ
-                // și calcule de istoric devin incoerente. Pattern aliniat cu Holiday/CalendarEvent.
+                // Plecarea nu poate PRECEDE înmatricularea (interval negativ), dar poate fi chiar
+                // ziua ei: `after` respingea elevul înscris și retras în aceeași zi — o zi de
+                // registru validă, pe care regula veche o făcea imposibil de consemnat.
                 DatePicker::make('left_on')
                     ->label(__('panel.fields.left_on'))
                     ->rules([
-                        static fn (Get $get): ?string => filled($get('enrolled_on')) ? 'after:enrolled_on' : null,
+                        static fn (Get $get): ?string => filled($get('enrolled_on')) ? 'after_or_equal:enrolled_on' : null,
                     ]),
             ]);
     }

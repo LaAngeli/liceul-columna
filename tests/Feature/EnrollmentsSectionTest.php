@@ -31,8 +31,14 @@ beforeEach(function () {
         Role::findOrCreate($role->value, 'web');
     }
 
-    $this->oldYear = AcademicYear::factory()->create(['name' => '2019–2020']);
-    $this->year = AcademicYear::factory()->create(['name' => '2025–2026']);
+    // Datele explicite: factory-ul dă un `starts_on` aleator, iar aserțiile pe ORDINE ar fi
+    // depins de el (nu de eticheta anului).
+    $this->oldYear = AcademicYear::factory()->create([
+        'name' => '2019–2020', 'starts_on' => '2019-09-01', 'ends_on' => '2020-06-30',
+    ]);
+    $this->year = AcademicYear::factory()->create([
+        'name' => '2025–2026', 'starts_on' => '2025-09-01', 'ends_on' => '2026-06-30',
+    ]);
     Term::factory()->for($this->year)->create([
         'number' => 1, 'starts_on' => '2025-09-01', 'ends_on' => '2026-01-31', 'is_current' => true,
     ]);
@@ -59,16 +65,20 @@ it('registrul se navighează: ani → carduri de clase (activi/plecați) → în
     $component = Livewire::test(ListEnrollments::class);
     $page = $component->instance();
 
-    // Pastilele anilor (cei mai noi întâi), badge = înmatriculările din registrul anului.
-    expect(collect($page->yearPills())->pluck('id')->all())->toBe([$this->year->id, $this->oldYear->id])
-        ->and(collect($page->yearPills())->pluck('count')->all())->toBe([2, 1])
+    // Pastilele anilor (cronologic crescător), badge = elevii aflați EFECTIV în școală: anul
+    // curent are două rânduri, dar unul e plecat, deci badge-ul lui e 1 (restructurare 2026-08-02
+    // — totalul rândurilor nu spunea cât cântărește anul).
+    expect(collect($page->yearPills())->pluck('id')->all())->toBe([$this->oldYear->id, $this->year->id])
+        ->and(collect($page->yearPills())->pluck('count')->all())->toBe([1, 1])
         ->and($page->activeYearId())->toBe($this->year->id);
 
-    // Cardul clasei: registrul pe scurt — activi ȘI plecați.
-    $cards = $page->classCards();
-    expect(collect($cards)->pluck('id')->all())->toBe([$this->classA->id])
-        ->and($cards[0]['stats'][0])->toContain('1')
-        ->and($cards[0]['stats'])->toHaveCount(2);
+    // Cardurile sunt GRUPATE pe cicluri (52 de carduri plate nu se parcurgeau cu ochiul).
+    $groups = $page->classGroups();
+    expect($groups)->toHaveCount(1)
+        ->and($groups[0]['cycle'])->toBe('gimnaziu')
+        ->and(collect($groups[0]['cards'])->pluck('id')->all())->toBe([$this->classA->id])
+        ->and($groups[0]['cards'][0]['active'])->toBe(1)
+        ->and($groups[0]['cards'][0]['departed'])->toBe(1);
 
     // Registrul clasei = doar înmatriculările ei.
     $component->call('openClass', $this->classA->id)
@@ -269,7 +279,10 @@ it('elevii fără NICIO înmatriculare în anul activ apar în lista de lucru; c
 
     $signals = collect($page->integrity());
 
-    expect($signals->firstWhere('level', 'warning'))->not->toBeNull()
-        // Rândul arhivat al lui Dan → semnalul „restaurați, nu recreați".
-        ->and($signals->firstWhere('level', 'info'))->not->toBeNull();
+    // Neînmatriculații NU mai sunt semnal de avertizare: au bara de progres a anului + cardul cu
+    // listă (un al treilea loc care spunea același lucru era zgomot). Rândul ARHIVAT rămâne semnal
+    // — „restaurați, nu recreați" e o îndrumare, nu o numărătoare.
+    expect($signals->firstWhere('level', 'warning'))->toBeNull()
+        ->and($signals->firstWhere('level', 'info'))->not->toBeNull()
+        ->and($page->yearProgress()['enrolled'])->toBeLessThan($page->yearProgress()['total']);
 });
