@@ -15,6 +15,7 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\MenuItem;
+use Filament\Navigation\NavigationGroup;
 use Filament\Navigation\NavigationItem;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
@@ -68,23 +69,29 @@ class AdminPanelProvider extends PanelProvider
                 'brand-green' => '#9bc31e',
             ])
             // Ordinea grupurilor din sidebar; „Setări" la final (oglindește cabinetul elev/părinte).
-            // Etichetele se localizează la fiecare request (SetUserLocale rulează înainte de panel()):
-            // Filament grupează pe label exact, deci resursele returnează aceeași cheie tradusă.
+            // ⚠️ Etichetele trebuie să fie ÎNCHIDERI: `panel()` rulează la boot-ul provider-ului,
+            // ÎNAINTE de middleware — deci `SetUserLocale` n-a rulat încă și un `__()` direct ar
+            // îngheța traducerea în limba implicită (RO). Cu obiecte NavigationGroup, Filament
+            // cheamă `getLabel()` la RANDARE și potrivește ordinea cu etichetele traduse de
+            // resurse/pagini (care folosesc `getNavigationGroup()`, deci sunt deja lazy).
             ->navigationGroups([
-                __('panel.nav.groups.catalog'),
-                __('panel.nav.groups.approvals'),
-                __('panel.nav.groups.configuration'),
-                __('panel.nav.groups.communication'),
-                __('panel.nav.groups.admission'),
-                __('panel.nav.groups.administration'),
-                __('panel.nav.groups.documents'),
-                __('panel.nav.groups.settings'),
+                'catalog' => NavigationGroup::make(fn (): string => __('panel.nav.groups.catalog')),
+                'approvals' => NavigationGroup::make(fn (): string => __('panel.nav.groups.approvals')),
+                'configuration' => NavigationGroup::make(fn (): string => __('panel.nav.groups.configuration')),
+                'communication' => NavigationGroup::make(fn (): string => __('panel.nav.groups.communication')),
+                'admission' => NavigationGroup::make(fn (): string => __('panel.nav.groups.admission')),
+                'administration' => NavigationGroup::make(fn (): string => __('panel.nav.groups.administration')),
+                'documents' => NavigationGroup::make(fn (): string => __('panel.nav.groups.documents')),
+                'settings' => NavigationGroup::make(fn (): string => __('panel.nav.groups.settings')),
             ])
             // Pagina de profil Filament e legată de meniul user, nu de sidebar (`->profile()` nu o
             // adaugă în navigație). Adăugăm manual linkul „Setări → Profil" către `getProfileUrl()`.
+            // Eticheta ȘI grupul = închideri, din același motiv ca mai sus: altfel itemul rămânea
+            // „Profil" într-un grup „Setări" înghețat în RO, care în RU/EN se despărțea vizual de
+            // grupul tradus al paginilor (două secțiuni „Setări" în aceeași bară).
             ->navigationItems([
-                NavigationItem::make(__('panel.nav.items.profile'))
-                    ->group(__('panel.nav.groups.settings'))
+                NavigationItem::make(fn (): string => __('panel.nav.items.profile'))
+                    ->group(fn (): string => __('panel.nav.groups.settings'))
                     ->icon(Heroicon::OutlinedUserCircle)
                     ->url(fn (): ?string => filament()->getProfileUrl())
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.auth.profile'))
