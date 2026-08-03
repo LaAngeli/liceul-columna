@@ -217,3 +217,15 @@ it('ecranul e închis celor fără drept de configurare', function () {
         expect(SchoolYearTransition::canAccess())->toBeFalse("Rolul {$role->value} nu trebuie să deschidă anul");
     }
 });
+
+// ─── Simularea cap-coadă ─────────────────────────────────────────────────────────────────
+
+it('simularea pe date demo trece toate verificările și nu lasă nimic în urmă', function () {
+    // Comanda își construiește propria școală demo (an 2040–2041), execută trecerea, verifică
+    // registrul rezultat și curăță. Rulează aici ca gardă de regresie: dacă vreo verigă a
+    // lanțului se strică, testul pică fără să fie nevoie de o rulare manuală.
+    $this->artisan('app:simulate-year-transition')->assertSuccessful();
+
+    expect(AcademicYear::query()->whereIn('name', ['2040–2041', '2041–2042'])->count())->toBe(0)
+        ->and(Student::query()->where('last_name', 'like', '%Simulat')->count())->toBe(0);
+});
