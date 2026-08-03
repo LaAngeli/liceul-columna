@@ -51,8 +51,67 @@ trait HasCatalogNavigator
     #[Url(as: 'perioada', except: null)]
     public ?string $catalogTerm = null;
 
+    /**
+     * Căutarea din MENIUL navigatorului (aterizare). Există pe toate paginile, dar caseta se
+     * randează DOAR unde pagina o cere prin {@see catalogSearchPlaceholder()} — o pagină cu 6
+     * carduri nu are ce căuta, una cu 52 nu se parcurge cu ochiul.
+     */
+    #[Url(as: 'cauta', except: '')]
+    public string $catalogSearch = '';
+
     /** @var array<string, mixed> memoizare per-request (seturi permise, entități rezolvate, agregate) */
     protected array $catalogNavMemo = [];
+
+    // ── Aterizare: căutare + grupare (OPT-IN, implicit inactive) ────────────────────────────
+
+    /**
+     * Textul-invitație al casetei de căutare din meniu; `null` (implicit) = fără casetă, deci
+     * paginile care nu au nevoie de ea rămân exact cum erau.
+     */
+    public function catalogSearchPlaceholder(): ?string
+    {
+        return null;
+    }
+
+    /**
+     * Cardurile GRUPATE (ex. pe cicluri: primar / gimnaziu / liceu). `null` (implicit) = grilă
+     * plată, comportamentul de dinainte.
+     *
+     * @return array<int, array{label: string, cards: array<int, array<string, mixed>>}>|null
+     */
+    public function catalogCardGroups(): ?array
+    {
+        return null;
+    }
+
+    /**
+     * Rezultate DIRECTE ale căutării, care sar peste alegerea entității (ex. elevul găsit după
+     * nume duce direct în fișa lui). Implicit gol.
+     *
+     * @return array<int, array{id: int, title: string, meta: string|null, url: string}>
+     */
+    public function catalogSearchHits(): array
+    {
+        return [];
+    }
+
+    /** Titlul listei de rezultate directe — pagina îl face specific („Elevi găsiți"). */
+    public function catalogSearchHitsLabel(): string
+    {
+        return (string) __('panel.catalog_nav.search_results');
+    }
+
+    /** Căutarea din meniu, normalizată (gol = fără filtrare). */
+    public function catalogSearchTerm(): string
+    {
+        return trim($this->catalogSearch);
+    }
+
+    /** La fiecare tastare, agregatele memoizate ale meniului trebuie recalculate. */
+    public function updatedCatalogSearch(): void
+    {
+        $this->catalogNavMemo = [];
+    }
 
     // ── Sursa de date (definite de pagina gazdă) ────────────────────────────────────────────
 
@@ -138,6 +197,7 @@ trait HasCatalogNavigator
         $this->catalogSubject = null;
         $this->catalogTeacher = null;
         $this->catalogTerm = null;
+        $this->catalogSearch = '';
         $this->catalogNavMemo = [];
         $this->resetCatalogPagination();
     }
@@ -154,6 +214,9 @@ trait HasCatalogNavigator
             default => [$this->catalogClass = $id, $this->catalogSubject = null],
         };
 
+        // Căutarea din meniu și-a făcut treaba; dacă ar rămâne, ar filtra pe tăcute comutatorul
+        // „sari la altă entitate" din bara de context (aceleași carduri stau la baza lui).
+        $this->catalogSearch = '';
         $this->catalogNavMemo = [];
         $this->resetCatalogPagination();
     }

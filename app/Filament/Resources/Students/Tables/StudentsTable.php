@@ -10,6 +10,7 @@ use App\Enums\NotificationType;
 use App\Enums\StudentStatus;
 use App\Filament\Contracts\CatalogNavigator;
 use App\Filament\Exports\StudentExporter;
+use App\Filament\Resources\Students\Pages\ListStudents;
 use App\Models\CorigentaExam;
 use App\Models\SemesterValidation;
 use App\Models\Student;
@@ -48,6 +49,12 @@ class StudentsTable
                     $livewire->applyCatalogContext($query);
                 }
 
+                // În arhivă fiecare rând își arată clasa → încărcăm înmatricularea cea mai
+                // recentă o singură dată (altfel: două interogări pe rând).
+                if ($livewire instanceof ListStudents && $livewire->isArchiveMode()) {
+                    $query->with('latestEnrollment.schoolClass');
+                }
+
                 return $query;
             })
             // Mobile-first (directiva 2026-07-17): pe telefon rămâne identitatea (nume + prenume);
@@ -64,6 +71,14 @@ class StudentsTable
                     ->label(__('panel.fields.first_name'))
                     ->searchable()
                     ->sortable(),
+                // Arhiva amestecă TOATE clasele (și elevii plecați) — fără clasă pe rând, lista e
+                // un șir de nume fără reper. În vederea pe clasă coloana ar repeta antetul, deci
+                // apare doar aici.
+                TextColumn::make('current_class')
+                    ->label(__('panel.fields.class'))
+                    ->state(fn (Student $record): ?string => self::currentClassLabel($record))
+                    ->placeholder(__('panel.tables.students.no_class'))
+                    ->visible(fn ($livewire): bool => $livewire instanceof ListStudents && $livewire->isArchiveMode()),
                 TextColumn::make('sex')
                     ->label(__('panel.forms.student.sex_short'))
                     ->badge()
@@ -262,6 +277,17 @@ class StudentsTable
         $value = Term::query()->where('is_current', true)->value('id');
 
         return $value === null ? null : (int) $value;
+    }
+
+    /**
+     * Clasa afișată în arhivă = cea din cea mai recentă înmatriculare (pentru un elev plecat,
+     * ultima lui clasă). Citește relația eager-loaded — fără interogări pe rând.
+     */
+    private static function currentClassLabel(Student $student): ?string
+    {
+        $class = $student->latestEnrollment?->schoolClass;
+
+        return $class === null ? null : trim($class->name.' '.($class->section ?? ''));
     }
 
     /** Detaliile de registru: administrația + dirigintele (contextul activ) — nu profesorul. */

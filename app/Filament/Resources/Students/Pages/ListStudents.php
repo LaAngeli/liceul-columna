@@ -2,12 +2,14 @@
 
 namespace App\Filament\Resources\Students\Pages;
 
+use App\Enums\SchoolCycle;
 use App\Enums\UserRole;
 use App\Filament\Concerns\HasCatalogNavigator;
 use App\Filament\Contracts\CatalogNavigator;
 use App\Filament\Resources\Students\StudentResource;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\SchoolClass;
+use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Term;
@@ -99,6 +101,126 @@ class ListStudents extends ListRecords implements CatalogNavigator
         return (string) __('panel.catalog_nav.students_hint');
     }
 
+    // ── Aterizare: o casetă de căutare care face DOUĂ lucruri ───────────────────────────────
+    // Cerința beneficiarului (2026-08-03): cine caută UN elev nu trebuie să ghicească întâi clasa.
+    // Aceeași casetă filtrează cardurile (clasă / diriginte) ȘI listează elevii găsiți, cu salt
+    // direct în fișă. Căutarea se face pe interogarea SCOPED a resursei → profesorul găsește doar
+    // elevii claselor lui, fără nicio gardă suplimentară aici.
+
+    /** Câți elevi găsiți arătăm direct în meniu (restul se rafinează scriind mai mult). */
+    private const SEARCH_HITS_LIMIT = 12;
+
+    public function catalogSearchPlaceholder(): ?string
+    {
+        return (string) __('panel.catalog_nav.students_search_placeholder');
+    }
+
+    public function catalogSearchHitsLabel(): string
+    {
+        return (string) __('panel.catalog_nav.students_search_results');
+    }
+
+    /**
+     * Cardurile claselor, grupate pe cicluri — 30+ de clase într-o grilă unică nu se citesc.
+     *
+     * @return array<int, array{label: string, cards: array<int, array<string, mixed>>}>|null
+     */
+    public function catalogCardGroups(): ?array
+    {
+        /** @var array<int, int> $levels treapta fiecărei clase, keyed pe id */
+        $levels = $this->catalogMemo('classLevels', fn (): array => $this->navigatorClasses()
+            ->mapWithKeys(fn (SchoolClass $class): array => [(int) $class->getKey() => (int) $class->grade_level])
+            ->all());
+
+        $groups = [];
+
+        foreach ($this->catalogEntityCards() as $card) {
+            $cycle = SchoolCycle::fromGradeLevel($levels[$card['id']] ?? SchoolCycle::MIN_GRADE_LEVEL);
+            $groups[$cycle->value][] = $card;
+        }
+
+        $ordered = [];
+
+        // Ordinea firească a școlii: primar → gimnaziu → liceu (nu ordinea de apariție).
+        foreach (SchoolCycle::cases() as $cycle) {
+            if (isset($groups[$cycle->value])) {
+                $ordered[] = [
+                    'label' => (string) __('panel.catalog_nav.cycles.'.$cycle->value),
+                    'cards' => $groups[$cycle->value],
+                ];
+            }
+        }
+
+        return $ordered;
+    }
+
+    /**
+     * Elevii găsiți după nume, prenume sau număr matricol — fiecare cuvânt tastat trebuie să
+     * apară undeva (deci „Popescu Ion" și „Ion Popescu" duc la același elev).
+     *
+     * @return array<int, array{id: int, title: string, meta: string|null, url: string}>
+     */
+    public function catalogSearchHits(): array
+    {
+        $term = $this->catalogSearchTerm();
+
+        // Sub 2 caractere lista ar fi zgomot pur (o literă = jumătate din școală).
+        if (mb_strlen($term) < 2) {
+            return [];
+        }
+
+        /** @var array<int, array{id: int, title: string, meta: string|null, url: string}> $hits */
+        $hits = $this->catalogMemo('studentHits', function () use ($term): array {
+            $students = StudentResource::getEloquentQuery()
+                ->with('latestEnrollment.schoolClass')
+                ->where(function (Builder $query) use ($term): void {
+                    foreach (preg_split('/\s+/u', $term) ?: [] as $word) {
+                        $like = '%'.$word.'%';
+
+                        $query->where(fn (Builder $part) => $part
+                            ->where('last_name', 'like', $like)
+                            ->orWhere('first_name', 'like', $like)
+                            ->orWhere('register_number', 'like', $like));
+                    }
+                })
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->limit(self::SEARCH_HITS_LIMIT)
+                ->get();
+
+            $hits = [];
+
+            foreach ($students as $student) {
+                /** @var Student $student */
+                $hits[] = [
+                    'id' => (int) $student->getKey(),
+                    'title' => $student->full_name,
+                    'meta' => $this->studentHitMeta($student),
+                    'url' => StudentResource::getUrl('view', ['record' => $student->getKey()]),
+                ];
+            }
+
+            return $hits;
+        });
+
+        return $hits;
+    }
+
+    /** Linia a doua a unui rezultat: clasa (dacă există) + numărul matricol. */
+    private function studentHitMeta(Student $student): ?string
+    {
+        $class = $student->latestEnrollment?->schoolClass;
+
+        $parts = array_filter([
+            $class !== null ? trim($class->name.' '.($class->section ?? '')) : null,
+            $student->register_number !== null
+                ? (string) __('panel.fields.register_number').': '.$student->register_number
+                : null,
+        ]);
+
+        return $parts === [] ? null : implode(' · ', $parts);
+    }
+
     /**
      * Clasa elevului = înmatricularea lui — constrângerea trece prin enrollments.
      *
@@ -140,6 +262,10 @@ class ListStudents extends ListRecords implements CatalogNavigator
         $cards = [];
 
         foreach ($this->navigatorClasses() as $class) {
+            if (! $this->classMatchesSearch($class)) {
+                continue;
+            }
+
             $students = $enrollments->get($class->id);
             $count = $students !== null ? (int) $students->aggregate : 0;
 
@@ -159,6 +285,23 @@ class ListStudents extends ListRecords implements CatalogNavigator
         return $cards;
     }
 
+    /** Cardul rămâne vizibil dacă termenul apare în numele clasei sau al dirigintelui. */
+    private function classMatchesSearch(SchoolClass $class): bool
+    {
+        $term = $this->catalogSearchTerm();
+
+        if ($term === '') {
+            return true;
+        }
+
+        $haystack = mb_strtolower(implode(' ', array_filter([
+            trim($class->name.' '.($class->section ?? '')),
+            $class->homeroomTeacher?->full_name,
+        ])));
+
+        return str_contains($haystack, mb_strtolower($term));
+    }
+
     /**
      * Fără chips în contextul unei clase de elevi (nu există sub-dimensiune utilă).
      *
@@ -171,7 +314,8 @@ class ListStudents extends ListRecords implements CatalogNavigator
 
     // ── Vederea „Arhivă" (toți elevii) — doar administrația ────────────────────────────────
 
-    protected function isArchiveMode(): bool
+    /** Public: tabelul citește vederea ca să arate coloana „Clasa" doar în arhivă. */
+    public function isArchiveMode(): bool
     {
         return $this->archiveMode === '1' && (auth('web')->user()?->isAdministrator() ?? false);
     }

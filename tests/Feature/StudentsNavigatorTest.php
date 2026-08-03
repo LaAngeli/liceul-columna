@@ -117,3 +117,121 @@ it('ieșirea din context curăță și flag-ul de arhivă', function () {
     $component->call('leaveCatalogContext');
     expect($component->instance()->hasCatalogContext())->toBeFalse();
 });
+
+// ── Căutarea de pe aterizare (cerința 2026-08-03) ───────────────────────────────────────────
+
+it('CĂUTARE: elevul se găsește după nume direct din meniu, cu salt în fișa lui', function () {
+    actingAs(studentsNavDirector());
+
+    $this->ownStudent->update(['last_name' => 'Zaharescu', 'first_name' => 'Mihai']);
+
+    $hits = Livewire::withQueryParams(['cauta' => 'zahar'])
+        ->test(ListStudents::class)
+        ->instance()
+        ->catalogSearchHits();
+
+    expect($hits)->toHaveCount(1)
+        ->and($hits[0]['id'])->toBe($this->ownStudent->id)
+        ->and($hits[0]['title'])->toContain('Zaharescu')
+        ->and($hits[0]['meta'])->toContain('ST-A')
+        ->and($hits[0]['url'])->toContain((string) $this->ownStudent->id);
+});
+
+it('CĂUTARE: „nume prenume" și „prenume nume" duc la același elev; matricolul la fel', function () {
+    actingAs(studentsNavDirector());
+
+    $this->ownStudent->update(['last_name' => 'Zaharescu', 'first_name' => 'Mihai', 'register_number' => 'MX-4417']);
+
+    $hitsFor = fn (string $term): array => Livewire::withQueryParams(['cauta' => $term])
+        ->test(ListStudents::class)
+        ->instance()
+        ->catalogSearchHits();
+
+    expect(collect($hitsFor('Zaharescu Mihai'))->pluck('id')->all())->toBe([$this->ownStudent->id])
+        ->and(collect($hitsFor('Mihai Zaharescu'))->pluck('id')->all())->toBe([$this->ownStudent->id])
+        ->and(collect($hitsFor('MX-4417'))->pluck('id')->all())->toBe([$this->ownStudent->id]);
+});
+
+it('CĂUTARE: profesorul NU găsește elevii din afara claselor lui', function () {
+    actingAs(studentsNavTeacher($this->ownClass, $this->subject));
+
+    $this->foreignStudent->update(['last_name' => 'Zaharescu', 'first_name' => 'Mihai']);
+
+    $hits = Livewire::withQueryParams(['cauta' => 'zahar'])
+        ->test(ListStudents::class)
+        ->instance()
+        ->catalogSearchHits();
+
+    expect($hits)->toBe([]);
+});
+
+it('CĂUTARE: o singură literă nu declanșează lista (zgomot)', function () {
+    actingAs(studentsNavDirector());
+
+    $hits = Livewire::withQueryParams(['cauta' => 'a'])
+        ->test(ListStudents::class)
+        ->instance()
+        ->catalogSearchHits();
+
+    expect($hits)->toBe([]);
+});
+
+it('CĂUTARE: aceeași casetă filtrează și cardurile de clasă', function () {
+    actingAs(studentsNavDirector());
+
+    $cards = Livewire::withQueryParams(['cauta' => 'ST-A'])
+        ->test(ListStudents::class)
+        ->instance()
+        ->catalogEntityCards();
+
+    expect(collect($cards)->pluck('id')->all())->toBe([$this->ownClass->id]);
+});
+
+it('CĂUTARE: deschiderea unei clase curăță termenul (comutatorul de surori rămâne complet)', function () {
+    actingAs(studentsNavDirector());
+
+    $component = Livewire::withQueryParams(['cauta' => 'ST-A'])
+        ->test(ListStudents::class)
+        ->call('openCatalogEntity', $this->ownClass->id);
+
+    expect($component->instance()->catalogSearchTerm())->toBe('')
+        ->and(array_keys($component->instance()->catalogSiblingOptions()))
+        ->toContain($this->ownClass->id, $this->foreignClass->id);
+});
+
+it('GRUPARE: cardurile se așază pe cicluri, în ordinea școlii', function () {
+    actingAs(studentsNavDirector());
+
+    SchoolClass::factory()->for($this->year)->create(['name' => 'ST-L', 'section' => null, 'grade_level' => 11]);
+    SchoolClass::factory()->for($this->year)->create(['name' => 'ST-P', 'section' => null, 'grade_level' => 3]);
+    $this->ownClass->update(['grade_level' => 7]);
+    $this->foreignClass->update(['grade_level' => 7]);
+
+    $groups = Livewire::test(ListStudents::class)->instance()->catalogCardGroups();
+
+    expect(collect($groups)->pluck('label')->all())->toBe([
+        __('panel.catalog_nav.cycles.primar'),
+        __('panel.catalog_nav.cycles.gimnaziu'),
+        __('panel.catalog_nav.cycles.liceu'),
+    ])->and(collect($groups[1]['cards'])->pluck('id')->all())
+        ->toEqualCanonicalizing([$this->ownClass->id, $this->foreignClass->id]);
+});
+
+// ── Coloana „Clasa" în arhivă ───────────────────────────────────────────────────────────────
+
+it('ARHIVA arată clasa fiecărui elev; în contextul unei clase coloana dispare', function () {
+    actingAs(studentsNavDirector());
+
+    Livewire::withQueryParams(['arhiva' => '1'])
+        ->test(ListStudents::class)
+        ->assertTableColumnVisible('current_class')
+        ->assertTableColumnStateSet('current_class', 'ST-A', $this->ownStudent)
+        ->assertTableColumnStateSet('current_class', null, $this->orphanStudent);
+
+    // ⚠️ withQueryParams rămâne setat pe managerul Livewire până la sfârșitul testului — al
+    // doilea component trebuie să pornească explicit cu URL curat, altfel rămâne în arhivă.
+    Livewire::withQueryParams([])
+        ->test(ListStudents::class)
+        ->call('openCatalogEntity', $this->ownClass->id)
+        ->assertTableColumnHidden('current_class');
+});

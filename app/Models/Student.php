@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
@@ -168,6 +169,19 @@ class Student extends Model implements Auditable
     public function enrollments(): HasMany
     {
         return $this->hasMany(Enrollment::class);
+    }
+
+    /**
+     * Cea mai recentă înmatriculare, ca RELAȚIE — versiunea eager-loadable a lui
+     * {@see currentSchoolClass()}, pentru listele care afișează clasa pe fiecare rând (arhiva de
+     * elevi, rezultatele căutării): fără ea, fiecare rând ar face două interogări proprii.
+     * Departajarea la egalitate de an merge pe cheia primară (rândul mai nou = transferul).
+     *
+     * @return HasOne<Enrollment, $this>
+     */
+    public function latestEnrollment(): HasOne
+    {
+        return $this->hasOne(Enrollment::class)->latestOfMany('academic_year_id');
     }
 
     /** @return HasMany<Grade, $this> */
