@@ -10,6 +10,7 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Support\ContentTranslator;
 use App\Support\Holidays;
+use App\Support\PanelGuide;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
@@ -69,6 +70,7 @@ class AbsenceForm
                 // Semestrul NU se alege manual: se derivă din `occurred_on` pe server (EnforcesAbsenceScope).
                 DatePicker::make('occurred_on')
                     ->label(__('panel.fields.date'))
+                    ->hintIcon(PanelGuide::ICON, tooltip: PanelGuide::field('absence_occurred_on'))
                     ->required()
                     ->default(now())
                     // O absență nu poate fi în viitor; data determină și semestrul. Mesaj clar

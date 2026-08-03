@@ -44,6 +44,44 @@ it('fiecare cheie are text în TOATE limbile', function (string $locale) {
     expect($missing)->toBe([]);
 })->with(array_keys(Locale::supported()));
 
+it('ghidurile de CÂMP sunt traduse în toate limbile și chiar folosite în formulare', function (string $locale) {
+    app()->setLocale($locale);
+
+    // Cheile se descoperă din fișierul RO (sursa), nu dintr-o listă scrisă de mână, care s-ar fi
+    // desincronizat la prima adăugare.
+    /** @var array<string, string> $fields */
+    $fields = trans('guide.fields', [], 'ro');
+
+    expect($fields)->not->toBeEmpty();
+
+    // Codul panoului, citit o singură dată: căutăm în el fiecare cheie.
+    $panelSource = '';
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(app_path('Filament'))) as $file) {
+        if ($file instanceof SplFileInfo && $file->getExtension() === 'php') {
+            $panelSource .= (string) file_get_contents($file->getPathname());
+        }
+    }
+
+    $missing = [];
+    $unused = [];
+
+    foreach (array_keys($fields) as $key) {
+        if (PanelGuide::field($key) === null) {
+            $missing[] = $key;
+        }
+
+        // O cheie de ghid pe care n-o folosește niciun formular e text mort: nimeni n-o vede,
+        // dar cineva o va traduce la fiecare limbă nouă.
+        if (! str_contains($panelSource, "PanelGuide::field('".$key."')")) {
+            $unused[] = $key;
+        }
+    }
+
+    expect($missing)->toBe([])
+        ->and($unused)->toBe([]);
+})->with(array_keys(Locale::supported()));
+
 it('ghidul se leagă pe RESURSĂ, deci acoperă listarea și fișa deodată', function () {
     // Filament trimite ambele clase în `scopes`; potrivirea pe resursă înseamnă că paginile ei
     // (listare, creare, editare, vizualizare) primesc același ghid, fără cablare separată.

@@ -116,6 +116,21 @@
 .dark .fi-guide-hint:hover,
 .dark .fi-guide-hint:focus-visible { color: var(--primary-400); }
 
+/* Iconița de ghid a CÂMPURILOR (`hintIcon`) — Filament o randează în culoarea primară, deci ieșea
+   albastră lângă titlul gri: același gest arăta ca două lucruri diferite. O aducem la aceeași
+   discreție, cu culoarea la hover, ca la secțiune.
+   Selectorul cere `[x-tooltip]`: doar iconițele care CHIAR poartă o explicație. Alte iconițe de
+   etichetă, colorate intenționat (avertismente, stări), rămân neatinse. */
+.fi-fo-field-label-ctn svg.fi-sc-icon[x-tooltip] {
+    color: var(--gray-400);
+    cursor: help;
+    transition: color 120ms ease;
+}
+.fi-fo-field-label-ctn svg.fi-sc-icon[x-tooltip]:hover { color: var(--primary-600); }
+
+.dark .fi-fo-field-label-ctn svg.fi-sc-icon[x-tooltip] { color: var(--gray-500); }
+.dark .fi-fo-field-label-ctn svg.fi-sc-icon[x-tooltip]:hover { color: var(--primary-400); }
+
 /* Tooltipul e desenat de Tippy în <body>, deci nu poate fi stilizat prin descendență din antet.
    Explicațiile au 2-3 fraze — lățimea implicită (350px) le-ar fi rupt în coloane înalte și înguste. */
 .tippy-box[data-theme~='light'],

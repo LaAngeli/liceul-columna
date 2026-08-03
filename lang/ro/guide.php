@@ -92,4 +92,12 @@ return [
     'consents' => 'Evidența notei de informare (L133): cine a confirmat și în ce versiune. La schimbarea versiunii, confirmarea se cere din nou — de aceea coloana arată ultima actualizare, nu un simplu bifat. Lipsa confirmării nu blochează catalogul, dar se vede aici.',
 
     'restore_center' => 'Ce s-a șters din panou poate fi restaurat de aici. Conturile nu apar: ele nu se șterg, se suspendă. Atenție la restaurare — indexurile unice văd și rândurile șterse, deci dacă între timp s-a creat un duplicat, revenirea e blocată până se rezolvă conflictul.',
+    // ── Câmpuri și butoane: DOAR regulile care surprind ────────────────────────────────────
+    'fields' => [
+        'grade_evaluation_type' => 'Sumativa (teză/ESS) se poate consemna DOAR la disciplinele desemnate pentru clasă, în „Discipline cu sumativă" — într-o clasă deja configurată, o sumativă la altă disciplină e refuzată la salvare. Contează pentru că sumativa intră cu 50% în media semestrială.',
+        'grade_graded_on' => 'Data notei decide în ce SEMESTRU intră, nu momentul în care o introduci. O notă datată într-o vacanță trecută cade pe semestrul în curs; una datată după finalul anului e refuzată, ca să nu ajungă tăcut în semestrul unui an încheiat.',
+        'absence_occurred_on' => 'De la această dată curg cele 5 zile lucrătoare în care familia poate cere motivarea. Termenul se recalculează singur dacă se schimbă zilele libere — o zi liberă adăugată nu poate fura din termenul deja deschis.',
+        'enrollment_departure_reason' => 'Motivul nu e o simplă etichetă: doar „absolvire" deschide accesul de absolvent la propria arhivă (foaia matricolă, adeverințe). Transferul și exmatricularea îl închid — actele se eliberează de școala unde a plecat elevul.',
+        'summative_class' => 'O clasă fără NICIO desemnare rămâne neconfigurată, iar garda nu blochează nimic acolo: sumativele se pot consemna la orice disciplină. Garda se activează la prima desemnare făcută pentru clasa respectivă.',
+    ],
 ];

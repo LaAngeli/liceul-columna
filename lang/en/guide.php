@@ -91,4 +91,12 @@ return [
     'consents' => 'The record of the privacy notice (Law 133): who acknowledged it, and in which version. When the version changes, acknowledgement is asked for again — which is why the column shows the last update rather than a plain tick. A missing acknowledgement does not block the catalogue, but it is visible here.',
 
     'restore_center' => 'Whatever was deleted from the panel can be restored here. Accounts do not appear: they are not deleted, they are suspended. One caution when restoring — unique indexes also see deleted rows, so a duplicate created in the meantime blocks the return until the conflict is resolved.',
+    // ── Fields and buttons: ONLY the rules that surprise ───────────────────────────────────
+    'fields' => [
+        'grade_evaluation_type' => 'A summative (term paper / ESS) may only be recorded for subjects designated for the class under "Subjects with a summative" — in a class that is already configured, a summative in another subject is refused on save. It matters because the summative counts for 50% of the term average.',
+        'grade_graded_on' => 'The grade\'s date decides which TERM it falls into, not the moment you enter it. A grade dated in a past holiday belongs to the current term; one dated after the year has ended is refused, so it cannot slip silently into a closed year\'s term.',
+        'absence_occurred_on' => 'The family\'s 5 working days to request an excusal run from this date. The deadline recalculates itself if the holiday calendar changes — a newly added day off cannot steal time from a deadline already open.',
+        'enrollment_departure_reason' => 'The reason is not a mere label: only "graduation" opens alumni access to their own archive (transcript, certificates). Transfer and expulsion close it — the paperwork is issued by the school the student moved to.',
+        'summative_class' => 'A class with NO designation at all counts as unconfigured, and the guard blocks nothing there: a summative can be recorded in any subject. The guard switches on with the first designation made for that class.',
+    ],
 ];

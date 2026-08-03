@@ -10,6 +10,7 @@ use App\Filament\Resources\Enrollments\Pages\ListEnrollments;
 use App\Filament\Resources\Students\StudentResource;
 use App\Models\Enrollment;
 use App\Models\SchoolClass;
+use App\Support\PanelGuide;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -108,6 +109,7 @@ class EnrollmentsTable
                             ->minDate(fn (Enrollment $record) => $record->enrolled_on),
                         Select::make('departure_reason')
                             ->label(__('panel.fields.departure_reason'))
+                            ->hintIcon(PanelGuide::ICON, tooltip: PanelGuide::field('enrollment_departure_reason'))
                             // Motivul e OBLIGATORIU: o dată de plecare fără explicație nu spune
                             // dacă elevul a absolvit (își păstrează accesul la arhivă) sau a fost
                             // exmatriculat — iar registrul nu ghicește.
@@ -190,6 +192,7 @@ class EnrollmentsTable
                             ->default(now()),
                         Select::make('departure_reason')
                             ->label(__('panel.fields.departure_reason'))
+                            ->hintIcon(PanelGuide::ICON, tooltip: PanelGuide::field('enrollment_departure_reason'))
                             ->options(DepartureReason::options())
                             ->native(false)
                             ->required(),

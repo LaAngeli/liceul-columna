@@ -64,6 +64,15 @@ use Illuminate\Support\HtmlString;
 final class PanelGuide
 {
     /**
+     * Iconița ghidului — SURSĂ UNICĂ pentru toate cele trei niveluri (secțiune, câmp, buton).
+     *
+     * De aceea e o constantă și nu un SVG copiat: dacă semnul se schimbă, se schimbă peste tot
+     * deodată. Trei iconițe ușor diferite pentru același gest ar învăța utilizatorul că înseamnă
+     * lucruri diferite.
+     */
+    public const ICON = 'heroicon-m-information-circle';
+
+    /**
      * Clasă de pagină sau de resursă → cheia din `guide.php`.
      *
      * Ordinea nu contează (căutarea e pe potrivire exactă), dar gruparea urmează meniul, ca lista să
@@ -141,6 +150,20 @@ final class PanelGuide
         }
 
         return (string) view('filament.guide.hint', ['text' => $text])->render();
+    }
+
+    /**
+     * Textul unui ghid de CÂMP sau de BUTON, sau null dacă lipsește.
+     *
+     * Cheile de câmp trăiesc sub `guide.fields.*`, ca să nu se amestece cu cele de secțiune și ca
+     * testul de acoperire să le poată parcurge separat. Null în loc de cheia brută: un `hintIcon`
+     * care afișează „guide.fields.x" e mai rău decât un câmp fără iconiță.
+     */
+    public static function field(string $key): ?string
+    {
+        $text = trans('guide.fields.'.$key);
+
+        return is_string($text) && $text !== '' && $text !== 'guide.fields.'.$key ? $text : null;
     }
 
     /**

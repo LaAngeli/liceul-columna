@@ -5,6 +5,7 @@ namespace App\Filament\Resources\SummativeDesignations\Schemas;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Support\ContentTranslator;
+use App\Support\PanelGuide;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Utilities\Get;
@@ -21,6 +22,7 @@ class SummativeDesignationForm
             ->components([
                 Select::make('school_class_id')
                     ->label(__('grading.designation.fields.class'))
+                    ->hintIcon(PanelGuide::ICON, tooltip: PanelGuide::field('summative_class'))
                     // Primarul (I–IV) nu are notă sumativă semestrială → doar gimnaziu/liceu (≥ 5).
                     ->relationship('schoolClass', 'name', fn (Builder $query): Builder => $query->where('grade_level', '>=', 5))
                     ->getOptionLabelFromRecordUsing(fn (SchoolClass $record): string => trim($record->name.' '.($record->section ?? '')))
