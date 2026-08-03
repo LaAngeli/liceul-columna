@@ -2,6 +2,7 @@
 
 namespace App\Filament\Concerns;
 
+use App\Support\DateRangePicker;
 use App\Support\SchoolCalendar;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Database\Query\Expression;
@@ -183,27 +184,7 @@ trait HasTimeNavigator
      */
     public function timeCalendarLocale(): array
     {
-        $months = [];
-        $weekdays = [];
-
-        $anchor = CarbonImmutable::create(2026, 1, 1);
-
-        for ($month = 1; $month <= 12; $month++) {
-            $months[] = ucfirst($anchor->month($month)->translatedFormat('F'));
-        }
-
-        // Săptămâna începe LUNI (convenția școlii); prima zi a săptămânii lui Carbon urmează locale.
-        $monday = $anchor->startOfWeek(CarbonImmutable::MONDAY);
-
-        for ($day = 0; $day < 7; $day++) {
-            $weekdays[] = ucfirst($monday->addDays($day)->translatedFormat('D'));
-        }
-
-        return [
-            'months' => $months,
-            'weekdays' => $weekdays,
-            'today' => self::timeToday()->toDateString(),
-        ];
+        return DateRangePicker::calendarLocale();
     }
 
     /** Pasul perioadei: ±1 zi / săptămână / lună, după modul activ. */
@@ -340,21 +321,7 @@ trait HasTimeNavigator
      */
     private function customPeriodLabel(?CarbonImmutable $start, ?CarbonImmutable $end): string
     {
-        if ($start === null) {
-            return (string) __('panel.homework_time.until_label', ['date' => $end->translatedFormat('j M Y')]);
-        }
-
-        if ($end === null) {
-            return (string) __('panel.homework_time.from_label', ['date' => $start->translatedFormat('j M Y')]);
-        }
-
-        if ($start->isSameDay($end)) {
-            return ucfirst($start->translatedFormat('l, j F Y'));
-        }
-
-        return $start->year === $end->year
-            ? $start->translatedFormat('j M').' – '.$end->translatedFormat('j M Y')
-            : $start->translatedFormat('j M Y').' – '.$end->translatedFormat('j M Y');
+        return DateRangePicker::customLabel($start, $end);
     }
 
     /**

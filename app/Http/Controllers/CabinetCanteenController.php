@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\CanteenMenu;
 use App\Support\CanteenWeek;
+use App\Support\DateRangePicker;
 use App\Support\SchoolCalendar;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -60,14 +62,21 @@ class CabinetCanteenController extends Controller
                 'isCurrent' => $this->covers($mode, $ref, $today),
                 'from' => $from,
                 'until' => $until,
+                // Eticheta intervalului liber — ACEEAȘI frază ca în panou, cu tot cu cazurile ei
+                // (o singură zi, capăt deschis, ani diferiți): vezi DateRangePicker::customLabel().
+                'customLabel' => DateRangePicker::customLabel(
+                    $from !== null ? CarbonImmutable::parse($from) : null,
+                    $until !== null ? CarbonImmutable::parse($until) : null,
+                ),
+                // Calendarul modului „Personalizat": aceleași luni/zile traduse ca la staff —
+                // componenta din browser nu conține niciun cuvânt.
+                'calendar' => DateRangePicker::calendarLocale(),
                 'labels' => [
                     'aria' => (string) __('panel.homework_time.aria'),
                     'prev' => (string) __('panel.homework_time.prev'),
                     'next' => (string) __('panel.homework_time.next'),
                     'today' => (string) __('panel.homework_time.today'),
-                    'from' => (string) __('panel.homework_time.from'),
-                    'until' => (string) __('panel.homework_time.until'),
-                    'customHint' => (string) __('panel.homework_time.custom_hint'),
+                    ...DateRangePicker::labels(),
                 ],
             ],
             'groups' => array_map(fn (array $group): array => [

@@ -1,6 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, Coffee, Soup } from 'lucide-react';
 import { useState } from 'react';
+import { DateRangePicker } from '@/components/cabinet/date-range-picker';
+import type { DateRangeCalendar, DateRangeLabels } from '@/components/cabinet/date-range-picker';
 import { useTranslations } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
@@ -47,15 +49,10 @@ interface Period {
     isCurrent: boolean;
     from: string | null;
     until: string | null;
-    labels: {
-        aria: string;
-        prev: string;
-        next: string;
-        today: string;
-        from: string;
-        until: string;
-        customHint: string;
-    };
+    /** Fraza perioadei alese, formatată pe server — aceleași cazuri ca în panou. */
+    customLabel: string;
+    calendar: DateRangeCalendar;
+    labels: DateRangeLabels & { aria: string; today: string };
 }
 
 interface Props {
@@ -98,19 +95,14 @@ export default function CanteenPage({ period, groups, today }: Props) {
     const [selected, setSelected] = useState<string>(days.find((day) => day.date === today)?.date ?? days[0]?.date ?? '');
 
     /**
-     * Capetele intervalului liber merg la SERVER, nu în starea locală: perioada rămâne adresabilă
-     * (favorite, link trimis mai departe) — același principiu ca restul navigării din pagină.
-     * `input type=date` nativ, deliberat: pe telefon deschide selectorul sistemului, niciodată
-     * tăiat de marginea ecranului (aceeași motivație ca bara din panou).
+     * Capetele alese în calendar merg la SERVER, nu în starea locală: perioada rămâne adresabilă
+     * (favorite, link trimis mai departe) — același principiu ca restul navigării din pagină, și
+     * echivalentul lui `setCustomRange`/`clearCustomRange` din bara panoului.
      */
-    const setRange = (key: 'de' | 'pana', value: string) => {
+    const setRange = (start: string | null, end: string | null) => {
         router.get(
             '/cabinet/meniu',
-            {
-                mod: 'personalizat',
-                de: key === 'de' ? value || undefined : (period.from ?? undefined),
-                pana: key === 'pana' ? value || undefined : (period.until ?? undefined),
-            },
+            { mod: 'personalizat', de: start ?? undefined, pana: end ?? undefined },
             { preserveScroll: true, preserveState: true },
         );
     };
@@ -180,30 +172,15 @@ export default function CanteenPage({ period, groups, today }: Props) {
                     </nav>
 
                     {isCustom ? (
-                        <div className="flex flex-col gap-2">
-                            <div className="flex flex-wrap items-end gap-3">
-                                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-                                    {period.labels.from}
-                                    <input
-                                        type="date"
-                                        value={period.from ?? ''}
-                                        onChange={(event) => setRange('de', event.target.value)}
-                                        className="h-11 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
-                                    />
-                                </label>
-                                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-                                    {period.labels.until}
-                                    <input
-                                        type="date"
-                                        value={period.until ?? ''}
-                                        min={period.from ?? undefined}
-                                        onChange={(event) => setRange('pana', event.target.value)}
-                                        className="h-11 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
-                                    />
-                                </label>
-                            </div>
-                            <p className="text-xs text-muted-foreground">{period.labels.customHint}</p>
-                        </div>
+                        <DateRangePicker
+                            from={period.from}
+                            until={period.until}
+                            label={period.customLabel}
+                            calendar={period.calendar}
+                            labels={period.labels}
+                            onApply={setRange}
+                            onClear={() => setRange(null, null)}
+                        />
                     ) : (
                         period.prev !== null &&
                         period.next !== null && (
