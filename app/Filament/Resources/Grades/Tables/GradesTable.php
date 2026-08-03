@@ -11,6 +11,8 @@ use App\Filament\Exports\GradeExporter;
 use App\Filament\Resources\Students\StudentResource;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
+use App\Models\Subject;
+use App\Models\Term;
 use App\Support\ContentTranslator;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -120,12 +122,15 @@ class GradesTable
                 SelectFilter::make('subject_id')
                     ->label(__('panel.fields.subject'))
                     ->relationship('subject', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (Subject $record): string => ContentTranslator::subject((string) $record->name))
                     ->searchable()
                     ->preload()
                     ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogSubjectIdInContext() !== null)),
                 SelectFilter::make('term_id')
                     ->label(__('panel.fields.term'))
                     ->relationship('term', 'name')
+                    // Etichetele din dropdown se traduc ca peste tot; filtrarea rămâne pe id.
+                    ->getOptionLabelFromRecordUsing(fn (Term $record): string => ContentTranslator::term((string) $record->name))
                     ->preload()
                     ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogTermIdInContext() !== null)),
                 SelectFilter::make('evaluation_type')

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\EnsuresSingleCurrent;
 use App\Observers\TermObserver;
+use App\Support\ContentTranslator;
 use Database\Factories\TermFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -116,13 +117,20 @@ class Term extends Model implements Auditable
      * Denumirea CANONICĂ a semestrului cu numărul dat („Semestrul I/II") — sursă unică pentru
      * completarea automată din formular și pentru garda de sincronizare din {@see booted}.
      * Anul are exact DOUĂ semestre — structura reală a școlii, nu o limită de UI.
+     *
+     * ⚠️ Se rezolvă FORȚAT în română, nu în limba interfeței. Numele semestrului e o valoare de
+     * REGISTRU: se scrie o singură dată, în limba oficială a documentelor, și se traduce abia la
+     * afișare ({@see ContentTranslator::term()}), care caută exact după șirul românesc.
+     * Fără `'ro'` aici, un administrator care lucrează în rusă ar fi salvat „Семестр I" în baza de
+     * date — nume care n-ar mai fi potrivit niciun dicționar, ar fi apărut ca atare și utilizatorilor
+     * români, și ar fi rupt garda de sincronizare care compară numele stocat cu cel canonic.
      */
     public static function canonicalName(int $number): ?string
     {
         $numerals = [1 => 'I', 2 => 'II'];
 
         return isset($numerals[$number])
-            ? (string) __('panel.forms.term.name_suggestion', ['numeral' => $numerals[$number]])
+            ? (string) __('panel.forms.term.name_suggestion', ['numeral' => $numerals[$number]], 'ro')
             : null;
     }
 

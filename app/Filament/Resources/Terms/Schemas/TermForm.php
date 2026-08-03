@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Terms\Schemas;
 use App\Filament\Resources\Terms\Pages\CreateTerm;
 use App\Models\AcademicYear;
 use App\Models\Term;
+use App\Support\ContentTranslator;
 use App\Support\SchoolCalendar;
 use Closure;
 use Filament\Forms\Components\DatePicker;
@@ -135,7 +136,7 @@ class TermForm
                         ->get()
                         ->map(fn (Term $term): string => sprintf(
                             '%s: %s – %s',
-                            $term->name,
+                            ContentTranslator::term((string) $term->name),
                             $term->starts_on?->format('d.m.Y') ?? '?',
                             $term->ends_on?->format('d.m.Y') ?? '?',
                         ))

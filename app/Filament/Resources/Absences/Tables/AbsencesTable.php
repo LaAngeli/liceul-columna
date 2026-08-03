@@ -8,6 +8,8 @@ use App\Filament\Exports\AbsenceExporter;
 use App\Filament\Resources\Students\StudentResource;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
+use App\Models\Subject;
+use App\Models\Term;
 use App\Support\ContentTranslator;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -99,12 +101,15 @@ class AbsencesTable
                 SelectFilter::make('subject_id')
                     ->label(__('panel.fields.subject'))
                     ->relationship('subject', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (Subject $record): string => ContentTranslator::subject((string) $record->name))
                     ->searchable()
                     ->preload()
                     ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogSubjectIdInContext() !== null)),
                 SelectFilter::make('term_id')
                     ->label(__('panel.fields.term'))
                     ->relationship('term', 'name')
+                    // Etichetele din dropdown se traduc ca peste tot; filtrarea rămâne pe id.
+                    ->getOptionLabelFromRecordUsing(fn (Term $record): string => ContentTranslator::term((string) $record->name))
                     ->preload()
                     ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogTermIdInContext() !== null)),
                 TernaryFilter::make('is_motivated')

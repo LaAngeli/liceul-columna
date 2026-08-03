@@ -15,6 +15,7 @@ use App\Models\SemesterValidation;
 use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
+use App\Support\ContentTranslator;
 use App\Support\Holidays;
 use App\Support\SchoolCalendar;
 use Carbon\CarbonInterface;
@@ -172,7 +173,7 @@ class ListTerms extends ListRecords
             $terms[] = [
                 'left' => $pct($startsOn->copy()),
                 'width' => max(1.5, $pct($endsOn->copy()) - $pct($startsOn->copy())),
-                'name' => (string) $term->name,
+                'name' => ContentTranslator::term((string) $term->name),
                 'short' => 'S'.$term->number,
                 'current' => (bool) $term->is_current,
             ];
@@ -278,7 +279,7 @@ class ListTerms extends ListRecords
 
                 return [
                     'id' => (int) $term->id,
-                    'name' => (string) $term->name,
+                    'name' => ContentTranslator::term((string) $term->name),
                     'number' => (int) $term->number,
                     'status' => $status,
                     'interval' => $interval,

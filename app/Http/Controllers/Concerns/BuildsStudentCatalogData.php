@@ -348,7 +348,7 @@ trait BuildsStudentCatalogData
                 'number' => (int) $term->number,
                 // Numele semestrului vine din BAZĂ, scris în RO de școală — trece prin dicționarul
                 // de conținut ca și numele disciplinelor, altfel interfața RU/EN afișa „Semestrul I".
-                'label' => ContentTranslator::string((string) $term->name),
+                'label' => ContentTranslator::term((string) $term->name),
                 'current' => (bool) $term->is_current,
             ];
         }
@@ -681,7 +681,7 @@ trait BuildsStudentCatalogData
         foreach ($terms as $term) {
             $termList[] = [
                 'number' => (int) $term->number,
-                'label' => ContentTranslator::string((string) $term->name),
+                'label' => ContentTranslator::term((string) $term->name),
                 'current' => (bool) $term->is_current,
             ];
         }

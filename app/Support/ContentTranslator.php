@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\Term;
+
 /**
  * Traduce conținutul dinamic (pagini publice, personal, bibliotecă, orare) în limba
  * curentă, cu fallback automat la RO.
@@ -55,6 +57,23 @@ final class ContentTranslator
     public static function subject(string $ro, ?string $locale = null): string
     {
         return self::string($ro, $locale, 'subjects');
+    }
+
+    /**
+     * Traduce un nume de SEMESTRU („Semestrul I") cu fallback RO. Ca la discipline, numele e o
+     * valoare din baza de date, scrisă în română — canonică la scriere, tradusă la afișare.
+     *
+     * Dicționarul e `content` (acolo trăiau deja cheile, folosite de cabinet): un fișier separat ar
+     * fi însemnat două locuri de întreținut pentru două șiruri. Metoda există totuși distinct de
+     * `string()` ca să fie greppabilă — „unde se afișează un semestru" e o întrebare care se pune.
+     *
+     * ⚠️ NU se folosește la GENERAREA numelui ({@see Term::canonicalName()}) și nici în
+     * documentele oficiale, care se randează forțat în RO: acolo numele trebuie să rămână cel scris
+     * în registru.
+     */
+    public static function term(string $ro, ?string $locale = null): string
+    {
+        return self::string($ro, $locale);
     }
 
     /**

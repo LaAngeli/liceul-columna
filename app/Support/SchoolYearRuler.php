@@ -104,7 +104,7 @@ final class SchoolYearRuler
                 $segments[] = self::segment('break', __('panel.widgets.hero.ruler.break'), $cursor, $start->copy()->subDay(), $totalDays);
             }
 
-            $segments[] = self::segment('term', (string) $term->name, $start, $end, $totalDays, (int) $term->getKey());
+            $segments[] = self::segment('term', ContentTranslator::term((string) $term->name), $start, $end, $totalDays, (int) $term->getKey());
             $cursor = $end->copy()->addDay();
         }
 
@@ -143,7 +143,7 @@ final class SchoolYearRuler
 
             if ($today->betweenIncluded($start, $end)) {
                 return (string) __('panel.widgets.hero.ruler.in_term', [
-                    'term' => $term->name,
+                    'term' => ContentTranslator::term((string) $term->name),
                     'date' => $end->translatedFormat('j F'),
                     'days' => self::days(self::daysBetween($today, $end)),
                 ]);
@@ -179,7 +179,7 @@ final class SchoolYearRuler
         // În interiorul anului, dar în afara oricărui semestru = vacanță între semestre.
         return $next instanceof Term
             ? (string) __('panel.widgets.hero.ruler.in_break_next', [
-                'term' => $next->name,
+                'term' => ContentTranslator::term((string) $next->name),
                 'date' => Carbon::parse($next->starts_on)->translatedFormat('j F'),
                 'days' => self::days(self::daysBetween($today, Carbon::parse($next->starts_on)->startOfDay())),
             ])

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Terms\Tables;
 
 use App\Filament\Resources\Terms\Pages\ListTerms;
+use App\Support\ContentTranslator;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -31,6 +32,9 @@ class TermsTable
                     ->sortable(),
                 TextColumn::make('name')
                     ->label(__('panel.forms.term.name'))
+                    // Numele semestrului se traduce în RU/EN, ca peste tot în panou (la fel ca
+                    // disciplinele). Căutarea rămâne pe valoarea din registru, scrisă în română.
+                    ->formatStateUsing(fn (string $state): string => ContentTranslator::term($state))
                     ->searchable(),
                 // Mobile-first: pe telefon rămân numărul, numele și marcajul „curent".
                 TextColumn::make('starts_on')

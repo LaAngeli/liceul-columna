@@ -37,7 +37,8 @@ class GradeExporter extends Exporter
                 ->label(__('panel.exports.evaluation_type'))
                 ->formatStateUsing(fn (?string $state): string => $state ?? ''),
             ExportColumn::make('term.name')
-                ->label(__('panel.exports.term')),
+                ->label(__('panel.exports.term'))
+                ->formatStateUsing(fn (?string $state): string => $state === null ? '' : ContentTranslator::term($state)),
             ExportColumn::make('graded_on')
                 ->label(__('panel.exports.date')),
             ExportColumn::make('teacher.last_name')

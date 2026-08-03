@@ -35,7 +35,8 @@ class AbsenceExporter extends Exporter
                 ->label(__('panel.exports.motivated'))
                 ->formatStateUsing(fn (mixed $state): string => $state ? (string) __('panel.exports.yes') : (string) __('panel.exports.no')),
             ExportColumn::make('term.name')
-                ->label(__('panel.exports.term')),
+                ->label(__('panel.exports.term'))
+                ->formatStateUsing(fn (?string $state): string => $state === null ? '' : ContentTranslator::term($state)),
             ExportColumn::make('teacher.last_name')
                 ->label(__('panel.exports.author_last')),
             ExportColumn::make('teacher.first_name')

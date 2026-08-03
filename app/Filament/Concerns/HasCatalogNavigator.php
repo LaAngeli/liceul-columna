@@ -517,7 +517,7 @@ trait HasCatalogNavigator
 
             $cards[] = [
                 'id' => (int) $term->id,
-                'title' => $term->name,
+                'title' => ContentTranslator::term((string) $term->name),
                 'subtitle' => $term->academicYear?->name,
                 'badge' => $term->is_current ? (string) __('panel.catalog_nav.current_term') : null,
                 'stats' => array_values(array_filter([
@@ -540,7 +540,7 @@ trait HasCatalogNavigator
             $model instanceof SchoolClass => trim($model->name.' '.($model->section ?? '')),
             $model instanceof Subject => ContentTranslator::subject($model->name),
             $model instanceof Teacher => $model->full_name,
-            $model instanceof Term => $model->name.($model->academicYear !== null ? ' · '.$model->academicYear->name : ''),
+            $model instanceof Term => ContentTranslator::term((string) $model->name).($model->academicYear !== null ? ' · '.$model->academicYear->name : ''),
             default => '',
         };
     }
