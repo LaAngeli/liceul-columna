@@ -12,7 +12,8 @@ Revenirea se face cu o singură comandă, iar SEO-ul real se reactivează integr
 
 | Element | Comportament în regim minimal | Comportament normal |
 |---|---|---|
-| `<title>` | **EXCLUSIV denumirea paginii** (fără brand, slogan, sufixe) | `Denumire pagină - Liceul Columna` |
+| `<title>` — sufixul adăugat de cod | eliminat | ` - Liceul Columna` |
+| `<title>` — brandul **din textul traducerii** | eliminat la afișare (vezi §1.1) | păstrat |
 | `<title>` server-side (Blade) | **gol** (ca brandul să nu apară nici ca „flash" până la hidratare) | numele instituției |
 | `<meta name="description">` | suprimat pe toate paginile | emis din traduceri (`*.meta_description`) |
 | `meta[name=keywords]`, `meta[name=robots]` | suprimate | — (nu existau) |
@@ -28,6 +29,30 @@ modificat**: ține de politica de crawling, nu de meta-datele paginii.
 
 > Regulile marcate „suprimate preventiv" acoperă mecanisme care **nu există azi** în proiect.
 > Sunt incluse ca să nu reapară necontrolat dacă cineva adaugă OG/JSON-LD cât timp regimul e activ.
+
+### 1.1. Brandul din TEXTUL titlurilor (nu din cod)
+
+Titlul avea **două** surse de brand, nu una:
+
+1. sufixul adăugat de `composeTitle()` în `app.tsx` → ` - Liceul Columna`;
+2. brandul scris **chiar în textul** cheilor `*.meta_title` din `lang/{ro,ru,en}/site.php`
+   (19 pagini × 3 limbi) → `'Filosofia liceului — Liceul Columna'`.
+
+A doua sursă a fost descoperită abia la verificarea vizuală: în tab apărea în continuare
+„Filosofia liceului — Liceul Colum…" chiar cu regimul activ.
+
+În regim minimal, `composeTitle()` retează la afișare tot ce urmează după un **em-dash încadrat
+de spații** (` — `). Spațiile sunt esențiale în tipar: separă sufixul editorial de en-dash-ul din
+interiorul denumirilor — `Școala primară · I–IV` rămâne întreg, cum trebuie.
+
+Traducerile **nu sunt modificate pe disc**: tăierea e strict la randare, deci revenirea readuce
+titlurile complete, exact cum erau.
+
+Rezultate (regim activ): `Filosofia liceului`, `Istoria liceului`, `Școala primară · I–IV`,
+`Taxe și costuri`, `Философия лицея`, `The school’s philosophy`, `Why Columna`.
+
+Două cazuri unde cuvântul „Columna" rămâne **corect** în titlu, pentru că e denumirea paginii,
+nu un adaos: pagina principală (`Liceul „Columna” Chișinău`) și `De ce Columna` / `Why Columna`.
 
 ---
 
@@ -106,25 +131,52 @@ să lase urme. Garda centrală ține modificarea în 3 fișiere și face revenir
 Cu `SEO_MINIMAL=true`:
 
 - `window.__seoMinimal === true`;
-- titlu = `Columna Lyceum Chișinău — Enrol your child, since 1998` (fără ` - Liceul Columna`);
 - `meta[name=description]` → **ABSENT**; `og:*` = 0; `ld+json` = 0; `canonical` = 0;
 - `theme-color` = 2 (păstrat, corect);
 - **navigare SPA** `/en` → `/en/why-columna` → `history.back()`: titlurile se schimbă corect,
-  description rămâne absent la fiecare pas (observer-ul prinde inserțiile ulterioare).
+  description rămâne absent la fiecare pas (observer-ul prinde inserțiile ulterioare);
+- **titluri, eșantion de 22 de pagini × RO/RU/EN** — zero sufixe rămase:
+  `Filosofia liceului`, `Istoria liceului`, `Acreditări`, `Taxe și costuri`, `Admitere`,
+  `Întrebări frecvente`, `Sponsorizare`, `Scrisoarea directorului`, `Consiliul Metodic`,
+  `Tabăra de vară`, `Cambridge English Exam`, `Școala primară · I–IV` (en-dash intern păstrat),
+  `Școala liceală · X–XII`, `Философия лицея`, `История лицея`, `The school’s philosophy`,
+  `History of the school`, `Why Columna`.
 
 Cu `SEO_MINIMAL=false` + `config:clear` (fără rebuild):
 
-- titlu = `… - Liceul Columna` (brand revenit);
-- `meta[name=description]` = `A private lyceum in Chișinău since 1998: primary, secondary…` (revenit).
+- titlu = `Filosofia liceului — Liceul Columna - Liceul Columna` (ambele surse de brand revenite
+  intacte — inclusiv dublarea preexistentă din §6);
+- `meta[name=description]` = `Principiile și convingerile care ghidează activitatea Liceul…` (revenit).
 
 `npm run build`, `tsc --noEmit`, ESLint — toate curate.
 
 ---
 
-## 6. Consecință SEO, asumată
+## 6. ⚠️ Bug PREEXISTENT descoperit la verificare (nereparat — necesită decizie)
+
+Cu `SEO_MINIMAL=false`, titlul paginii e:
+
+```
+Filosofia liceului — Liceul Columna - Liceul Columna
+```
+
+Brandul apare **de două ori**: o dată din textul traducerii (`— Liceul Columna`), o dată din
+sufixul adăugat de `composeTitle()` (` - Liceul Columna`). Problema exista **înainte** de regimul
+minimal și afectează toate cele 19 pagini cu `meta_title`, în toate cele trei limbi.
+
+Regimul minimal îl maschează complet (ambele surse sunt retezate), deci **nu se vede acum**. Dar
+va reapărea intact la revenirea la SEO normal.
+
+Nu a fost reparat aici: ar însemna modificarea SEO-ului REAL (fie ștergerea brandului din cele 57
+de chei de traducere, fie renunțarea la sufixul din `composeTitle`), adică exact opusul cerinței
+de a păstra configurația existentă neatinsă. **De decis separat, înainte de revenire.**
+
+---
+
+## 7. Consecință SEO, asumată
 
 Cât timp regimul e activ, motoarele de căutare nu primesc descrieri de pagină, iar titlurile nu
 conțin brandul. Este **intenționat** și acceptat de client. Site-ul nu e încă public (poartă
 Basic Auth de pre-lansare), deci impactul de indexare este nul în acest moment.
 
-**Înainte de go-live public**, decideți explicit dacă regimul rămâne activ. Dacă nu — §2.
+**Înainte de go-live public**, decideți explicit dacă regimul rămâne activ. Dacă nu — §2, plus decizia din §6 (brandul dublat în titluri).

@@ -39,10 +39,23 @@ export function isSeoMinimal(): boolean {
     return typeof window !== 'undefined' && window.__seoMinimal === true;
 }
 
+/**
+ * Sufixul editorial din titlurile de pagină: tot ce urmează după un em-dash ÎNCADRAT DE SPAȚII
+ * („Filosofia liceului — Liceul Columna", „De ce Columna — Succesul copilului începe aici").
+ *
+ * Brandul e scris CHIAR ÎN TEXTUL cheilor `*.meta_title` din `lang/{ro,ru,en}/site.php` (19 pagini
+ * per limbă), nu adăugat de cod — deci nu putea fi eliminat doar renunțând la sufixul `- appName`.
+ *
+ * Spațiile din jur sunt obligatorii în tipar: separă cazul real de en-dash-ul din interiorul
+ * denumirilor („Școala primară · I–IV", „X–XII"), care NU trebuie atins. Tăierea se aplică DOAR
+ * în regim minimal și doar la afișare — traducerile rămân neschimbate pe disc.
+ */
+const TITLE_SUFFIX = /\s+—\s+.*$/u;
+
 /** Compune titlul din tab. În regim minimal = EXCLUSIV denumirea paginii, fără brand/slogan. */
 export function composeTitle(title: string, appName: string): string {
     if (isSeoMinimal()) {
-        return title ?? '';
+        return (title ?? '').replace(TITLE_SUFFIX, '').trim();
     }
 
     return title ? `${title} - ${appName}` : appName;
