@@ -131,14 +131,43 @@
 .dark .fi-fo-field-label-ctn svg.fi-sc-icon[x-tooltip] { color: var(--gray-500); }
 .dark .fi-fo-field-label-ctn svg.fi-sc-icon[x-tooltip]:hover { color: var(--primary-400); }
 
-/* Tooltipul e desenat de Tippy în <body>, deci nu poate fi stilizat prin descendență din antet.
-   Explicațiile au 2-3 fraze — lățimea implicită (350px) le-ar fi rupt în coloane înalte și înguste. */
+/* --- Bula de explicație (Tippy) ---------------------------------------------------------------
+   Tippy randează în <body>, deci nu se poate stiliza prin descendență din antet — de aceea temele
+   lui se rescriu global. E DELIBERAT global: `hintIcon`-urile de câmp sunt randate de Filament, cu
+   tema lui, iar o temă proprie doar pentru secțiuni ar fi readus exact diferența de aspect pe care
+   tocmai am eliminat-o. Restul tooltipurilor panoului (etichete scurte) câștigă aceeași suprafață.
+
+   Ce se schimbă față de implicit: fundalul gri-neutru devine o suprafață a panoului — navy stins în
+   dark, alb cu chenar navy în light — cu text de citit, nu de descifrat: 13px, interlinie 1.55,
+   aliniat la stânga (implicit e centrat, ceea ce face un paragraf de trei fraze greu de urmărit). */
 .tippy-box[data-theme~='light'],
 .tippy-box[data-theme~='dark'] {
-    font-size: 0.8rem;
-    line-height: 1.5;
+    font-size: 0.8125rem;
+    line-height: 1.55;
     text-align: start;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.10);
 }
+
+.tippy-box[data-theme~='light'] .tippy-content,
+.tippy-box[data-theme~='dark'] .tippy-content {
+    padding: 0.6rem 0.8rem;
+}
+
+.tippy-box[data-theme~='light'] {
+    background-color: #ffffff;
+    color: #1d1d1c;
+    border: 1px solid rgb(15 77 119 / 0.16);
+}
+.tippy-box[data-theme~='light'] > .tippy-arrow::before { color: #ffffff; }
+
+/* Navy stins, nu gri neutru: bula aparține vizual panoului, nu sistemului de operare. */
+.tippy-box[data-theme~='dark'] {
+    background-color: #14283a;
+    color: #e6eef6;
+    border: 1px solid rgb(255 255 255 / 0.10);
+}
+.tippy-box[data-theme~='dark'] > .tippy-arrow::before { color: #14283a; }
 
 /* --- Banda de CONTEXT (WelcomeWidget) — navy full-width: unde sunt · când sunt · ce am azi --- */
 .fi-welcome {

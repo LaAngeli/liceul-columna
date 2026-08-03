@@ -70,7 +70,7 @@ final class PanelGuide
      * deodată. Trei iconițe ușor diferite pentru același gest ar învăța utilizatorul că înseamnă
      * lucruri diferite.
      */
-    public const ICON = 'heroicon-m-information-circle';
+    public const ICON = 'heroicon-o-information-circle';
 
     /**
      * Clasă de pagină sau de resursă → cheia din `guide.php`.
