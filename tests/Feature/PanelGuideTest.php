@@ -108,7 +108,7 @@ it('ghidul randat poartă textul și un nume accesibil', function () {
         ->and($html)->toContain(__('guide.aria_label'))
         // Textul ajunge în conținutul vizual-ascuns (numele accesibil al butonului): tooltipul
         // Tippy e desenat de JS, deci cititorul de ecran nu-l vede.
-        ->and($html)->toContain('Nota nu se șterge niciodată')
+        ->and($html)->toContain('Notele nu se șterg')
         // FĂRĂ `title`: ar fi produs un al doilea tooltip, cel nativ al browserului.
         ->and($html)->not->toContain('title=');
 });
@@ -133,3 +133,51 @@ it('bula nu se deschide la focusul mutat de altcineva', function () {
         // Hover-ul și atingerea nu trec prin `focus`, deci garda le lasă neatinse.
         ->and($html)->toContain("'focusin'");
 });
+
+/**
+ * Regula de scriere, apărată automat (raport beneficiar, 04.08.2026: „textul nu e informativ și
+ * uneori greu de înțeles").
+ *
+ * Prima variantă a ghidurilor era scrisă în limbaj de dezvoltator — „filtrul e aplicat pe server",
+ * „indexurile unice văd rândurile șterse", „într-o singură tranzacție" — plus MAJUSCULE de accent
+ * și fraze cu trei idei legate prin liniuțe. Testul nu poate judeca stilul, dar poate opri exact
+ * lucrurile care au făcut textele greu de citit, ca ele să nu se strecoare înapoi la prima adăugare.
+ */
+it('ghidurile nu folosesc termeni de sistem și nu strigă cu majuscule', function (string $locale) {
+    app()->setLocale($locale);
+
+    /** @var array<string, string> $fields */
+    $fields = trans('guide.fields');
+
+    $texts = [];
+
+    foreach (PanelGuide::keys() as $key) {
+        $texts['guide.'.$key] = (string) trans('guide.'.$key);
+    }
+
+    foreach ($fields as $key => $text) {
+        $texts['guide.fields.'.$key] = (string) $text;
+    }
+
+    // Cuvinte care descriu MECANISMUL, nu efectul. „Server" și „tranzacție" n-au ce căuta în
+    // explicația dată unui profesor; restul sunt termeni pe care nimeni din școală nu-i folosește.
+    $systemWords = ['server', 'tranzacți', 'транзакц', 'сервер', 'transaction', 'index unic', 'индекс', 'unique index', 'URL', 'onboarding'];
+
+    $offenders = [];
+
+    foreach ($texts as $key => $text) {
+        foreach ($systemWords as $word) {
+            if (mb_stripos($text, $word) !== false) {
+                $offenders[] = $key.' → „'.$word.'"';
+            }
+        }
+
+        // Un cuvânt de 4+ litere scris integral cu majuscule = accent strigat. Abrevierile scurte
+        // (PDF, ESS, RO) rămân permise: ele chiar se scriu așa.
+        if (preg_match('/(?<![\p{Lu}])\p{Lu}{4,}(?![\p{Ll}])/u', $text, $m) === 1) {
+            $offenders[] = $key.' → majuscule: '.$m[0];
+        }
+    }
+
+    expect($offenders)->toBe([]);
+})->with(array_keys(Locale::supported()));

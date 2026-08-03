@@ -4,101 +4,114 @@
 |--------------------------------------------------------------------------
 | Ghidul secțiunilor din panou (iconița „i" de lângă titlu) — RO
 |--------------------------------------------------------------------------
-| Cheile sunt înregistrate în App\Support\PanelGuide. Regula de scriere:
-| NU descrie ce se vede pe ecran — descrie DE CE există secțiunea, ce decizie
-| susține și care e regula pe care ai greși-o altfel. Fiecare afirmație de aici
-| e verificată în cod; dacă regula se schimbă, textul se schimbă odată cu ea.
-| 2–3 fraze: e un tooltip, nu un manual.
+| Cheile sunt înregistrate în App\Support\PanelGuide.
+|
+| CUM SE SCRIE (rescriere 2026-08-04, la cererea beneficiarului — prima
+| variantă era greu de citit):
+|   1. Prima frază spune CE ESTE secțiunea, în cuvinte de zi cu zi.
+|   2. A doua (rar a treia) spune ce trebuie să știi ca să n-o folosești
+|      greșit — ca efect pe care îl vezi, nu ca mecanism intern.
+|   3. Fără termeni de sistem („server", „tranzacție", „index"), fără
+|      MAJUSCULE de accent, fără fraze cu trei idei legate prin liniuțe.
+|   4. Ton neutru: se descrie, nu se ține lecție.
+|
+| Cititorul e un profesor sau un secretar, nu un dezvoltator.
 */
 
 return [
     'aria_label' => 'Despre această secțiune',
 
     // ── Catalog ────────────────────────────────────────────────────────────────────────────
-    'class_register' => 'Clasa întreagă pe un ecran, ca notele și absențele unei ore să intre dintr-o singură salvare — formularele individuale rămân pentru corecții punctuale. Vezi doar clasele și disciplinele care îți revin: filtrul e aplicat pe server, nu ascuns în interfață.',
+    'class_register' => 'Toată clasa pe un singur ecran: pui notele și absențele unei ore, apoi salvezi o singură dată. Vezi doar clasele și disciplinele la care predai.',
 
-    'grades' => 'Nota nu se șterge niciodată. O greșeală se ANULEAZĂ cu motiv (rămâne în istoric, iese din medii, dispare din cabinet), iar schimbarea unei valori trece prin cerere aprobată de conducere. Nota individuală e un întreg de la 1 la 10 — zecimalele apar doar la medii.',
+    'grades' => 'Notele nu se șterg. O notă greșită se anulează, cu motiv: rămâne în istoric, dar nu mai intră în medii și nu se mai vede în cabinetul familiei. Ca să schimbi valoarea unei note, ceri o corectare, iar conducerea o aprobă.',
 
-    'absences' => 'Fiecare absență nemotivată primește automat un termen: data absenței + 5 zile lucrătoare. Motivarea nu se bifează de aici — familia o cere din cabinet, dirigintele o validează în Aprobări. La riscul de amânare se numără TOATE absențele la disciplină, motivate sau nu.',
+    'absences' => 'Absențele elevilor, pe zile și discipline. Motivarea nu se bifează de aici: familia o cere din cabinetul ei, iar dirigintele o aprobă la „Motivări absențe". Familia are la dispoziție 5 zile lucrătoare de la data absenței.',
 
-    'homework' => 'Tema e vizibilă exact clasei și disciplinei la care e legată, nu întregii școli. Linkurile trebuie să fie adrese reale — un text liber e respins; trimiterile la manual se scriu în câmpul de resurse tipărite, ca elevul să le vadă alături de link.',
+    'homework' => 'Temele date claselor tale. O temă o văd doar elevii clasei respective și doar la disciplina la care ai adăugat-o. Linkurile trebuie să fie adrese de internet; trimiterile la manual se scriu în câmpul pentru resurse tipărite.',
 
-    'academic_records' => 'Arhiva oficială pe trepte — se citește, nu se scrie. Se completează singură la închiderea anului, din mediile semestriale: media anuală e media aritmetică a celor două semestre, fără rotunjire. Unde există examen de corigență promovat, nota lui e rezultatul anual, nu media picată.',
+    'academic_records' => 'Situația școlară a fiecărui elev, pe ani de studiu. Nu se completează manual: se scrie singură atunci când închizi anul, din mediile semestrelor. Dacă elevul a promovat un examen de corigență, nota acelui examen devine media anuală.',
 
-    'students' => 'Fișa de registru a elevului. Un elev fără înmatriculare EXISTĂ, dar nu funcționează: nu apare în catalog, în orar sau în cabinet. „Arhiva" arată și dosarele celor plecați, cu motivul ieșirii — absolvire, transfer, retragere sau exmatriculare.',
+    'students' => 'Datele fiecărui elev: nume, număr matricol, limbă străină, cont de acces. Elevul apare în catalog, în orar și în cabinet abia după ce este înmatriculat într-o clasă. Butonul „Arhivă" îți arată și elevii care au plecat, cu motivul plecării.',
 
-    'subjects' => 'Nomenclatorul stabilește și treptele la care se predă fiecare disciplină. De asta depinde deschiderea anului: alocările a căror disciplină nu se mai predă la treapta nouă NU se copiază — la granițele de ciclu (IV→V, IX→X) curriculumul se schimbă.',
+    'subjects' => 'Lista disciplinelor școlii și clasele la care se predă fiecare. De aici se decide ce ore se preiau când deschizi un an nou: se copiază doar disciplinele care se predau și la treapta următoare.',
 
-    'school_classes' => 'Clasa e unitatea pe care se sprijină alocările, orarul, catalogul și cabinetul. Dirigintele poate lipsi temporar (vacanță, reziduu din import) — câmpul e gol în mod deliberat, iar clasele rămase fără titular apar ca sarcină pe panoul de control.',
+    'school_classes' => 'Clasele fiecărui an școlar, cu dirigintele lor. O clasă poate rămâne o vreme fără diriginte; cele fără apar ca sarcină pe pagina principală, ca să nu fie uitate.',
 
-    'corigenta_exams' => 'Examenele nu se creează de mână: se generează automat când elevul e marcat corigent. Aici se PROGRAMEAZĂ (sesiune, dată, comisie) și se consemnează rezultatul. Nota examenului devine rezultatul oficial anual al disciplinei, înlocuind media picată.',
+    'corigenta_exams' => 'Examenele de corigență ale elevilor. Nu se adaugă manual — apar singure când un elev rămâne corigent. Aici le stabilești data, sesiunea și comisia, apoi treci nota obținută, care devine media anuală la acea disciplină.',
 
     // ── Aprobări ───────────────────────────────────────────────────────────────────────────
-    'grade_corrections' => 'Valoarea unei note nu se schimbă de cine a scris-o: profesorul cere, conducerea aprobă, iar nota se modifică abia atunci — cu recalcularea automată a mediilor. Și cererile respinse rămân în arhivă: urma corecției e ea însăși o probă.',
+    'grade_corrections' => 'Cererile profesorilor de a schimba o notă deja pusă. Nota se modifică abia după ce conducerea aprobă cererea, iar mediile se recalculează atunci singure. Și cererile respinse rămân în listă.',
 
-    'absence_motivations' => 'Familia depune cererea din cabinet, dirigintele o validează aici. Aprobarea marchează motivate TOATE absențele din perioada cerută — nu se bifează una câte una. Termenul familiei e de 5 zile lucrătoare de la absență și se recalculează dacă se schimbă zilele libere.',
+    'absence_motivations' => 'Cererile familiilor de a motiva absențe. Când aprobi o cerere, toate absențele din perioada cerută devin motivate deodată — nu le bifezi una câte una. Familia poate cere motivarea în 5 zile lucrătoare de la absență.',
 
-    'homework_corrections' => 'Registrul corecțiilor de teme: ce s-a schimbat, de cine și când. Corecția unei teme e DIRECTĂ — nu trece prin aprobare, spre deosebire de note, fiindcă nu afectează media nimănui. Supravegherea rămâne prin Jurnalul de audit.',
+    'homework_corrections' => 'Lista modificărilor făcute la teme: ce s-a schimbat, de cine și când. Temele se corectează direct, fără aprobare, pentru că nu schimbă media nimănui.',
 
     // ── Configurare ────────────────────────────────────────────────────────────────────────
-    'configuration' => 'Toate reglajele instituției, grupate pe categorii. Ordinea în care se configurează contează: anul școlar și semestrele întâi, apoi clasele și disciplinele, abia apoi înmatriculările — fiecare pas se sprijină pe cel dinainte.',
+    'configuration' => 'Toate setările școlii, grupate pe categorii. Ordinea contează: întâi anul școlar și semestrele, apoi clasele și disciplinele, iar la final înmatriculările.',
 
-    'academic_years' => '„Deschide anul nou" urcă STRUCTURA o treaptă (clase și alocări); elevii vin separat, prin Promovare din Înmatriculări. „Încheie promoția" scoate clasele terminale din registru — pasul care pornește și termenul legal de păstrare a dosarelor. „Arhivează" duce mediile anului în foaia matricolă.',
+    'academic_years' => 'Anii școlari și operațiunile legate de ei. „Deschide anul nou" copiază clasele și orele în anul următor, cu o treaptă mai sus; elevii se mută separat, din Înmatriculări. „Încheie promoția" scoate clasele terminale din evidență, iar „Arhivează" trece mediile anului în situația școlară.',
 
-    'terms' => 'Granițele semestrelor decid în ce semestru cade fiecare notă și absență. Mutarea lor REALINIAZĂ catalogul: înregistrările rămase în afara noilor limite se redistribuie automat la salvare — pagina îți spune dinainte câte sunt.',
+    'terms' => 'Datele de început și de sfârșit ale semestrelor. Dacă le muți, notele și absențele rămase în afara noului interval trec automat în semestrul potrivit; pagina îți arată câte sunt înainte să salvezi.',
 
-    'enrollments' => 'Registrul apartenenței: cine, în ce clasă, din ce dată. Transferul între clase lasă notele deja consemnate pe clasa VECHE (istoricul rămâne corect), iar catalogul curge mai departe pe cea nouă. Plecarea nu e ștergere — rândul rămâne, cu data și motivul.',
+    'enrollments' => 'Evidența elevilor pe clase: cine, unde și din ce dată. Când muți un elev la altă clasă, notele deja puse rămân la clasa veche. Când un elev pleacă din școală nu îl ștergi, ci îi treci data și motivul plecării.',
 
-    'holidays' => 'Zilele libere nu sunt decorative: ies din numărătoarea zilelor lucrătoare, deci mută termenele de motivare deja deschise. O zi liberă din afara anului școlar n-ar apărea în calendar, dar ar rămâne activă în calcule — de aceea formularul o respinge.',
+    'holidays' => 'Zilele în care nu se fac cursuri: sărbători legale, vacanțe și zile stabilite de școală. Ele nu se numără ca zile lucrătoare, așa că schimbă termenele în care familiile pot cere motivarea absențelor.',
 
-    'schedules' => 'Sursa unică a orarelor publicate: ce editezi aici apare pe site, în paginile Calendar. Publicarea e o decizie separată de editare — cât timp nu e publicat, orarul rămâne intern. Datele sunt la nivel de CLASĂ, fără date personale, de aceea pot fi citite public.',
+    'schedules' => 'Orarele care apar pe site-ul școlii. Aici le scrii, iar pe site se văd în paginile de Calendar. Cât timp nu sunt marcate ca publicate, rămân vizibile doar în panou.',
 
-    'summative_designations' => 'Desemnează la ce disciplină și clasă se dă sumativă (teză la liceu, ESS la gimnaziu). Contează direct la note: sumativa intră cu 50% în media semestrială. Într-o clasă deja configurată, o sumativă la o disciplină nedesemnată e refuzată la salvare.',
+    'summative_designations' => 'Aici alegi la ce discipline se dă teză sau evaluare sumativă, pentru fiecare clasă. Nota sumativă cântărește jumătate din media semestrului. Cât timp o clasă nu are nicio disciplină aleasă, se poate pune sumativă la orice disciplină; după prima alegere sunt acceptate doar disciplinele din listă.',
 
-    'grading_rules' => 'Formula de calcul NU se poate schimba din panou: e legislație, nu configurare. Pagina există ca dirigintele să poată explica părintelui de ce media e 7,46 și nu 7,5 — valorile afișate se citesc din aceleași constante folosite la calcul, deci nu se pot desincroniza.',
+    'grading_rules' => 'Cum se calculează mediile. Regulile vin din regulament și nu se pot schimba de aici. Pagina îți e de folos când trebuie să explici unui părinte de ce media este, de exemplu, 7,46 și nu 7,5.',
 
-    'lessons' => 'Orarul pe lecții (zi, oră, sală, profesor) — cel care alimentează „Ziua mea" din cabinetul elevului și dă numitorul la riscul de amânare: procentul de absențe se raportează la lecțiile programate. Se produce din orarele publicate.',
+    'lessons' => 'Orarul detaliat: ce oră, în ce zi, cu ce profesor și în ce sală. Din el se formează „Ziua mea" din cabinetul elevului și tot din el se calculează cât la sută dintr-o disciplină a lipsit un elev.',
 
-    'corigenta_sessions' => 'Sesiunile de lichidare a corigenței trec printr-un flux cu trei pași: propuse ca ciornă, aprobate prin ordinul directorului, publicate abia apoi. Până la publicare, familia nu vede nimic — o dată anunțată și apoi mutată ar fi mai rea decât una anunțată târziu.',
+    'corigenta_sessions' => 'Perioadele în care se susțin examenele de corigență. O sesiune trece prin trei etape: o propui, directorul o aprobă, apoi se publică. Familiile o văd abia după publicare.',
 
-    'exam_commissions' => 'Comisiile care examinează la lichidarea corigenței. Fără comisie desemnată, examenul nu se poate programa — de aceea pagina îți arată separat disciplinele rămase „de acoperit".',
+    'exam_commissions' => 'Profesorii care examinează la corigență. Fără o comisie stabilită, examenul nu poate primi dată; pagina îți arată separat disciplinele rămase fără comisie.',
 
-    'canteen_menus' => 'Meniul zilei, scris de administratorul operațional și citit de toată școala. E singura secțiune de configurare pe care o consultă direct și familia, din cabinet — deci o zi lăsată goală se vede în afară.',
+    'canteen_menus' => 'Meniul cantinei, pe zile. Îl văd și familiile, direct în cabinetul lor, deci o zi lăsată goală se observă din afara școlii.',
 
     // ── Comunicare ─────────────────────────────────────────────────────────────────────────
-    'messages' => 'Poșta internă, cu filtrul aplicat pe server: familia scrie profesorului sau dirigintelui copilului ei, iar către conducere se merge prin solicitare de audiență. Nu există „administrația vede tot" — fiecare cont își vede exclusiv propriile fire.',
+    'messages' => 'Mesajele tale din interiorul școlii. Familiile pot scrie profesorilor și dirigintelui copilului lor, iar pentru conducere există cererea de audiență. Fiecare vede doar conversațiile la care ia parte.',
 
-    'announcements' => 'Audiența se rezolvă la PUBLICARE, nu la scriere — de aceea numărul de destinatari din confirmare e cel real, nu o estimare. Absolvenții și conturile rămase fără elev înscris nu mai intră în „toate familiile".',
+    'announcements' => 'Anunțuri către un grup ales: o clasă, toate familiile sau tot personalul. Lista destinatarilor se stabilește în momentul publicării, așa că numărul din confirmare este cel real. Absolvenții și conturile fără elev înscris nu mai primesc anunțurile pentru familii.',
 
-    'calendar_events' => 'Evenimentele adăugate manual, alături de cele care vin singure din catalog (teze, termene, sesiuni). Audiența unui eveniment decide cine îl vede în cabinet — un eveniment fără public ales rămâne intern.',
+    'calendar_events' => 'Evenimentele pe care le adaugi tu, pe lângă cele care apar singure din catalog: teze, termene, examene. Alege cui i se adresează evenimentul, altfel rămâne vizibil doar în panou.',
 
-    'calendar' => 'Toate sursele datate ale școlii pe o singură axă: structura anului, examenele, termenele, audiențele. Nu e un calendar separat de completat — citește ce există deja în catalog, deci nu se poate desincroniza de el.',
+    'calendar' => 'Toate datele importante ale școlii într-un singur loc: semestre, examene, termene, audiențe. Nu se completează de aici — informațiile vin din celelalte secțiuni.',
 
     // ── Secretariat & administrare ─────────────────────────────────────────────────────────
-    'document_requests' => 'Cererile depuse de familii din cabinet. PDF-ul se generează la depunere și se păstrează PRIVAT — conține datele unui minor, deci nu are URL public, iar descărcarea trece prin verificare de acces. Contestația poartă nota vizată, ca să nu se ghicească despre ce e vorba.',
+    'document_requests' => 'Cererile trimise de familii din cabinet: adeverințe, învoiri, transferuri, contestații. Fiecare cerere are un document PDF, pe care îl pot deschide doar familia și secretariatul. La contestații vezi și nota la care se referă cererea.',
 
-    'admission_requests' => 'Cererile de înscriere venite din site. Procesarea lasă urmă (cine, când, cu ce rezultat), iar cele acceptate se pot continua direct în onboarding — fără reintroducerea datelor deja completate de familie.',
+    'admission_requests' => 'Cererile de înscriere primite prin site. Rămâne consemnat cine le-a procesat și cu ce răspuns, iar dintr-o cerere acceptată poți continua direct cu înscrierea elevului, fără să reintroduci datele.',
 
-    'documents' => 'Biblioteca de documente utile. Fiecare document e vizibil doar rolurilor cărora le e destinat, iar filtrul e pe SERVER — un document nepermis nu e doar ascuns vizual, e inaccesibil. Încărcarea și publicarea aparțin administratorului operațional.',
+    'documents' => 'Documentele utile ale școlii. Fiecare document este vizibil doar rolurilor cărora le este destinat. Încărcarea și publicarea revin administratorului operațional.',
 
-    'reports' => 'Rapoartele instituției. Cele care conțin nume de elevi se jurnalizează la export (L133): rămâne urmă cine a scos ce și când. Documentele oficiale se randează întotdeauna în română, indiferent de limba interfeței — sunt acte, nu ecrane.',
+    'reports' => 'Rapoartele școlii. La cele care conțin nume de elevi rămâne consemnat cine le-a descărcat și când. Documentele oficiale se generează întotdeauna în română, indiferent de limba în care lucrezi.',
 
-    'users' => 'Persoana și contul ei într-un singur loc: fișa, accesul și integrarea în catalog se creează într-o singură tranzacție. Ierarhia e impusă pe server — poți crea doar rolurile pe care rolul tău are dreptul să le creeze. Contul nu se șterge, se suspendă.',
+    'users' => 'Persoanele din școală și conturile lor de acces. Fișa și contul se creează împreună, dintr-un singur formular. Poți crea doar rolurile pe care rolul tău are voie să le creeze, iar un cont nu se șterge, ci se suspendă.',
 
-    'role_matrix' => 'Cine ce poate, pe roluri. Nu e documentație scrisă de mână: celulele se citesc din aceleași capabilități pe care serverul le verifică la fiecare acțiune, deci matricea nu poate rămâne în urma codului.',
+    'role_matrix' => 'Ce poate face fiecare rol. Tabelul arată drepturile reale, aceleași pe care sistemul le verifică la fiecare acțiune.',
 
-    'audits' => 'Jurnalul de audit: cine, când, ce a schimbat, din ce în ce. Rândurile nu se pot edita și nu se pot șterge din panou — un jurnal modificabil n-ar mai fi o probă. Se păstrează cât dosarele elevilor.',
+    'audits' => 'Istoricul modificărilor: cine, când și ce a schimbat. Rândurile nu se pot modifica și nu se pot șterge. Se păstrează la fel de mult ca dosarele elevilor.',
 
-    'consents' => 'Evidența notei de informare (L133): cine a confirmat și în ce versiune. La schimbarea versiunii, confirmarea se cere din nou — de aceea coloana arată ultima actualizare, nu un simplu bifat. Lipsa confirmării nu blochează catalogul, dar se vede aici.',
+    'consents' => 'Evidența confirmărilor pentru nota de informare privind datele personale. Când nota se schimbă, confirmarea se cere din nou, de aceea vezi data ultimei confirmări. Lipsa ei nu blochează accesul la catalog.',
 
-    'restore_center' => 'Ce s-a șters din panou poate fi restaurat de aici. Conturile nu apar: ele nu se șterg, se suspendă. Atenție la restaurare — indexurile unice văd și rândurile șterse, deci dacă între timp s-a creat un duplicat, revenirea e blocată până se rezolvă conflictul.',
-    // ── Câmpuri și butoane: DOAR regulile care surprind ────────────────────────────────────
+    'restore_center' => 'De aici poți readuce ce ai șters din panou. Conturile nu apar în listă, pentru că ele nu se șterg, ci se suspendă. Dacă între timp a fost creat ceva cu aceleași date, restaurarea nu se poate face până nu rezolvi suprapunerea.',
+
+    // ── Câmpuri: doar acolo unde regula nu se ghicește din ecran ───────────────────────────
     'fields' => [
-        'grade_evaluation_type' => 'Sumativa (teză/ESS) se poate consemna DOAR la disciplinele desemnate pentru clasă, în „Discipline cu sumativă" — într-o clasă deja configurată, o sumativă la altă disciplină e refuzată la salvare. Contează pentru că sumativa intră cu 50% în media semestrială.',
-        'grade_graded_on' => 'Data notei decide în ce SEMESTRU intră, nu momentul în care o introduci. O notă datată într-o vacanță trecută cade pe semestrul în curs; una datată după finalul anului e refuzată, ca să nu ajungă tăcut în semestrul unui an încheiat.',
-        'absence_occurred_on' => 'De la această dată curg cele 5 zile lucrătoare în care familia poate cere motivarea. Termenul se recalculează singur dacă se schimbă zilele libere — o zi liberă adăugată nu poate fura din termenul deja deschis.',
-        'enrollment_departure_reason' => 'Motivul nu e o simplă etichetă: doar „absolvire" deschide accesul de absolvent la propria arhivă (foaia matricolă, adeverințe). Transferul și exmatricularea îl închid — actele se eliberează de școala unde a plecat elevul.',
-        'summative_class' => 'O clasă fără NICIO desemnare rămâne neconfigurată, iar garda nu blochează nimic acolo: sumativele se pot consemna la orice disciplină. Garda se activează la prima desemnare făcută pentru clasa respectivă.',
-        'summative_bulk' => 'Desemnarea în masă creează perechile (clasă × disciplină) care lipsesc, nu le înlocuiește pe cele existente. Atenție la efectul de prag: o clasă până acum neconfigurată devine păzită imediat ce primește prima desemnare — de atunci, o sumativă la orice disciplină nedesemnată acolo va fi refuzată la salvare.',
+        'grade_evaluation_type' => 'Teza sau evaluarea sumativă se poate pune doar la disciplinele alese pentru clasă în secțiunea „Discipline cu sumativă". Nota sumativă cântărește jumătate din media semestrului.',
+
+        'grade_graded_on' => 'Semestrul în care intră nota este dat de această dată, nu de ziua în care o introduci. O notă cu dată de după încheierea anului școlar nu se acceptă.',
+
+        'absence_occurred_on' => 'De la această dată se numără cele 5 zile lucrătoare în care familia poate cere motivarea. Dacă se adaugă zile libere între timp, termenul se prelungește automat.',
+
+        'enrollment_departure_reason' => 'Contează motivul, nu doar data. Doar „absolvire" îi păstrează elevului accesul la propria situație școlară și la adeverințe; la transfer sau exmatriculare accesul se închide.',
+
+        'summative_class' => 'Cât timp clasa nu are nicio disciplină aleasă aici, se poate pune sumativă la orice disciplină din ea. După prima alegere sunt acceptate doar disciplinele trecute în listă.',
+
+        'summative_bulk' => 'Se adaugă doar perechile care lipsesc; cele existente rămân neatinse. Ține cont că o clasă fără nicio disciplină aleasă până acum devine restricționată imediat după prima adăugare.',
     ],
 ];

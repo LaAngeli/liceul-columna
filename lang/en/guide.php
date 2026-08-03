@@ -4,100 +4,114 @@
 |--------------------------------------------------------------------------
 | Panel section guides (the "i" icon next to the heading) — EN
 |--------------------------------------------------------------------------
-| Keys are registered in App\Support\PanelGuide. Writing rule: don't describe
-| what is already on screen — explain WHY the section exists, which decision it
-| supports, and the rule you would otherwise get wrong. Two or three sentences:
-| this is a tooltip, not a manual.
+| Keys are registered in App\Support\PanelGuide.
+|
+| HOW TO WRITE THESE (rewritten 2026-08-04, at the client's request — the
+| first version read as heavy going):
+|   1. The first sentence says WHAT the section is, in everyday words.
+|   2. The second (rarely a third) says what you need to know so you don't
+|      use it wrongly — as an effect you can see, not as inner machinery.
+|   3. No system words ("server", "transaction", "index"), no CAPITALS for
+|      emphasis, no sentences packing three ideas between dashes.
+|   4. Neutral tone: describe, don't lecture.
+|
+| The reader is a teacher or a secretary, not a developer.
 */
 
 return [
     'aria_label' => 'About this section',
 
     // ── Catalogue ──────────────────────────────────────────────────────────────────────────
-    'class_register' => 'The whole class on one screen, so a lesson\'s grades and absences go in with a single save — the individual forms stay for one-off corrections. You only see the classes and subjects that are yours: the filter is applied on the server, not hidden in the interface.',
+    'class_register' => 'The whole class on one screen: you enter a lesson\'s grades and absences, then save once. You only see the classes and subjects you teach.',
 
-    'grades' => 'A grade is never deleted. A mistake is ANNULLED with a reason (it stays in the history, drops out of the averages, disappears from the family cabinet), and changing a value goes through a request approved by management. An individual grade is a whole number from 1 to 10 — decimals only appear in averages.',
+    'grades' => 'Grades are never deleted. A wrong grade is annulled with a reason: it stays in the history but no longer counts towards averages and no longer shows in the family cabinet. To change a grade\'s value you request a correction, and management approves it.',
 
-    'absences' => 'Every unexcused absence automatically gets a deadline: the date of the absence plus 5 working days. Excusing is not ticked here — the family requests it from their cabinet and the homeroom teacher validates it under Approvals. Deferral risk counts ALL absences in a subject, excused or not.',
+    'absences' => 'Student absences, by day and subject. Excusing is not ticked here: the family requests it from their own cabinet, and the homeroom teacher approves it under "Absence excusals". The family has 5 working days from the date of the absence.',
 
-    'homework' => 'An assignment is visible to exactly the class and subject it is tied to, not to the whole school. Links must be real addresses — free text is rejected; textbook references belong in the printed-resources field, so the student sees them next to the link.',
+    'homework' => 'The assignments you have given your classes. An assignment is seen only by that class, and only under the subject you added it to. Links must be internet addresses; references to a textbook go in the printed-resources field.',
 
-    'academic_records' => 'The official transcript by grade level — read, not written. It fills itself when the year is closed, from the term averages: the yearly figure is the arithmetic mean of the two terms, without rounding. Where a retake exam was passed, its grade is the yearly result, not the failed average.',
+    'academic_records' => 'Each student\'s record, year by year. It is not filled in by hand: it writes itself when you close the year, from the term averages. If the student passed a retake exam, that exam\'s grade becomes the yearly one.',
 
-    'students' => 'The student\'s registry record. A student without an enrolment EXISTS but does not work: they appear in no catalogue, no timetable and no cabinet. "Archive" also shows the files of those who left, with the reason — graduation, transfer, withdrawal or expulsion.',
+    'students' => 'Each student\'s details: name, register number, foreign language, account. A student appears in the catalogue, the timetable and the cabinet only after being enrolled in a class. The "Archive" button also shows students who have left, with the reason.',
 
-    'subjects' => 'The nomenclature also sets the grade levels at which each subject is taught. Opening a new year depends on it: teaching assignments whose subject is no longer taught at the higher level are NOT copied — at cycle boundaries (IV→V, IX→X) the curriculum changes.',
+    'subjects' => 'The school\'s list of subjects and the classes each one is taught in. This decides which lessons carry over when you open a new year: only subjects that are also taught at the next level are copied.',
 
-    'school_classes' => 'The class is what assignments, the timetable, the catalogue and the cabinet all rest on. A homeroom teacher may be missing temporarily (vacancy, import residue) — the field deliberately allows it, and classes left without one are surfaced as a task on the dashboard.',
+    'school_classes' => 'The classes of each school year, together with their homeroom teachers. A class may go without one for a while; those without appear as a task on the main page so they are not forgotten.',
 
-    'corigenta_exams' => 'Exams are not created by hand: they appear automatically when a student is marked for a retake. Here they are SCHEDULED (session, date, board) and the result is recorded. The exam grade becomes the official yearly result for that subject.',
+    'corigenta_exams' => 'Students\' retake exams. They are not added by hand — they appear on their own when a student is left with a failed subject. Here you set the date, session and board, then enter the grade obtained, which becomes the yearly grade for that subject.',
 
     // ── Approvals ──────────────────────────────────────────────────────────────────────────
-    'grade_corrections' => 'A grade\'s value is not changed by whoever entered it: the teacher requests, management approves, and only then does the grade change — with averages recalculated automatically. Rejected requests stay in the archive too: the trail of a correction is itself evidence.',
+    'grade_corrections' => 'Teachers\' requests to change a grade already entered. The grade only changes once management approves the request, and the averages are recalculated then. Rejected requests also stay in the list.',
 
-    'absence_motivations' => 'The family files the request from their cabinet; the homeroom teacher validates it here. Approval marks ALL absences in the requested period as excused — they are not ticked one by one. The family has 5 working days from the absence, and that deadline shifts if the holiday calendar changes.',
+    'absence_motivations' => 'Families\' requests to excuse absences. When you approve a request, every absence in the requested period becomes excused at once — you do not tick them one by one. A family may request an excusal within 5 working days of the absence.',
 
-    'homework_corrections' => 'The register of homework corrections: what changed, by whom and when. Correcting an assignment is DIRECT — unlike grades it needs no approval, because it affects nobody\'s average. Oversight remains through the audit log.',
+    'homework_corrections' => 'The list of changes made to assignments: what changed, by whom and when. Assignments are corrected directly, without approval, because they change nobody\'s average.',
 
     // ── Configuration ──────────────────────────────────────────────────────────────────────
-    'configuration' => 'Every institutional setting, grouped by category. The order matters: the school year and terms first, then classes and subjects, and only then enrolments — each step rests on the one before it.',
+    'configuration' => 'All the school\'s settings, grouped by category. The order matters: the school year and terms first, then classes and subjects, and enrolments last.',
 
-    'academic_years' => '"Open the new year" moves the STRUCTURE up one level (classes and teaching assignments); students follow separately, via Promotion under Enrolments. "Close out the cohort" takes the final-year classes out of the register — the step that also starts the statutory retention period for their files. "Archive" writes the year\'s averages into the transcript.',
+    'academic_years' => 'The school years and the operations that belong to them. "Open the new year" copies the classes and lessons into the next year, one level up; students move separately, from Enrolments. "Close out the cohort" removes the final-year classes from the register, and "Archive" writes the year\'s averages into the student records.',
 
-    'terms' => 'Term boundaries decide which term each grade and absence falls into. Moving them REALIGNS the catalogue: records left outside the new boundaries are redistributed on save — the page tells you in advance how many there are.',
+    'terms' => 'The start and end dates of each term. If you move them, grades and absences left outside the new period move to the right term automatically; the page shows how many there are before you save.',
 
-    'enrollments' => 'The register of belonging: who, in which class, from what date. Transferring between classes leaves grades already given on the OLD class (the history stays correct) while the catalogue continues on the new one. Departure is not deletion — the row stays, with its date and reason.',
+    'enrollments' => 'Which student is in which class, and from what date. When you move a student to another class, grades already entered stay with the old class. When a student leaves the school you do not delete them — you enter the date and reason for leaving.',
 
-    'holidays' => 'Days off are not decorative: they drop out of the working-day count, which shifts absence-excusal deadlines that are already open. A day off outside the school year would never show in the calendar but would stay active in the calculations — which is why the form rejects it.',
+    'holidays' => 'Days with no lessons: public holidays, school breaks and days set by the school. They do not count as working days, so they change the deadlines within which families can request an absence excusal.',
 
-    'schedules' => 'The single source for published timetables: what you edit here appears on the public site, under Calendar. Publishing is a decision separate from editing — until published, a timetable stays internal. The data is at CLASS level, with no personal details, which is why it can be read publicly.',
+    'schedules' => 'The timetables that appear on the school website. You write them here, and they show on the site under Calendar. Until a timetable is marked as published, it stays visible only inside the panel.',
 
-    'summative_designations' => 'Designates which subject and class sit a summative assessment. It bears directly on grades: the summative counts for 50% of the term average. In a class that is already configured, a summative in an undesignated subject is refused on save.',
+    'summative_designations' => 'Here you choose which subjects have a summative assessment, for each class. A summative grade is worth half of the term average. While a class has no subject chosen, a summative may be entered for any subject; after the first choice, only subjects on the list are accepted.',
 
-    'grading_rules' => 'The averaging formula CANNOT be changed from the panel: it is legislation, not configuration. The page exists so a homeroom teacher can explain to a parent why the average is 7.46 and not 7.5 — the values shown are read from the same constants used in the calculation.',
+    'grading_rules' => 'How averages are calculated. The rules come from regulation and cannot be changed here. The page is useful when you need to explain to a parent why an average is, say, 7.46 and not 7.5.',
 
-    'lessons' => 'The lesson-level timetable (day, period, room, teacher) — the one that feeds "My day" in the student cabinet and provides the denominator for deferral risk: the absence percentage is measured against scheduled lessons. It is produced from the published timetables.',
+    'lessons' => 'The detailed timetable: which lesson, on which day, with which teacher and in which room. It feeds "My day" in the student cabinet, and it is also what tells you what share of a subject\'s lessons a student has missed.',
 
-    'corigenta_sessions' => 'Retake sessions go through three steps: proposed as a draft, approved by the head\'s order, and only then published. Until publication the family sees nothing — a date announced and then moved is worse than one announced late.',
+    'corigenta_sessions' => 'The periods when retake exams are held. A session goes through three steps: you propose it, the head approves it, then it is published. Families see it only after publication.',
 
-    'exam_commissions' => 'The boards that examine retakes. Without an assigned board an exam cannot be scheduled — which is why the page separately lists the subjects still "to be covered".',
+    'exam_commissions' => 'The teachers who examine at retakes. Without a board in place an exam cannot be given a date; the page lists separately the subjects still without one.',
 
-    'canteen_menus' => 'The day\'s menu, written by the operational administrator and read by the whole school. It is the only configuration section families consult directly from their cabinet — so a day left blank is visible from the outside.',
+    'canteen_menus' => 'The canteen menu, day by day. Families see it too, straight from their cabinet, so a day left empty is noticed outside the school as well.',
 
     // ── Communication ──────────────────────────────────────────────────────────────────────
-    'messages' => 'Internal mail, filtered on the server: a family writes to their own child\'s teacher or homeroom teacher, and reaches management through an audience request. There is no "administration sees everything" — each account sees only its own threads.',
+    'messages' => 'Your messages inside the school. Families may write to their child\'s teachers and homeroom teacher; to reach management there is the audience request. Everyone sees only the conversations they take part in.',
 
-    'announcements' => 'The audience is resolved at PUBLICATION, not while writing — which is why the recipient count in the confirmation is the real one, not an estimate. Graduates and accounts left without an enrolled student no longer fall under "all families".',
+    'announcements' => 'Announcements to a chosen group: one class, all families, or all staff. The list of recipients is settled at the moment of publication, so the number in the confirmation is the real one. Graduates and accounts with no enrolled student no longer receive announcements meant for families.',
 
-    'calendar_events' => 'Manually added events, alongside those that arrive from the catalogue on their own (summative assessments, deadlines, sessions). An event\'s audience decides who sees it in their cabinet — an event with no audience chosen stays internal.',
+    'calendar_events' => 'Events you add yourself, alongside those that appear on their own from the catalogue: summative assessments, deadlines, exams. Choose who the event is for, otherwise it stays visible only inside the panel.',
 
-    'calendar' => 'Every dated source in the school on one axis: the year\'s structure, exams, deadlines, audiences. It is not a separate calendar to fill in — it reads what already exists in the catalogue, so it cannot drift out of step with it.',
+    'calendar' => 'All the school\'s important dates in one place: terms, exams, deadlines, audiences. Nothing is filled in here — the information comes from the other sections.',
 
     // ── Front office & administration ──────────────────────────────────────────────────────
-    'document_requests' => 'Requests filed by families from their cabinet. The PDF is generated on submission and stored PRIVATELY — it contains a minor\'s data, so it has no public URL and downloading goes through an access check. An appeal carries the disputed grade with it, so nobody has to guess.',
+    'document_requests' => 'Requests families send from their cabinet: certificates, leave requests, transfers, appeals. Each request has a PDF that only the family and the front office can open. For appeals you also see the grade the request refers to.',
 
-    'admission_requests' => 'Admission applications arriving from the public site. Processing leaves a trail (who, when, with what outcome), and accepted applications continue straight into onboarding — without re-entering data the family already filled in.',
+    'admission_requests' => 'Admission applications received through the website. It is recorded who handled each one and with what answer, and from an accepted application you can go straight on to enrolling the student, without entering the details again.',
 
-    'documents' => 'The library of useful documents. Each document is visible only to the roles it is meant for, and the filter runs on the SERVER — a document you may not have is not merely hidden, it is unreachable. Uploading and publishing belong to the operational administrator.',
+    'documents' => 'The school\'s useful documents. Each document is visible only to the roles it is meant for. Uploading and publishing are the operational administrator\'s job.',
 
-    'reports' => 'Institutional reports. Those containing student names are logged on export (Law 133): a trail remains of who took what, and when. Official documents are always rendered in Romanian regardless of interface language — they are legal records, not screens.',
+    'reports' => 'The school\'s reports. For those containing student names, it is recorded who downloaded them and when. Official documents are always produced in Romanian, whatever language you are working in.',
 
-    'users' => 'The person and their account in one place: the record, the access and the catalogue integration are created in a single transaction. The hierarchy is enforced on the server — you can only create the roles your own role is entitled to create. An account is never deleted, only suspended.',
+    'users' => 'The people in the school and their accounts. The record and the account are created together, from a single form. You can only create the roles your own role is allowed to create, and an account is not deleted but suspended.',
 
-    'role_matrix' => 'Who can do what, by role. This is not hand-written documentation: the cells are read from the very capabilities the server checks on every action, so the matrix cannot fall behind the code.',
+    'role_matrix' => 'What each role can do. The table shows the real permissions — the same ones the system checks on every action.',
 
-    'audits' => 'The audit log: who, when, what changed, from what to what. Rows cannot be edited or deleted from the panel — a mutable log would stop being evidence. It is kept as long as student files are.',
+    'audits' => 'The history of changes: who, when and what they changed. Rows cannot be edited and cannot be deleted. They are kept for as long as student files are.',
 
-    'consents' => 'The record of the privacy notice (Law 133): who acknowledged it, and in which version. When the version changes, acknowledgement is asked for again — which is why the column shows the last update rather than a plain tick. A missing acknowledgement does not block the catalogue, but it is visible here.',
+    'consents' => 'A record of who has acknowledged the privacy notice. When the notice changes, acknowledgement is asked for again, which is why you see the date of the last one. A missing acknowledgement does not block access to the catalogue.',
 
-    'restore_center' => 'Whatever was deleted from the panel can be restored here. Accounts do not appear: they are not deleted, they are suspended. One caution when restoring — unique indexes also see deleted rows, so a duplicate created in the meantime blocks the return until the conflict is resolved.',
-    // ── Fields and buttons: ONLY the rules that surprise ───────────────────────────────────
+    'restore_center' => 'From here you can bring back what you deleted in the panel. Accounts are not listed, because they are not deleted but suspended. If something with the same details has been created in the meantime, the restore cannot go through until you resolve the overlap.',
+
+    // ── Fields: only where the rule cannot be guessed from the screen ──────────────────────
     'fields' => [
-        'grade_evaluation_type' => 'A summative (term paper / ESS) may only be recorded for subjects designated for the class under "Subjects with a summative" — in a class that is already configured, a summative in another subject is refused on save. It matters because the summative counts for 50% of the term average.',
-        'grade_graded_on' => 'The grade\'s date decides which TERM it falls into, not the moment you enter it. A grade dated in a past holiday belongs to the current term; one dated after the year has ended is refused, so it cannot slip silently into a closed year\'s term.',
-        'absence_occurred_on' => 'The family\'s 5 working days to request an excusal run from this date. The deadline recalculates itself if the holiday calendar changes — a newly added day off cannot steal time from a deadline already open.',
-        'enrollment_departure_reason' => 'The reason is not a mere label: only "graduation" opens alumni access to their own archive (transcript, certificates). Transfer and expulsion close it — the paperwork is issued by the school the student moved to.',
-        'summative_class' => 'A class with NO designation at all counts as unconfigured, and the guard blocks nothing there: a summative can be recorded in any subject. The guard switches on with the first designation made for that class.',
-        'summative_bulk' => 'Bulk designation creates the missing (class × subject) pairs; it does not replace existing ones. Mind the threshold: a class that was unconfigured becomes guarded as soon as it gets its first designation - from then on, a summative in any subject not designated there is refused on save.',
+        'grade_evaluation_type' => 'A summative assessment can only be entered for subjects chosen for the class under "Subjects with a summative". A summative grade is worth half of the term average.',
+
+        'grade_graded_on' => 'This date decides which term the grade falls into, not the day you enter it. A grade dated after the school year has ended is not accepted.',
+
+        'absence_occurred_on' => 'The family\'s 5 working days to request an excusal are counted from this date. If days off are added in the meantime, the deadline extends automatically.',
+
+        'enrollment_departure_reason' => 'The reason matters, not just the date. Only "graduation" keeps the student\'s access to their own record and to certificates; with a transfer or an expulsion, that access closes.',
+
+        'summative_class' => 'While the class has no subject chosen here, a summative may be entered for any of its subjects. After the first choice, only the subjects on the list are accepted.',
+
+        'summative_bulk' => 'Only the missing pairs are added; existing ones are left alone. Note that a class with no subject chosen so far becomes restricted as soon as the first one is added.',
     ],
 ];

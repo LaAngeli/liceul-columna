@@ -46,11 +46,15 @@ use Illuminate\Support\HtmlString;
 /**
  * Ghidul secțiunilor din panou: iconița „i" de lângă titlu, cu explicația la hover.
  *
- * CE explică, deliberat: nu ce se vede pe ecran (asta se vede), ci **de ce există secțiunea, ce
- * decizie susține și care e regula pe care ai greși-o altfel**. Un panou de catalog școlar e plin de
- * reguli care nu se deduc din interfață — că o notă nu se șterge niciodată, că sumativa cântărește
- * jumătate din medie, că o zi liberă schimbă termene, că absolvirea pornește un termen legal de
- * păstrare. Acelea sunt de scris; „aici vezi notele" nu ajută pe nimeni.
+ * CE explică: ce este secțiunea, în cuvinte de zi cu zi, plus ce trebuie să știi ca să n-o
+ * folosești greșit. Un panou de catalog școlar e plin de reguli care nu se deduc din ecran — că o
+ * notă nu se șterge niciodată, că sumativa cântărește jumătate din medie, că o zi liberă schimbă
+ * termene. Acelea sunt de scris.
+ *
+ * CUM se scrie (rescriere 2026-08-04, după ce beneficiarul a semnalat că prima variantă era greu de
+ * citit): fără termeni de sistem („server", „tranzacție", „index"), fără MAJUSCULE de accent, fără
+ * fraze care leagă trei idei prin liniuțe, și fără retorică — se descrie efectul pe care omul îl
+ * vede, nu mecanismul din spate. Cititorul e un profesor sau un secretar.
  *
  * CUM se leagă: un SINGUR render hook global ({@see PanelsRenderHook::PAGE_HEADER_HEADING_AFTER}).
  * Filament trimite închiderii `scopes` — pentru paginile de resursă, atât clasa paginii cât și clasa
