@@ -57,6 +57,9 @@ trait ManagesAccountForm
 
     protected ?string $studentFicheSecondLanguage = null;
 
+    /** Grupa la engleză, cerută în flux doar unde clasa aleasa se imparte pe grupe. */
+    protected ?int $studentFicheEnglishGroup = null;
+
     /** @var array<int, array<string, mixed>> */
     protected array $teachingPairs = [];
 
@@ -144,6 +147,9 @@ trait ManagesAccountForm
         $this->studentFicheSex = $this->scalarFormValue($data['student_fiche_sex'] ?? null);
         $this->studentFicheRegisterNumber = $this->scalarFormValue($data['student_fiche_register_number'] ?? null);
         $this->studentFicheSecondLanguage = $this->scalarFormValue($data['student_fiche_second_language'] ?? null);
+        $this->studentFicheEnglishGroup = filled($data['student_fiche_english_group'] ?? null)
+            ? (int) $data['student_fiche_english_group']
+            : null;
         $this->teachingPairs = isset($data['teaching_pairs']) && is_array($data['teaching_pairs'])
             ? array_values(array_filter($data['teaching_pairs'], is_array(...)))
             : [];
@@ -177,6 +183,7 @@ trait ManagesAccountForm
             $data['student_fiche_sex'],
             $data['student_fiche_register_number'],
             $data['student_fiche_second_language'],
+            $data['student_fiche_english_group'],
             $data['teaching_pairs'],
             $data['homeroom_class_id'],
             $data['homeroom_class_ids'],
@@ -247,6 +254,7 @@ trait ManagesAccountForm
                     'sex' => $this->studentFicheSex,
                     'register_number' => $this->studentFicheRegisterNumber,
                     'second_language' => $this->studentFicheSecondLanguage,
+                    'english_group' => $this->studentFicheEnglishGroup,
                 ]);
 
                 $this->linkedStudentId = (int) $fiche->getKey();
@@ -470,6 +478,15 @@ trait ManagesAccountForm
         // ori de câte ori elevul nu are deja una în anul curent — fără ea, contul e invizibil în
         // catalog. Pe fișa care are deja înmatriculare, câmpul nici nu se afișează, deci nu poate
         // muta pe tăcute un elev dintr-o clasă în alta.
+        // Grupa la engleză, pe fișa EXISTENTĂ: se completează doar dacă îi lipsea (o grupă deja
+        // stabilită e o decizie a școlii, nu se rescrie la crearea unui cont).
+        if ($this->studentFicheEnglishGroup !== null && $this->studentFicheMode === UserForm::FICHE_LINK) {
+            Student::query()
+                ->whereKey($studentId)
+                ->whereNull('english_group')
+                ->update(['english_group' => $this->studentFicheEnglishGroup]);
+        }
+
         if ($this->enrollClassId !== null) {
             $class = SchoolClass::query()->whereKey($this->enrollClassId)->first();
 

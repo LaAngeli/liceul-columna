@@ -13,4 +13,10 @@
 
         {{ $this->table }}
     @endif
+
+    {{-- Pe ATERIZARE tabelul nu se randează, iar `x-filament-panels::page` lasă modalele în seama
+         lui (pagina e o listare) — deci o acțiune de antet cu formular nu s-ar deschide deloc.
+         În context, tabelul îl randează primul, iar linia asta devine no-op (Filament ține un
+         flag `hasActionsModalRendered`), deci nu apar modale duplicate. --}}
+    <x-filament-actions::modals />
 </x-filament-panels::page>

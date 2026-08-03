@@ -15,6 +15,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Term;
 use App\Models\User;
+use App\Support\ClassRoster;
 use App\Support\ContentTranslator;
 use App\Support\TemporaryPassword;
 use Closure;
@@ -250,9 +251,27 @@ class UserForm
                             ->native(false)
                             ->visible(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation))
                             ->required(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation)),
+                        // NUMĂRUL MATRICOL e ordinea elevului ÎN CLASĂ (măsurat pe date: maximul e
+                        // 30, iar „1" apare în 19 clase) — deci propunerea și verificarea de
+                        // duplicat lucrează pe clasa aleasă, nu pe școală.
                         TextInput::make('student_fiche_register_number')
                             ->label(__('panel.fields.register_number'))
                             ->maxLength(10)
+                            ->helperText(fn (Get $get): string => self::registerNumberHint($get))
+                            ->rules([
+                                static fn (Get $get): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                                    $number = trim((string) $value);
+                                    $classId = $get('enroll_class_id');
+
+                                    if ($number === '' || blank($classId)) {
+                                        return;
+                                    }
+
+                                    if (ClassRoster::registerNumberTaken((int) $classId, $number)) {
+                                        $fail(__('panel.validation.student.register_number_in_class'));
+                                    }
+                                },
+                            ])
                             ->visible(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation)),
                         Select::make('student_fiche_second_language')
                             ->label(__('panel.forms.student.second_language'))
@@ -283,13 +302,50 @@ class UserForm
                             // câmpul apare ȘI pe ruta „fișă existentă" — până acum dispărea acolo,
                             // presupunând că orice fișă veche își are istoricul; o fișă fără
                             // înmatriculare în anul curent năștea tăcut un utilizator invizibil.
-                            ->helperText(fn (Get $get, string $operation): string => self::creatingStudentFiche($get, $operation)
-                                ? (string) __('panel.forms.user.enroll_class_hint')
-                                : (string) __('panel.forms.user.enroll_class_missing_hint'))
+                            ->helperText(function (Get $get, string $operation): string {
+                                if (ClassRoster::enrollmentYearId() === null) {
+                                    return (string) __('panel.forms.user.enroll_no_current_term');
+                                }
+
+                                return self::creatingStudentFiche($get, $operation)
+                                    ? (string) __('panel.forms.user.enroll_class_hint')
+                                    : (string) __('panel.forms.user.enroll_class_missing_hint');
+                            })
                             ->options(fn (): array => self::currentYearClassOptions())
                             ->searchable()
+                            ->live()
+                            // Clasa aleasă aduce cu ea ce depinde de componența ei: numărul
+                            // matricol următor (dacă operatorul n-a tastat altul) și grupa de
+                            // engleză mai puțin populată.
+                            ->afterStateUpdated(function (Get $get, Set $set, mixed $state): void {
+                                if (! is_numeric($state)) {
+                                    return;
+                                }
+
+                                if (blank($get('student_fiche_register_number'))) {
+                                    $set('student_fiche_register_number', ClassRoster::nextRegisterNumber((int) $state));
+                                }
+
+                                if (blank($get('student_fiche_english_group'))) {
+                                    $set('student_fiche_english_group', ClassRoster::suggestEnglishGroup((int) $state));
+                                }
+                            })
                             ->visible(fn (Get $get, string $operation): bool => self::needsEnrollment($get, $operation))
                             ->required(fn (Get $get, string $operation): bool => self::needsEnrollment($get, $operation)),
+                        // GRUPA la engleză se cere ACUM, dar numai unde clasa chiar se împarte pe
+                        // grupe: altfel elevul ar rămâne în borderoul ambilor titulari (fallback-ul
+                        // deliberat din catalogul clasei) și s-ar nota de două ori.
+                        Select::make('student_fiche_english_group')
+                            ->label(__('panel.forms.student.english_group_long'))
+                            ->helperText(__('panel.forms.user.english_group_hint'))
+                            ->options([
+                                1 => __('panel.forms.student.group_option', ['group' => 1]),
+                                2 => __('panel.forms.student.group_option', ['group' => 2]),
+                            ])
+                            ->native(false)
+                            ->default(fn (Get $get): ?int => self::suggestedEnglishGroup($get))
+                            ->visible(fn (Get $get, string $operation): bool => self::needsEnglishGroup($get, $operation))
+                            ->required(fn (Get $get, string $operation): bool => self::needsEnglishGroup($get, $operation)),
                         // Fișa aleasă ARE deja înmatriculare în anul curent: se spune explicit, ca
                         // absența selectorului să nu mai fie o tăcere ambiguă. Mutarea între clase
                         // rămâne o operațiune de registru, nu un efect secundar al creării unui cont.
@@ -394,6 +450,10 @@ class UserForm
                             ->searchable()
                             ->getSearchResultsUsing(fn (string $search): array => self::searchStudents($search))
                             ->getOptionLabelsUsing(fn (array $values): array => self::studentLabels($values))
+                            // Copilul PRE-COMPLETAT (`?copil=`): puntea de după „Adaugă elev fără
+                            // cont" — părintele se creează cu legătura deja pregătită, ca operatorul
+                            // să nu-și caute înapoi propriul elev printre sute.
+                            ->default(fn (): array => self::requestedChildIds())
                             ->columnSpanFull()
                             ->visible(fn (Get $get): bool => in_array(UserRole::Parinte->value, self::selectedRoles($get), true)),
                     ]),
@@ -653,6 +713,58 @@ class UserForm
         return filled($get('student_id')) && self::linkedEnrollmentLabel($get) === null;
     }
 
+    /**
+     * Ghidul numărului matricol: ce e deja folosit ÎN CLASA aleasă și care e primul liber. Fără
+     * clasă aleasă rămâne explicația generală — numărul e ordinea în clasă, nu un id pe școală.
+     */
+    private static function registerNumberHint(Get $get): string
+    {
+        $classId = $get('enroll_class_id');
+
+        if (blank($classId)) {
+            return (string) __('panel.forms.user.register_number_hint');
+        }
+
+        $used = ClassRoster::usedRegisterNumbers((int) $classId);
+
+        return (string) __('panel.forms.user.register_number_in_class_hint', [
+            'used' => $used === [] ? (string) __('panel.forms.user.register_number_none_used') : implode(', ', $used),
+            'next' => ClassRoster::nextRegisterNumber((int) $classId),
+        ]);
+    }
+
+    /**
+     * Grupa la engleză se cere doar dacă înmatriculăm ACUM într-o clasă care lucrează pe grupe —
+     * iar pentru o fișă existentă, doar dacă n-are deja una.
+     */
+    private static function needsEnglishGroup(Get $get, string $operation): bool
+    {
+        if (! self::needsEnrollment($get, $operation)) {
+            return false;
+        }
+
+        $classId = $get('enroll_class_id');
+
+        if (blank($classId) || ! ClassRoster::usesEnglishGroups((int) $classId)) {
+            return false;
+        }
+
+        if ($get('student_fiche_mode') === self::FICHE_CREATE) {
+            return true;
+        }
+
+        $studentId = $get('student_id');
+
+        return blank($studentId) || Student::query()->whereKey((int) $studentId)->value('english_group') === null;
+    }
+
+    private static function suggestedEnglishGroup(Get $get): ?int
+    {
+        $classId = $get('enroll_class_id');
+
+        return blank($classId) ? null : ClassRoster::suggestEnglishGroup((int) $classId);
+    }
+
     /** Eticheta înmatriculării din anul curent a fișei alese („VII A · din 01.09.2025"), sau null. */
     private static function linkedEnrollmentLabel(Get $get): ?string
     {
@@ -789,14 +901,25 @@ class UserForm
     /**
      * Clasele anului curent — destinația înmatriculării elevului nou.
      *
+     * ⚠️ STRICT pe anul semestrului curent (2026-08-03): fallback-ul „cel mai nou id" oferea, în
+     * lipsa unui semestru curent, clasele unui an-fantomă (2037–2038 există în date) drept
+     * destinație de înmatriculare. Fără semestru curent lista rămâne GOALĂ, iar textul de sub
+     * câmp spune ce trebuie făcut mai întâi.
+     *
      * @return array<int, string>
      */
     private static function currentYearClassOptions(): array
     {
+        $yearId = ClassRoster::enrollmentYearId();
+
+        if ($yearId === null) {
+            return [];
+        }
+
         $options = [];
 
         $classes = SchoolClass::query()
-            ->when(self::currentYearId() !== null, fn ($query) => $query->where('academic_year_id', self::currentYearId()))
+            ->where('academic_year_id', $yearId)
             ->orderBy('grade_level')
             ->orderBy('name')
             ->get();
@@ -898,6 +1021,24 @@ class UserForm
         $id = (int) $raw;
 
         return Teacher::query()->whereKey($id)->whereNull('user_id')->exists() ? $id : null;
+    }
+
+    /**
+     * Copilul cerut din URL (`?copil=`), validat pe registru — id inexistent = ignorat.
+     *
+     * @return array<int, int>
+     */
+    private static function requestedChildIds(): array
+    {
+        $raw = request()->query('copil');
+
+        if (! is_string($raw) || ! ctype_digit($raw)) {
+            return [];
+        }
+
+        $id = (int) $raw;
+
+        return Student::query()->whereKey($id)->exists() ? [$id] : [];
     }
 
     /** Rolul din contextul navigatorului (`?rol=`), doar dacă actorul îl poate atribui. */

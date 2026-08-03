@@ -2,7 +2,10 @@
 
 namespace App\Filament\Resources\Students\Pages;
 
+use App\Actions\Enrollments\EnrollStudents;
 use App\Enums\SchoolCycle;
+use App\Enums\SecondLanguage;
+use App\Enums\Sex;
 use App\Enums\UserRole;
 use App\Filament\Concerns\HasCatalogNavigator;
 use App\Filament\Contracts\CatalogNavigator;
@@ -13,8 +16,15 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Term;
+use App\Support\ClassRoster;
+use Closure;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Url;
@@ -66,7 +76,185 @@ class ListStudents extends ListRecords implements CatalogNavigator
                 ->icon('heroicon-o-plus')
                 ->url(UserResource::getUrl('create', ['rol' => UserRole::Elev->value]))
                 ->visible(fn (): bool => auth('web')->user()?->canManageAccounts() ?? false),
+            $this->addFicheOnlyAction(),
         ];
+    }
+
+    /**
+     * „Adaugă elev fără cont": fișa + înmatricularea, FĂRĂ cont de acces (cerința beneficiarului,
+     * 2026-08-03). La clasele mici contul elevului nu se folosește — familia intră pe contul
+     * părintelui — iar fluxul unificat obliga la nașterea unui cont care rămânea nefolosit; în
+     * plus, fiecare cont de minor în plus e o suprafață de date personale fără rost (L133).
+     *
+     * Elevul iese COMPLET funcțional în catalog: înmatricularea trece prin aceeași acțiune ca
+     * registrul ({@see EnrollStudents}), iar contul se poate adăuga oricând din fișă. La final,
+     * notificarea deschide drumul firesc mai departe — crearea contului de PĂRINTE, cu copilul
+     * deja pre-selectat.
+     */
+    private function addFicheOnlyAction(): Action
+    {
+        return Action::make('createFicheOnly')
+            ->label(__('panel.forms.student.fiche_only.label'))
+            ->icon('heroicon-o-identification')
+            ->color('gray')
+            ->modalHeading(__('panel.forms.student.fiche_only.heading'))
+            ->modalDescription(__('panel.forms.student.fiche_only.description'))
+            ->modalSubmitActionLabel(__('panel.forms.student.fiche_only.submit'))
+            ->visible(fn (): bool => (auth('web')->user()?->canConfigureSchool() ?? false)
+                && ClassRoster::enrollmentYearId() !== null)
+            ->schema([
+                TextInput::make('last_name')
+                    ->label(__('panel.fields.last_name'))
+                    ->required()
+                    ->maxLength(120),
+                TextInput::make('first_name')
+                    ->label(__('panel.fields.first_name'))
+                    ->required()
+                    ->maxLength(120),
+                Select::make('sex')
+                    ->label(__('panel.fields.sex'))
+                    ->options(Sex::class)
+                    ->native(false)
+                    ->required(),
+                Select::make('school_class_id')
+                    ->label(__('panel.forms.user.enroll_class'))
+                    ->helperText(__('panel.forms.user.enroll_class_hint'))
+                    ->options(fn (): array => self::enrollmentClassOptions())
+                    ->searchable()
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(function (Get $get, Set $set, mixed $state): void {
+                        if (! is_numeric($state)) {
+                            return;
+                        }
+
+                        if (blank($get('register_number'))) {
+                            $set('register_number', ClassRoster::nextRegisterNumber((int) $state));
+                        }
+
+                        if (blank($get('english_group'))) {
+                            $set('english_group', ClassRoster::suggestEnglishGroup((int) $state));
+                        }
+                    }),
+                TextInput::make('register_number')
+                    ->label(__('panel.fields.register_number'))
+                    ->maxLength(10)
+                    ->helperText(fn (Get $get): string => blank($get('school_class_id'))
+                        ? (string) __('panel.forms.user.register_number_hint')
+                        : (string) __('panel.forms.user.register_number_in_class_hint', [
+                            'used' => ClassRoster::usedRegisterNumbers((int) $get('school_class_id')) === []
+                                ? (string) __('panel.forms.user.register_number_none_used')
+                                : implode(', ', ClassRoster::usedRegisterNumbers((int) $get('school_class_id'))),
+                            'next' => ClassRoster::nextRegisterNumber((int) $get('school_class_id')),
+                        ]))
+                    ->rules([
+                        static fn (Get $get): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                            $number = trim((string) $value);
+                            $classId = $get('school_class_id');
+
+                            if ($number === '' || blank($classId)) {
+                                return;
+                            }
+
+                            if (ClassRoster::registerNumberTaken((int) $classId, $number)) {
+                                $fail(__('panel.validation.student.register_number_in_class'));
+                            }
+                        },
+                    ]),
+                Select::make('second_language')
+                    ->label(__('panel.forms.student.second_language'))
+                    ->options(SecondLanguage::class)
+                    ->default(SecondLanguage::None->value)
+                    ->native(false)
+                    ->required(),
+                Select::make('english_group')
+                    ->label(__('panel.forms.student.english_group_long'))
+                    ->helperText(__('panel.forms.user.english_group_hint'))
+                    ->options([
+                        1 => __('panel.forms.student.group_option', ['group' => 1]),
+                        2 => __('panel.forms.student.group_option', ['group' => 2]),
+                    ])
+                    ->native(false)
+                    ->visible(fn (Get $get): bool => filled($get('school_class_id'))
+                        && ClassRoster::usesEnglishGroups((int) $get('school_class_id')))
+                    ->required(fn (Get $get): bool => filled($get('school_class_id'))
+                        && ClassRoster::usesEnglishGroups((int) $get('school_class_id'))),
+            ])
+            ->action(function (array $data): void {
+                $class = SchoolClass::query()->find((int) ($data['school_class_id'] ?? 0));
+
+                if ($class === null || ! (auth('web')->user()?->canConfigureSchool() ?? false)) {
+                    return;
+                }
+
+                $student = Student::query()->create([
+                    'last_name' => trim((string) $data['last_name']),
+                    'first_name' => trim((string) $data['first_name']),
+                    'sex' => $data['sex'],
+                    'register_number' => filled($data['register_number'] ?? null) ? trim((string) $data['register_number']) : null,
+                    'second_language' => $data['second_language'],
+                    'english_group' => filled($data['english_group'] ?? null) ? (int) $data['english_group'] : null,
+                ]);
+
+                $result = app(EnrollStudents::class)->handle($class, [(int) $student->getKey()]);
+
+                if ($result['enrolled'] === 0) {
+                    $student->delete();
+
+                    Notification::make()
+                        ->warning()
+                        ->title(__('panel.forms.student.fiche_only.enroll_failed'))
+                        ->send();
+
+                    return;
+                }
+
+                Notification::make()
+                    ->success()
+                    ->title(__('panel.forms.student.fiche_only.success', [
+                        'student' => $student->full_name,
+                        'class' => trim($class->name.' '.($class->section ?? '')),
+                    ]))
+                    ->body(__('panel.forms.student.fiche_only.next_step'))
+                    ->actions([
+                        Action::make('createGuardian')
+                            ->label(__('panel.forms.student.fiche_only.create_guardian'))
+                            ->url(UserResource::getUrl('create', [
+                                'rol' => UserRole::Parinte->value,
+                                'copil' => $student->getKey(),
+                            ]))
+                            ->button(),
+                    ])
+                    ->persistent()
+                    ->send();
+
+                $this->catalogNavMemo = [];
+            });
+    }
+
+    /** @return array<int, string> */
+    private static function enrollmentClassOptions(): array
+    {
+        $yearId = ClassRoster::enrollmentYearId();
+
+        if ($yearId === null) {
+            return [];
+        }
+
+        $options = [];
+
+        $classes = SchoolClass::query()
+            ->where('academic_year_id', $yearId)
+            ->orderBy('grade_level')
+            ->orderBy('name')
+            ->orderBy('section')
+            ->get();
+
+        foreach ($classes as $class) {
+            $options[(int) $class->getKey()] = trim($class->name.' '.($class->section ?? ''));
+        }
+
+        return $options;
     }
 
     protected function catalogBaseQuery(): Builder
