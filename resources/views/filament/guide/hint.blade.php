@@ -17,6 +17,19 @@
         theme: $store.theme,
         placement: 'bottom-start',
         maxWidth: 420,
+        onTrigger(instance, event) { instance.guideTrigger = event?.type },
+        onShow(instance) {
+            {{-- Focusul NU e mereu al utilizatorului: modalul Filament își mută singur focusul la
+                 deschidere, iar dacă primul câmp are ghid, capcana aterizează exact pe butonul
+                 ăsta — și bula se deschidea nechemată, peste formular. Deosebirea o face
+                 `:focus-visible`: Tab îl aprinde, focusul programatic după un click de mouse nu.
+                 Aceeași regulă pe care o folosește deja stilul (`.fi-guide-hint:focus-visible`),
+                 deci tooltipul și evidențierea se aprind acum împreună.
+                 Hover-ul și atingerea trec neatinse: ele nu declanșează prin `focus`. --}}
+            if (instance.guideTrigger !== 'focus' && instance.guideTrigger !== 'focusin') { return true }
+
+            try { return instance.reference.matches(':focus-visible') } catch { return true }
+        },
     }"
 >
     {{-- Aceeași iconiță ca la câmpuri și butoane ({@see App\Support\PanelGuide::ICON}): un singur

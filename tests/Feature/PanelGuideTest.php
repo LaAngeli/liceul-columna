@@ -112,3 +112,24 @@ it('ghidul randat poartă textul și un nume accesibil', function () {
         // FĂRĂ `title`: ar fi produs un al doilea tooltip, cel nativ al browserului.
         ->and($html)->not->toContain('title=');
 });
+
+it('bula nu se deschide la focusul mutat de altcineva', function () {
+    /**
+     * REGRESIE (raport beneficiar, 04.08.2026): la deschiderea modalului „Desemnare în masă",
+     * explicația „i" apărea singură, peste formular.
+     *
+     * Cauza nu era în ghid, ci în vecinătate: modalul Filament își mută singur focusul la
+     * deschidere, iar când primul câmp are ghid, capcana de focus aterizează exact pe butonul
+     * ăsta — și Tippy se declanșează pe `focus`, nu doar pe hover. Deosebirea o face
+     * `:focus-visible`: Tab îl aprinde, focusul programatic după un click de mouse nu.
+     *
+     * Verificat în browser: cu mouse-ul bula tace (0 bule), la Tab și la hover apare.
+     * Testul apără doar garda din markup — dacă dispare, comportamentul se întoarce tăcut.
+     */
+    $html = PanelGuide::render([GradeResource::class]);
+
+    expect($html)->toContain('onShow')
+        ->and($html)->toContain(':focus-visible')
+        // Hover-ul și atingerea nu trec prin `focus`, deci garda le lasă neatinse.
+        ->and($html)->toContain("'focusin'");
+});
