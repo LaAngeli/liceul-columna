@@ -244,4 +244,11 @@
             @endif
         </div>
     @endif
+
+    {{-- OBLIGATORIU, la RĂDĂCINA paginii: `x-filament-panels::page` lasă randarea modalelor în
+         seama TABELULUI, iar tabelul de aici trăiește doar în ramura „clasă activă". Butonul
+         „Promovare din anul precedent" apare însă exclusiv în CEALALTĂ ramură (aterizarea pe an) —
+         deci acțiunea se monta pe server, dar modalul ei nu avea unde să se randeze și clicul
+         părea că nu face nimic. Aceeași plasă ca la hub-ul anilor școlari. --}}
+    <x-filament-actions::modals />
 </x-filament-panels::page>

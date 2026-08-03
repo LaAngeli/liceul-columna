@@ -295,3 +295,25 @@ it('elevii fără NICIO înmatriculare în anul activ apar în lista de lucru; c
         ->and($signals->firstWhere('level', 'info'))->not->toBeNull()
         ->and($page->yearProgress()['enrolled'])->toBeLessThan($page->yearProgress()['total']);
 });
+
+/**
+ * REGRESIE (raport beneficiar, 04.08.2026): „Promovare din anul precedent" nu făcea nimic la click.
+ *
+ * Cauza nu era în acțiune — ea se monta corect pe server — ci în șablon: `x-filament-panels::page`
+ * lasă randarea modalelor în seama TABELULUI, iar tabelul acestei pagini trăiește DOAR în ramura
+ * „clasă activă". Butonul apare însă exclusiv pe aterizarea pe an, unde tabel nu există: acțiunea se
+ * monta, dar modalul ei nu avea unde să se randeze.
+ *
+ * Testul apără containerul, nu butonul: orice acțiune de antet adăugată aici depinde de el.
+ */
+it('aterizarea pe an randează containerul de modale — altfel acțiunile din antet nu au unde se deschide', function () {
+    $component = Livewire::test(ListEnrollments::class);
+
+    // Suntem pe aterizare (fără clasă), deci fără tabel: exact starea în care lipsea containerul.
+    expect($component->instance()->activeClass())->toBeNull();
+
+    $component->assertActionVisible('promote')
+        // Containerul se randează chiar și fără acțiune montată — `fi-modal` apare abia la
+        // deschidere, deci aserțiunea stă pe partiala care GĂZDUIEȘTE modalele.
+        ->assertSeeHtml('action-modals');
+});
