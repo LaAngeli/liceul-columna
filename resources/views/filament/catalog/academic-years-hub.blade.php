@@ -73,6 +73,18 @@
                                 </a>
                             @endif
 
+                            {{-- „Deschide anul nou": structura anului precedent urcă o treaptă
+                                 (clase + alocări). Elevii vin după, prin Promovarea din Înmatriculări. --}}
+                            @if ($card['can_open'])
+                                <button
+                                    type="button"
+                                    wire:click="startYearOpening({{ $card['id'] }})"
+                                    class="rounded-full bg-white px-3 py-1 text-sm font-medium text-primary-700 ring-1 ring-primary-600/30 transition duration-75 hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 dark:bg-white/5 dark:text-primary-400 dark:ring-primary-400/30 dark:hover:bg-white/10"
+                                >
+                                    {{ __('panel.actions.open_year.label') }}
+                                </button>
+                            @endif
+
                             @if ($card['can_archive'])
                                 <button
                                     type="button"
@@ -88,4 +100,10 @@
             </div>
         @endif
     </div>
+
+    {{-- OBLIGATORIU aici: pagina e o listare (HasTable), iar `x-filament-panels::page` lasă
+         randarea modalelor în seama TABELULUI — pe care hub-ul de carduri nu-l afișează. Fără
+         linia asta, acțiunile montate de pe carduri („Deschide anul nou", „Arhivează în
+         matricolă") se montau pe server, dar nu se vedea nimic pe ecran. --}}
+    <x-filament-actions::modals />
 </x-filament-panels::page>

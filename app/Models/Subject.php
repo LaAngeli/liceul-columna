@@ -140,6 +140,18 @@ class Subject extends Model implements Auditable
         return str_contains(mb_strtolower((string) $this->name), 'englez');
     }
 
+    /**
+     * Se predă disciplina la treapta dată? Regula intervalului din nomenclator, într-un singur
+     * loc — deschiderea anului nou o folosește ca să nu inventeze ore la granițele de ciclu
+     * (o disciplină de primar nu urcă în gimnaziu). Capătul LIPSĂ (null) nu limitează: un
+     * nomenclator incomplet nu trebuie citit ca „nu se predă".
+     */
+    public function coversGrade(int $gradeLevel): bool
+    {
+        return ($this->min_grade === null || $gradeLevel >= $this->min_grade)
+            && ($this->max_grade === null || $gradeLevel <= $this->max_grade);
+    }
+
     /** @return HasMany<TeachingAssignment, $this> */
     public function teachingAssignments(): HasMany
     {
