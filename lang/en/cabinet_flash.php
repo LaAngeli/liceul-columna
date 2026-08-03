@@ -22,7 +22,7 @@ return [
     'invoire_past_period' => 'Leave is requested for future days. For absences that already happened, use "Absence excusal" on the Situation tab.',
     'attachment_upload_failed' => 'The supporting file upload failed. Please try again.',
     'request_withdrawn' => 'The request was withdrawn. You can file a new one at any time.',
-    'email_change_via_staff' => 'The e-mail address is already set. To change it, contact the front office — it is the account login.',
+    'email_change_via_staff' => 'The e-mail address is already set, and you sign in with it. To change it, contact the front office.',
     'motivation_duplicate_pending' => 'There is already a pending absence-excuse request covering this period.',
     'motivation_no_absences' => 'There are no unexcused absences in the selected period — check the dates.',
     'motivation_upload_failed' => 'The document upload failed. Please try again.',

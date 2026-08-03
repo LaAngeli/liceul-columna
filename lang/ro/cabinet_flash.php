@@ -26,7 +26,7 @@ return [
     'attachment_upload_failed' => 'Încărcarea justificativului a eșuat. Reîncearcă.',
     'request_withdrawn' => 'Cererea a fost retrasă. Poți depune una nouă oricând.',
     // Mesaj de VALIDARE: schimbarea emailului de login deja setat trece prin secretariat (#37).
-    'email_change_via_staff' => 'Adresa de e-mail e deja setată. Pentru a o schimba, contactează secretariatul — e identificatorul de conectare al contului.',
+    'email_change_via_staff' => 'Adresa de e-mail e deja setată și cu ea te conectezi în cont. Pentru a o schimba, contactează secretariatul.',
     // Mesaj de VALIDARE: anti-duplicat la motivarea absențelor (perioadă suprapusă).
     'motivation_duplicate_pending' => 'Există deja o cerere de motivare în așteptare care acoperă această perioadă.',
     // Mesaj de VALIDARE: motivare depusă pe o perioadă fără nicio absență nemotivată.
