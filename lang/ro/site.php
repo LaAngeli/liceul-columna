@@ -649,6 +649,7 @@ return [
         'canteen_today_badge' => 'Azi',
         'canteen_breakfast' => 'Dejun',
         'canteen_lunch' => 'Prânz',
+        'canteen_period_empty' => 'Niciun meniu publicat în perioada aleasă.',
         'canteen_day_empty' => 'Meniul zilei nu a fost publicat încă.',
         // Grupul „Catalog" din sidebar: modulele Note / Absențe / Cronologie / Orar / Teme + subsecțiunile lor.
         'grp_catalog' => 'Catalog',

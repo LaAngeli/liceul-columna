@@ -191,25 +191,89 @@ it('familia vede în cabinet meniul săptămânii, cu ziua curentă evidențiat�
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('cabinet/meniu')
             ->where('today', '2026-09-09')
-            ->where('week.isCurrent', true)
+            // Implicit = săptămâna, ca în planificatorul din panou.
+            ->where('period.mode', 'saptamana')
+            ->where('period.isCurrent', true)
+            ->has('groups', 1)
             // Luni–vineri prezente chiar fără meniu; miercuri poartă datele publicate.
-            ->has('days', 5)
-            ->where('days.2.isToday', true)
-            ->where('days.2.menu.lunch.1.value', 'Gulaș din carne de porc cu legume înăbușite')
+            ->has('groups.0.days', 5)
+            ->where('groups.0.days.2.isToday', true)
+            ->where('groups.0.days.2.menu.lunch.1.value', 'Gulaș din carne de porc cu legume înăbușite')
             // Rubricile necompletate NU se trimit — clientul nu afișează rânduri goale.
-            ->where('days.2.menu.lunch', fn ($rows) => collect($rows)->pluck('label')->doesntContain(__('panel.forms.canteen.lunch_side')))
-            ->where('days.0.menu', null));
+            ->where('groups.0.days.2.menu.lunch', fn ($rows) => collect($rows)->pluck('label')->doesntContain(__('panel.forms.canteen.lunch_side')))
+            ->where('groups.0.days.0.menu', null));
 
     // Navigarea pe altă săptămână: ancora mută intervalul, ziua rămâne marcată doar azi.
     $this->actingAs($parinte)
-        ->get('/cabinet/meniu?data=2026-09-16')
+        ->get('/cabinet/meniu?ref=2026-09-16')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('week.isCurrent', false)
-            ->where('days.2.isToday', false));
+            ->where('period.isCurrent', false)
+            ->where('groups.0.days.2.isToday', false));
+
+    // `?data=` rămâne acceptat: linkurile trimise înainte de bara temporală nu se rup.
+    $this->actingAs($parinte)
+        ->get('/cabinet/meniu?data=2026-09-16')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('period.isCurrent', false));
 
     // Ancoră coruptă → cade pe azi, nu pe excepție.
     $this->actingAs($parinte)->get('/cabinet/meniu?data=abc')->assertOk();
+});
+
+it('cabinetul filtrează pe perioadă cu ACEEAȘI semantică precum panoul', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-09 10:00', SchoolCalendar::TIMEZONE));
+
+    // O zi în săptămâna curentă și una cu mult în urmă — separă „perioada" de „arhivă".
+    CanteenMenu::factory()->create(['menu_date' => '2026-09-09', 'lunch_second' => 'Gulaș']);
+    CanteenMenu::factory()->create(['menu_date' => '2026-06-03', 'lunch_second' => 'Tocană']);
+
+    $parinte = canteenUser(UserRole::Parinte);
+
+    // ZI: exact ziua cerută, chiar dacă e goală (altfel modul n-ar arăta nimic, fără explicație).
+    $this->actingAs($parinte)
+        ->get('/cabinet/meniu?mod=zi&ref=2026-09-10')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('period.mode', 'zi')
+            ->has('groups.0.days', 1)
+            ->where('groups.0.days.0.date', '2026-09-10')
+            ->where('groups.0.days.0.menu', null));
+
+    // LUNA: săptămâni ÎNTREGI care ating luna — unitatea de lucru a cantinei e săptămâna.
+    $this->actingAs($parinte)
+        ->get('/cabinet/meniu?mod=luna&ref=2026-09-09')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('period.mode', 'luna')
+            ->has('groups', 5)
+            ->where('groups.0.label', fn ($label) => is_string($label) && $label !== ''));
+
+    // TOATE: doar zilele CU meniu, recente întâi — consultare, fără zile goale.
+    $this->actingAs($parinte)
+        ->get('/cabinet/meniu?mod=toate')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('period.mode', 'toate')
+            ->has('groups', 2)
+            ->where('groups.0.days.0.date', '2026-09-09')
+            ->where('groups.1.days.0.date', '2026-06-03'));
+
+    // PERSONALIZAT: intervalul taie arhiva; ziua din iunie rămâne pe dinafară.
+    $this->actingAs($parinte)
+        ->get('/cabinet/meniu?mod=personalizat&de=2026-09-01&pana=2026-09-30')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('period.mode', 'personalizat')
+            ->where('period.from', '2026-09-01')
+            ->has('groups', 1)
+            ->where('groups.0.days.0.date', '2026-09-09'));
+
+    // Mod necunoscut → implicit, nu eroare.
+    $this->actingAs($parinte)
+        ->get('/cabinet/meniu?mod=nuexista')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('period.mode', 'saptamana'));
 });
 
 it('personalul e redirecționat din cabinet spre panou — meniul lui e acolo', function () {
@@ -225,12 +289,12 @@ it('o salvare din panou se vede instant în cabinet — fără cache pe citire',
 
     $this->actingAs($parinte)
         ->get('/cabinet/meniu')
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('days.2.menu', null));
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('groups.0.days.2.menu', null));
 
     CanteenMenu::factory()->create(['menu_date' => '2026-09-09', 'breakfast_main' => 'Omletă clasică']);
 
     $this->actingAs($parinte)
         ->get('/cabinet/meniu')
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('days.2.menu.breakfast.0.value', 'Omletă clasică'));
+            ->where('groups.0.days.2.menu.breakfast.0.value', 'Omletă clasică'));
 });

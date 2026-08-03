@@ -1,9 +1,9 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, Coffee, Soup } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslations } from '@/lib/i18n';
-import { dashboard } from '@/routes';
 import { cn } from '@/lib/utils';
+import { dashboard } from '@/routes';
 
 interface MenuRow {
     label: string;
@@ -24,9 +24,43 @@ interface Day {
     menu: DayMenu | null;
 }
 
-interface Props {
-    week: { label: string; prev: string; next: string; isCurrent: boolean };
+interface Group {
+    /** Eticheta săptămânii — doar când perioada cuprinde mai multe (lună, arhivă). */
+    label: string | null;
     days: Day[];
+}
+
+interface Pill {
+    key: string;
+    label: string;
+    href: string;
+    active: boolean;
+}
+
+interface Period {
+    mode: string;
+    pills: Pill[];
+    label: string;
+    prev: string | null;
+    next: string | null;
+    todayHref: string;
+    isCurrent: boolean;
+    from: string | null;
+    until: string | null;
+    labels: {
+        aria: string;
+        prev: string;
+        next: string;
+        today: string;
+        from: string;
+        until: string;
+        customHint: string;
+    };
+}
+
+interface Props {
+    period: Period;
+    groups: Group[];
     today: string;
 }
 
@@ -54,19 +88,37 @@ function MealSection({ title, icon: Icon, rows }: { title: string; icon: typeof 
     );
 }
 
-export default function CanteenPage({ week, days, today }: Props) {
+export default function CanteenPage({ period, groups, today }: Props) {
     const t = useTranslations();
 
-    // Ziua activă pe mobil: azi dacă e în săptămâna afișată, altfel prima zi.
+    const days = groups.flatMap((group) => group.days);
+    const isCustom = period.mode === 'personalizat';
+
+    // Ziua activă pe mobil: azi dacă e în perioada afișată, altfel prima zi.
     const [selected, setSelected] = useState<string>(days.find((day) => day.date === today)?.date ?? days[0]?.date ?? '');
+
+    /**
+     * Capetele intervalului liber merg la SERVER, nu în starea locală: perioada rămâne adresabilă
+     * (favorite, link trimis mai departe) — același principiu ca restul navigării din pagină.
+     * `input type=date` nativ, deliberat: pe telefon deschide selectorul sistemului, niciodată
+     * tăiat de marginea ecranului (aceeași motivație ca bara din panou).
+     */
+    const setRange = (key: 'de' | 'pana', value: string) => {
+        router.get(
+            '/cabinet/meniu',
+            {
+                mod: 'personalizat',
+                de: key === 'de' ? value || undefined : (period.from ?? undefined),
+                pana: key === 'pana' ? value || undefined : (period.until ?? undefined),
+            },
+            { preserveScroll: true, preserveState: true },
+        );
+    };
 
     const dayCard = (day: Day) => (
         <article
             key={day.date}
-            className={cn(
-                'flex flex-col gap-4 rounded-xl border bg-card p-4',
-                day.isToday && 'border-primary/50 ring-1 ring-primary/30',
-            )}
+            className={cn('flex flex-col gap-4 rounded-xl border bg-card p-4', day.isToday && 'border-primary/50 ring-1 ring-primary/30')}
         >
             <header className="flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold">{day.label}</h2>
@@ -85,9 +137,7 @@ export default function CanteenPage({ week, days, today }: Props) {
                 <>
                     <MealSection title={t('cabinet.canteen_breakfast', 'Dejun')} icon={Coffee} rows={day.menu.breakfast} />
                     <MealSection title={t('cabinet.canteen_lunch', 'Prânz')} icon={Soup} rows={day.menu.lunch} />
-                    {day.menu.notes !== null && (
-                        <p className="rounded-lg bg-muted/60 p-2.5 text-xs text-muted-foreground">{day.menu.notes}</p>
-                    )}
+                    {day.menu.notes !== null && <p className="rounded-lg bg-muted/60 p-2.5 text-xs text-muted-foreground">{day.menu.notes}</p>}
                 </>
             )}
         </article>
@@ -106,58 +156,131 @@ export default function CanteenPage({ week, days, today }: Props) {
                     </p>
                 </div>
 
-                {/* Navigarea pe săptămâni: linkuri reale (server-side), nu stare de client. */}
-                <nav className="flex items-center justify-between gap-2" aria-label={t('cabinet.canteen_week_aria', 'Navigare pe săptămâni')}>
-                    <Link
-                        href={`/cabinet/meniu?data=${week.prev}`}
-                        preserveScroll
-                        className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg border bg-card px-3 text-sm hover:bg-muted"
-                        aria-label={t('cabinet.canteen_prev_week', 'Săptămâna precedentă')}
-                    >
-                        <ChevronLeft className="size-4" aria-hidden />
-                        <span className="hidden sm:inline">{t('cabinet.canteen_prev_week', 'Săptămâna precedentă')}</span>
-                    </Link>
-                    <div className="text-center">
-                        <p className="text-sm font-medium">{week.label}</p>
-                        {!week.isCurrent && (
-                            <Link href="/cabinet/meniu" preserveScroll className="text-xs text-primary underline underline-offset-2">
-                                {t('cabinet.canteen_current_week', 'Înapoi la săptămâna curentă')}
+                {/* BARA TEMPORALĂ — aceleași moduri și aceeași semantică precum bara panoului.
+                    Pastilele sunt LINKURI reale: perioada e adresabilă și supraviețuiește unui reload. */}
+                <div className="flex flex-col gap-3">
+                    <nav className="flex flex-wrap gap-1.5" aria-label={period.labels.aria}>
+                        {period.pills.map((pill) => (
+                            <Link
+                                key={pill.key}
+                                href={pill.href}
+                                preserveScroll
+                                aria-current={pill.active ? 'page' : undefined}
+                                className={cn(
+                                    'inline-flex min-h-11 items-center rounded-full border px-3.5 text-sm font-medium transition-colors',
+                                    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                                    pill.active
+                                        ? 'border-primary bg-primary/10 text-primary'
+                                        : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
+                                )}
+                            >
+                                {pill.label}
                             </Link>
-                        )}
-                    </div>
-                    <Link
-                        href={`/cabinet/meniu?data=${week.next}`}
-                        preserveScroll
-                        className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg border bg-card px-3 text-sm hover:bg-muted"
-                        aria-label={t('cabinet.canteen_next_week', 'Săptămâna următoare')}
-                    >
-                        <span className="hidden sm:inline">{t('cabinet.canteen_next_week', 'Săptămâna următoare')}</span>
-                        <ChevronRight className="size-4" aria-hidden />
-                    </Link>
-                </nav>
+                        ))}
+                    </nav>
 
-                {/* Mobil: cipuri de zi + ziua aleasă. Desktop: toată săptămâna în grilă. */}
-                <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden" role="tablist" aria-label={t('cabinet.canteen_title', 'Meniul cantinei')}>
-                    {days.map((day) => (
-                        <button
-                            key={day.date}
-                            type="button"
-                            role="tab"
-                            aria-selected={day.date === selected}
-                            onClick={() => setSelected(day.date)}
-                            className={cn(
-                                'min-h-11 shrink-0 rounded-lg border px-3 text-sm',
-                                day.date === selected ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-muted',
-                            )}
-                        >
-                            {day.short}
-                        </button>
-                    ))}
+                    {isCustom ? (
+                        <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap items-end gap-3">
+                                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                    {period.labels.from}
+                                    <input
+                                        type="date"
+                                        value={period.from ?? ''}
+                                        onChange={(event) => setRange('de', event.target.value)}
+                                        className="h-11 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                                    />
+                                </label>
+                                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                    {period.labels.until}
+                                    <input
+                                        type="date"
+                                        value={period.until ?? ''}
+                                        min={period.from ?? undefined}
+                                        onChange={(event) => setRange('pana', event.target.value)}
+                                        className="h-11 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                                    />
+                                </label>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{period.labels.customHint}</p>
+                        </div>
+                    ) : (
+                        period.prev !== null &&
+                        period.next !== null && (
+                            <div className="flex items-center justify-between gap-2">
+                                <Link
+                                    href={period.prev}
+                                    preserveScroll
+                                    aria-label={period.labels.prev}
+                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-lg border bg-card px-3 text-sm hover:bg-muted"
+                                >
+                                    <ChevronLeft className="size-4" aria-hidden />
+                                </Link>
+                                <div className="text-center">
+                                    <p className="text-sm font-medium">{period.label}</p>
+                                    {!period.isCurrent && (
+                                        <Link href={period.todayHref} preserveScroll className="text-xs text-primary underline underline-offset-2">
+                                            {period.labels.today}
+                                        </Link>
+                                    )}
+                                </div>
+                                <Link
+                                    href={period.next}
+                                    preserveScroll
+                                    aria-label={period.labels.next}
+                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-lg border bg-card px-3 text-sm hover:bg-muted"
+                                >
+                                    <ChevronRight className="size-4" aria-hidden />
+                                </Link>
+                            </div>
+                        )
+                    )}
                 </div>
 
-                <div className="lg:hidden">{selectedDay !== undefined && dayCard(selectedDay)}</div>
+                {days.length === 0 ? (
+                    <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+                        {t('cabinet.canteen_period_empty', 'Niciun meniu publicat în perioada aleasă.')}
+                    </p>
+                ) : (
+                    <>
+                        {/* Mobil: cipuri de zi + ziua aleasă. Desktop: grila perioadei, pe săptămâni. */}
+                        <div
+                            className="flex gap-2 overflow-x-auto pb-1 lg:hidden"
+                            role="tablist"
+                            aria-label={t('cabinet.canteen_title', 'Meniul cantinei')}
+                        >
+                            {days.map((day) => (
+                                <button
+                                    key={day.date}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={day.date === selected}
+                                    onClick={() => setSelected(day.date)}
+                                    className={cn(
+                                        'min-h-11 shrink-0 rounded-lg border px-3 text-sm',
+                                        day.date === selected ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-muted',
+                                    )}
+                                >
+                                    {day.short}
+                                </button>
+                            ))}
+                        </div>
 
-                <div className="hidden gap-4 lg:grid lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">{days.map(dayCard)}</div>
+                        <div className="lg:hidden">{selectedDay !== undefined && dayCard(selectedDay)}</div>
+
+                        <div className="hidden flex-col gap-6 lg:flex">
+                            {groups.map((group, index) => (
+                                <section key={group.label ?? index} className="flex flex-col gap-3">
+                                    {/* Eticheta apare doar când perioada cuprinde mai multe săptămâni. */}
+                                    {group.label !== null && (
+                                        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{group.label}</h2>
+                                    )}
+                                    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">{group.days.map(dayCard)}</div>
+                                </section>
+                            ))}
+                        </div>
+                    </>
+                )}
             </div>
         </>
     );

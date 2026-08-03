@@ -129,21 +129,9 @@ class CanteenMenuPlanner extends Page
      */
     public function planningWeeks(): ?array
     {
-        $mode = $this->timeMode();
-        $ref = $this->timeRef()->toDateString();
+        $period = $this->period();
 
-        return match ($mode) {
-            'zi' => [[
-                'label' => null,
-                'days' => [CanteenWeek::day($ref)],
-            ]],
-            'saptamana' => [[
-                'label' => null,
-                'days' => CanteenWeek::build($ref)['days'],
-            ]],
-            'luna' => $this->monthWeeks(),
-            default => null,
-        };
+        return $period['kind'] === 'planning' ? $period['groups'] : null;
     }
 
     /**
@@ -154,47 +142,28 @@ class CanteenMenuPlanner extends Page
      */
     public function archiveWeeks(): ?array
     {
-        $mode = $this->timeMode();
+        $period = $this->period();
 
-        if ($mode === null) {
-            return CanteenWeek::archive(null, null);
-        }
-
-        if ($mode === self::TIME_MODE_CUSTOM) {
-            $range = $this->timeRange();
-
-            // Fără capete alese încă → toată arhiva, ca la registrele-suror (bara îndrumă).
-            return CanteenWeek::archive($range[0]?->toDateString(), $range[1]?->toDateString());
-        }
-
-        return null;
+        return $period['kind'] === 'archive' ? $period['groups'] : null;
     }
 
     /**
-     * Săptămânile care ating luna de referință — complete, chiar dacă un capăt iese din lună
-     * (săptămâna e unitatea de lucru a cantinei; o jumătate de săptămână nu se planifică).
+     * Perioada activă, prin sursa UNICĂ ({@see CanteenWeek::period()}) — aceeași semantică a
+     * modurilor pe care o folosește și pagina din cabinet.
      *
-     * @return array<int, array{label: string, days: array<int, array<string, mixed>>}>
+     * @return array{kind: 'planning'|'archive', groups: array<int, array{label: string|null, days: array<int, mixed>}>}
      */
-    private function monthWeeks(): array
+    private function period(): array
     {
-        $ref = $this->timeRef();
-        $monday = $ref->startOfMonth()->startOfWeek(CarbonImmutable::MONDAY);
-        $lastDay = $ref->endOfMonth();
+        // Fără capete alese încă la „Personalizat" → toată arhiva, ca la registrele-suror.
+        $range = $this->timeMode() === self::TIME_MODE_CUSTOM ? $this->timeRange() : null;
 
-        $weeks = [];
-
-        while ($monday->lessThanOrEqualTo($lastDay)) {
-            $week = CanteenWeek::build($monday->toDateString());
-            $weeks[] = [
-                'label' => $week['label'],
-                'days' => $week['days'],
-            ];
-
-            $monday = $monday->addWeek();
-        }
-
-        return $weeks;
+        return CanteenWeek::period(
+            $this->timeMode(),
+            $this->timeRef()->toDateString(),
+            ($range[0] ?? null)?->toDateString(),
+            ($range[1] ?? null)?->toDateString(),
+        );
     }
 
     // ── Linkurile de lucru ─────────────────────────────────────────────────────────────────────

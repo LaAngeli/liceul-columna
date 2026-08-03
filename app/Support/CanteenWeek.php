@@ -125,6 +125,56 @@ final class CanteenWeek
     }
 
     /**
+     * PERIOADA cerută de bara temporală, în forma de afișare — sursa UNICĂ a semanticii celor cinci
+     * moduri, folosită de planificatorul din panou ȘI de pagina din cabinet.
+     *
+     * Distincția care contează e `kind`:
+     *   • `planning` (Zi / Săptămână / Lună) — grile CU zilele goale: se vede ce NU e încă publicat.
+     *     Panoul pune butoane de adăugare pe zilele goale; cabinetul le arată doar ca „nepublicat".
+     *   • `archive` (Toate / Personalizat) — doar zilele CU meniu, pe săptămâni, recente întâi:
+     *     consultare, unde zilele goale ar fi zgomot.
+     *
+     * @param  string|null  $mode  null sau „toate" → arhiva completă
+     * @return array{kind: 'planning'|'archive', groups: array<int, array{label: string|null, days: array<int, WeekDay>}>}
+     */
+    public static function period(?string $mode, ?string $ref, ?string $from, ?string $until): array
+    {
+        return match ($mode) {
+            'zi' => ['kind' => 'planning', 'groups' => [['label' => null, 'days' => [self::day($ref)]]]],
+            'saptamana' => ['kind' => 'planning', 'groups' => [['label' => null, 'days' => self::build($ref)['days']]]],
+            'luna' => ['kind' => 'planning', 'groups' => self::monthWeeks($ref)],
+            'personalizat' => ['kind' => 'archive', 'groups' => self::archive($from, $until)],
+            default => ['kind' => 'archive', 'groups' => self::archive(null, null)],
+        };
+    }
+
+    /**
+     * Săptămânile care ating luna de referință — COMPLETE, chiar dacă un capăt iese din lună:
+     * săptămâna e unitatea de lucru a cantinei, o jumătate de săptămână nu se planifică.
+     *
+     * @return array<int, array{label: string, days: array<int, WeekDay>}>
+     */
+    private static function monthWeeks(?string $ref): array
+    {
+        $today = SchoolCalendar::localNow()->startOfDay();
+        $anchor = self::anchorDate((string) $ref, $today);
+
+        $monday = $anchor->copy()->startOfMonth()->startOfWeek(Carbon::MONDAY);
+        $lastDay = $anchor->copy()->endOfMonth();
+
+        $weeks = [];
+
+        while ($monday->lessThanOrEqualTo($lastDay)) {
+            $week = self::build($monday->toDateString());
+
+            $weeks[] = ['label' => $week['label'], 'days' => $week['days']];
+            $monday = $monday->copy()->addWeek();
+        }
+
+        return $weeks;
+    }
+
+    /**
      * O zi în forma comună de afișare.
      *
      * @return WeekDay

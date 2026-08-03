@@ -647,6 +647,7 @@ return [
         'canteen_today_badge' => 'Today',
         'canteen_breakfast' => 'Breakfast',
         'canteen_lunch' => 'Lunch',
+        'canteen_period_empty' => 'No menu published for the selected period.',
         'canteen_day_empty' => 'The menu for this day has not been published yet.',
         // The "Gradebook" sidebar group: Grades / Absences / Schedule / Homework modules.
         'grp_catalog' => 'Gradebook',
