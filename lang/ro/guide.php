@@ -99,5 +99,6 @@ return [
         'absence_occurred_on' => 'De la această dată curg cele 5 zile lucrătoare în care familia poate cere motivarea. Termenul se recalculează singur dacă se schimbă zilele libere — o zi liberă adăugată nu poate fura din termenul deja deschis.',
         'enrollment_departure_reason' => 'Motivul nu e o simplă etichetă: doar „absolvire" deschide accesul de absolvent la propria arhivă (foaia matricolă, adeverințe). Transferul și exmatricularea îl închid — actele se eliberează de școala unde a plecat elevul.',
         'summative_class' => 'O clasă fără NICIO desemnare rămâne neconfigurată, iar garda nu blochează nimic acolo: sumativele se pot consemna la orice disciplină. Garda se activează la prima desemnare făcută pentru clasa respectivă.',
+        'summative_bulk' => 'Desemnarea în masă creează perechile (clasă × disciplină) care lipsesc, nu le înlocuiește pe cele existente. Atenție la efectul de prag: o clasă până acum neconfigurată devine păzită imediat ce primește prima desemnare — de atunci, o sumativă la orice disciplină nedesemnată acolo va fi refuzată la salvare.',
     ],
 ];

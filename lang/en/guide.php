@@ -98,5 +98,6 @@ return [
         'absence_occurred_on' => 'The family\'s 5 working days to request an excusal run from this date. The deadline recalculates itself if the holiday calendar changes — a newly added day off cannot steal time from a deadline already open.',
         'enrollment_departure_reason' => 'The reason is not a mere label: only "graduation" opens alumni access to their own archive (transcript, certificates). Transfer and expulsion close it — the paperwork is issued by the school the student moved to.',
         'summative_class' => 'A class with NO designation at all counts as unconfigured, and the guard blocks nothing there: a summative can be recorded in any subject. The guard switches on with the first designation made for that class.',
+        'summative_bulk' => 'Bulk designation creates the missing (class × subject) pairs; it does not replace existing ones. Mind the threshold: a class that was unconfigured becomes guarded as soon as it gets its first designation - from then on, a summative in any subject not designated there is refused on save.',
     ],
 ];
