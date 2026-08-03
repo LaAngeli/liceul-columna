@@ -4,6 +4,7 @@ use App\Enums\EvaluationType;
 use App\Enums\UserRole;
 use App\Filament\Resources\SummativeDesignations\Pages\CreateSummativeDesignation;
 use App\Filament\Resources\SummativeDesignations\Pages\ListSummativeDesignations;
+use App\Filament\Resources\SummativeDesignations\SummativeDesignationResource;
 use App\Models\AcademicYear;
 use App\Models\Grade;
 use App\Models\SchoolClass;
@@ -142,6 +143,25 @@ it('resursa Filament de designare se randează pentru management (listă + crear
     $director->assignRole(UserRole::Director->value);
     $this->actingAs($director);
 
-    Livewire::test(ListSummativeDesignations::class)->assertOk();
+    Livewire::test(ListSummativeDesignations::class)
+        ->assertOk()
+        ->assertActionVisible('create');
     Livewire::test(CreateSummativeDesignation::class)->assertOk();
+});
+
+it('administratorul operațional consultă designările, dar nu vede butonul de adăugare', function () {
+    foreach (UserRole::cases() as $role) {
+        Role::findOrCreate($role->value, 'web');
+    }
+    $operational = User::factory()->create();
+    $operational->assignRole(UserRole::AdministratorOperational->value);
+    $this->actingAs($operational);
+
+    // Sumativa e decizie pedagogică (intră 50% în media semestrială) → o scrie doar cine
+    // administrează catalogul. Butonul NU trebuie doar refuzat la click, ci să lipsească.
+    Livewire::test(ListSummativeDesignations::class)
+        ->assertOk()
+        ->assertActionHidden('create');
+
+    $this->get(SummativeDesignationResource::getUrl('create'))->assertForbidden();
 });
