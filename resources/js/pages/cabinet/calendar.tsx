@@ -358,7 +358,11 @@ export default function Calendar({
                             {t('ccal.title')}
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            {t('ccal.subtitle')}
+                            {/* Fără elev legat de cont, calendarul arată doar structura anului —
+                                spunem asta, altfel sparsitatea pare o defecțiune. */}
+                            {kids.length === 0
+                                ? t('ccal.no_child')
+                                : t('ccal.subtitle')}
                         </p>
                     </div>
                     {kids.length > 1 && (

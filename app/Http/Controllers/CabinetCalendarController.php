@@ -20,6 +20,14 @@ use Inertia\Response;
  * Calendarul intern al cabinetului (elev/părinte). Agregă, prin {@see CalendarAggregator}, sursele
  * datate ale copiilor vizibili. Scoping STRICT pe server: nicăieri nu se face `Student::find()` pe un
  * parametru — elevul-focus se alege DOAR dintre cei deja vetați de {@see CalendarAccess} (anti-IDOR).
+ *
+ * ⚠️ Contul de familie FĂRĂ elev vizibil (părinte înregistrat înaintea legării copilului — legătura e
+ * opțională la creare — sau al cărui copil a plecat) NU primește 403: sidebar-ul cabinetului randează
+ * „Calendar" pentru toți, iar un refuz pe un link pe care chiar noi îl afișăm nu e securitate, e o
+ * fundătură. Pagina se randează cu scope gol, la fel ca celelalte module ale cabinetului. Sigur din
+ * construcție: proiectoarele care nu depind de elevi dau ori structura anului (semestre/vacanțe —
+ * global non-PII), ori strict datele vizitatorului (audiențele proprii); cele per-elev primesc o
+ * listă goală. Fără elevi vizibili nu există PII de scurs.
  */
 class CabinetCalendarController extends Controller
 {
@@ -32,8 +40,6 @@ class CabinetCalendarController extends Controller
     {
         $viewer = $this->viewer($request);
         $students = $this->access->visibleStudents($viewer);
-
-        abort_if($students->isEmpty(), 403);
 
         [$from, $to, $month] = $this->range($request);
         $focus = $this->focusStudentId($request);
@@ -54,8 +60,6 @@ class CabinetCalendarController extends Controller
     {
         $viewer = $this->viewer($request);
         $students = $this->access->visibleStudents($viewer);
-
-        abort_if($students->isEmpty(), 403);
 
         [$from, $to] = $this->range($request);
         $scope = $this->scope($viewer, $students, $this->focusStudentId($request));

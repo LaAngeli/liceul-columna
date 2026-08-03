@@ -101,8 +101,15 @@ it('la editare, propriul interval nu se auto-conflictează', function () {
 // ─── Clase: navigator cu carduri pe ani școlari ──────────────────────────────────────────
 
 it('clasele sunt CARDURI pe ani, cu anul CURENT implicit și sărituri în catalog', function () {
-    $oldYear = AcademicYear::factory()->create(['name' => '2019–2020']);
-    $currentYear = AcademicYear::factory()->create(['name' => '2025–2026']);
+    // Datele se fixează EXPLICIT: pastilele se ordonează după `starts_on`, pe care factory-ul îl
+    // randomizează — un fixture care pune doar `name` face asertarea de ordine să treacă/pice la
+    // noroc, în funcție de anii trași aleatoriu.
+    $oldYear = AcademicYear::factory()->create([
+        'name' => '2019–2020', 'starts_on' => '2019-09-01', 'ends_on' => '2020-06-30',
+    ]);
+    $currentYear = AcademicYear::factory()->create([
+        'name' => '2025–2026', 'starts_on' => '2025-09-01', 'ends_on' => '2026-06-30',
+    ]);
     Term::factory()->for($currentYear)->create([
         'number' => 1, 'starts_on' => '2025-09-01', 'ends_on' => '2026-01-31', 'is_current' => true,
     ]);
@@ -113,9 +120,10 @@ it('clasele sunt CARDURI pe ani, cu anul CURENT implicit și sărituri în catal
     $component = Livewire::test(ListSchoolClasses::class);
     $page = $component->instance();
 
-    // Anul implicit = cel curent; pastilele acoperă ambii ani (cei mai noi întâi), cu numărul de clase.
+    // Anul implicit = cel curent; pastilele acoperă ambii ani, CRONOLOGIC (cel mai vechi întâi),
+    // cu numărul de clase.
     expect($page->activeYearId())->toBe($currentYear->id)
-        ->and(collect($page->yearPills())->pluck('id')->all())->toBe([$currentYear->id, $oldYear->id])
+        ->and(collect($page->yearPills())->pluck('id')->all())->toBe([$oldYear->id, $currentYear->id])
         ->and(collect($page->yearPills())->pluck('count')->all())->toBe([1, 1]);
 
     // Cardurile anului curent: doar clasa lui, cu sărituri pe contextul clasei + Editare (director).

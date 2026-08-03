@@ -11,6 +11,7 @@ return [
     'next' => 'Luna următoare',
     'no_events' => 'Niciun eveniment în această perioadă.',
     'day_no_events' => 'Nicio activitate în această zi.',
+    'no_child' => 'Niciun elev asociat contului încă — deocamdată vezi doar structura anului școlar.',
     'all_children' => 'Toți copiii',
     'select_day' => 'Alege o zi pentru detalii.',
     'legend' => 'Legendă',

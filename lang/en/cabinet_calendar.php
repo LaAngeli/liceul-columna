@@ -11,6 +11,7 @@ return [
     'next' => 'Next month',
     'no_events' => 'No events in this period.',
     'day_no_events' => 'No activity on this day.',
+    'no_child' => 'No student linked to this account yet — for now you only see the school year structure.',
     'all_children' => 'All children',
     'select_day' => 'Pick a day for details.',
     'legend' => 'Legend',
