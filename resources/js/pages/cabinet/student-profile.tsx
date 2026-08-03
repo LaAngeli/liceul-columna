@@ -225,7 +225,10 @@ export default function StudentProfile(props: Props) {
     const tabs: TabItem[] = [
         { value: 'overview', label: t('cabinet.tab_overview'), icon: LayoutDashboard },
         { value: 'situation', label: t('cabinet.tab_situation'), icon: ClipboardList },
-        { value: 'schedule', label: t('cabinet.tab_schedule'), icon: BookOpen },
+        // „Orar & teme" descrie o săptămână de școală în curs. Pentru un absolvent tabul se deschidea
+        // gol, cu „Orar indisponibil deocamdată" — un „deocamdată" care promite ceva ce nu mai vine.
+        // Ascuns, ca și modulele corespondente din sidebar.
+        ...(props.isAlumnus ? [] : [{ value: 'schedule', label: t('cabinet.tab_schedule'), icon: BookOpen }]),
         { value: 'history', label: t('cabinet.tab_history'), icon: History },
         { value: 'requests', label: t('cabinet.tab_requests'), icon: FileText },
     ];

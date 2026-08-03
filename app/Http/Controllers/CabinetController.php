@@ -432,7 +432,12 @@ class CabinetController extends Controller
             'gradebook' => Inertia::defer(fn (): array => $this->gradeBook($student)),
             // Aceeași situație a absențelor ca modulul „Absențe" din meniu (o singură implementare).
             'absenceOverview' => Inertia::defer(fn (): array => $this->absenceOverview($student)),
-            'deferralRisk' => Inertia::defer(fn (): array => app(ComputeDeferralRisk::class)->for($student)),
+            // Riscul de amânare privește un semestru în desfășurare. Pentru un absolvent, calculul
+            // ieșea „nu se poate calcula — întreabă dirigintele": o alertă despre un pericol care
+            // nu mai există, adresată unui diriginte pe care nu-l mai are.
+            'deferralRisk' => Inertia::defer(fn (): array => $isAlumnus
+                ? ['risks' => [], 'undetermined' => [], 'noTimetable' => false]
+                : app(ComputeDeferralRisk::class)->for($student)),
             'motivations' => Inertia::defer(fn (): array => $canSeeSensitive ? $this->motivations($student) : []),
 
             // Tab „Orar & teme" — o singură formă normalizată (publicat/structurat), vezi WeeklySchedule.
