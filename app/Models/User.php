@@ -813,6 +813,39 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * Contul mai are măcar un elev ÎNSCRIS — copil în tutelă sau fișa proprie (contul de elev).
+     *
+     * Sursa deciziei „mai face parte din școală" la nivel de CONT: sidebar-ul cabinetului,
+     * audiența anunțurilor de familie și, mai departe, orice flux care se adresează familiilor
+     * active. Un cont rămas doar cu absolvenți păstrează accesul la arhivă
+     * ({@see Student::isAlumnus()}), dar iese din circuitul operațional al școlii.
+     */
+    public function hasAnyActiveStudent(): bool
+    {
+        $active = fn (Builder $enrollments): Builder => $enrollments->whereNull('left_on');
+
+        return $this->students()->whereHas('enrollments', $active)->exists()
+            || Student::query()->where('user_id', $this->getKey())->whereHas('enrollments', $active)->exists();
+    }
+
+    /**
+     * Contul a AVUT elevi, iar toți au plecat — părintele unei promoții absolvite, sau contul
+     * elevului însuși după absolvire.
+     *
+     * ⚠️ Deliberat DIFERIT de `! hasAnyActiveStudent()`: un cont fără NICIUN elev legat (părinte
+     * înregistrat înaintea legării copilului) nu e un absolvent, e o legătură în curs — a-l scoate
+     * din audiențe ar însemna să-l lăsăm fără anunțurile școlii tocmai când are mai multă nevoie de
+     * ele. Excludem pe dovada plecării, nu pe absența datelor.
+     */
+    public function hasOnlyDepartedStudents(): bool
+    {
+        $hasAnyStudent = $this->students()->exists()
+            || Student::query()->where('user_id', $this->getKey())->exists();
+
+        return $hasAnyStudent && ! $this->hasAnyActiveStudent();
+    }
+
+    /**
      * Clasele la care acest cont e DIRIGINTE (gol dacă nu are fișă de profesor sau nu e diriginte).
      *
      * @return list<int>

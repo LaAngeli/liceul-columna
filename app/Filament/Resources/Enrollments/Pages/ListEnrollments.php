@@ -250,7 +250,9 @@ class ListEnrollments extends ListRecords
      */
     public function yearProgress(): array
     {
-        $total = Student::query()->count();
+        // Doar elevii ȘCOLII: absolvenții nu mai au ce fi înmatriculați, deci ar fi ținut
+        // procentul de acoperire sub 100% pentru totdeauna.
+        $total = Student::query()->currentlyEnrolled()->count();
 
         if ($this->activeYearId() === null || $total === 0) {
             return ['enrolled' => 0, 'total' => $total, 'percent' => 0];

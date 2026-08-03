@@ -47,4 +47,23 @@ enum DocumentRequestType: string implements HasLabel
 
         return $options;
     }
+
+    /**
+     * Tipurile pe care le poate depune un ABSOLVENT. Doar adeverința: învoirea presupune ore de la
+     * care lipsești, transferul o școală de unde pleci, contestația o notă din anul în curs, iar
+     * ședința un diriginte în funcție — toate presupun o înmatriculare activă. Adeverința e exact
+     * ce cere un absolvent (dosar de facultate, angajare) și e singurul motiv pentru care accesul
+     * lui rămâne deschis.
+     *
+     * @return array<string, string>
+     */
+    public static function alumniOptions(): array
+    {
+        return [self::Adeverinta->value => self::Adeverinta->label()];
+    }
+
+    public function availableToAlumni(): bool
+    {
+        return $this === self::Adeverinta;
+    }
 }

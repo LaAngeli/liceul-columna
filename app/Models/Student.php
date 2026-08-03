@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Actions\DetermineStudentStatus;
 use App\Actions\LogStudentAccess;
+use App\Enums\DepartureReason;
 use App\Enums\SecondLanguage;
 use App\Enums\Sex;
 use App\Filament\Widgets\NeedsAttention;
@@ -155,6 +156,40 @@ class Student extends Model implements Auditable
     }
 
     /**
+     * Elevul mai face parte din fluxul operațional? Adică are măcar o înmatriculare fără dată de
+     * plecare. Sursă unică pentru „activ" — aceeași condiție pe care o folosesc deja anunțurile,
+     * rapoartele, catalogul și retenția, ridicată la nivel de model ca să nu se rescrie în fiecare.
+     */
+    public function hasActiveEnrollment(): bool
+    {
+        return $this->enrollments()->whereNull('left_on')->exists();
+    }
+
+    /** De ce a ieșit din școală — null dacă e încă activ sau dacă motivul nu a fost consemnat. */
+    public function departureReason(): ?DepartureReason
+    {
+        if ($this->hasActiveEnrollment()) {
+            return null;
+        }
+
+        return $this->enrollments()->latest('academic_year_id')->first()?->departure_reason;
+    }
+
+    /**
+     * ABSOLVENT: a ieșit din școală la capătul studiilor. Deschide accesul read-only la propria
+     * arhivă (decizia beneficiarului, 2026-08-03) — foaia matricolă, istoricul, adeverințele.
+     *
+     * ⚠️ Se cere motivul EXPLICIT `absolvire`, nu doar absența unei înmatriculări active. Un elev
+     * transferat sau exmatriculat iese la fel de „inactiv", dar nu e absolvent: actele lui le
+     * eliberează școala unde a plecat. Rândurile vechi, fără motiv consemnat, nu devin absolvenți
+     * tăcut — cine le cunoaște le completează.
+     */
+    public function isAlumnus(): bool
+    {
+        return $this->departureReason()?->isGraduation() ?? false;
+    }
+
+    /**
      * Părinții/tutorii care au acces la acest elev.
      *
      * @return BelongsToMany<User, $this>
@@ -206,6 +241,22 @@ class Student extends Model implements Auditable
     public function termAverages(): HasMany
     {
         return $this->hasMany(TermAverage::class);
+    }
+
+    /**
+     * Elevii care FAC PARTE din școală: au măcar o înmatriculare fără dată de plecare.
+     *
+     * Perechea de interogare a lui {@see hasActiveEnrollment}. Există ca scope fiindcă distincția
+     * „elev al școlii" vs „dosar în arhivă" apare în locuri care nu încarcă modelul: totalurile
+     * instituționale, audiențele, indicatorii de acoperire. Fără ea, fiecare promoție absolvită
+     * rămânea în cifre — școala „avea" an de an cu o generație mai mult decât în bănci.
+     *
+     * @param  Builder<Student>  $query
+     * @return Builder<Student>
+     */
+    public function scopeCurrentlyEnrolled(Builder $query): Builder
+    {
+        return $query->whereHas('enrollments', fn (Builder $enrollments): Builder => $enrollments->whereNull('left_on'));
     }
 
     /**

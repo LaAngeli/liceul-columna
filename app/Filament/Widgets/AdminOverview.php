@@ -48,7 +48,7 @@ class AdminOverview extends StatsOverviewWidget
                 ->color($pendingPasswords > 0 ? 'warning' : 'success')
                 ->extraAttributes(self::cockpit($pendingPasswords > 0))
                 ->url(UserResource::canAccess() ? UserResource::getUrl('index') : null),
-            Stat::make(__('panel.widgets.admin_overview.students'), Student::query()->count())
+            Stat::make(__('panel.widgets.admin_overview.students'), Student::query()->currentlyEnrolled()->count())
                 ->description(__('panel.widgets.admin_overview.students_desc'))
                 ->descriptionIcon(Heroicon::OutlinedAcademicCap)
                 ->extraAttributes(self::cockpit())

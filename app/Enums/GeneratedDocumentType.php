@@ -33,6 +33,20 @@ enum GeneratedDocumentType: string implements HasLabel
         return DocumentCategory::Reports;
     }
 
+    /**
+     * Documentul are sens pentru un ABSOLVENT? Doar cele ISTORICE: foaia matricolă (tot parcursul)
+     * și dosarul (evoluția pe ani). „Situația școlară — semestrul curent" și „raportul absențelor —
+     * anul curent" s-ar genera goale sau, mai rău, cu ultimul semestru prezentat ca fiind cel în
+     * desfășurare — un act oficial care minte despre propria dată.
+     */
+    public function availableToAlumni(): bool
+    {
+        return match ($this) {
+            self::Transcript, self::StudentFile => true,
+            self::TermSituation, self::AbsenceReport => false,
+        };
+    }
+
     public function icon(): string
     {
         return match ($this) {

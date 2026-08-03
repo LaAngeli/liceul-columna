@@ -232,4 +232,10 @@ return [
         'institutional' => 'День учреждения',
         'other' => 'Другой выходной',
     ],
+    'departure_reason' => [
+        'absolvire' => 'Окончание обучения',
+        'transfer' => 'Перевод в другую школу',
+        'retragere' => 'Отчисление по заявлению',
+        'exmatriculare' => 'Исключение',
+    ],
 ];

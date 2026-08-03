@@ -377,7 +377,13 @@ class CabinetController extends Controller
         $class = $student->currentSchoolClass();
         $status = $this->currentStatus($student);
         $isFamily = $viewer instanceof User && $this->isFamilyOf($viewer, $student);
-        $canRequestMotivation = $isFamily;
+
+        // ABSOLVENTUL păstrează accesul, dar doar la ARHIVA lui (decizia beneficiarului, 2026-08-03):
+        // vede tot ce a fost, nu mai poate porni nimic operațional. Gating-ul stă pe ELEV, nu pe cont —
+        // un părinte poate avea un copil absolvent și unul în clasa a VII-a, iar cei doi trebuie să
+        // arate diferit în același cabinet.
+        $isAlumnus = $student->isAlumnus();
+        $canRequestMotivation = $isFamily && ! $isAlumnus;
 
         // Datele SENSIBILE ale situației (motivele motivărilor — potențial PII medical de minor — +
         // lichidarea corigenței) merg doar la familie, administrație sau DIRIGINTELE elevului. Un
@@ -405,10 +411,15 @@ class CabinetController extends Controller
             'absencesTotal' => $student->absences->count(),
             'absencesMotivated' => $student->absences->where('is_motivated', true)->count(),
             'absencesUnmotivated' => $student->absences->where('is_motivated', false)->count(),
-            'requestTypes' => DocumentRequestType::options(),
+            // Absolventul depune DOAR adeverințe — restul tipurilor presupun o înmatriculare activă.
+            'requestTypes' => $isAlumnus ? DocumentRequestType::alumniOptions() : DocumentRequestType::options(),
             // Doar familia (tutore/elev) poate depune cereri de motivare/tipice — personalul vede
             // pagina, dar nu și formularele (ar primi 403 la trimitere).
             'canRequestMotivation' => $canRequestMotivation,
+            // Familia unui absolvent păstrează formularul de CERERE (adeverințe), dar pierde restul
+            // fluxurilor: motivarea presupune ore, confirmarea de statut un semestru în desfășurare.
+            'canRequestDocument' => $isFamily,
+            'isAlumnus' => $isAlumnus,
             'siblings' => $siblings,
 
             // Fereastra de depunere a motivării (anul școlar curent → azi) — mică, vine eager
@@ -464,6 +475,9 @@ class CabinetController extends Controller
     {
         $user = $request->user('web');
         abort_unless($user instanceof User && $this->isFamilyOf($user, $student), 403);
+        // Absolventul nu mai are ore de la care să lipsească — formularul îi lipsește din cabinet,
+        // dar garda stă și pe server: un POST direct n-are voie să redeschidă un flux încheiat.
+        abort_if($student->isAlumnus(), 403);
 
         // Se motivează absențe DEJA petrecute → perioada nu poate fi în viitor (audit M-10, aliniat cu
         // garda de dată-viitoare de la consemnarea absenței/notei). Limita de JOS = începutul anului
@@ -569,6 +583,8 @@ class CabinetController extends Controller
     {
         $user = $request->user('web');
         abort_unless($user instanceof User && $this->isFamilyOf($user, $student), 403);
+        // Statutul se confirmă într-un semestru în desfășurare; pentru absolvent nu mai există unul.
+        abort_if($student->isAlumnus(), 403);
 
         $status = $this->currentStatus($student);
         abort_unless(
@@ -608,6 +624,11 @@ class CabinetController extends Controller
         // Cererile cu interval (învoirea) CER perioada (DocumentRequestType::needsPeriod) — fără
         // ea, secretariatul primea o „cerere de învoire" care nu spune CÂND (neprocesabilă).
         $type = DocumentRequestType::tryFrom((string) $request->input('type'));
+
+        // Absolventul depune DOAR adeverințe: restul tipurilor presupun o înmatriculare activă
+        // (ore de la care lipsești, o școală de unde pleci, o notă din anul în curs, un diriginte
+        // în funcție). Formularul îi oferă deja doar adeverința — aici e garda de server.
+        abort_if($student->isAlumnus() && ! ($type?->availableToAlumni() ?? false), 403);
         $needsPeriod = $type?->needsPeriod() ?? false;
 
         // Contestația FĂRĂ context e neprocesabilă: cere NOTA contestată (disciplina, valoarea,
@@ -856,6 +877,16 @@ class CabinetController extends Controller
 
         $documentType = GeneratedDocumentType::tryFrom($type);
         abort_if($documentType === null, 404);
+
+        // Absolventului îi rămân documentele ISTORICE; cele „ale anului curent" s-ar genera goale
+        // sau ar prezenta ultimul semestru ca fiind în desfășurare. Administrația și dirigintele
+        // nu sunt restrânși: pentru ei e o consultare de arhivă, nu un act al elevului.
+        abort_if(
+            $this->isFamilyOf($user, $student)
+                && $student->isAlumnus()
+                && ! $documentType->availableToAlumni(),
+            403,
+        );
 
         // Document oficial → randare consecventă în RO (antete + denumiri de discipline).
         app()->setLocale('ro');

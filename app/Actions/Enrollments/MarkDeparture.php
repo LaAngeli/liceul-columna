@@ -2,6 +2,7 @@
 
 namespace App\Actions\Enrollments;
 
+use App\Enums\DepartureReason;
 use App\Models\Enrollment;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,7 @@ class MarkDeparture
      * @param  list<int>  $enrollmentIds
      * @return array{marked: int, skipped: int}
      */
-    public function handle(array $enrollmentIds, Carbon $leftOn): array
+    public function handle(array $enrollmentIds, Carbon $leftOn, ?DepartureReason $reason = null): array
     {
         $date = $leftOn->copy()->startOfDay();
 
@@ -36,9 +37,9 @@ class MarkDeparture
         );
 
         if ($markable->isNotEmpty()) {
-            DB::transaction(function () use ($markable, $date): void {
+            DB::transaction(function () use ($markable, $date, $reason): void {
                 foreach ($markable as $enrollment) {
-                    $enrollment->update(['left_on' => $date]);
+                    $enrollment->update(['left_on' => $date, 'departure_reason' => $reason]);
                 }
             });
         }

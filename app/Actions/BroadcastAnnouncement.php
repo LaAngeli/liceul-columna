@@ -154,7 +154,13 @@ class BroadcastAnnouncement
     {
         return User::query()
             ->whereHas('roles', fn ($query) => $query->whereIn('name', [UserRole::Parinte->value, UserRole::Elev->value]))
-            ->get();
+            ->get()
+            // Familiile ȘCOLII, nu toate conturile cu rol de familie: un absolvent păstrează contul
+            // pentru arhiva lui, dar anunțurile despre ședințe, orar sau vacanțe nu-l mai privesc.
+            // Audiențele pe CLASĂ filtrau deja pe `left_on`; asta o aliniază pe cea globală.
+            // Conturile încă NELEGATE de un elev rămân în audiență — vezi hasOnlyDepartedStudents().
+            ->reject(fn (User $user): bool => $user->hasOnlyDepartedStudents())
+            ->values();
     }
 
     /**

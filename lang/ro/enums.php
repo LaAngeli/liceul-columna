@@ -235,4 +235,10 @@ return [
         'institutional' => 'Zi instituțională',
         'other' => 'Altă zi liberă',
     ],
+    'departure_reason' => [
+        'absolvire' => 'Absolvire',
+        'transfer' => 'Transfer la altă școală',
+        'retragere' => 'Retragere',
+        'exmatriculare' => 'Exmatriculare',
+    ],
 ];

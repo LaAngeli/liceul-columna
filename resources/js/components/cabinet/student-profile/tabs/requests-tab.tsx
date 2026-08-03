@@ -46,6 +46,7 @@ export function RequestsTab({
     corigentaExams,
     requestTypes,
     canRequestMotivation,
+    canRequestDocument,
     contestableGrades,
     contestIntent,
 }: {
@@ -56,6 +57,8 @@ export function RequestsTab({
     corigentaExams?: CorigentaExamItem[];
     requestTypes: Record<string, string>;
     canRequestMotivation: boolean;
+    /** Depunerea de CERERI ramane deschisa si absolventului (adeverinte) — vezi CabinetController. */
+    canRequestDocument: boolean;
     contestableGrades?: { id: number; label: string }[];
     /** Pre-selecția venită din chip-ul unei note (token crește la fiecare click — re-aplicabil). */
     contestIntent?: { gradeId: number; token: number } | null;
@@ -133,7 +136,7 @@ export function RequestsTab({
             )}
 
             {/* === CERERI TIPICE === */}
-            {(canRequestMotivation || (documentRequests && documentRequests.length > 0)) && (
+            {(canRequestDocument || (documentRequests && documentRequests.length > 0)) && (
                 <section>
                     <SectionHeading title={t('cabinet.requests_title')} />
                     <details className="mb-3 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
@@ -142,7 +145,7 @@ export function RequestsTab({
                     </details>
 
                     <div className="grid gap-4 lg:grid-cols-2">
-                        {canRequestMotivation && (
+                        {canRequestDocument && (
                             <Form
                                 {...requestRoute.form(studentId)}
                                 resetOnSuccess
@@ -380,7 +383,7 @@ export function RequestsTab({
 
             {/* Caz „totul gol" (fără cereri ȘI fără corigență) */}
             {(documentRequests === undefined && corigentaExams === undefined) === false &&
-                !canRequestMotivation &&
+                !canRequestDocument &&
                 (!documentRequests || documentRequests.length === 0) &&
                 (!corigentaExams || corigentaExams.length === 0) && (
                     <EmptyState title={t('cabinet.requests_none')} />

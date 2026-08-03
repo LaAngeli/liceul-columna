@@ -271,7 +271,7 @@ class EnrollmentForm
         $year = SchoolClass::query()->with('academicYear')->whereKey((int) $classId)->first()?->academicYear;
 
         return (string) __('panel.forms.enrollment.students_none', [
-            'count' => Student::query()->count(),
+            'count' => Student::query()->currentlyEnrolled()->count(),
             'year' => $year !== null ? $year->name : '—',
         ]);
     }

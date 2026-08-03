@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Enrollments\Tables;
 
 use App\Actions\Enrollments\MarkDeparture;
 use App\Actions\Enrollments\TransferEnrollment;
+use App\Enums\DepartureReason;
 use App\Filament\Resources\Enrollments\EnrollmentResource;
 use App\Filament\Resources\Enrollments\Pages\ListEnrollments;
 use App\Filament\Resources\Students\StudentResource;
@@ -105,9 +106,21 @@ class EnrollmentsTable
                             // `addDay()` făcea imposibil de consemnat elevul înscris și retras în
                             // aceeași zi (regula de model o acceptă — vezi MarkDeparture).
                             ->minDate(fn (Enrollment $record) => $record->enrolled_on),
+                        Select::make('departure_reason')
+                            ->label(__('panel.fields.departure_reason'))
+                            // Motivul e OBLIGATORIU: o dată de plecare fără explicație nu spune
+                            // dacă elevul a absolvit (își păstrează accesul la arhivă) sau a fost
+                            // exmatriculat — iar registrul nu ghicește.
+                            ->options(DepartureReason::options())
+                            ->native(false)
+                            ->required(),
                     ])
                     ->action(function (Enrollment $record, array $data): void {
-                        $result = app(MarkDeparture::class)->handle([$record->getKey()], Carbon::parse($data['left_on']));
+                        $result = app(MarkDeparture::class)->handle(
+                            [$record->getKey()],
+                            Carbon::parse($data['left_on']),
+                            DepartureReason::tryFrom((string) ($data['departure_reason'] ?? '')),
+                        );
 
                         Notification::make()
                             ->status($result['marked'] > 0 ? 'success' : 'danger')
@@ -175,11 +188,17 @@ class EnrollmentsTable
                             ->label(__('panel.fields.left_on'))
                             ->required()
                             ->default(now()),
+                        Select::make('departure_reason')
+                            ->label(__('panel.fields.departure_reason'))
+                            ->options(DepartureReason::options())
+                            ->native(false)
+                            ->required(),
                     ])
                     ->action(function (Collection $records, array $data): void {
                         $result = app(MarkDeparture::class)->handle(
                             self::idsOf($records),
                             Carbon::parse($data['left_on']),
+                            DepartureReason::tryFrom((string) ($data['departure_reason'] ?? '')),
                         );
 
                         Notification::make()

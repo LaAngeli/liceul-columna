@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AcademicYears\Pages;
 
 use App\Actions\AcademicYears\OpenAcademicYear;
+use App\Actions\Enrollments\GraduateClasses;
 use App\Enums\SchoolCycle;
 use App\Filament\Resources\AcademicYears\AcademicYearResource;
 use App\Filament\Resources\Enrollments\EnrollmentResource;
@@ -98,6 +99,18 @@ class ListAcademicYears extends ListRecords
                     ->helperText(__('panel.actions.open_year.with_assignments_hint'))
                     ->default(true)
                     ->live(),
+                // ABSOLVIREA promoției. Comutatorul apare doar dacă anul-sursă chiar are ce absolvi
+                // (clase terminale cu elevi activi) — altfel ar promite o operațiune fără obiect.
+                // Implicit PORNIT: e pasul normal al trecerii între ani, iar uitarea lui lăsa
+                // promoția „activă" la infinit, cu ceasul de retenție nepornit.
+                Toggle::make('graduate_terminal')
+                    ->label(__('panel.actions.open_year.graduate'))
+                    ->helperText(fn (Get $get): string => __('panel.actions.open_year.graduate_hint', [
+                        'count' => $this->graduationPending((int) $get('source_year_id')),
+                    ]))
+                    ->default(true)
+                    ->live()
+                    ->visible(fn (Get $get): bool => $this->graduationPending((int) $get('source_year_id')) > 0),
                 // Previzualizarea E decizia: câte clase se nasc, câte alocări urcă și — mai ales —
                 // ce NU se preia (absolvenți, clase existente, ore care nu se predă la treapta nouă).
                 Text::make(fn (Get $get): HtmlString => $this->openYearSummary(
@@ -108,7 +121,51 @@ class ListAcademicYears extends ListRecords
             ->action(fn (array $data) => $this->runYearOpening(
                 (int) ($data['source_year_id'] ?? 0),
                 (bool) ($data['with_assignments'] ?? true),
+                (bool) ($data['graduate_terminal'] ?? true),
             ));
+    }
+
+    /**
+     * Acțiunea „Încheie promoția" — de sine stătătoare pe cardul anului, pentru școlile care
+     * consemnează absolvirea la finalul anului, fără să deschidă imediat anul următor. Aceeași
+     * operațiune ca din fluxul de deschidere; se oferă doar cât timp mai are ce absolvi.
+     */
+    public function graduateYearAction(): Action
+    {
+        return Action::make('graduateYear')
+            ->label(__('panel.actions.graduate_year.label'))
+            ->icon('heroicon-o-academic-cap')
+            ->color('success')
+            ->requiresConfirmation()
+            ->modalHeading(fn (array $arguments): string => __('panel.actions.graduate_year.heading', [
+                'year' => AcademicYear::query()->whereKey((int) ($arguments['year'] ?? 0))->value('name') ?? '',
+            ]))
+            ->modalDescription(fn (array $arguments): string => trans_choice(
+                'panel.actions.graduate_year.description',
+                $this->graduationPending((int) ($arguments['year'] ?? 0)),
+                ['count' => $this->graduationPending((int) ($arguments['year'] ?? 0))],
+            ))
+            ->modalSubmitActionLabel(__('panel.actions.graduate_year.submit'))
+            // Doar PERMISIUNEA aici. Argumentele acțiunii nu sunt disponibile la evaluarea
+            // vizibilității în momentul montării, deci o gardă pe numărul de absolvenți ar fi citit
+            // `year = 0` → 0 de marcat → acțiune „ascunsă" → modalul nu se mai monta deloc.
+            // Ce depinde de an se gatează în Blade, prin `can_graduate` (tiparul lui archiveYear).
+            ->visible(fn (): bool => ($user = auth('web')->user()) instanceof User && $user->canConfigureSchool())
+            ->action(function (array $arguments): void {
+                $year = AcademicYear::query()->whereKey((int) ($arguments['year'] ?? 0))->first();
+
+                if ($year === null || ! ((auth('web')->user() instanceof User) && auth('web')->user()->canConfigureSchool())) {
+                    return;
+                }
+
+                $result = app(GraduateClasses::class)->handle($year);
+
+                Notification::make()
+                    ->success()
+                    ->title(trans_choice('panel.actions.graduate_year.done', $result['graduated'], ['count' => $result['graduated']]))
+                    ->body(__('panel.actions.graduate_year.done_body'))
+                    ->send();
+            });
     }
 
     /**
@@ -149,7 +206,7 @@ class ListAcademicYears extends ListRecords
      * Cardurile anilor (cei mai noi întâi): badge „An curent" + semestre/clase/înmatriculări
      * + sărituri pre-filtrate + Editare.
      *
-     * @return array<int, array{id: int, title: string, period: string|null, current: bool, closed: bool, closed_on: string|null, stats: array<int, string>, links: array<string, string>, edit_url: string|null, can_archive: bool, can_open: bool}>
+     * @return array<int, array{id: int, title: string, period: string|null, current: bool, closed: bool, closed_on: string|null, stats: array<int, string>, links: array<string, string>, edit_url: string|null, can_archive: bool, can_graduate: bool, can_open: bool}>
      */
     public function yearCards(): array
     {
@@ -199,6 +256,9 @@ class ListAcademicYears extends ListRecords
                     ? AcademicYearResource::getUrl('edit', ['record' => $year])
                     : null,
                 'can_archive' => $canConfigure && ! $year->isClosed(),
+                // „Încheie promoția" apare doar cât timp anul chiar are clase terminale cu elevi
+                // activi. După execuție dispare de la sine — nu rămâne un buton care nu mai face nimic.
+                'can_graduate' => $canConfigure && app(GraduateClasses::class)->pendingCount($year) > 0,
                 // „Deschide anul" apare pe anul care se PREGĂTEȘTE — fără elevi înmatriculați încă
                 // (clasele adăugate manual între timp nu blochează: acțiunea le sare). Un an cu
                 // registru pornit e un an în desfășurare, nu unul de deschis.
@@ -310,7 +370,15 @@ class ListAcademicYears extends ListRecords
         return new HtmlString(implode('<br>', array_map(fn (string $line): string => e($line), $lines)));
     }
 
-    public function runYearOpening(int $sourceYearId, bool $withAssignments): void
+    /** Câți elevi activi mai are de absolvit anul-sursă (0 → comutatorul nici nu se oferă). */
+    public function graduationPending(int $sourceYearId): int
+    {
+        $source = AcademicYear::query()->find($sourceYearId);
+
+        return $source === null ? 0 : app(GraduateClasses::class)->pendingCount($source);
+    }
+
+    public function runYearOpening(int $sourceYearId, bool $withAssignments, bool $graduateTerminal = true): void
     {
         $target = $this->openingYear();
         $source = AcademicYear::query()->find($sourceYearId);
@@ -318,6 +386,15 @@ class ListAcademicYears extends ListRecords
         if ($target === null || $source === null
             || ! ((auth('web')->user() instanceof User) && auth('web')->user()->canConfigureSchool())) {
             return;
+        }
+
+        // Absolvirea ÎNAINTE de promovare, ca ordinea să reflecte realitatea: promoția iese, apoi
+        // structura urcă o treaptă. Invers, clasele terminale ar fi rămas o clipă „active" într-un
+        // an în care structura nouă există deja.
+        $graduated = 0;
+
+        if ($graduateTerminal) {
+            $graduated = app(GraduateClasses::class)->handle($source)['graduated'];
         }
 
         $result = app(OpenAcademicYear::class)->handle($target, $source, $withAssignments);
@@ -332,12 +409,22 @@ class ListAcademicYears extends ListRecords
         }
 
         if ($result['classes'] === 0) {
-            Notification::make()->warning()->title(__('panel.actions.open_year.nothing'))->send();
+            // Structura exista deja, dar promoția tocmai a ieșit: nu e „nimic de făcut", e
+            // jumătatea de operațiune care chiar s-a executat — o raportăm ca atare.
+            $graduated > 0
+                ? Notification::make()
+                    ->success()
+                    ->title(trans_choice('panel.actions.open_year.done_graduated', $graduated, ['count' => $graduated]))
+                    ->send()
+                : Notification::make()->warning()->title(__('panel.actions.open_year.nothing'))->send();
 
             return;
         }
 
         $notes = array_values(array_filter([
+            $graduated > 0
+                ? (string) trans_choice('panel.actions.open_year.done_graduated', $graduated, ['count' => $graduated])
+                : null,
             $result['assignments'] > 0
                 ? (string) trans_choice('panel.actions.open_year.done_assignments', $result['assignments'], ['count' => $result['assignments']])
                 : null,

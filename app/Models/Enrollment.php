@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DepartureReason;
 use Database\Factories\EnrollmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +23,7 @@ use OwenIt\Auditing\Contracts\Auditable;
  * @property int $academic_year_id
  * @property Carbon|null $enrolled_on
  * @property Carbon|null $left_on
+ * @property DepartureReason|null $departure_reason
  */
 class Enrollment extends Model implements Auditable
 {
@@ -36,6 +38,7 @@ class Enrollment extends Model implements Auditable
         'academic_year_id',
         'enrolled_on',
         'left_on',
+        'departure_reason',
     ];
 
     protected function casts(): array
@@ -43,6 +46,7 @@ class Enrollment extends Model implements Auditable
         return [
             'enrolled_on' => 'date',
             'left_on' => 'date',
+            'departure_reason' => DepartureReason::class,
         ];
     }
 
@@ -55,6 +59,15 @@ class Enrollment extends Model implements Auditable
      */
     protected static function booted(): void
     {
+        // Motivul EXPLICĂ plecarea, deci nu poate exista fără ea. Un rând cu motiv și fără dată ar
+        // însemna „a plecat, nu se știe când" — un elev care ar rămâne activ peste tot (totalurile,
+        // catalogul și retenția citesc data, nu motivul), dar ar apărea plecat în fișă.
+        static::saving(static function (self $enrollment): void {
+            if ($enrollment->getAttribute('left_on') === null) {
+                $enrollment->setAttribute('departure_reason', null);
+            }
+        });
+
         static::deleting(static function (self $enrollment): void {
             if ($enrollment->hasAcademicHistory()) {
                 throw ValidationException::withMessages([

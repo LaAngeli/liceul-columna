@@ -86,6 +86,15 @@ class CabinetDocumentsController extends Controller
      */
     private function generatedDescriptors(Student $student): array
     {
+        // Absolventului i se OFERĂ doar documentele istorice — aceeași listă pe care i-o permite
+        // și ruta de descărcare, ca să nu vadă un card care s-ar termina în 403.
+        $types = $student->isAlumnus()
+            ? array_values(array_filter(
+                GeneratedDocumentType::cases(),
+                fn (GeneratedDocumentType $type): bool => $type->availableToAlumni(),
+            ))
+            : GeneratedDocumentType::cases();
+
         return array_map(
             fn (GeneratedDocumentType $type): array => [
                 'key' => $type->value,
@@ -93,7 +102,7 @@ class CabinetDocumentsController extends Controller
                 'description' => $type->description(),
                 'url' => route('cabinet.document.generate', ['student' => $student->id, 'type' => $type->value]),
             ],
-            GeneratedDocumentType::cases(),
+            $types,
         );
     }
 

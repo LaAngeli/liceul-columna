@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\UserRole;
+use App\Models\User;
 use App\Support\Locale;
 use App\Support\RouteSlugs;
 use Illuminate\Http\Request;
@@ -48,6 +49,12 @@ class HandleInertiaRequests extends Middleware
                 // Rolul ACTIV (F1) — pentru familie (mono-rol) e identic cu singurul rol.
                 'role' => $request->user('web')?->activeRole()?->value,
             ],
+            // Sidebar-ul cabinetului e static, iar modulele operaționale (orar, teme, meniul
+            // cantinei) n-au ce arăta unei familii rămase doar cu absolvenți — link-uri către pagini
+            // goale. Ascunse pe DOVADA plecării, nu pe absența datelor: un cont încă nelegat de un
+            // elev le păstrează (vezi User::hasOnlyDepartedStudents).
+            'hasActiveStudent' => fn (): bool => ! (($user = $request->user('web')) instanceof User
+                && $user->hasOnlyDepartedStudents()),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             // Badge de notificări necitite (lazy: query doar pentru utilizatori autentificați).
             'notificationsUnread' => fn (): int => $request->user('web')?->unreadNotifications()->count() ?? 0,

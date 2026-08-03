@@ -232,4 +232,10 @@ return [
         'institutional' => 'Institutional day',
         'other' => 'Other free day',
     ],
+    'departure_reason' => [
+        'absolvire' => 'Graduation',
+        'transfer' => 'Transfer to another school',
+        'retragere' => 'Withdrawal',
+        'exmatriculare' => 'Expulsion',
+    ],
 ];

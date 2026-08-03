@@ -8,6 +8,7 @@
  * clasă pe server.
  */
 
+use App\Enums\DepartureReason;
 use App\Enums\UserRole;
 use App\Filament\Resources\Enrollments\Pages\CreateEnrollment;
 use App\Filament\Resources\Enrollments\Pages\ListEnrollments;
@@ -168,16 +169,23 @@ it('plecarea se marchează direct din registru, doar pe rândurile active', func
     // Pe rândul deja plecat, acțiunea nu există.
     $component->assertTableActionHidden('departure', $this->departedEnrollment);
 
-    $component->callTableAction('departure', $this->activeEnrollment, ['left_on' => '2026-01-15'])
-        ->assertHasNoTableActionErrors();
+    $component->callTableAction('departure', $this->activeEnrollment, [
+        'left_on' => '2026-01-15',
+        'departure_reason' => DepartureReason::Transfer->value,
+    ])->assertHasNoTableActionErrors();
 
-    expect($this->activeEnrollment->fresh()->left_on?->toDateString())->toBe('2026-01-15');
+    // Motivul e OBLIGATORIU: data singură nu spune dacă elevul a absolvit sau a fost exmatriculat.
+    expect($this->activeEnrollment->fresh()->left_on?->toDateString())->toBe('2026-01-15')
+        ->and($this->activeEnrollment->fresh()->departure_reason)->toBe(DepartureReason::Transfer);
 });
 
 it('plecarea nu poate precede înmatricularea', function () {
     Livewire::withQueryParams(['clasa' => (string) $this->classA->id])
         ->test(ListEnrollments::class)
-        ->callTableAction('departure', $this->activeEnrollment, ['left_on' => '2025-08-01'])
+        ->callTableAction('departure', $this->activeEnrollment, [
+            'left_on' => '2025-08-01',
+            'departure_reason' => DepartureReason::Retragere->value,
+        ])
         ->assertHasTableActionErrors(['left_on']);
 
     expect($this->activeEnrollment->fresh()->left_on)->toBeNull();

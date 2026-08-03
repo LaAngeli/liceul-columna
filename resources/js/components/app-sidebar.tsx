@@ -64,6 +64,11 @@ export function AppSidebar() {
     const [path, queryString] = url.split('?');
     const activeSection = new URLSearchParams(queryString ?? '').get('sectiune');
 
+    // Contul rămas doar cu absolvenți păstrează arhiva, dar iese din circuitul operațional:
+    // orarul, temele și meniul cantinei descriu o zi de școală pe care n-o mai are nimeni.
+    // Le ascundem în loc să le lăsăm să ducă la pagini goale.
+    const hasActiveStudent = (usePage().props as { hasActiveStudent?: boolean }).hasActiveStudent !== false;
+
     // Deschis/închis per modul — implicit deschis modulul activ; utilizatorul poate plia manual.
     const [openOverrides, setOpenOverrides] = useState<Record<string, boolean>>({});
 
@@ -86,21 +91,25 @@ export function AppSidebar() {
                 { title: t('cabinet.catalog_sec_motivations', 'Motivări'), section: 'motivari' },
             ],
         },
-        {
-            title: t('cabinet.nav_schedule', 'Orar'),
-            path: '/cabinet/orar',
-            icon: Clock3,
-            subs: [
-                { title: t('cabinet.day_plan', 'Ziua mea'), section: 'zi' },
-                { title: t('cabinet.catalog_sec_week', 'Orarul săptămânal'), section: 'saptamana' },
-            ],
-        },
-        {
-            title: t('cabinet.nav_homework', 'Teme'),
-            path: '/cabinet/teme',
-            icon: ClipboardList,
-            subs: [],
-        },
+        ...(hasActiveStudent
+            ? [
+                  {
+                      title: t('cabinet.nav_schedule', 'Orar'),
+                      path: '/cabinet/orar',
+                      icon: Clock3,
+                      subs: [
+                          { title: t('cabinet.day_plan', 'Ziua mea'), section: 'zi' },
+                          { title: t('cabinet.catalog_sec_week', 'Orarul săptămânal'), section: 'saptamana' },
+                      ],
+                  },
+                  {
+                      title: t('cabinet.nav_homework', 'Teme'),
+                      path: '/cabinet/teme',
+                      icon: ClipboardList,
+                      subs: [],
+                  },
+              ]
+            : []),
     ];
 
     const groups: { label: string; items: NavItem[] }[] = [
@@ -112,7 +121,9 @@ export function AppSidebar() {
                 // activității (note + absențe pe un fir), nu un registru de aprofundat.
                 { title: t('cabinet.nav_timeline', 'Cronologie'), href: '/cabinet/cronologie', icon: History },
                 // Meniul cantinei: informație zilnică pentru toată familia, nu registru de catalog.
-                { title: t('cabinet.nav_canteen', 'Meniul cantinei'), href: '/cabinet/meniu', icon: Utensils },
+                ...(hasActiveStudent
+                    ? [{ title: t('cabinet.nav_canteen', 'Meniul cantinei'), href: '/cabinet/meniu', icon: Utensils }]
+                    : []),
             ],
         },
     ];

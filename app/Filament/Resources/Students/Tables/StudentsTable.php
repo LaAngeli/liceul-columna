@@ -6,6 +6,7 @@ use App\Actions\DetermineStudentStatus;
 use App\Actions\GenerateCorigentaExams;
 use App\Actions\LogStudentAccess;
 use App\Actions\NotifyStudentFamily;
+use App\Enums\DepartureReason;
 use App\Enums\NotificationType;
 use App\Enums\StudentStatus;
 use App\Filament\Contracts\CatalogNavigator;
@@ -78,6 +79,15 @@ class StudentsTable
                     ->label(__('panel.fields.class'))
                     ->state(fn (Student $record): ?string => self::currentClassLabel($record))
                     ->placeholder(__('panel.tables.students.no_class'))
+                    ->visible(fn ($livewire): bool => $livewire instanceof ListStudents && $livewire->isArchiveMode()),
+                // MOTIVUL ieșirii — doar în arhivă, unde stau laolaltă elevii școlii și dosarele
+                // celor plecați. Fără el, „XII A" nu spune dacă elevul a absolvit, s-a transferat
+                // sau a fost exmatriculat; gol = încă înscris.
+                TextColumn::make('departure_reason')
+                    ->label(__('panel.fields.departure_reason'))
+                    ->badge()
+                    ->state(fn (Student $record): ?DepartureReason => $record->latestEnrollment?->departure_reason)
+                    ->placeholder(__('panel.tables.students.still_enrolled'))
                     ->visible(fn ($livewire): bool => $livewire instanceof ListStudents && $livewire->isArchiveMode()),
                 TextColumn::make('sex')
                     ->label(__('panel.forms.student.sex_short'))

@@ -67,6 +67,10 @@ interface Props {
     absencesUnmotivated: number;
     requestTypes: Record<string, string>;
     canRequestMotivation: boolean;
+    // Cererile rămân deschise familiei și după absolvire (adeverințe) — de aceea sunt un steag
+    // separat de `canRequestMotivation`, care se stinge la absolvire.
+    canRequestDocument: boolean;
+    isAlumnus: boolean;
     // Lista copiilor părintelui (gol pentru elev/personal) — pentru switcher în header (audit #6).
     siblings: { id: number; name: string }[];
 
@@ -230,10 +234,19 @@ export default function StudentProfile(props: Props) {
         <>
             <Head title={props.student.name} />
             <div className="flex flex-col gap-6 p-4">
-                {props.student.departedOn && (
-                    <div className="rounded-lg border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200" role="status">
-                        {t('cabinet.student_departed').replace('{date}', props.student.departedOn)}
+                {/* Absolvirea NU e o plecare oarecare: e capătul normal al studiilor, iar accesul
+                    rămâne deschis pe arhivă. Bannerul verde o spune ca atare, în locul celui de
+                    avertizare — care ar fi transformat o reușită într-o anomalie. */}
+                {props.isAlumnus ? (
+                    <div className="rounded-lg border border-emerald-300/60 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200" role="status">
+                        {t('cabinet.student_alumnus').replace('{date}', props.student.departedOn ?? '')}
                     </div>
+                ) : (
+                    props.student.departedOn && (
+                        <div className="rounded-lg border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200" role="status">
+                            {t('cabinet.student_departed').replace('{date}', props.student.departedOn)}
+                        </div>
+                    )
                 )}
                 <ProfileHeader
                     student={props.student}
@@ -297,6 +310,7 @@ export default function StudentProfile(props: Props) {
                         corigentaExams={props.corigentaExams}
                         requestTypes={props.requestTypes}
                         canRequestMotivation={props.canRequestMotivation}
+                        canRequestDocument={props.canRequestDocument}
                         contestableGrades={props.contestableGrades}
                         contestIntent={contestIntent}
                     />

@@ -85,6 +85,16 @@
                                 </button>
                             @endif
 
+                            @if ($card['can_graduate'])
+                                <button
+                                    type="button"
+                                    wire:click="mountAction('graduateYear', { year: {{ $card['id'] }} })"
+                                    class="rounded-full bg-white px-3 py-1 text-sm font-medium text-success-700 ring-1 ring-success-600/30 transition duration-75 hover:bg-success-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success-600 dark:bg-white/5 dark:text-success-400 dark:ring-success-400/30 dark:hover:bg-white/10"
+                                >
+                                    {{ __('panel.actions.graduate_year.label') }}
+                                </button>
+                            @endif
+
                             @if ($card['can_archive'])
                                 <button
                                     type="button"

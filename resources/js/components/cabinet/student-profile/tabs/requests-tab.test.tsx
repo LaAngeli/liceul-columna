@@ -35,6 +35,7 @@ function renderTab(contestIntent: { gradeId: number; token: number } | null) {
             studentId={1}
             requestTypes={requestTypes}
             canRequestMotivation
+            canRequestDocument
             contestableGrades={contestableGrades}
             contestIntent={contestIntent}
             documentRequests={[]}
@@ -81,6 +82,7 @@ describe('RequestsTab — pre-completarea contestației', () => {
                 studentId={1}
                 requestTypes={requestTypes}
                 canRequestMotivation
+            canRequestDocument
                 contestableGrades={contestableGrades}
                 contestIntent={{ gradeId: 22, token: 2 }}
                 documentRequests={[]}
