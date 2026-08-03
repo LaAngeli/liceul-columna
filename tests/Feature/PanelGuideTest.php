@@ -72,8 +72,10 @@ it('ghidurile de CÂMP sunt traduse în toate limbile și chiar folosite în for
         }
 
         // O cheie de ghid pe care n-o folosește niciun formular e text mort: nimeni n-o vede,
-        // dar cineva o va traduce la fiecare limbă nouă.
-        if (! str_contains($panelSource, "PanelGuide::field('".$key."')")) {
+        // dar cineva o va traduce la fiecare limbă nouă. Ambele porți de intrare contează:
+        // `hint()` (componenta completă, calea normală) și `field()` (doar textul).
+        if (! str_contains($panelSource, "PanelGuide::hint('".$key."')")
+            && ! str_contains($panelSource, "PanelGuide::field('".$key."')")) {
             $unused[] = $key;
         }
     }

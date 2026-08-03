@@ -167,6 +167,24 @@ final class PanelGuide
     }
 
     /**
+     * Ghidul unui câmp, ca `->hint(...)` — ACEEAȘI componentă ca la secțiune.
+     *
+     * De ce nu `->hintIcon()`, care ar fi fost calea evidentă: Filament randează acolo un `<svg>`
+     * simplu, `aria-hidden` și nefocusabil. Explicația devenea inaccesibilă din tastatură și
+     * invizibilă pentru cititorul de ecran — iar la câmpuri tooltipul e SINGURUL loc unde textul
+     * există, spre deosebire de secțiuni. `hint()` acceptă `Htmlable`, deci primește butonul nostru:
+     * focusabil, cu textul în conținut vizual-ascuns, identic la aspect.
+     */
+    public static function hint(string $key): ?HtmlString
+    {
+        $text = self::field($key);
+
+        return $text === null
+            ? null
+            : new HtmlString((string) view('filament.guide.hint', ['text' => $text])->render());
+    }
+
+    /**
      * @param  array<int, string>  $scopes
      */
     public static function keyFor(array $scopes): ?string

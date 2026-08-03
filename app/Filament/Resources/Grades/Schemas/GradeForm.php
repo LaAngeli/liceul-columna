@@ -59,7 +59,7 @@ class GradeForm
                 // Semestrul NU se alege manual: se derivă din `graded_on` pe server (EnforcesGradeScope).
                 Select::make('evaluation_type')
                     ->label(__('panel.fields.evaluation_type'))
-                    ->hintIcon(PanelGuide::ICON, tooltip: PanelGuide::field('grade_evaluation_type'))
+                    ->hint(PanelGuide::hint('grade_evaluation_type'))
                     ->options(EvaluationType::options())
                     ->default(EvaluationType::Curenta->value)
                     ->native(false)
@@ -67,7 +67,7 @@ class GradeForm
                 // O notă nu poate fi în viitor; data determină și semestrul (derivat pe server).
                 DatePicker::make('graded_on')
                     ->label(__('panel.fields.date'))
-                    ->hintIcon(PanelGuide::ICON, tooltip: PanelGuide::field('grade_graded_on'))
+                    ->hint(PanelGuide::hint('grade_graded_on'))
                     ->required()
                     ->default(now())
                     ->maxDate(now())

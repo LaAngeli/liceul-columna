@@ -79,11 +79,14 @@
    lângă titlu), așa că facem inline exact titlul care are iconiță; restul paginilor rămân neatinse. */
 .fi-header-heading:has(+ .fi-guide-hint) { display: inline; }
 
+/* Spațiul de dinaintea iconiței îl cere DOAR titlul: în slotul de `hint` al unui câmp, Filament
+   așază deja eticheta și hint-ul la capete opuse, iar o margine în plus ar fi împins-o de la margine. */
+.fi-header-heading + .fi-guide-hint { margin-left: 0.45rem; }
+
 .fi-guide-hint {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-left: 0.45rem;
     padding: 0.15rem;
     border-radius: 9999px;
     color: var(--gray-400);
@@ -116,20 +119,10 @@
 .dark .fi-guide-hint:hover,
 .dark .fi-guide-hint:focus-visible { color: var(--primary-400); }
 
-/* Iconița de ghid a CÂMPURILOR (`hintIcon`) — Filament o randează în culoarea primară, deci ieșea
-   albastră lângă titlul gri: același gest arăta ca două lucruri diferite. O aducem la aceeași
-   discreție, cu culoarea la hover, ca la secțiune.
-   Selectorul cere `[x-tooltip]`: doar iconițele care CHIAR poartă o explicație. Alte iconițe de
-   etichetă, colorate intenționat (avertismente, stări), rămân neatinse. */
-.fi-fo-field-label-ctn svg.fi-sc-icon[x-tooltip] {
-    color: var(--gray-400);
-    cursor: help;
-    transition: color 120ms ease;
-}
-.fi-fo-field-label-ctn svg.fi-sc-icon[x-tooltip]:hover { color: var(--primary-600); }
-
-.dark .fi-fo-field-label-ctn svg.fi-sc-icon[x-tooltip] { color: var(--gray-500); }
-.dark .fi-fo-field-label-ctn svg.fi-sc-icon[x-tooltip]:hover { color: var(--primary-400); }
+/* Hint-ul unui câmp e ACEEAȘI componentă `.fi-guide-hint` (vezi PanelGuide::hint) — deci nu mai are
+   nevoie de reguli proprii de culoare. Filament îi dă însă o dimensiune de text mai mică în slotul
+   de hint; readucem iconița la o țintă atinsă comod cu degetul. */
+.fi-fo-field-label-ctn .fi-guide-hint svg { width: 1rem; height: 1rem; }
 
 /* --- Bula de explicație (Tippy) ---------------------------------------------------------------
    Tippy randează în <body>, deci nu se poate stiliza prin descendență din antet — de aceea temele

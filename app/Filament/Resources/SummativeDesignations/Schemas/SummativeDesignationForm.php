@@ -22,7 +22,7 @@ class SummativeDesignationForm
             ->components([
                 Select::make('school_class_id')
                     ->label(__('grading.designation.fields.class'))
-                    ->hintIcon(PanelGuide::ICON, tooltip: PanelGuide::field('summative_class'))
+                    ->hint(PanelGuide::hint('summative_class'))
                     // Primarul (I–IV) nu are notă sumativă semestrială → doar gimnaziu/liceu (≥ 5).
                     ->relationship('schoolClass', 'name', fn (Builder $query): Builder => $query->where('grade_level', '>=', 5))
                     ->getOptionLabelFromRecordUsing(fn (SchoolClass $record): string => trim($record->name.' '.($record->section ?? '')))
