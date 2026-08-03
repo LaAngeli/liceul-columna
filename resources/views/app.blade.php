@@ -45,12 +45,20 @@
         <meta name="msapplication-TileColor" content="#0f4d77">
         <meta name="msapplication-TileImage" content="/icon-192.png">
 
+        {{-- Regim SEO minimal — flag citit SERVER-SIDE (config/seo.php), NU din `import.meta.env`:
+             comutarea se face cu `SEO_MINIMAL` în .env + `config:clear`, fără rebuild de frontend
+             (o valoare `import.meta.env` s-ar „coace" în bundle la build). Stă ÎNAINTE de @vite, ca
+             `app.tsx` să-l găsească deja setat la boot. Vezi docs/SEO-REGIM-MINIMAL.md --}}
+        <script>window.__seoMinimal = @json((bool) config('seo.minimal'));</script>
+
         @fonts
 
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         <x-inertia::head>
-            <title>{{ config('app.name', 'Liceul Columna') }}</title>
+            {{-- În regim minimal titlul server-side rămâne GOL: altfel numele instituției ar apărea
+                 în tab până la hidratare, adică exact adaosul de brand pe care regimul îl interzice. --}}
+            <title>{{ config('seo.minimal') ? '' : config('app.name', 'Liceul Columna') }}</title>
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">

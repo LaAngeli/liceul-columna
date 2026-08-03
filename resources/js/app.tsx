@@ -5,13 +5,19 @@ import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import PublicLayout from '@/layouts/public-layout';
+import { composeTitle, startSeoRestriction } from '@/lib/seo-restriction';
 
 // Fallback-ul e numele instituției, NU „Laravel": dacă VITE_APP_NAME lipsește la build
 // (producție fără .env, CI, clonă nouă), titlul din tab rămâne corect pentru utilizator.
 const appName = import.meta.env.VITE_APP_NAME || 'Liceul Columna';
 
+// Regim SEO minimal (temporar, comutabil din `.env`): pornit ÎNAINTE de `createInertiaApp`,
+// ca observer-ul să fie activ deja la prima scriere de meta-uri. Fără flag, nu face nimic.
+startSeoRestriction();
+
 createInertiaApp({
-    title: (title) => (title ? `${title} - ${appName}` : appName),
+    // În regim minimal → EXCLUSIV denumirea paginii; altfel, comportamentul original cu brand.
+    title: (title) => composeTitle(title, appName),
     layout: (name) => {
         switch (true) {
             case name.startsWith('public/'):

@@ -282,6 +282,12 @@ schimbă cu limba, niciun text rămas în altă limbă, niciun shortcode brut af
 
 ## 10. SEO
 
+> ⚠️ **REGIM SEO MINIMAL ACTIV** (din 2026-07-24, la cererea clientului): `SEO_MINIMAL=true` în `.env`.
+> Titlul paginilor = EXCLUSIV denumirea paginii (fără brand); meta description + OG/Twitter/JSON-LD/canonical
+> = **suprimate** din frontend. Configurația SEO reală e INTACTĂ în cod și traduceri — doar nu se emite.
+> **Revenire integrală: `SEO_MINIMAL=false` + `php artisan config:clear`** (fără rebuild frontend).
+> Mecanism + verificări: **`docs/SEO-REGIM-MINIMAL.md`**. Nu „repara" lipsa meta-urilor înainte de a citi acel fișier.
+
 > Pentru ORICE sarcină de SEO — audit, cercetare de cuvinte-cheie, analiză on-page, conținut / content-gaps, verificări
 > tehnice sau comparație cu competitorii — folosește skill-ul **`seo-audit`** (`/seo-audit`). E unealta implicită pentru SEO.
 
