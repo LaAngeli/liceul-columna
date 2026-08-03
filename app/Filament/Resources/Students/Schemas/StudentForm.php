@@ -7,13 +7,13 @@ use App\Enums\SecondLanguage;
 use App\Enums\Sex;
 use App\Filament\Schemas\FicheAccountSection;
 use App\Models\Student;
+use App\Support\ClassRoster;
 use Closure;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -74,32 +74,36 @@ class StudentForm
                         TextInput::make('register_number')
                             ->label(__('panel.fields.register_number'))
                             ->maxLength(10)
-                            ->helperText(__('panel.forms.student.register_number_hint'))
+                            ->helperText(fn (?Model $record): string => self::registerNumberHint($record))
                             ->rules([
-                                // UNICITATE la schimbare: numărul matricol identifică elevul în
-                                // registru — un număr NOU sau MODIFICAT nu poate repeta unul
-                                // existent. Duplicatele moștenite din legacy (29 azi) NU blochează
-                                // salvările care nu ating câmpul — se corectează deliberat.
+                                // UNICITATE PE CLASĂ, la schimbare (decizia beneficiarului,
+                                // 2026-08-03). Numărul matricol s-a dovedit a fi ORDINEA elevului
+                                // în clasă, nu un identificator pe școală: măsurat pe date, maximul
+                                // e 30, iar „1" apare în 19 clase. Regula veche (unicitate pe toată
+                                // școala) refuza un număr perfect legitim din altă clasă.
+                                // Verificarea rulează DOAR la schimbarea valorii: datele moștenite
+                                // au și duplicate în interiorul clasei, iar o regulă retroactivă ar
+                                // face fișele acelea ne-salvabile.
                                 static fn (?Model $record): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($record): void {
                                     $number = trim((string) $value);
 
-                                    if ($number === '') {
+                                    if ($number === '' || ! $record instanceof Student) {
                                         return;
                                     }
 
-                                    $initial = $record instanceof Student ? (string) $record->getRawOriginal('register_number') : null;
-
-                                    if ($record !== null && $number === $initial) {
+                                    if ($number === (string) $record->getRawOriginal('register_number')) {
                                         return;
                                     }
 
-                                    $taken = Student::query()
-                                        ->when($record !== null, fn (Builder $query) => $query->whereKeyNot($record->getKey()))
-                                        ->where('register_number', $number)
-                                        ->exists();
+                                    $classId = $record->currentSchoolClass()?->getKey();
 
-                                    if ($taken) {
-                                        $fail(__('panel.validation.student.register_number_taken'));
+                                    // Fără clasă curentă nu există „în clasă" — nimic de verificat.
+                                    if ($classId === null) {
+                                        return;
+                                    }
+
+                                    if (ClassRoster::registerNumberTaken((int) $classId, $number, (int) $record->getKey())) {
+                                        $fail(__('panel.validation.student.register_number_in_class'));
                                     }
                                 },
                             ]),
@@ -162,6 +166,26 @@ class StudentForm
         }
 
         return $options;
+    }
+
+    /**
+     * Ghidul numărului matricol: ce e folosit ÎN CLASA elevului și care e primul liber acolo.
+     * Fără clasă curentă rămâne explicația generală.
+     */
+    private static function registerNumberHint(?Model $record): string
+    {
+        $classId = $record instanceof Student ? $record->currentSchoolClass()?->getKey() : null;
+
+        if ($classId === null) {
+            return (string) __('panel.forms.student.register_number_hint');
+        }
+
+        $used = ClassRoster::usedRegisterNumbers((int) $classId);
+
+        return (string) __('panel.forms.user.register_number_in_class_hint', [
+            'used' => $used === [] ? (string) __('panel.forms.user.register_number_none_used') : implode(', ', $used),
+            'next' => ClassRoster::nextRegisterNumber((int) $classId),
+        ]);
     }
 
     /** Elevul e (cunoscut ca fiind) la ciclul primar? Fără clasă curentă → nu restrângem. */

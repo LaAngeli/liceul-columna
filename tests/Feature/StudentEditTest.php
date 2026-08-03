@@ -89,27 +89,45 @@ it('grupa la engleză acceptă doar 1 sau 2 — și în formular, și la nivel d
         ->toThrow(ValidationException::class);
 });
 
-it('numărul matricol nou sau modificat nu poate repeta unul existent; duplicatele legacy nu blochează salvarea neutră', function () {
-    Student::factory()->create(['register_number' => '100']);
+it('numărul matricol e unic ÎN CLASĂ: se respinge duplicatul de acolo, nu cel din altă clasă', function () {
+    // Decizia beneficiarului (2026-08-03), pe datele reale: numărul e ORDINEA elevului în clasă
+    // („1" apare în 19 clase), nu un identificator pe toată școala.
+    $elev = Student::factory()->create(['register_number' => '200']);
+    $class = setStudentInGrade($elev, 8);
 
-    // Doi elevi cu același număr moștenit din legacy (starea reală: 29 de duplicate).
-    $legacyA = Student::factory()->create(['register_number' => '200']);
-    Student::factory()->create(['register_number' => '200']);
-    setStudentInGrade($legacyA, 8);
+    // Colegul din ACEEAȘI clasă poartă numărul 5.
+    $coleg = Student::factory()->create(['register_number' => '5']);
+    Enrollment::factory()->create([
+        'student_id' => $coleg->id,
+        'school_class_id' => $class->id,
+        'academic_year_id' => $class->academic_year_id,
+    ]);
+
+    // Alt elev, ALTĂ clasă, cu numărul 7 — legitim, nu blochează pe nimeni.
+    $strain = Student::factory()->create(['register_number' => '7']);
+    setStudentInGrade($strain, 8);
 
     // Salvare care NU atinge numărul → trece (istoricul murdar nu blochează).
-    Livewire::test(EditStudent::class, ['record' => $legacyA->getKey()])
+    Livewire::test(EditStudent::class, ['record' => $elev->getKey()])
         ->fillForm(['first_name' => 'Prenume-Nou'])
         ->call('save')
         ->assertHasNoFormErrors();
 
-    // Schimbarea numărului către unul FOLOSIT → respinsă.
-    Livewire::test(EditStudent::class, ['record' => $legacyA->getKey()])
-        ->fillForm(['register_number' => '100'])
+    // Numărul unui COLEG DE CLASĂ → respins.
+    Livewire::test(EditStudent::class, ['record' => $elev->getKey()])
+        ->fillForm(['register_number' => '5'])
         ->call('save')
         ->assertHasFormErrors(['register_number']);
 
-    expect($legacyA->refresh()->register_number)->toBe('200');
+    expect($elev->refresh()->register_number)->toBe('200');
+
+    // Același număr ca un elev din ALTĂ clasă → acceptat (regula veche îl refuza).
+    Livewire::test(EditStudent::class, ['record' => $elev->getKey()])
+        ->fillForm(['register_number' => '7'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($elev->refresh()->register_number)->toBe('7');
 });
 
 it('contul legat NU mai poate fi schimbat din fișă — selectul există doar pe fișele orfane, pentru cine administrează conturi', function () {
@@ -186,6 +204,8 @@ it('etichetele noii fișe există în toate cele trei limbi', function () {
             ->and(Lang::hasForLocale('panel.forms.student.english_group_long', $locale))->toBeTrue("Lipsește english_group_long [{$locale}]")
             ->and(Lang::hasForLocale('panel.forms.student.account_managed_hint', $locale))->toBeTrue("Lipsește account_managed_hint [{$locale}]")
             ->and(Lang::hasForLocale('panel.validation.student.second_language_primary', $locale))->toBeTrue("Lipsește second_language_primary [{$locale}]")
-            ->and(Lang::hasForLocale('panel.validation.student.register_number_taken', $locale))->toBeTrue("Lipsește register_number_taken [{$locale}]");
+            // Matricolul e ordinea ÎN CLASĂ (decizia beneficiarului, 2026-08-03) — mesajul de
+            // unicitate pe toată școala a dispărut odată cu regula.
+            ->and(Lang::hasForLocale('panel.validation.student.register_number_in_class', $locale))->toBeTrue("Lipsește register_number_in_class [{$locale}]");
     }
 });

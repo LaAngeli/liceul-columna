@@ -7,6 +7,7 @@ use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Support\ClassRoster;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
@@ -69,11 +70,17 @@ class InspectRestoreConflicts
             }
         }
 
-        if ($record->register_number !== null && $record->register_number !== '') {
-            $duplicate = Student::query()
-                ->where('register_number', $record->register_number)
-                ->whereKeyNot($record->getKey())
-                ->exists();
+        // Numărul matricol e ordinea elevului ÎN CLASĂ (decizia beneficiarului, 2026-08-03), deci
+        // avertismentul are sens doar în clasa în care se întoarce: pe școală, același număr
+        // există legitim în zeci de clase și semnalul ar fi devenit zgomot la fiecare restaurare.
+        $classId = $record->currentSchoolClass()?->getKey();
+
+        if ($classId !== null && $record->register_number !== null && $record->register_number !== '') {
+            $duplicate = ClassRoster::registerNumberTaken(
+                (int) $classId,
+                (string) $record->register_number,
+                (int) $record->getKey(),
+            );
 
             if ($duplicate) {
                 $warnings[] = (string) __('panel.restore.conflicts.student_register_duplicate', [
