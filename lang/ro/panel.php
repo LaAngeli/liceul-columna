@@ -673,6 +673,7 @@ return [
             'students' => 'Elevii',
             'students_hint' => 'Doar elevii fără nicio înmatriculare în anul acestei clase (nici măcar arhivată).',
             'students_pick_class' => 'Alegeți întâi clasa — lista elevilor eligibili decurge din anul ei.',
+            'students_none' => 'Niciun elev disponibil: toți cei :count elevi au deja o înmatriculare în :year (un elev = o singură înmatriculare pe an). Ca să MUTAȚI un elev dintr-o altă clasă a aceluiași an, folosiți „Transferă în altă clasă" din registrul clasei lui. Un elev NOU apare aici după ce i se creează fișa la „Elevi".',
             'section_when' => 'Din ce dată',
             'section_when_hint_create' => 'Data de la care elevii fac parte din clasă.',
             'section_when_hint_edit' => 'Corectarea datelor rândului. Plecarea obișnuită se marchează din registru.',

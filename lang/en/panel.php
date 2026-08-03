@@ -660,6 +660,7 @@ return [
             'students' => 'Students',
             'students_hint' => 'Only students without any enrolment in the year of this class (not even an archived one).',
             'students_pick_class' => 'Pick the class first — the list of eligible students follows from its year.',
+            'students_none' => 'No students available: all :count students already have an enrolment in :year (one student = one enrolment per year). To MOVE a student from another class of the same year, use "Transfer to another class" in that class register. A NEW student appears here once their record is created under "Students".',
             'section_when' => 'From which date',
             'section_when_hint_create' => 'The date from which the students belong to the class.',
             'section_when_hint_edit' => 'Correcting the dates of the row. A normal departure is marked from the register.',

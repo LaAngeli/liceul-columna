@@ -88,9 +88,11 @@ class EnrollmentForm
                             ->required()
                             // Fără clasă nu există listă de elevi eligibili: întâi UNDE, apoi CINE.
                             ->disabled(fn (Get $get): bool => blank($get('school_class_id')))
-                            ->helperText(fn (Get $get): string => blank($get('school_class_id'))
-                                ? (string) __('panel.forms.enrollment.students_pick_class')
-                                : (string) __('panel.forms.enrollment.students_hint'))
+                            // Lista GOALĂ trebuie să-și explice golul: „un elev = o singură
+                            // înmatriculare pe an", deci într-un an complet înmatriculat nu mai are
+                            // cine să apară aici, iar operatorul rămânea cu impresia că formularul
+                            // e stricat (raportat 2026-08-03). Mesajul spune și unde se duce în loc.
+                            ->helperText(fn (Get $get): string => self::studentsHint($get('school_class_id')))
                             // Al doilea strat, pe SERVER: lista de opțiuni îi ascunde pe cei deja
                             // înscriși, dar un POST meșterit (sau o clasă schimbată între timp) nu
                             // trebuie să treacă. Rândul ARHIVAT primește alt mesaj — acolo soluția
@@ -249,6 +251,29 @@ class EnrollmentForm
                 (int) $student->getKey() => (string) $student->full_name,
             ])
             ->all();
+    }
+
+    /**
+     * Îndrumarea de sub selecția de elevi, pe cele trei stări reale: fără clasă / clasă aleasă dar
+     * NIMENI eligibil / listă cu elevi. Cazul din mijloc e cel care deruta: într-un an în care toți
+     * elevii au deja un rând, selecția e legitim goală.
+     */
+    private static function studentsHint(mixed $classId): string
+    {
+        if (! is_numeric($classId)) {
+            return (string) __('panel.forms.enrollment.students_pick_class');
+        }
+
+        if (self::enrollableOptions($classId) !== []) {
+            return (string) __('panel.forms.enrollment.students_hint');
+        }
+
+        $year = SchoolClass::query()->with('academicYear')->whereKey((int) $classId)->first()?->academicYear;
+
+        return (string) __('panel.forms.enrollment.students_none', [
+            'count' => Student::query()->count(),
+            'year' => $year !== null ? $year->name : '—',
+        ]);
     }
 
     /** Linia informativă „Anul școlar: …" — anul e consecința clasei, nu o alegere. */
