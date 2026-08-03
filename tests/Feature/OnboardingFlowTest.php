@@ -385,3 +385,123 @@ it('butoanele de adăugare din registre duc în fluxul de cont, cu rolul pre-com
         ->assertActionVisible('create')
         ->assertActionHasUrl('create', UserResource::getUrl('create', ['rol' => UserRole::Elev->value]));
 });
+
+// ─── Golul închis: ruta „fișă existentă" nu mai poate naște un elev invizibil ────────────
+
+it('fișa EXISTENTĂ fără înmatriculare o cere în flux — altfel contul ar fi invizibil în catalog', function () {
+    $orfan = Student::factory()->create(['last_name' => 'Orfan', 'first_name' => 'Fara']);
+
+    // Fără clasă: formularul refuză, exact ca la fișa nouă.
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'username' => 'orfan.fara.clasa',
+            'roles' => [UserRole::Elev->value],
+            'student_fiche_mode' => 'link',
+            'student_id' => $orfan->id,
+            'password' => 'Temp-Link-1',
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['enroll_class_id']);
+
+    expect(User::query()->where('username', 'orfan.fara.clasa')->exists())->toBeFalse();
+
+    // Cu clasă: contul se leagă de fișa existentă ȘI o înmatriculează.
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'username' => 'orfan.cu.clasa',
+            'roles' => [UserRole::Elev->value],
+            'student_fiche_mode' => 'link',
+            'student_id' => $orfan->id,
+            'enroll_class_id' => $this->classB->id,
+            'password' => 'Temp-Link-2',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $user = User::query()->where('username', 'orfan.cu.clasa')->sole();
+    $enrollment = Enrollment::query()->where('student_id', $orfan->id)->sole();
+
+    expect($orfan->fresh()->user_id)->toBe($user->id)
+        ->and($enrollment->school_class_id)->toBe($this->classB->id)
+        ->and($enrollment->academic_year_id)->toBe($this->year->id)
+        // Nicio fișă în plus: fișa existentă rămâne singura.
+        ->and(Student::query()->where('last_name', 'Orfan')->count())->toBe(1);
+});
+
+it('fișa care ARE deja înmatriculare nu cere clasa și nu se mută din ea', function () {
+    $inmatriculat = Student::factory()->create(['last_name' => 'Deja', 'first_name' => 'Inmatriculat']);
+    Enrollment::factory()->for($inmatriculat)->for($this->classA)->for($this->year)->create();
+
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'username' => 'deja.inmatriculat',
+            'roles' => [UserRole::Elev->value],
+            'student_fiche_mode' => 'link',
+            'student_id' => $inmatriculat->id,
+            'password' => 'Temp-Link-3',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    // Un singur rând, în clasa lui de dinainte: crearea contului nu e o mutare.
+    $enrollment = Enrollment::query()->where('student_id', $inmatriculat->id)->sole();
+    expect($enrollment->school_class_id)->toBe($this->classA->id);
+});
+
+// ─── Părinte NOU direct din ecranul elevului ─────────────────────────────────────────────
+
+it('părintele nou se naște odată cu elevul, cu legătura deja făcută', function () {
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'last_name' => 'Familie', 'first_name' => 'Noua',
+            'username' => 'familie.noua',
+            'roles' => [UserRole::Elev->value],
+            'student_fiche_mode' => 'create',
+            'student_fiche_sex' => Sex::Female->value,
+            'enroll_class_id' => $this->classA->id,
+            'student_new_guardians' => [
+                ['last_name' => 'Familie', 'first_name' => 'Mama', 'username' => 'familie.mama', 'email' => 'mama@test.columna', 'password' => 'Temp-Mama-1'],
+                ['last_name' => 'Familie', 'first_name' => 'Tata', 'username' => 'familie.tata', 'password' => 'Temp-Tata-1'],
+            ],
+            'password' => 'Temp-Elev-Familie',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $fiche = Student::query()->where('last_name', 'Familie')->where('first_name', 'Noua')->sole();
+    $mama = User::query()->where('username', 'familie.mama')->sole();
+    $tata = User::query()->where('username', 'familie.tata')->sole();
+
+    expect($mama->hasRole(UserRole::Parinte->value))->toBeTrue()
+        ->and($tata->hasRole(UserRole::Parinte->value))->toBeTrue()
+        // Parolă temporară: schimbarea la prima autentificare, ca la orice cont din panou.
+        ->and($mama->must_change_password)->toBeTrue()
+        ->and($tata->email)->toBeNull()
+        // Legătura e făcută în aceeași tranzacție — familia nu mai cere un al doilea drum.
+        ->and($fiche->guardians()->pluck('users.id')->all())->toEqualCanonicalizing([$mama->id, $tata->id]);
+});
+
+it('doi părinți noi cu același utilizator sunt respinși, fără să lase nimic în urmă', function () {
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'last_name' => 'Dubla', 'first_name' => 'Familie',
+            'username' => 'dubla.familie',
+            'roles' => [UserRole::Elev->value],
+            'student_fiche_mode' => 'create',
+            'student_fiche_sex' => Sex::Male->value,
+            'enroll_class_id' => $this->classA->id,
+            'student_new_guardians' => [
+                ['last_name' => 'Dubla', 'first_name' => 'Unu', 'username' => 'acelasi.user', 'password' => 'Temp-1'],
+                ['last_name' => 'Dubla', 'first_name' => 'Doi', 'username' => 'acelasi.user', 'password' => 'Temp-2'],
+            ],
+            'password' => 'Temp-Dubla',
+        ])
+        ->call('create')
+        ->assertHasFormErrors();
+
+    // Nimic pe jumătate: Filament ține TOT fluxul de creare (inclusiv afterCreate) într-o
+    // tranzacție, deci refuzul din mijloc nu lasă în urmă nici contul elevului, nici fișa lui.
+    expect(User::query()->where('username', 'acelasi.user')->exists())->toBeFalse()
+        ->and(User::query()->where('username', 'dubla.familie')->exists())->toBeFalse()
+        ->and(Student::query()->where('last_name', 'Dubla')->exists())->toBeFalse();
+});

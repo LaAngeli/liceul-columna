@@ -277,14 +277,30 @@ class UserForm
                             }),
                         Select::make('enroll_class_id')
                             ->label(__('panel.forms.user.enroll_class'))
-                            ->helperText(__('panel.forms.user.enroll_class_hint'))
+                            // Elevul se înmatriculează pe loc în clasa lui (anul curent, cu data de
+                            // azi) — catalogul, orarul și cabinetul îl văd imediat. ÎNMATRICULAREA E
+                            // CHEIA: un cont fără ea se autentifică, dar nu apare nicăieri. De aceea
+                            // câmpul apare ȘI pe ruta „fișă existentă" — până acum dispărea acolo,
+                            // presupunând că orice fișă veche își are istoricul; o fișă fără
+                            // înmatriculare în anul curent năștea tăcut un utilizator invizibil.
+                            ->helperText(fn (Get $get, string $operation): string => self::creatingStudentFiche($get, $operation)
+                                ? (string) __('panel.forms.user.enroll_class_hint')
+                                : (string) __('panel.forms.user.enroll_class_missing_hint'))
                             ->options(fn (): array => self::currentYearClassOptions())
                             ->searchable()
-                            // Elevul NOU se înmatriculează pe loc în clasa lui (anul curent, cu
-                            // data de azi) — catalogul, orarul și cabinetul îl văd imediat.
-                            // Fișa EXISTENTĂ are deja istoricul ei în registrul Înmatriculări.
-                            ->visible(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation))
-                            ->required(fn (Get $get, string $operation): bool => self::creatingStudentFiche($get, $operation)),
+                            ->visible(fn (Get $get, string $operation): bool => self::needsEnrollment($get, $operation))
+                            ->required(fn (Get $get, string $operation): bool => self::needsEnrollment($get, $operation)),
+                        // Fișa aleasă ARE deja înmatriculare în anul curent: se spune explicit, ca
+                        // absența selectorului să nu mai fie o tăcere ambiguă. Mutarea între clase
+                        // rămâne o operațiune de registru, nu un efect secundar al creării unui cont.
+                        Text::make(fn (Get $get): string => (string) __('panel.forms.user.enroll_class_existing', [
+                            'class' => self::linkedEnrollmentLabel($get) ?? '',
+                        ]))
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
+                                && in_array(UserRole::Elev->value, self::selectedRoles($get), true)
+                                && $get('student_fiche_mode') === self::FICHE_LINK
+                                && self::linkedEnrollmentLabel($get) !== null),
                         Select::make('student_guardian_user_ids')
                             ->label(__('panel.forms.user.student_guardians'))
                             // OPȚIONAL explicit (feedback beneficiar): fără marcaj, câmpul de
@@ -297,6 +313,72 @@ class UserForm
                             ->searchable()
                             ->getSearchResultsUsing(fn (string $search): array => self::searchGuardianAccounts($search))
                             ->getOptionLabelsUsing(fn (array $values): array => self::guardianAccountLabels($values))
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
+                                && in_array(UserRole::Elev->value, self::selectedRoles($get), true)),
+                        // PĂRINTELE NOU, pe loc: până acum legătura se putea face doar cu un cont de
+                        // părinte care exista deja, deci o familie nouă cerea un al doilea drum prin
+                        // Utilizatori (unde copilul se căuta înapoi). Aici contul se naște în aceeași
+                        // tranzacție cu elevul, cu legătura deja făcută.
+                        Repeater::make('student_new_guardians')
+                            ->label(__('panel.forms.user.new_guardians'))
+                            ->helperText(__('panel.forms.user.new_guardians_hint'))
+                            ->schema([
+                                TextInput::make('last_name')
+                                    ->label(__('panel.forms.user.name'))
+                                    ->required()
+                                    ->maxLength(120)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(fn (Get $get, Set $set) => self::suggestGuardianUsername($get, $set)),
+                                TextInput::make('first_name')
+                                    ->label(__('panel.forms.user.first_name'))
+                                    ->required()
+                                    ->maxLength(120)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(fn (Get $get, Set $set) => self::suggestGuardianUsername($get, $set)),
+                                TextInput::make('username')
+                                    ->label(__('panel.forms.user.username'))
+                                    ->required()
+                                    ->regex('/^[A-Za-z0-9._\-]+$/')
+                                    ->validationMessages(['regex' => __('panel.forms.user.username_format')])
+                                    ->unique(table: User::class, column: 'username')
+                                    ->maxLength(60),
+                                TextInput::make('email')
+                                    ->label(__('panel.forms.user.email'))
+                                    ->email()
+                                    ->unique(table: User::class, column: 'email')
+                                    ->maxLength(255)
+                                    ->hint(__('panel.forms.user.optional_hint')),
+                                TextInput::make('password')
+                                    ->label(__('panel.forms.user.temp_password'))
+                                    ->default(fn (): string => TemporaryPassword::generate())
+                                    ->password()
+                                    ->revealable()
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->columnSpanFull()
+                                    ->suffixActions([
+                                        Action::make('regenerateGuardianPassword')
+                                            ->label(__('panel.forms.user.regenerate_password'))
+                                            ->tooltip(__('panel.forms.user.regenerate_password'))
+                                            ->icon('heroicon-o-arrow-path')
+                                            ->action(fn (Set $set) => $set('password', TemporaryPassword::generate())),
+                                        // Copierea are nevoie de calea COMPLETĂ a câmpului: în
+                                        // repeater ea conține cheia rândului, deci se citește din
+                                        // componentă, nu se scrie fix ca la contul principal.
+                                        Action::make('copyGuardianPassword')
+                                            ->label(__('panel.forms.user.copy_password'))
+                                            ->tooltip(__('panel.forms.user.copy_password'))
+                                            ->icon('heroicon-o-clipboard-document')
+                                            ->livewireClickHandlerEnabled(false)
+                                            ->extraAttributes(fn (TextInput $component): array => [
+                                                'x-on:click.prevent' => "window.navigator.clipboard.writeText(\$wire.\$get('{$component->getStatePath()}') ?? '')",
+                                            ]),
+                                    ]),
+                            ])
+                            ->columns(2)
+                            ->defaultItems(0)
+                            ->addActionLabel(__('panel.forms.user.add_guardian'))
                             ->columnSpanFull()
                             ->visible(fn (Get $get, string $operation): bool => $operation === 'create'
                                 && in_array(UserRole::Elev->value, self::selectedRoles($get), true)),
@@ -535,6 +617,66 @@ class UserForm
         return $operation === 'create'
             && in_array(UserRole::Elev->value, self::selectedRoles($get), true)
             && $get('student_fiche_mode') === self::FICHE_CREATE;
+    }
+
+    /** Utilizatorul propus pentru un părinte nou — aceeași regulă ca la conturile din fișe. */
+    private static function suggestGuardianUsername(Get $get, Set $set): void
+    {
+        if (filled($get('username'))) {
+            return;
+        }
+
+        $lastName = trim((string) $get('last_name'));
+        $firstName = trim((string) $get('first_name'));
+
+        if ($lastName === '' && $firstName === '') {
+            return;
+        }
+
+        $set('username', CreateAccountForFiche::suggestUsernameFor($lastName, $firstName));
+    }
+
+    /**
+     * Contul de elev are nevoie de o înmatriculare acum? Fișa NOUĂ — mereu. Fișa existentă —
+     * doar dacă nu are deja una în anul curent (atunci se păstrează a ei, spusă explicit).
+     */
+    private static function needsEnrollment(Get $get, string $operation): bool
+    {
+        if ($operation !== 'create' || ! in_array(UserRole::Elev->value, self::selectedRoles($get), true)) {
+            return false;
+        }
+
+        if ($get('student_fiche_mode') === self::FICHE_CREATE) {
+            return true;
+        }
+
+        return filled($get('student_id')) && self::linkedEnrollmentLabel($get) === null;
+    }
+
+    /** Eticheta înmatriculării din anul curent a fișei alese („VII A · din 01.09.2025"), sau null. */
+    private static function linkedEnrollmentLabel(Get $get): ?string
+    {
+        $studentId = $get('student_id');
+        $yearId = self::currentYearId();
+
+        if (blank($studentId) || $yearId === null) {
+            return null;
+        }
+
+        $enrollment = Enrollment::query()
+            ->with('schoolClass')
+            ->where('student_id', (int) $studentId)
+            ->where('academic_year_id', $yearId)
+            ->first();
+
+        $class = $enrollment?->schoolClass;
+
+        if ($class === null) {
+            return null;
+        }
+
+        return trim($class->name.' '.($class->section ?? ''))
+            .($enrollment->enrolled_on !== null ? ' · '.$enrollment->enrolled_on->format('d.m.Y') : '');
     }
 
     /** Anul școlar „de lucru": cel cu semestrul curent, altfel cel mai nou. */

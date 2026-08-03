@@ -113,7 +113,16 @@ class CreateAccountForFiche
      */
     public static function suggestUsername(Teacher|Student $fiche): string
     {
-        $base = Str::slug(Str::ascii(trim($fiche->last_name.' '.$fiche->first_name)), '.');
+        return self::suggestUsernameFor((string) $fiche->last_name, (string) $fiche->first_name);
+    }
+
+    /**
+     * Aceeași regulă, pornind de la un NUME — pentru persoanele fără fișă (părinții), create
+     * direct din onboarding-ul elevului.
+     */
+    public static function suggestUsernameFor(string $lastName, string $firstName): string
+    {
+        $base = Str::slug(Str::ascii(trim($lastName.' '.$firstName)), '.');
         $base = trim(preg_replace('/[^a-z0-9.]+/', '', mb_strtolower($base)) ?? '', '.');
 
         if ($base === '') {

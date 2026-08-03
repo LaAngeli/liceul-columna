@@ -80,6 +80,20 @@ trait ManagesAccountForm
     protected ?array $studentGuardianUserIds = null;
 
     /**
+     * Părinții NOI, creați odată cu elevul (fiecare rând: nume, prenume, utilizator, e-mail, parolă).
+     *
+     * @var array<int, array<string, mixed>>
+     */
+    protected array $newGuardians = [];
+
+    /**
+     * Credențialele părinților creați, reținute pentru e-mail — se trimit DUPĂ tranzacție.
+     *
+     * @var array<int, array{user: User, password: string}>
+     */
+    protected array $createdGuardians = [];
+
+    /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
@@ -143,6 +157,14 @@ trait ManagesAccountForm
         $this->studentGuardianUserIds = isset($data['student_guardian_user_ids']) && is_array($data['student_guardian_user_ids'])
             ? array_map(intval(...), $data['student_guardian_user_ids'])
             : null;
+        $this->newGuardians = isset($data['student_new_guardians']) && is_array($data['student_new_guardians'])
+            ? array_values(array_filter($data['student_new_guardians'], is_array(...)))
+            : [];
+
+        // ⚠️ Verificarea coliziunilor se face AICI, înainte de crearea contului: panoul NU
+        // rulează crearea într-o tranzacție (Filament o are dezactivată implicit), deci o
+        // excepție aruncată mai târziu ar lăsa în urmă contul și fișa deja scrise.
+        $this->guardNewGuardians((string) ($data['username'] ?? ''), $data['email'] ?? null);
 
         unset(
             $data['teacher_id'],
@@ -161,6 +183,7 @@ trait ManagesAccountForm
             $data['fiche_sex'],
             $data['enroll_class_id'],
             $data['student_guardian_user_ids'],
+            $data['student_new_guardians'],
         );
 
         // Starea contului: select-ul devine timestampul suspended_at (păstrat dacă era deja suspendat).
@@ -292,6 +315,14 @@ trait ManagesAccountForm
         // Credențialele pleacă DUPĂ tranzacție: un rollback nu trebuie să lase e-mailuri trimise.
         if ($this->sendCredentials && $this->plainTemporaryPassword !== null && filled($user->email)) {
             $user->notify(new TemporaryCredentials($this->plainTemporaryPassword));
+        }
+
+        // Aceeași regulă pentru părinții creați odată cu elevul: doar cei cu e-mail, doar dacă
+        // operatorul a cerut trimiterea, și doar după ce tranzacția a reușit.
+        if ($this->sendCredentials) {
+            foreach ($this->createdGuardians as $created) {
+                $created['user']->notify(new TemporaryCredentials($created['password']));
+            }
         }
     }
 
@@ -435,7 +466,11 @@ trait ManagesAccountForm
             return;
         }
 
-        if ($this->studentFicheMode === UserForm::FICHE_CREATE && $this->enrollClassId !== null) {
+        // Înmatricularea se aplică pe AMBELE rute (fișă nouă sau existentă): formularul o cere
+        // ori de câte ori elevul nu are deja una în anul curent — fără ea, contul e invizibil în
+        // catalog. Pe fișa care are deja înmatriculare, câmpul nici nu se afișează, deci nu poate
+        // muta pe tăcute un elev dintr-o clasă în alta.
+        if ($this->enrollClassId !== null) {
             $class = SchoolClass::query()->whereKey($this->enrollClassId)->first();
 
             if ($class !== null) {
@@ -454,6 +489,8 @@ trait ManagesAccountForm
             }
         }
 
+        $guardianIds = [];
+
         if ($this->studentGuardianUserIds !== null && $this->studentGuardianUserIds !== []) {
             // Doar conturile care CHIAR au rolul de părinte (id-urile vin dintr-un select cu
             // căutare pe server); legătura e aditivă — părinții existenți ai fișei rămân.
@@ -462,11 +499,94 @@ trait ManagesAccountForm
                 ->whereHas('roles', fn ($query) => $query->where('name', UserRole::Parinte->value))
                 ->pluck('id')
                 ->all();
+        }
 
-            if ($guardianIds !== []) {
-                Student::query()->whereKey($studentId)->first()?->guardians()->syncWithoutDetaching($guardianIds);
+        $guardianIds = [...$guardianIds, ...$this->createNewGuardians()];
+
+        if ($guardianIds !== []) {
+            Student::query()->whereKey($studentId)->first()?->guardians()->syncWithoutDetaching($guardianIds);
+        }
+    }
+
+    /**
+     * Coliziunile de identificator ale părinților NOI, verificate ÎNAINTE de orice scriere:
+     * regula `unique` a formularului compară fiecare rând doar cu BAZA, deci două rânduri între
+     * ele — sau un rând cu însuși contul care se creează acum — ar trece de ea și ar cădea abia
+     * la inserare, cu contul elevului deja scris.
+     */
+    private function guardNewGuardians(string $accountUsername, ?string $accountEmail): void
+    {
+        $seenUsernames = filled($accountUsername) ? [mb_strtolower($accountUsername)] : [];
+        $seenEmails = filled($accountEmail) ? [mb_strtolower($accountEmail)] : [];
+
+        foreach ($this->newGuardians as $index => $row) {
+            $username = mb_strtolower(trim((string) ($row['username'] ?? '')));
+            $email = mb_strtolower(trim((string) ($row['email'] ?? '')));
+
+            if ($username !== '' && in_array($username, $seenUsernames, true)) {
+                throw ValidationException::withMessages([
+                    "data.student_new_guardians.{$index}.username" => __('panel.forms.user.guardian_username_duplicate'),
+                ]);
+            }
+
+            if ($email !== '' && in_array($email, $seenEmails, true)) {
+                throw ValidationException::withMessages([
+                    "data.student_new_guardians.{$index}.email" => __('panel.forms.user.guardian_email_duplicate'),
+                ]);
+            }
+
+            $seenUsernames[] = $username;
+
+            if ($email !== '') {
+                $seenEmails[] = $email;
             }
         }
+    }
+
+    /**
+     * Conturile de PĂRINTE nou, create odată cu elevul — familia nouă nu mai cere un al doilea
+     * drum prin Utilizatori. Fiecare primește rolul, parola temporară și obligația de a o schimba
+     * la prima autentificare, exact ca orice cont creat din panou.
+     *
+     * @return array<int, int> id-urile conturilor create
+     */
+    private function createNewGuardians(): array
+    {
+        if ($this->newGuardians === []) {
+            return [];
+        }
+
+        $ids = [];
+
+        foreach ($this->newGuardians as $row) {
+            $lastName = trim((string) ($row['last_name'] ?? ''));
+            $firstName = trim((string) ($row['first_name'] ?? ''));
+            $username = trim((string) ($row['username'] ?? ''));
+            $password = (string) ($row['password'] ?? '');
+
+            if ($lastName === '' || $username === '' || $password === '') {
+                continue;
+            }
+
+            $guardian = User::query()->create([
+                'name' => trim($lastName.' '.$firstName),
+                'username' => $username,
+                'email' => filled($row['email'] ?? null) ? (string) $row['email'] : null,
+                'password' => $password,
+                'email_verified_at' => now(),
+                'must_change_password' => true,
+            ]);
+
+            $guardian->assignRole(UserRole::Parinte->value);
+
+            $ids[] = (int) $guardian->getKey();
+
+            if (filled($guardian->email)) {
+                $this->createdGuardians[] = ['user' => $guardian, 'password' => $password];
+            }
+        }
+
+        return $ids;
     }
 
     /**

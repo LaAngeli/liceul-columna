@@ -13,8 +13,12 @@ use App\Enums\UserRole;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
+use App\Models\AcademicYear;
+use App\Models\Enrollment;
+use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\Term;
 use App\Models\User;
 use App\Notifications\TemporaryCredentials;
 use Illuminate\Support\Facades\Hash;
@@ -34,6 +38,28 @@ beforeEach(function () {
     $this->director->assignRole(UserRole::Director->value);
     actingAs($this->director);
 });
+
+/**
+ * Fișă de elev care ARE deja înmatriculare în anul curent — cazul normal al unei fișe din
+ * registru. Contează de la 2026-08-03: legarea unui cont de o fișă FĂRĂ înmatriculare cere acum
+ * clasa chiar în formular (altfel contul s-ar autentifica, dar elevul ar fi invizibil în catalog).
+ */
+function usersSectionEnrolledStudent(): Student
+{
+    $year = AcademicYear::query()->first() ?? AcademicYear::factory()->create();
+
+    if (! $year->terms()->where('is_current', true)->exists()) {
+        Term::factory()->for($year)->create(['is_current' => true]);
+    }
+
+    $class = SchoolClass::query()->where('academic_year_id', $year->id)->first()
+        ?? SchoolClass::factory()->for($year)->create();
+
+    $student = Student::factory()->create();
+    Enrollment::factory()->for($student)->for($class)->for($year)->create();
+
+    return $student;
+}
 
 // ─── Navigatorul pe roluri ───────────────────────────────────────────────────────────────
 
@@ -86,7 +112,7 @@ it('directorul creează conturi pentru fiecare rol pe care îl poate atribui', f
                 return ['teacher_fiche_mode' => 'link', 'teacher_id' => $record->id];
             })(),
             UserRole::Elev->value => (function () use (&$ficheName): array {
-                $record = Student::factory()->create();
+                $record = usersSectionEnrolledStudent();
                 $ficheName = $record->full_name;
 
                 return ['student_fiche_mode' => 'link', 'student_id' => $record->id];
@@ -177,7 +203,7 @@ it('contul nou se autentifică cu parola temporară și e dus la schimbarea paro
             'username' => 'elev.onboarding',
             'roles' => [UserRole::Elev->value],
             'student_fiche_mode' => 'link',
-            'student_id' => Student::factory()->create()->id,
+            'student_id' => usersSectionEnrolledStudent()->id,
             'password' => 'Temp-Parola-9',
         ])
         ->call('create')
@@ -207,7 +233,7 @@ it('rolul din contextul navigatorului pre-completează formularul, iar un rol ne
 // ─── Asocierile per rol ──────────────────────────────────────────────────────────────────
 
 it('contul de elev se leagă de fișa lui, iar re-legarea eliberează fișa veche', function () {
-    $ficheA = Student::factory()->create();
+    $ficheA = usersSectionEnrolledStudent();
     $ficheB = Student::factory()->create();
 
     Livewire::test(CreateUser::class)
