@@ -181,12 +181,29 @@ return [
             'missing_teacher' => 'Contul tău nu e încă legat de o fișă de profesor — administrația trebuie să o atribuie pentru a vedea clasele și catalogul tău aici.',
         ],
         'hero' => [
-            'accounts' => 'Conturi în sistem',
-            'students' => 'Elevi înmatriculați',
-            'my_students' => 'Elevii mei',
-            'secondary_admin' => ':students elevi · :teachers profesori',
-            'secondary_mgmt' => ':classes clase · :teachers profesori',
-            'secondary_teacher' => ':classes clase · :grades note introduse',
+            'perimeter' => [
+                // Perimetrul rolului activ pentru cine predă: numărul de clase + primele nume.
+                'classes' => 'o clasă — :names|:count clase — :names|:count de clase — :names',
+            ],
+            'ruler' => [
+                'break' => 'Vacanță',
+                'today' => 'Azi',
+                'days' => 'o zi|:count zile|:count de zile',
+                'in_term' => ':term · se încheie pe :date (în :days)',
+                'in_break_next' => 'Vacanță · :term începe pe :date (în :days)',
+                'in_break' => 'Vacanță — următorul semestru nu e încă definit.',
+                'year_ended_next' => 'Anul :year s-a încheiat · cursurile reîncep pe :date (în :days)',
+                'year_ended' => 'Anul :year s-a încheiat — următorul an nu are încă semestre definite.',
+                'year_upcoming' => 'Anul :year începe pe :date (în :days)',
+            ],
+            'today' => [
+                'label' => 'Azi',
+                'lessons' => 'o lecție|:count lecții|:count de lecții',
+                'lesson_number' => 'ora :number',
+                'room' => 'sala :room',
+                'none' => 'Nicio lecție în orar',
+                'closed' => 'Zi fără cursuri',
+            ],
         ],
         'classes_needing_homeroom' => [
             'heading' => 'Clase fără diriginte — de rezolvat',
