@@ -70,6 +70,61 @@
 :root { --cockpit-alert: #d85a30; }
 .dark { --cockpit-alert: #f0997b; }
 
+/* --- Ghidul secțiunii: iconița „i" de lângă titlul paginii (App\Support\PanelGuide) ---
+   Discretă în repaus, evidentă la hover/focus. Aliniată optic la linia de bază a titlului
+   (`vertical-align` nu ajută: butonul e flex), nu la mijlocul lui — un titlu de 30px cu o iconiță
+   centrată pe verticală pare căzută. */
+/* Hook-ul randează iconița ca FRATE al titlului, într-un container bloc care ține și breadcrumbs-ul
+   — deci butonul cădea pe rândul următor. Containerul nu poate deveni flex (ar urca breadcrumbs-ul
+   lângă titlu), așa că facem inline exact titlul care are iconiță; restul paginilor rămân neatinse. */
+.fi-header-heading:has(+ .fi-guide-hint) { display: inline; }
+
+.fi-guide-hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.45rem;
+    padding: 0.15rem;
+    border-radius: 9999px;
+    color: var(--gray-400);
+    cursor: help;
+    transition: color 120ms ease, background-color 120ms ease;
+    vertical-align: middle;
+}
+.fi-guide-hint svg { width: 1.05rem; height: 1.05rem; }
+
+/* Textul explicației, doar pentru cititoarele de ecran: el dă butonului numele accesibil, fiindcă
+   bula Tippy e desenată de JS și nu ajunge la lector. `clip-path` în loc de `display:none`, care ar
+   scoate textul și din arborele de accesibilitate. */
+.fi-guide-hint__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.fi-guide-hint:hover,
+.fi-guide-hint:focus-visible {
+    color: var(--primary-600);
+    background-color: rgb(from var(--primary-500) r g b / 0.12);
+}
+.fi-guide-hint:focus-visible { outline: 2px solid var(--primary-600); outline-offset: 1px; }
+
+.dark .fi-guide-hint { color: var(--gray-500); }
+.dark .fi-guide-hint:hover,
+.dark .fi-guide-hint:focus-visible { color: var(--primary-400); }
+
+/* Tooltipul e desenat de Tippy în <body>, deci nu poate fi stilizat prin descendență din antet.
+   Explicațiile au 2-3 fraze — lățimea implicită (350px) le-ar fi rupt în coloane înalte și înguste. */
+.tippy-box[data-theme~='light'],
+.tippy-box[data-theme~='dark'] {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    text-align: start;
+}
+
 /* --- Banda de CONTEXT (WelcomeWidget) — navy full-width: unde sunt · când sunt · ce am azi --- */
 .fi-welcome {
     display: flex;

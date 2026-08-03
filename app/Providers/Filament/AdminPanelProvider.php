@@ -11,6 +11,7 @@ use App\Http\Middleware\EnsureTwoFactorEnrolled;
 use App\Http\Middleware\SetUserLocale;
 use App\Livewire\PanelNotifications;
 use App\Support\InitialsAvatarProvider;
+use App\Support\PanelGuide;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -121,6 +122,15 @@ class AdminPanelProvider extends PanelProvider
                     ->url('/', shouldOpenInNewTab: true)
                     ->icon(Heroicon::OutlinedGlobeAlt),
             ])
+            // Ghidul secțiunii: iconița „i" de lângă titlu, cu explicația la hover. UN SINGUR hook
+            // pentru tot panoul — Filament trimite închiderii `scopes` (clasa paginii ȘI, la resurse,
+            // clasa resursei), iar {@see PanelGuide} decide dacă secțiunea are ghid. Fără el, fiecare
+            // pagină ar fi trebuit să-și cableze propria iconiță, iar o secțiune nouă ar fi rămas
+            // tăcută până când cineva își amintea s-o adauge.
+            ->renderHook(
+                PanelsRenderHook::PAGE_HEADER_HEADING_AFTER,
+                PanelGuide::hook(),
+            )
             // Pastilă segmentată de limbă (RO/RU/EN), inserată în meniul user după item-ul de profil.
             ->renderHook(
                 PanelsRenderHook::USER_MENU_PROFILE_AFTER,
