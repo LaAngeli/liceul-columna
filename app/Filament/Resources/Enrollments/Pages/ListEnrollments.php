@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Enrollments\Pages;
 
 use App\Actions\Enrollments\EnrollStudents;
-use App\Actions\Enrollments\PromoteClass;
+use App\Actions\Enrollments\PromoteYear;
 use App\Enums\SchoolCycle;
 use App\Filament\Resources\Enrollments\EnrollmentResource;
 use App\Models\AcademicYear;
@@ -383,34 +383,7 @@ class ListEnrollments extends ListRecords
      */
     public function promotionPlan(?int $sourceYearId): array
     {
-        $targetYearId = $this->activeYearId();
-
-        if ($sourceYearId === null || $targetYearId === null || $sourceYearId === $targetYearId) {
-            return [];
-        }
-
-        $promote = app(PromoteClass::class);
-
-        $counts = Enrollment::query()
-            ->toBase()
-            ->whereNull('deleted_at')
-            ->whereNull('left_on')
-            ->where('academic_year_id', $sourceYearId)
-            ->selectRaw('school_class_id, COUNT(*) AS aggregate')
-            ->groupBy('school_class_id')
-            ->pluck('aggregate', 'school_class_id');
-
-        return SchoolClass::query()
-            ->whereKey($counts->keys()->all())
-            ->orderBy('grade_level')
-            ->orderBy('name')
-            ->get()
-            ->map(fn (SchoolClass $class): array => [
-                'source' => $class,
-                'target' => $promote->suggestTarget($class, $targetYearId),
-                'students' => (int) ($counts->get($class->id) ?? 0),
-            ])
-            ->all();
+        return app(PromoteYear::class)->plan($sourceYearId, $this->activeYearId());
     }
 
     /** Rezumatul planului, afișat în modal ÎNAINTE de execuție — previzualizarea e decizia. */
@@ -454,30 +427,20 @@ class ListEnrollments extends ListRecords
             return;
         }
 
-        $plan = array_filter($this->promotionPlan($sourceYearId), fn (array $row): bool => $row['target'] !== null);
+        $result = app(PromoteYear::class)->handle($sourceYearId, $this->activeYearId());
 
-        if ($plan === []) {
+        if ($result['classes'] === 0) {
             Notification::make()->warning()->title(__('panel.enrollments_nav.promote.empty'))->send();
 
             return;
-        }
-
-        $promote = app(PromoteClass::class);
-        $enrolled = 0;
-        $skipped = 0;
-
-        foreach ($plan as $row) {
-            $result = $promote->handle($row['source'], $row['target'], SchoolCalendar::localNow());
-            $enrolled += $result['enrolled'];
-            $skipped += $result['skipped'];
         }
 
         $this->unassignedMemo = null;
 
         Notification::make()
             ->success()
-            ->title(trans_choice('panel.enrollments_nav.promote.done', $enrolled, ['count' => $enrolled]))
-            ->body($skipped > 0 ? (string) __('panel.enrollments_nav.promote.skipped', ['count' => $skipped]) : null)
+            ->title(trans_choice('panel.enrollments_nav.promote.done', $result['enrolled'], ['count' => $result['enrolled']]))
+            ->body($result['skipped'] > 0 ? (string) __('panel.enrollments_nav.promote.skipped', ['count' => $result['skipped']]) : null)
             ->send();
     }
 
