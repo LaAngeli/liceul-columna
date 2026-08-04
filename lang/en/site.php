@@ -717,6 +717,7 @@ return [
         'abs_many' => 'absences',
         'abs_cal_motivated' => 'day with excused absences',
         'abs_cal_unmotivated' => 'day with unexcused absences',
+        'abs_cal_pending' => 'day with absences without a status',
         'catalog_sec_week' => 'Weekly schedule',
         // The normalized weekly schedule (Schedule module).
         'sched_room' => 'room',
@@ -787,6 +788,8 @@ return [
         'motivated_one' => 'excused',
         'motivated_other' => 'excused',
         'unmotivated_one' => 'unexcused',
+        'pending' => 'no status yet',
+        'pending_one' => 'no status yet',
         'unmotivated_other' => 'unexcused',
         'transcript' => 'Academic transcript',
         'class' => 'Grade',

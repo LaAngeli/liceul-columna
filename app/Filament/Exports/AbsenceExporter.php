@@ -33,7 +33,12 @@ class AbsenceExporter extends Exporter
                 ->label(__('panel.exports.date')),
             ExportColumn::make('is_motivated')
                 ->label(__('panel.exports.motivated'))
-                ->formatStateUsing(fn (mixed $state): string => $state ? (string) __('panel.exports.yes') : (string) __('panel.exports.no')),
+                // Tri-state: nullul e „fără statut" (în așteptarea dirigintelui), nu „Nu".
+                ->formatStateUsing(fn (mixed $state): string => match (true) {
+                    $state === null => (string) __('panel.exports.no_status'),
+                    (bool) $state => (string) __('panel.exports.yes'),
+                    default => (string) __('panel.exports.no'),
+                }),
             ExportColumn::make('term.name')
                 ->label(__('panel.exports.term'))
                 ->formatStateUsing(fn (?string $state): string => $state === null ? '' : ContentTranslator::term($state)),

@@ -82,7 +82,7 @@ it('salvează un batch întreg — note și absențe pe mai mulți elevi — din
         ->set('entries', [
             (string) $a->id => ['value' => '9'],
             (string) $b->id => ['value' => '7', 'absence' => null],
-            (string) $c->id => ['value' => '', 'absence' => ClassRegister::ABSENCE_UNMOTIVATED],
+            (string) $c->id => ['value' => '', 'absence' => ClassRegister::ABSENCE_MARKED],
         ])
         ->call('saveEntries')
         ->assertHasNoErrors();
@@ -94,10 +94,10 @@ it('salvează un batch întreg — note și absențe pe mai mulți elevi — din
         ->and((int) $gradeA->teacher_id)->toBe($this->teacher->id)
         ->and((int) $gradeA->term_id)->toBe($this->term->id)
         ->and((float) $gradeA->value)->toBe(9.0)
-        // Absența: nemotivată implicit, pe aceeași disciplină.
+        // Absența: FĂRĂ statut (profesorul consemnează, dirigintele decide), pe aceeași disciplină.
         ->and(Absence::query()->count())->toBe(1)
         ->and(Absence::query()->sole()->student_id)->toBe($c->id)
-        ->and(Absence::query()->sole()->is_motivated)->toBeFalse()
+        ->and(Absence::query()->sole()->is_motivated)->toBeNull()
         // Observer-ul a lucrat: media semestrială există deja.
         ->and(TermAverage::query()->where('student_id', $a->id)->where('subject_id', $this->subject->id)->exists())->toBeTrue();
 });
@@ -143,7 +143,7 @@ it('absența duplicat (același elev, aceeași zi, aceeași disciplină) blochea
     ]);
 
     Livewire::test(ClassRegister::class)
-        ->set('entries', [(string) $a->id => ['absence' => ClassRegister::ABSENCE_UNMOTIVATED]])
+        ->set('entries', [(string) $a->id => ['absence' => ClassRegister::ABSENCE_MARKED]])
         ->call('saveEntries')
         ->assertHasErrors(['entries.'.$a->id]);
 
@@ -189,16 +189,17 @@ it('dirigintele vede disciplina altuia, nu notează la ea, dar consemnează abse
     $a = $this->students->first();
 
     $component
-        ->set('entries', [(string) $a->id => ['value' => '9', 'absence' => ClassRegister::ABSENCE_MOTIVATED]])
+        ->set('entries', [(string) $a->id => ['value' => '9', 'absence' => ClassRegister::ABSENCE_MARKED]])
         ->call('saveEntries')
         ->assertHasNoErrors();
 
-    // Nota NU s-a creat (nu are dreptul); absența DA, motivată, sub numele lui.
+    // Nota NU s-a creat (nu are dreptul); absența DA, sub numele lui — FĂRĂ statut, ca orice
+    // consemnare din borderou: chiar și dirigintele o statutează apoi din secțiunea Absențe.
     $absence = Absence::query()->sole();
 
     expect(Grade::query()->count())->toBe(0)
         ->and((int) $absence->teacher_id)->toBe($homeroomTeacher->id)
-        ->and($absence->is_motivated)->toBeTrue();
+        ->and($absence->is_motivated)->toBeNull();
 });
 
 it('administratorul tehnic și familia nu accesează pagina', function () {
@@ -310,42 +311,38 @@ it('semestrul afișat urmează DATA, nu un selector separat', function () {
     expect($inFirst->activeTerm()?->id)->toBe($first->id);
 });
 
-// ── Absența: tip ales direct, o singură stare activă (2026-07-30) ─────────────────────────────
+// ── Absența: UN marcaj, fără statut — profesorul consemnează, dirigintele decide (04.08.2026) ──
 
-it('un batch poate amesteca absențe motivate și nemotivate', function () {
+it('toate absențele din batch pleacă fără statut — statutul e al dirigintelui', function () {
     actingAs($this->profUser);
 
     [$a, $b] = $this->students->all();
 
     Livewire::test(ClassRegister::class)
         ->set('entries', [
-            (string) $a->id => ['absence' => ClassRegister::ABSENCE_MOTIVATED],
-            (string) $b->id => ['absence' => ClassRegister::ABSENCE_UNMOTIVATED],
+            (string) $a->id => ['absence' => ClassRegister::ABSENCE_MARKED],
+            (string) $b->id => ['absence' => ClassRegister::ABSENCE_MARKED],
         ])
         ->call('saveEntries')
         ->assertHasNoErrors();
 
-    // Statutul ales pe rând se scrie ca atare — fără flag global, fără transformări.
-    expect(Absence::query()->where('student_id', $a->id)->sole()->is_motivated)->toBeTrue()
-        ->and(Absence::query()->where('student_id', $b->id)->sole()->is_motivated)->toBeFalse();
+    // Profesorul nu mai alege Mot./Nem.: ambele rânduri așteaptă decizia dirigintelui.
+    expect(Absence::query()->where('student_id', $a->id)->sole()->is_motivated)->toBeNull()
+        ->and(Absence::query()->where('student_id', $b->id)->sole()->is_motivated)->toBeNull();
 });
 
-it('comutatorul de absență ține o singură stare și se poate anula', function () {
+it('comutatorul de absență e un simplu marcaj: click activează, click anulează', function () {
     actingAs($this->profUser);
 
     $a = $this->students->first();
     $component = Livewire::test(ClassRegister::class);
 
-    // Alegere directă…
-    $component->call('toggleAbsence', $a->id, ClassRegister::ABSENCE_UNMOTIVATED);
-    expect($component->get('entries')[$a->id]['absence'])->toBe(ClassRegister::ABSENCE_UNMOTIVATED);
+    // Marcare directă…
+    $component->call('toggleAbsence', $a->id);
+    expect($component->get('entries')[$a->id]['absence'])->toBe(ClassRegister::ABSENCE_MARKED);
 
-    // …corectare într-un singur click, fără pas intermediar…
-    $component->call('toggleAbsence', $a->id, ClassRegister::ABSENCE_MOTIVATED);
-    expect($component->get('entries')[$a->id]['absence'])->toBe(ClassRegister::ABSENCE_MOTIVATED);
-
-    // …iar click pe starea activă o anulează: elevul redevine prezent.
-    $component->call('toggleAbsence', $a->id, ClassRegister::ABSENCE_MOTIVATED);
+    // …iar al doilea click o anulează: elevul redevine prezent.
+    $component->call('toggleAbsence', $a->id);
     expect($component->get('entries')[$a->id]['absence'])->toBeNull();
 
     $component->call('saveEntries');

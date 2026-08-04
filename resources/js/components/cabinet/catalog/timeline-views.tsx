@@ -63,20 +63,23 @@ function GradeChip({ entry }: { entry: TimelineEntry }) {
 }
 
 /**
- * Chip-ul de status al absenței. Eticheta e la SINGULAR („motivată" / „nemotivată") — chip-ul
- * calificã O absență, nu un grup; formele de plural rămân pentru contoare și filtre.
+ * Chip-ul de status al absenței. Eticheta e la SINGULAR („motivată" / „nemotivată" / „fără statut")
+ * — chip-ul calificã O absență, nu un grup; formele de plural rămân pentru contoare și filtre.
+ * `null` = consemnată de profesor, statutul urmează de la diriginte — chihlimbar, nu roșu.
  */
-function AbsenceChip({ motivated }: { motivated: boolean }) {
+function AbsenceChip({ motivated }: { motivated: boolean | null }) {
     const t = useTranslations();
 
     return (
         <span
             className={cn(
                 'inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-semibold first-letter:uppercase',
-                motivated ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-destructive/10 text-destructive',
+                motivated === true && 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+                motivated === false && 'bg-destructive/10 text-destructive',
+                motivated === null && 'bg-amber-400/15 text-amber-700 dark:text-amber-400',
             )}
         >
-            {t(motivated ? 'cabinet.motivated_one' : 'cabinet.unmotivated_one')}
+            {t(motivated === true ? 'cabinet.motivated_one' : motivated === false ? 'cabinet.unmotivated_one' : 'cabinet.pending_one')}
         </span>
     );
 }
@@ -200,7 +203,7 @@ export function ActivityTimeline({ timeline }: { timeline: ActivityTimelineData 
                                                 {entry.kind === 'grade' ? (
                                                     <GradeChip entry={entry} />
                                                 ) : (
-                                                    <AbsenceChip motivated={entry.motivated === true} />
+                                                    <AbsenceChip motivated={entry.motivated} />
                                                 )}
                                             </li>
                                         ))}

@@ -55,6 +55,7 @@ export function OverviewTab({
     absencesTotal,
     absencesMotivated,
     absencesUnmotivated,
+    absencesPending = 0,
     status,
     statusAck,
     deferralRisk,
@@ -67,6 +68,8 @@ export function OverviewTab({
     absencesTotal: number;
     absencesMotivated: number;
     absencesUnmotivated: number;
+    /** Consemnate de profesor, încă fără statut de la diriginte. */
+    absencesPending?: number;
     status: StudentStatus;
     statusAck: StatusAck;
     deferralRisk?: { risks: DeferralRisk[]; undetermined: string[]; noTimetable: boolean };
@@ -255,6 +258,14 @@ export function OverviewTab({
                         value={absencesUnmotivated}
                         onPress={onOpenSection ? () => onOpenSection('absente') : undefined}
                     />
+                    {/* Fără statut: dirigintele nu a decis încă — cardul apare doar când există. */}
+                    {absencesPending > 0 && (
+                        <StatCard
+                            label={t('cabinet.pending')}
+                            value={absencesPending}
+                            onPress={onOpenSection ? () => onOpenSection('absente') : undefined}
+                        />
+                    )}
                 </div>
 
                 {/* Comparație sem. curent vs anul trecut (spec §2.3) — apare doar dacă există date

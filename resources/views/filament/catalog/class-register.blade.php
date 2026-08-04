@@ -264,7 +264,8 @@
                                                 @endif
                                             </td>
 
-                                            {{-- Absențele la disciplină: total + câte nemotivate; datele la survol. --}}
+                                            {{-- Absențele la disciplină: total + câte nemotivate + câte încă fără statut;
+                                                 datele la survol (✓ motivată, ? fără statut). --}}
                                             <td class="h-12 px-3 py-2 text-center align-middle" title="{{ $row['absences']['dates'] }}">
                                                 @if ($row['absences']['total'] === 0)
                                                     <span class="text-gray-300 dark:text-gray-600">—</span>
@@ -273,6 +274,11 @@
                                                     @if ($row['absences']['unmotivated'] > 0)
                                                         <span class="ms-1 text-xs font-medium text-danger-600 dark:text-danger-400">
                                                             ({{ $row['absences']['unmotivated'] }} {{ __('panel.class_register.unmotivated_short') }})
+                                                        </span>
+                                                    @endif
+                                                    @if ($row['absences']['pending'] > 0)
+                                                        <span class="ms-1 text-xs font-medium text-warning-600 dark:text-warning-400">
+                                                            ({{ $row['absences']['pending'] }} {{ __('panel.class_register.pending_short') }})
                                                         </span>
                                                     @endif
                                                 @endif
@@ -297,37 +303,32 @@
                                             @endif
 
                                             @if ($canAbsent)
-                                                {{-- Statutul absenței se alege DIRECT, dintr-un click: „Mot." / „Nem.".
-                                                     O singură stare activă (câmpul ține o valoare, nu două bife);
-                                                     click pe cea activă anulează absența, click pe cealaltă corectează
-                                                     pe loc. Lățime fixă a celulei → rândurile rămân aliniate. --}}
+                                                {{-- UN singur buton: „Absent" (cerința beneficiarului, 04.08.2026).
+                                                     Profesorul rareori știe DE CE lipsește elevul, deci nu i se mai
+                                                     cere statutul aici — absența pleacă fără statut, iar dirigintele
+                                                     o decide din secțiunea Absențe. Click activează, click anulează. --}}
                                                 @php($absence = $this->entries[$studentId]['absence'] ?? null)
+                                                @php($marked = $absence === \App\Filament\Pages\ClassRegister::ABSENCE_MARKED)
                                                 <td class="h-12 px-3 py-2 align-middle">
-                                                    <div class="flex items-center justify-center gap-1" role="group"
-                                                        aria-label="{{ __('panel.class_register.absent_column') }} — {{ $row['student']->full_name }}">
-                                                        @foreach ([
-                                                            \App\Filament\Pages\ClassRegister::ABSENCE_MOTIVATED => ['label' => __('panel.class_register.absence_motivated_short'), 'title' => __('panel.class_register.absence_motivated'), 'active' => 'bg-success-600 text-white ring-success-600'],
-                                                            \App\Filament\Pages\ClassRegister::ABSENCE_UNMOTIVATED => ['label' => __('panel.class_register.absence_unmotivated_short'), 'title' => __('panel.class_register.absence_unmotivated'), 'active' => 'bg-danger-600 text-white ring-danger-600'],
-                                                        ] as $state => $option)
-                                                            <button
-                                                                type="button"
-                                                                data-quick-absence
-                                                                @if ($absence === $state) data-quick-absence-active @endif
-                                                                wire:click="toggleAbsence({{ $studentId }}, '{{ $state }}')"
-                                                                title="{{ $option['title'] }}"
-                                                                aria-pressed="{{ $absence === $state ? 'true' : 'false' }}"
-                                                                @class([
-                                                                    'h-8 w-14 rounded-lg text-xs font-semibold ring-1 transition duration-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
-                                                                    $option['active'] => $absence === $state,
-                                                                    // Neselectat, dar cealaltă e activă: estompat, fără să devină inutilizabil —
-                                                                    // corectarea unei alegeri greșite rămâne la un singur click.
-                                                                    'bg-white text-gray-400 ring-gray-950/10 opacity-50 hover:opacity-100 dark:bg-white/5 dark:text-gray-500 dark:ring-white/10' => $absence !== null && $absence !== $state,
-                                                                    'bg-white text-gray-600 ring-gray-950/10 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10 dark:hover:bg-white/10' => $absence === null,
-                                                                ])
-                                                            >
-                                                                {{ $option['label'] }}
-                                                            </button>
-                                                        @endforeach
+                                                    <div class="flex items-center justify-center">
+                                                        <button
+                                                            type="button"
+                                                            data-quick-absence
+                                                            @if ($marked) data-quick-absence-active @endif
+                                                            wire:click="toggleAbsence({{ $studentId }})"
+                                                            title="{{ __('panel.class_register.absence_mark_title') }}"
+                                                            aria-pressed="{{ $marked ? 'true' : 'false' }}"
+                                                            aria-label="{{ __('panel.class_register.absent_column') }} — {{ $row['student']->full_name }}"
+                                                            @class([
+                                                                'h-8 w-24 rounded-lg text-xs font-semibold ring-1 transition duration-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
+                                                                // Activ = chihlimbar, culoarea „fără statut" din secțiunea Absențe:
+                                                                // același semn pentru aceeași stare, de la consemnare la triaj.
+                                                                'bg-warning-500 text-white ring-warning-500 dark:bg-warning-400 dark:text-warning-950 dark:ring-warning-400' => $marked,
+                                                                'bg-white text-gray-600 ring-gray-950/10 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10 dark:hover:bg-white/10' => ! $marked,
+                                                            ])
+                                                        >
+                                                            {{ __('panel.class_register.absence_mark') }}
+                                                        </button>
                                                     </div>
                                                 </td>
                                             @endif

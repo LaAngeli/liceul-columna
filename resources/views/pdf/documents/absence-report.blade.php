@@ -13,13 +13,16 @@
             <td>Total absențe<br><b>{{ $total }}</b></td>
             <td>Motivate<br><b class="good" style="font-size: 15pt;">{{ $totalMotivated }}</b></td>
             <td>Nemotivate<br><b class="{{ $totalUnmotivated > 0 ? 'bad' : '' }}" style="font-size: 15pt;">{{ $totalUnmotivated }}</b></td>
+            @if (($totalPending ?? 0) > 0)
+                <td>Fără statut<br><b style="font-size: 15pt;">{{ $totalPending }}</b></td>
+            @endif
         </tr>
     </table>
 
     @forelse ($sections as $section)
         <div class="section-h">{{ $section['label'] }} — {{ count($section['rows']) }} {{ count($section['rows']) === 1 ? 'absență' : 'absențe' }}
             @if (count($section['rows']) > 0)
-                ({{ $section['motivated'] }} motivate · {{ $section['unmotivated'] }} nemotivate)
+                ({{ $section['motivated'] }} motivate · {{ $section['unmotivated'] }} nemotivate{{ ($section['pending'] ?? 0) > 0 ? ' · '.$section['pending'].' fără statut' : '' }})
             @endif
         </div>
         @if (count($section['rows']) > 0)
@@ -36,7 +39,8 @@
                         <tr class="{{ $loop->even ? 'alt' : '' }}">
                             <td>{{ $row['date'] }}</td>
                             <td>{{ $row['subject'] }}</td>
-                            <td class="num">{!! $row['motivated'] ? '<span class="good">Da</span>' : '<span class="bad">Nu</span>' !!}</td>
+                            {{-- Tri-state: absența fără statut nu e „Nu" — dirigintele încă nu a decis. --}}
+                            <td class="num">@if ($row['motivated'] === null)<span class="muted">Fără statut</span>@elseif ($row['motivated'])<span class="good">Da</span>@else<span class="bad">Nu</span>@endif</td>
                         </tr>
                     @endforeach
                 </tbody>

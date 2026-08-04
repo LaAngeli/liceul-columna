@@ -145,14 +145,18 @@ class ViewAbsenceMotivation extends ViewRecord
                 'subject' => $absence->subject !== null
                     ? ContentTranslator::subject($absence->subject->name)
                     : (string) __('panel.absence_motivation_view.full_day'),
-                'motivated' => $absence->is_motivated,
+                // Pentru IMPACT contează doar dacă e deja motivată: cele fără statut și cele
+                // nemotivate deopotrivă vor deveni motivate la aprobare.
+                'motivated' => $absence->is_motivated === true,
             ])
             ->all();
 
         return [
             'items' => array_values($items),
             'total' => $absences->count(),
-            'unmotivated' => $absences->where('is_motivated', false)->count(),
+            // Tot ce NU e motivat (nemotivate + fără statut) — exact rândurile pe care approve()
+            // le va atinge; filtrare STRICTĂ, `->where(…, false)` ar compara lejer.
+            'unmotivated' => $absences->filter(fn (Absence $absence): bool => $absence->is_motivated !== true)->count(),
         ];
     }
 

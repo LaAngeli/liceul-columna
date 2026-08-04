@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Absences\Pages;
 
+use App\Enums\AbsenceStatus;
 use App\Filament\Concerns\EnforcesAbsenceScope;
 use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Resources\Absences\AbsenceResource;
@@ -40,11 +41,36 @@ class EditAbsence extends EditRecord
     }
 
     /**
+     * Formularul poartă statutul ca enum virtual (`status`) — la umplere se derivă din
+     * `is_motivated`, la salvare se traduce înapoi. Editarea e deja gardată de policy
+     * (dirigintele clasei / administrația), deci aici nu mai e nevoie de o a doua gardă.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['status'] = AbsenceStatus::fromMotivated(
+            isset($data['is_motivated']) ? (bool) $data['is_motivated'] : null,
+        )->value;
+
+        return $data;
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        $raw = $data['status'] ?? null;
+        $status = $raw instanceof AbsenceStatus ? $raw : AbsenceStatus::tryFrom((string) ($raw ?? ''));
+        unset($data['status']);
+
+        if ($status !== null) {
+            $data['is_motivated'] = $status->motivatedValue();
+        }
+
         // Trecem id-ul curent ca să se excludă din verificarea anti-duplicat.
         $data = $this->enforceAbsenceScope($data, (int) $this->getRecord()->getKey());
 
@@ -73,13 +99,27 @@ class EditAbsence extends EditRecord
             return $data;
         }
 
-        $data['is_motivated'] = $record->hasApprovedMotivationOn($newDate);
+        // Statutul ales în FORMULAR la această salvare (dacă editorul l-a atins) — el e decizia
+        // curentă a dirigintelui, nu valoarea veche din bază.
+        $chosen = array_key_exists('is_motivated', $data) ? $data['is_motivated'] : $record->is_motivated;
 
-        // Termenul de motivare urmează noua stare (audit calendar): o absență devenită NEMOTIVATĂ
-        // prin mutarea datei intră în regimul §2.1 (termen = noua dată + 5 zile lucrătoare) —
+        if ($record->hasApprovedMotivationOn($newDate)) {
+            // Noua zi e acoperită de o dovadă aprobată → motivată, indiferent de statutul anterior.
+            $data['is_motivated'] = true;
+        } elseif ($chosen === true) {
+            // Era motivată, dar dovada nu mai acoperă noua zi → statutul redevine NEDECIS:
+            // dirigintele hotărăște pe noua dată, nu moștenește o motivare rămasă fără temei.
+            $data['is_motivated'] = null;
+        } else {
+            // Fără statut sau nemotivată: mutarea datei nu decide în locul dirigintelui.
+            $data['is_motivated'] = $chosen;
+        }
+
+        // Termenul de motivare urmează noua stare (audit calendar): o absență ne-motivată prin
+        // mutarea datei intră în regimul §2.1 (termen = noua dată + 5 zile lucrătoare) —
         // altfel rămânea cu termen NULL: invizibilă în calendarul familiei ca termen-limită și
         // sărită PE VECI de consolidarea zilnică. Motivată → termenul dispare (nu mai are obiect).
-        $data['motivation_deadline'] = $data['is_motivated'] ? null : WorkingDays::add($newDate, 5);
+        $data['motivation_deadline'] = $data['is_motivated'] === true ? null : WorkingDays::add($newDate, 5);
 
         return $data;
     }

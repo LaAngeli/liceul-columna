@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Absences\Pages;
 
+use App\Enums\AbsenceStatus;
 use App\Enums\RequestStatus;
 use App\Filament\Concerns\DisablesCreateAnother;
 use App\Filament\Concerns\EnforcesAbsenceScope;
@@ -44,6 +45,18 @@ class CreateAbsence extends CreateRecord
             $this->motivationDocumentPath = (string) $data['motivation_document'];
         }
         unset($data['motivate_now'], $data['motivation_reason'], $data['motivation_document']);
+
+        // STATUTUL pe server, nu din vizibilitatea câmpului: profesorul consemnează FĂRĂ statut
+        // (null — îl fixează dirigintele), oricare ar fi payload-ul; dirigintele/administrația
+        // scriu exact statutul ales în formular (04.08.2026). Filament livrează opțiunea fie ca
+        // enum (options(AbsenceStatus::class)), fie ca string brut — acceptăm ambele forme.
+        $raw = $data['status'] ?? null;
+        $status = $raw instanceof AbsenceStatus ? $raw : AbsenceStatus::tryFrom((string) ($raw ?? ''));
+        unset($data['status']);
+
+        $data['is_motivated'] = $canMotivate
+            ? ($status ?? AbsenceStatus::Pending)->motivatedValue()
+            : null;
 
         return $this->enforceAbsenceScope($data);
     }

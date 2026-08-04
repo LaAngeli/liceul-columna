@@ -720,6 +720,7 @@ return [
         'abs_many' => 'absențe',
         'abs_cal_motivated' => 'zi cu absențe motivate',
         'abs_cal_unmotivated' => 'zi cu absențe nemotivate',
+        'abs_cal_pending' => 'zi cu absențe fără statut',
         'catalog_sec_week' => 'Orarul săptămânal',
         // Orarul săptămânal normalizat (modulul Orar).
         'sched_room' => 'sala',
@@ -792,6 +793,8 @@ return [
         'motivated_one' => 'motivată',
         'motivated_other' => 'motivate',
         'unmotivated_one' => 'nemotivată',
+        'pending' => 'fără statut',
+        'pending_one' => 'fără statut',
         'unmotivated_other' => 'nemotivate',
         'transcript' => 'Foaie matricolă',
         'class' => 'Clasa',

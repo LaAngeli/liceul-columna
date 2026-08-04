@@ -20,7 +20,7 @@ class RecomputeMotivationDeadlines
         $updated = 0;
 
         Absence::query()
-            ->where('is_motivated', false)
+            ->notMotivated()
             ->whereNull('motivation_locked_at')
             ->whereNotNull('motivation_deadline')
             ->each(function (Absence $absence) use (&$updated): void {

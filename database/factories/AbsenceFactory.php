@@ -29,4 +29,15 @@ class AbsenceFactory extends Factory
             'is_motivated' => false,
         ];
     }
+
+    /** Consemnată de profesor, încă fără statut — starea în care aterizează la diriginte. */
+    public function pending(): static
+    {
+        return $this->state(['is_motivated' => null]);
+    }
+
+    public function motivated(): static
+    {
+        return $this->state(['is_motivated' => true]);
+    }
 }

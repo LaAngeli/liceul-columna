@@ -35,6 +35,7 @@ return [
     // Titluri pentru evenimentele auto-agregate (folosite în proiectoare, localizate pe server).
     'auto_absence' => 'Absență',
     'auto_absence_motivated' => 'Absență motivată',
+    'auto_absence_pending' => 'Absență (statut în curs de stabilire)',
     'auto_motivation_deadline' => 'Termen de motivare a absenței',
     'auto_corigenta_exam' => 'Examen de corigență',
     'auto_corigenta_session' => 'Sesiune de corigență',

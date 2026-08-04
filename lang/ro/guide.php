@@ -26,7 +26,7 @@ return [
 
     'grades' => 'Notele nu se șterg. O notă greșită se anulează, cu motiv: rămâne în istoric, dar nu mai intră în medii și nu se mai vede în cabinetul familiei. Ca să schimbi valoarea unei note, ceri o corectare, iar conducerea o aprobă.',
 
-    'absences' => 'Absențele elevilor, pe zile și discipline. Motivarea nu se bifează de aici: familia o cere din cabinetul ei, iar dirigintele o aprobă la „Motivări absențe". Familia are la dispoziție 5 zile lucrătoare de la data absenței.',
+    'absences' => 'Absențele elevilor, pe zile și discipline. Profesorul doar consemnează („Absent”, fără statut); statutul — motivată sau nemotivată — îl fixează dirigintele clasei, direct din listă. Familia poate cere motivarea din cabinetul ei în 5 zile lucrătoare de la data absenței; la expirarea termenului, absența rămasă fără statut se consolidează automat ca nemotivată.',
 
     'homework' => 'Temele date claselor tale. O temă o văd doar elevii clasei respective și doar la disciplina la care ai adăugat-o. Linkurile trebuie să fie adrese de internet; trimiterile la manual se scriu în câmpul pentru resurse tipărite.',
 
@@ -107,6 +107,7 @@ return [
         'grade_graded_on' => 'Semestrul în care intră nota este dat de această dată, nu de ziua în care o introduci. O notă cu dată de după încheierea anului școlar nu se acceptă.',
 
         'absence_occurred_on' => 'De la această dată se numără cele 5 zile lucrătoare în care familia poate cere motivarea. Dacă se adaugă zile libere între timp, termenul se prelungește automat.',
+        'absence_status' => 'Profesorul consemnează absența fără statut — el rareori știe de ce lipsește elevul. Statutul îl fixați aici doar pentru clasa dvs. de dirigenție (sau ca administrație): „motivată” intră în contorul verde al elevului, „nemotivată” curge spre pragurile de corigență/amânare. Dacă nimeni nu decide până la expirarea termenului de motivare (5 zile lucrătoare), absența se consolidează automat ca nemotivată.',
 
         'enrollment_departure_reason' => 'Contează motivul, nu doar data. Doar „absolvire" îi păstrează elevului accesul la propria situație școlară și la adeverințe; la transfer sau exmatriculare accesul se închide.',
 

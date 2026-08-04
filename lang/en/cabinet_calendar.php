@@ -35,6 +35,7 @@ return [
     // Titles for auto-aggregated events (used by projectors, localized server-side).
     'auto_absence' => 'Absence',
     'auto_absence_motivated' => 'Excused absence',
+    'auto_absence_pending' => 'Absence (status being set)',
     'auto_motivation_deadline' => 'Absence justification deadline',
     'auto_corigenta_exam' => 'Remedial exam',
     'auto_corigenta_session' => 'Remedial exam session',

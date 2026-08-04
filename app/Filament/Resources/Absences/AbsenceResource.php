@@ -45,6 +45,41 @@ class AbsenceResource extends Resource
         return __('panel.resources.absences.plural');
     }
 
+    /**
+     * ȘTAFETA către diriginte (cerința beneficiarului, 04.08.2026): profesorul consemnează fără
+     * statut, iar numărul absențelor rămase de decis îi apare dirigintelui direct în meniu —
+     * scoped la clasele LUI. Administrația academică vede coada întregii școli. Profesorul de
+     * disciplină nu are nimic de decis → fără badge (un număr pe care nu-l poți scădea e zgomot).
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $user = auth('web')->user();
+
+        if ($user === null) {
+            return null;
+        }
+
+        if ($user->canAdministerCatalog()) {
+            $count = Absence::query()->pending()->count();
+        } elseif (($classIds = $user->contextHomeroomClassIds()) !== []) {
+            $count = Absence::query()->pending()->whereIn('school_class_id', $classIds)->count();
+        } else {
+            return null;
+        }
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return __('panel.tables.absences.pending_badge_tooltip');
+    }
+
     // Catalogul academic nu se afișează administratorului tehnic (decizia „AT = doar agregate
     // ne-PII"); staff-ul academic vede, scoped prin getEloquentQuery. Audit Î-2/#28.
     public static function canViewAny(): bool

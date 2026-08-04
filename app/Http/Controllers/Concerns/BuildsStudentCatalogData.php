@@ -667,10 +667,15 @@ trait BuildsStudentCatalogData
         }
 
         // Contoarele pe (disciplină, semestru) — baza pastilelor de filtrare și a cardurilor.
+        // Strict pe cele TREI stări: absența fără statut (null) nu e nemotivată — e nedecisă.
         foreach ($rows as $row) {
-            $stats = $subjects[$row['subjectId']]['terms'][$row['term']] ?? ['total' => 0, 'motivated' => 0, 'unmotivated' => 0];
+            $stats = $subjects[$row['subjectId']]['terms'][$row['term']] ?? ['total' => 0, 'motivated' => 0, 'unmotivated' => 0, 'pending' => 0];
             $stats['total']++;
-            $row['motivated'] ? $stats['motivated']++ : $stats['unmotivated']++;
+            match ($row['motivated']) {
+                true => $stats['motivated']++,
+                false => $stats['unmotivated']++,
+                default => $stats['pending']++,
+            };
             $subjects[$row['subjectId']]['terms'][$row['term']] = $stats;
         }
 
@@ -716,7 +721,9 @@ trait BuildsStudentCatalogData
 
             $motivated = count(array_filter($termRows, fn (array $row): bool => $row['motivated'] === true));
             $total = count($termRows);
-            $unmotivated = $total - $motivated;
+            // Strict: fără statut ≠ nemotivată — dirigintele încă nu a decis.
+            $unmotivated = count(array_filter($termRows, fn (array $row): bool => $row['motivated'] === false));
+            $pending = $total - $motivated - $unmotivated;
 
             /** @var array<int, int> $perSubject */
             $perSubject = [];
@@ -730,6 +737,7 @@ trait BuildsStudentCatalogData
                 'total' => $total,
                 'motivated' => $motivated,
                 'unmotivated' => $unmotivated,
+                'pending' => $pending,
                 // Procentul motivat — rostul barei de proporție din sinteză.
                 'motivatedRate' => $total > 0 ? (int) round($motivated / $total * 100) : null,
                 'days' => count(array_unique(array_column($termRows, 'iso'))),
@@ -778,7 +786,7 @@ trait BuildsStudentCatalogData
             $number = (int) $term->number;
             $termRows = array_filter($rows, fn (array $row): bool => $row['term'] === $number);
 
-            /** @var array<string, array{key: string, label: string, total: int, motivated: int, unmotivated: int}> $buckets */
+            /** @var array<string, array{key: string, label: string, total: int, motivated: int, unmotivated: int, pending: int}> $buckets */
             $buckets = [];
             foreach ($termRows as $row) {
                 $buckets[$row['monthKey']] ??= [
@@ -787,9 +795,15 @@ trait BuildsStudentCatalogData
                     'total' => 0,
                     'motivated' => 0,
                     'unmotivated' => 0,
+                    'pending' => 0,
                 ];
                 $buckets[$row['monthKey']]['total']++;
-                $row['motivated'] ? $buckets[$row['monthKey']]['motivated']++ : $buckets[$row['monthKey']]['unmotivated']++;
+                // Trei stări stricte: fără statut ≠ nemotivată (graficul le desenează distinct).
+                match ($row['motivated']) {
+                    true => $buckets[$row['monthKey']]['motivated']++,
+                    false => $buckets[$row['monthKey']]['unmotivated']++,
+                    default => $buckets[$row['monthKey']]['pending']++,
+                };
             }
 
             if ($buckets !== []) {
@@ -807,6 +821,7 @@ trait BuildsStudentCatalogData
                         'total' => 0,
                         'motivated' => 0,
                         'unmotivated' => 0,
+                        'pending' => 0,
                     ];
                     $cursor->addMonth();
                 }
@@ -929,8 +944,10 @@ trait BuildsStudentCatalogData
                         ? route('cabinet.motivation.document', ['absenceMotivation' => $motivation->id], false)
                         : null,
                     // Impactul perioadei — aceeași sursă ca efectul aprobării (absencesInPeriod).
+                    // `notMotivated`: aprobarea atinge și absențele încă fără statut, deci contorul
+                    // arată exact câte rânduri va motiva.
                     'absencesTotal' => $motivation->absencesInPeriod()->count(),
-                    'absencesUnmotivated' => $motivation->absencesInPeriod()->where('is_motivated', false)->count(),
+                    'absencesUnmotivated' => $motivation->absencesInPeriod()->notMotivated()->count(),
                 ];
             })
             ->all();

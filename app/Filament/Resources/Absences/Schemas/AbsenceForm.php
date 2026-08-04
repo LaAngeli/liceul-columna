@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Absences\Schemas;
 
+use App\Enums\AbsenceStatus;
 use App\Models\Enrollment;
 use App\Models\SchoolClass;
 use App\Models\Student;
@@ -17,6 +18,8 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\ToggleButtons;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -93,6 +96,38 @@ class AbsenceForm
                             : (string) __('panel.forms.absence.free_day_warning', ['name' => $holiday->name]);
                     })
                     ->validationMessages(['before_or_equal' => __('validation.not_future_date')]),
+                // STATUTUL absenței — DOAR pentru cine îl poate fixa (dirigintele clasei alese /
+                // administrația). Profesorul consemnează FĂRĂ statut („Absent"): el rareori știe de
+                // ce lipsește elevul; dirigintele află pe parcursul zilei și decide (04.08.2026).
+                // Câmp virtual (`status`), tradus în `is_motivated` pe server — CreateAbsence/EditAbsence.
+                ToggleButtons::make('status')
+                    ->label(__('panel.forms.absence.status'))
+                    ->hint(PanelGuide::hint('absence_status'))
+                    ->options(AbsenceStatus::class)
+                    ->colors([
+                        AbsenceStatus::Pending->value => 'warning',
+                        AbsenceStatus::Motivated->value => 'success',
+                        AbsenceStatus::Unmotivated->value => 'danger',
+                    ])
+                    ->icons([
+                        AbsenceStatus::Pending->value => AbsenceStatus::Pending->icon(),
+                        AbsenceStatus::Motivated->value => AbsenceStatus::Motivated->icon(),
+                        AbsenceStatus::Unmotivated->value => AbsenceStatus::Unmotivated->icon(),
+                    ])
+                    ->inline()
+                    ->default(AbsenceStatus::Pending->value)
+                    // La creare, calea „Motivează acum" (cu dovadă) preia decizia — statutul simplu
+                    // se ascunde ca să nu existe două răspunsuri la aceeași întrebare.
+                    ->visible(fn (string $operation, Get $get): bool => self::canMotivate($get)
+                        && ! ($operation === 'create' && (bool) $get('motivate_now'))),
+                // Profesorului i se SPUNE regula, nu i se ascunde doar câmpul: altfel ar căuta
+                // vechile butoane Mot./Nem. și ar crede că e o defecțiune.
+                Text::make(fn (): string => (string) __('panel.forms.absence.status_teacher_note'))
+                    ->color('gray')
+                    ->visible(fn (string $operation, Get $get): bool => $operation === 'create'
+                        && $get('school_class_id') !== null
+                        && $get('school_class_id') !== ''
+                        && ! self::canMotivate($get)),
                 // Motivare LA CREARE (opțional, doar pe „create"): la activarea toggle-ului apar câmpurile
                 // pentru motiv + dovadă. NU setează direct is_motivated pe absență — la salvare creează un
                 // AbsenceMotivation aprobat cu justificativ (CreateAbsence::afterCreate). Sursă unică pentru

@@ -8,6 +8,11 @@
 */
 
 return [
+    'absence_status' => [
+        'pending' => 'Без статуса',
+        'motivated' => 'Уважительная',
+        'unmotivated' => 'Неуважительная',
+    ],
     'request_status' => [
         'pending' => 'В ожидании',
         'approved' => 'Одобрено',

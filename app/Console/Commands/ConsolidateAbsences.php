@@ -24,8 +24,11 @@ class ConsolidateAbsences extends Command
     {
         $today = Carbon::today();
 
+        // `notMotivated`: intră și absențele încă FĂRĂ STATUT — dacă dirigintele n-a decis și
+        // nici familia n-a depus nimic până la termen, rezultatul implicit e cel din practica
+        // școlii: nemotivată. Consolidarea FIXEAZĂ statutul, nu doar îl încuie.
         $candidates = Absence::query()
-            ->where('is_motivated', false)
+            ->notMotivated()
             ->whereNull('motivation_locked_at')
             ->whereNotNull('motivation_deadline')
             ->whereDate('motivation_deadline', '<', $today)
@@ -47,7 +50,7 @@ class ConsolidateAbsences extends Command
             }
 
             // Update prin model (nu bulk) → schimbarea e auditată (Absence e Auditable).
-            $absence->update(['motivation_locked_at' => now()]);
+            $absence->update(['motivation_locked_at' => now(), 'is_motivated' => false]);
             $locked++;
         }
 

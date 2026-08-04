@@ -186,7 +186,7 @@ it('salvarea din borderou rămâne permisă pe server în ambele contexte (gărz
 
     Livewire::withQueryParams(['clasa' => (string) $this->classA->id, 'disciplina' => (string) $this->otherSubject->id])
         ->test(ClassRegister::class)
-        ->set('entries', [(string) $this->studentA->id => ['absence' => ClassRegister::ABSENCE_UNMOTIVATED]])
+        ->set('entries', [(string) $this->studentA->id => ['absence' => ClassRegister::ABSENCE_MARKED]])
         ->call('saveEntries')
         ->assertHasNoErrors();
 

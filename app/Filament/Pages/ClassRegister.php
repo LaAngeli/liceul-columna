@@ -66,12 +66,13 @@ class ClassRegister extends Page
     public ?string $subjectParam = null;
 
     /**
-     * Introducerea rapidă, per elev: nota tastată + STAREA absenței.
+     * Introducerea rapidă, per elev: nota tastată + marcajul de absență.
      *
-     * `absence` ia una din trei valori: `null` (elev prezent), `motivated`, `unmotivated` — tipul
-     * se alege direct pe rând, într-un singur click (cerința beneficiarului, 2026-07-30). Varianta
-     * anterioară — bifă „absent" + un comutator global „sunt motivate" — cerea doi pași și lăsa
-     * statutul ambiguu până la salvare, iar un batch nu putea amesteca motivate cu nemotivate.
+     * `absence` are DOUĂ valori: `null` (elev prezent) sau `absent` — un singur buton, fără
+     * statut (cerința beneficiarului, 04.08.2026). Vechile butoane „Mot./Nem." îi cereau
+     * profesorului o informație pe care de regulă n-o are: DE CE lipsește elevul află doar
+     * dirigintele, pe parcursul zilei. Absența pleacă de aici FĂRĂ statut, iar dirigintele o
+     * statutează din secțiunea Absențe (unde îl așteaptă coada „fără statut" cu badge în meniu).
      *
      * @var array<int|string, array{value?: string|null, absence?: string|null}>
      */
@@ -82,10 +83,8 @@ class ClassRegister extends Page
 
     public string $entryType = EvaluationType::Curenta->value;
 
-    /** Stările posibile ale unei absențe pe rând (o singură stare activă la un moment dat). */
-    public const ABSENCE_MOTIVATED = 'motivated';
-
-    public const ABSENCE_UNMOTIVATED = 'unmotivated';
+    /** Marcajul de absență al unui rând (starea „prezent" = null). */
+    public const ABSENCE_MARKED = 'absent';
 
     public function mount(): void
     {
@@ -389,7 +388,7 @@ class ClassRegister extends Page
      *     student: Student,
      *     grades: list<array{value: string, weighted: bool, tooltip: string}>,
      *     average: string|null,
-     *     absences: array{total: int, unmotivated: int, dates: string}
+     *     absences: array{total: int, unmotivated: int, pending: int, dates: string}
      * }>
      */
     public function rows(): array
@@ -500,10 +499,21 @@ class ClassRegister extends Page
                     : null,
                 'absences' => [
                     'total' => $studentAbsences->count(),
-                    'unmotivated' => $studentAbsences->where('is_motivated', false)->count(),
-                    // Datele absențelor, cu bifă pe cele motivate — se citesc la survol pe contor.
+                    // STRICT `=== false`: `->where(…, false)` compară LEJER, iar null == false —
+                    // absențele încă fără statut ar fi numărate drept nemotivate.
+                    'unmotivated' => $studentAbsences->filter(fn (Absence $absence): bool => $absence->is_motivated === false)->count(),
+                    'pending' => $studentAbsences->filter(fn (Absence $absence): bool => $absence->is_motivated === null)->count(),
+                    // Datele absențelor: ✓ motivată, ? încă fără statut — se citesc la survol pe contor.
                     'dates' => $studentAbsences
-                        ->map(fn (Absence $absence): string => $absence->occurred_on->format('d.m.Y').($absence->is_motivated ? ' ✓' : ''))
+                        ->map(function (Absence $absence): string {
+                            $marker = match ($absence->is_motivated) {
+                                true => ' ✓',
+                                false => '',
+                                default => ' ?',
+                            };
+
+                            return $absence->occurred_on->format('d.m.Y').$marker;
+                        })
                         ->implode(', '),
                 ],
             ];
@@ -563,20 +573,14 @@ class ClassRegister extends Page
     }
 
     /**
-     * Comută starea absenței pe un rând: click pe o opțiune o activează, click pe cea DEJA activă
-     * o anulează (elevul redevine prezent), click pe cealaltă corectează direct — fără să treci
-     * prin „deselectează, apoi alege". O singură stare activă, garantat de model: câmpul ține o
-     * valoare, nu două bife.
+     * Comută marcajul de absență pe un rând: un click marchează elevul absent, încă unul îl
+     * readuce prezent. Fără statut aici — profesorul consemnează, dirigintele decide.
      */
-    public function toggleAbsence(int $studentId, string $state): void
+    public function toggleAbsence(int $studentId): void
     {
-        if (! in_array($state, [self::ABSENCE_MOTIVATED, self::ABSENCE_UNMOTIVATED], true)) {
-            return;
-        }
-
         $current = $this->entries[$studentId]['absence'] ?? null;
 
-        $this->entries[$studentId]['absence'] = $current === $state ? null : $state;
+        $this->entries[$studentId]['absence'] = $current === self::ABSENCE_MARKED ? null : self::ABSENCE_MARKED;
     }
 
     // ── Salvarea în masă ────────────────────────────────────────────────────────────────────
@@ -622,8 +626,8 @@ class ClassRegister extends Page
             $value = isset($entry['value']) ? trim((string) $entry['value']) : '';
             $absence = $entry['absence'] ?? null;
 
-            // Doar stările cunoscute trec; orice altceva din payload = elev prezent.
-            if (! in_array($absence, [self::ABSENCE_MOTIVATED, self::ABSENCE_UNMOTIVATED], true)) {
+            // Doar marcajul cunoscut trece; orice altceva din payload = elev prezent.
+            if ($absence !== self::ABSENCE_MARKED) {
                 $absence = null;
             }
 
@@ -686,8 +690,10 @@ class ClassRegister extends Page
                             'subject_id' => (int) $subject->getKey(),
                             'school_class_id' => (int) $class->getKey(),
                             'occurred_on' => $date,
-                            // Statutul ales pe rând se scrie ca atare — fără transformări ulterioare.
-                            'is_motivated' => $entry['absence'] === self::ABSENCE_MOTIVATED,
+                            // FĂRĂ statut: profesorul consemnează, dirigintele decide (motivată/
+                            // nemotivată) din secțiunea Absențe. Observerul motivează automat doar
+                            // dacă ziua e deja acoperită de o motivare aprobată.
+                            'is_motivated' => null,
                             'teacher_id' => $user->teacher?->getKey(),
                         ]);
 

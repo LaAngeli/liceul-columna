@@ -26,7 +26,7 @@ return [
 
     'grades' => 'Grades are never deleted. A wrong grade is annulled with a reason: it stays in the history but no longer counts towards averages and no longer shows in the family cabinet. To change a grade\'s value you request a correction, and management approves it.',
 
-    'absences' => 'Student absences, by day and subject. Excusing is not ticked here: the family requests it from their own cabinet, and the homeroom teacher approves it under "Absence excusals". The family has 5 working days from the date of the absence.',
+    'absences' => 'Student absences, by day and subject. The teacher only records ("Absent", no status); the status - justified or unjustified - is set by the homeroom teacher right from the list. The family can request justification from their cabinet within 5 working days from the date of the absence; after the deadline, an absence left without a status is automatically consolidated as unjustified.',
 
     'homework' => 'The assignments you have given your classes. An assignment is seen only by that class, and only under the subject you added it to. Links must be internet addresses; references to a textbook go in the printed-resources field.',
 
@@ -107,6 +107,7 @@ return [
         'grade_graded_on' => 'This date decides which term the grade falls into, not the day you enter it. A grade dated after the school year has ended is not accepted.',
 
         'absence_occurred_on' => 'The family\'s 5 working days to request an excusal are counted from this date. If days off are added in the meantime, the deadline extends automatically.',
+        'absence_status' => 'The teacher records the absence without a status - they rarely know why the student is missing. You set the status here only for your homeroom class (or as administration): justified goes to the student green counter, unjustified flows toward the retake thresholds. If nobody decides before the motivation deadline (5 working days), the absence is automatically consolidated as unjustified.',
 
         'enrollment_departure_reason' => 'The reason matters, not just the date. Only "graduation" keeps the student\'s access to their own record and to certificates; with a transfer or an expulsion, that access closes.',
 

@@ -409,8 +409,11 @@ class CabinetController extends Controller
             'status' => $status,
             'statusAck' => $this->statusAcknowledgement($student, $viewer, $status),
             'absencesTotal' => $student->absences->count(),
-            'absencesMotivated' => $student->absences->where('is_motivated', true)->count(),
-            'absencesUnmotivated' => $student->absences->where('is_motivated', false)->count(),
+            // Filtrare STRICTĂ (`->where(…, false)` compară lejer, iar null == false): absențele
+            // încă fără statut nu sunt nemotivate — dirigintele nu a decis.
+            'absencesMotivated' => $student->absences->filter(fn (Absence $a): bool => $a->is_motivated === true)->count(),
+            'absencesUnmotivated' => $student->absences->filter(fn (Absence $a): bool => $a->is_motivated === false)->count(),
+            'absencesPending' => $student->absences->filter(fn (Absence $a): bool => $a->is_motivated === null)->count(),
             // Absolventul depune DOAR adeverințe — restul tipurilor presupun o înmatriculare activă.
             'requestTypes' => $isAlumnus ? DocumentRequestType::alumniOptions() : DocumentRequestType::options(),
             // Doar familia (tutore/elev) poate depune cereri de motivare/tipice — personalul vede
@@ -504,11 +507,14 @@ class CabinetController extends Controller
         // nimic (motivare „oarbă": familia greșește luna, dirigintele o aprobă degeaba). (#37)
         // whereDate (nu whereBetween): occurred_on e datetime, iar o margine dată-doar ar exclude
         // absența chiar pe ziua de FINAL (timpul 00:00:00 > '…' lexicografic în comparația de string).
+        // `notMotivated` (nu `= false`): familia poate cere motivarea și pentru absențele încă
+        // FĂRĂ STATUT — proaspăt consemnate de profesor, neajunse la diriginte. Aprobarea lor
+        // le motivează direct; a-i cere familiei să aștepte întâi statutul ar fi absurd.
         $hasUnmotivated = Absence::query()
             ->where('student_id', $student->id)
             ->whereDate('occurred_on', '>=', $data['period_start'])
             ->whereDate('occurred_on', '<=', $data['period_end'])
-            ->where('is_motivated', false)
+            ->notMotivated()
             ->exists();
 
         if (! $hasUnmotivated) {
@@ -554,7 +560,7 @@ class CabinetController extends Controller
             ->where('student_id', $student->id)
             ->whereDate('occurred_on', '>=', $data['period_start'])
             ->whereDate('occurred_on', '<=', $data['period_end'])
-            ->where('is_motivated', false)
+            ->notMotivated()
             ->where(function (Builder $query): void {
                 $query->whereNotNull('motivation_locked_at')
                     ->orWhereDate('motivation_deadline', '<', today());
@@ -1007,10 +1013,13 @@ class CabinetController extends Controller
                     'subject' => $absence->subject !== null
                         ? ContentTranslator::subject((string) $absence->subject->name)
                         : $wholeDayLabel,
-                    'motivated' => (bool) $absence->is_motivated,
+                    // Tri-state: null = statutul încă nu e decis de diriginte (afișat distinct).
+                    'motivated' => $absence->is_motivated,
                 ])->values()->all(),
-                'motivated' => $rows->where('is_motivated', true)->count(),
-                'unmotivated' => $rows->where('is_motivated', false)->count(),
+                // Filtrare STRICTĂ — `->where(…, false)` compară lejer și ar număra null drept nemotivată.
+                'motivated' => $rows->filter(fn (Absence $a): bool => $a->is_motivated === true)->count(),
+                'unmotivated' => $rows->filter(fn (Absence $a): bool => $a->is_motivated === false)->count(),
+                'pending' => $rows->filter(fn (Absence $a): bool => $a->is_motivated === null)->count(),
             ];
         }
 
@@ -1020,8 +1029,9 @@ class CabinetController extends Controller
             'yearLabel' => $yearName,
             'sections' => $sections,
             'total' => $absences->count(),
-            'totalMotivated' => $absences->where('is_motivated', true)->count(),
-            'totalUnmotivated' => $absences->where('is_motivated', false)->count(),
+            'totalMotivated' => $absences->filter(fn (Absence $a): bool => $a->is_motivated === true)->count(),
+            'totalUnmotivated' => $absences->filter(fn (Absence $a): bool => $a->is_motivated === false)->count(),
+            'totalPending' => $absences->filter(fn (Absence $a): bool => $a->is_motivated === null)->count(),
             'date' => SchoolCalendar::localNow()->format('d.m.Y'),
         ];
     }

@@ -6,6 +6,7 @@ use App\Filament\Resources\Absences\AbsenceResource;
 use App\Filament\Resources\Grades\GradeResource;
 use App\Filament\Resources\SchoolClasses\SchoolClassResource;
 use App\Filament\Widgets\Concerns\CockpitStats;
+use App\Models\Absence;
 use App\Models\Grade;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget;
@@ -53,7 +54,24 @@ class TeacherOverview extends StatsOverviewWidget
             ->where('is_motivated', false)
             ->count();
 
+        // Coada dirigintelui (04.08.2026): absențele consemnate de profesori, încă fără statut,
+        // în clasele lui de dirigenție — sarcina ZILEI, de-aia stă înaintea contorului istoric.
+        $homeroomIds = $user->contextHomeroomClassIds();
+        $pending = $homeroomIds === []
+            ? null
+            : Absence::query()->pending()->whereIn('school_class_id', $homeroomIds)->count();
+
+        $pendingStat = $pending === null ? [] : [
+            Stat::make(__('panel.widgets.teacher_overview.pending_status'), $pending)
+                ->description(__('panel.widgets.teacher_overview.pending_status_desc'))
+                ->descriptionIcon(Heroicon::OutlinedClock)
+                ->color($pending > 0 ? 'warning' : 'success')
+                ->extraAttributes(self::cockpit($pending > 0))
+                ->url(AbsenceResource::getUrl('index')),
+        ];
+
         return [
+            ...$pendingStat,
             Stat::make(__('panel.widgets.teacher_overview.my_classes'), count($classIds))
                 ->descriptionIcon(Heroicon::OutlinedRectangleStack)
                 ->color('primary')

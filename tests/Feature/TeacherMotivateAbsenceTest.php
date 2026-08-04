@@ -171,8 +171,9 @@ it('serverul ignoră „motivează acum" trimis de un profesor care nu e dirigin
         ->call('create')
         ->assertHasNoFormErrors();
 
+    // Profesorul care nu e diriginte nu poate nici motiva, nici statuta: absența rămâne fără statut.
     expect(Absence::query()->count())->toBe(1)
-        ->and(Absence::query()->first()->is_motivated)->toBeFalse()
+        ->and(Absence::query()->first()->is_motivated)->toBeNull()
         ->and(AbsenceMotivation::query()->count())->toBe(0);
 });
 

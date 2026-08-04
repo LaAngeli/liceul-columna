@@ -20,6 +20,7 @@ export function SituationTab({
     absenceOverview,
     absencesMotivated,
     absencesUnmotivated,
+    absencesPending = 0,
     motivations,
     motivationWindow,
     canRequestMotivation,
@@ -30,6 +31,8 @@ export function SituationTab({
     absenceOverview?: AbsenceOverviewData;
     absencesMotivated: number;
     absencesUnmotivated: number;
+    /** Consemnate de profesor, încă fără statut de la diriginte. */
+    absencesPending?: number;
     motivations?: MotivationItem[];
     motivationWindow: MotivationWindow | null;
     canRequestMotivation: boolean;
@@ -63,7 +66,7 @@ export function SituationTab({
             <section id="sectiune-absente" className="scroll-mt-20">
                 <SectionHeading
                     title={t('cabinet.reg_title')}
-                    actions={<AbsenceTotals motivated={absencesMotivated} unmotivated={absencesUnmotivated} />}
+                    actions={<AbsenceTotals motivated={absencesMotivated} unmotivated={absencesUnmotivated} pending={absencesPending} />}
                 />
                 <details className="mb-3 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
                     <summary className="cursor-pointer font-medium text-muted-foreground">

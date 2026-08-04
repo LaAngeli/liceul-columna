@@ -72,8 +72,8 @@ const data: AbsenceOverviewData = {
     ],
     currentTerm: 2,
     subjects: [
-        { id: 1, name: 'Matematică', teacher: 'Popescu Ion', terms: { 1: { total: 1, motivated: 1, unmotivated: 0 }, 2: { total: 2, motivated: 0, unmotivated: 2 } } },
-        { id: 2, name: 'Fizică', teacher: null, terms: { 2: { total: 1, motivated: 1, unmotivated: 0 } } },
+        { id: 1, name: 'Matematică', teacher: 'Popescu Ion', terms: { 1: { total: 1, motivated: 1, unmotivated: 0, pending: 0 }, 2: { total: 2, motivated: 0, unmotivated: 2, pending: 0 } } },
+        { id: 2, name: 'Fizică', teacher: null, terms: { 2: { total: 1, motivated: 1, unmotivated: 0, pending: 0 } } },
     ],
     absences: [
         entry({ id: 30, term: 2, iso: '2026-02-10', date: '10.02.2026', lesson: { number: 3, room: '204' } }),
@@ -82,14 +82,14 @@ const data: AbsenceOverviewData = {
         entry({ id: 10, term: 1, iso: '2025-10-08', date: '08.10.2025', monthLabel: 'Octombrie 2025', motivated: true }),
     ],
     summary: {
-        1: { total: 1, motivated: 1, unmotivated: 0, motivatedRate: 100, days: 1, subjectsCount: 1, worstSubject: null, lastDate: '08.10.2025', expiringSoon: 0, locked: 0, previousTotal: null, trend: null },
-        2: { total: 3, motivated: 1, unmotivated: 2, motivatedRate: 33, days: 2, subjectsCount: 2, worstSubject: { name: 'Matematică', count: 2 }, lastDate: '10.02.2026', expiringSoon: 0, locked: 0, previousTotal: 1, trend: 'down' },
+        1: { total: 1, motivated: 1, unmotivated: 0, pending: 0, motivatedRate: 100, days: 1, subjectsCount: 1, worstSubject: null, lastDate: '08.10.2025', expiringSoon: 0, locked: 0, previousTotal: null, trend: null },
+        2: { total: 3, motivated: 1, unmotivated: 2, pending: 0, motivatedRate: 33, days: 2, subjectsCount: 2, worstSubject: { name: 'Matematică', count: 2 }, lastDate: '10.02.2026', expiringSoon: 0, locked: 0, previousTotal: 1, trend: 'down' },
     },
     months: {
-        1: [{ key: '2025-10', label: 'Oct.', total: 1, motivated: 1, unmotivated: 0 }],
+        1: [{ key: '2025-10', label: 'Oct.', total: 1, motivated: 1, unmotivated: 0, pending: 0 }],
         2: [
-            { key: '2026-01', label: 'Ian.', total: 0, motivated: 0, unmotivated: 0 },
-            { key: '2026-02', label: 'Feb.', total: 3, motivated: 1, unmotivated: 2 },
+            { key: '2026-01', label: 'Ian.', total: 0, motivated: 0, unmotivated: 0, pending: 0 },
+            { key: '2026-02', label: 'Feb.', total: 3, motivated: 1, unmotivated: 2, pending: 0 },
         ],
     },
 };

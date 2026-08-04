@@ -6,12 +6,16 @@ use App\Models\Absence;
 use App\Models\User;
 
 /**
- * Absențele se consemnează de profesorul lecției sau de dirigintele clasei (scoping în
- * `Teacher::canRecordAbsence`), iar autoritatea academică le administrează pe toate.
+ * Diviziunea muncii pe absențe (cerința beneficiarului, 04.08.2026): profesorul lecției doar
+ * CONSEMNEAZĂ („Absent" — el rareori știe de ce lipsește elevul), iar DIRIGINTELE fixează statutul
+ * (motivată/nemotivată) și corectează/retrage consemnările clasei lui. Autoritatea academică le
+ * administrează pe toate.
  *
- * Ștergerea SOFT = „retragerea" unei absențe consemnate greșit; profesorul o poate face doar pe
- * ale LUI. Ștergerea PERMANENTĂ și restaurarea din coș rămân la autoritatea academică — profesorul
- * nu scoate definitiv date de catalog (audit staff, finding CRITIC #2).
+ * De aceea profesorului i-a RĂMAS doar create + view: editarea sau ștergerea unei absențe — chiar
+ * a lui, chiar fără statut — e act de gestiune a clasei, nu de consemnare. Greșeala unui profesor
+ * o îndreaptă dirigintele (care oricum validează statutul în aceeași zi). Aceeași linie ca la
+ * motivare: `canMotivateAbsencesFor` = dirigintele clasei (în context de diriginte, F3) sau
+ * administrația academică.
  */
 class AbsencePolicy
 {
@@ -30,46 +34,27 @@ class AbsencePolicy
         return $user->teacher !== null || $user->canAdministerCatalog();
     }
 
+    /** Editarea (inclusiv statutul) = dirigintele CLASEI absenței sau administrația academică. */
     public function update(User $user, Absence $absence): bool
     {
-        if ($user->canAdministerCatalog()) {
-            return true;
-        }
-
-        $teacher = $user->teacher;
-
-        return $teacher !== null && $teacher->canRecordAbsence(
-            (int) $absence->school_class_id,
-            $absence->subject_id !== null ? (int) $absence->subject_id : null,
-        );
+        return $user->canMotivateAbsencesFor((int) $absence->school_class_id);
     }
 
     /**
-     * Retragerea (ștergerea soft) unei absențe. Administrația poate oricare. Profesorul poate doar
-     * în scope-ul lui de consemnare ȘI doar dacă absența e a lui sau nu are autor — nu retrage
-     * consemnarea explicită a unui COLEG de la aceeași clasă.
-     *
-     * Absențele importate din sistemul vechi nu au autor (`teacher_id` null); fără ramura
-     * „fără autor", retragerea lor ar fi imposibilă pentru cine le gestionează zilnic.
+     * Retragerea (ștergerea soft) — aceeași autoritate ca editarea: dirigintele clasei sau
+     * administrația. Profesorul NU-și mai retrage nici propriile consemnări (le semnalează
+     * dirigintelui); ștergerea PERMANENTĂ și restaurarea din coș rămân la autoritatea academică —
+     * date de catalog nu se scot definitiv de la nivel de clasă (audit staff, finding CRITIC #2).
      */
     public function delete(User $user, Absence $absence): bool
     {
-        if ($user->canAdministerCatalog()) {
-            return true;
-        }
-
-        $teacher = $user->teacher;
-
-        if ($teacher === null || ! $this->update($user, $absence)) {
-            return false;
-        }
-
-        return $absence->teacher_id === null || (int) $absence->teacher_id === (int) $teacher->id;
+        return $user->canMotivateAbsencesFor((int) $absence->school_class_id);
     }
 
+    /** Poarta generală a acțiunilor de ștergere: dirigintele (are clase în context) sau administrația. */
     public function deleteAny(User $user): bool
     {
-        return $user->canAdministerCatalog() || $user->teacher !== null;
+        return $user->canAdministerCatalog() || $user->contextHomeroomClassIds() !== [];
     }
 
     public function restore(User $user, Absence $absence): bool

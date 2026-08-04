@@ -65,6 +65,8 @@ interface Props {
     absencesTotal: number;
     absencesMotivated: number;
     absencesUnmotivated: number;
+    /** Consemnate de profesor, încă fără statut de la diriginte. */
+    absencesPending: number;
     requestTypes: Record<string, string>;
     canRequestMotivation: boolean;
     // Cererile rămân deschise familiei și după absolvire (adeverințe) — de aceea sunt un steag
@@ -273,6 +275,7 @@ export default function StudentProfile(props: Props) {
                         absencesTotal={props.absencesTotal}
                         absencesMotivated={props.absencesMotivated}
                         absencesUnmotivated={props.absencesUnmotivated}
+                        absencesPending={props.absencesPending}
                         status={props.status}
                         statusAck={props.statusAck}
                         deferralRisk={props.deferralRisk}
@@ -290,6 +293,7 @@ export default function StudentProfile(props: Props) {
                         absenceOverview={props.absenceOverview}
                         absencesMotivated={props.absencesMotivated}
                         absencesUnmotivated={props.absencesUnmotivated}
+                        absencesPending={props.absencesPending}
                         motivations={props.motivations}
                         motivationWindow={props.motivationWindow}
                         canRequestMotivation={props.canRequestMotivation}

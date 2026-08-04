@@ -8,6 +8,11 @@
 */
 
 return [
+    'absence_status' => [
+        'pending' => 'No status',
+        'motivated' => 'Justified',
+        'unmotivated' => 'Unjustified',
+    ],
     'request_status' => [
         'pending' => 'Pending',
         'approved' => 'Approved',

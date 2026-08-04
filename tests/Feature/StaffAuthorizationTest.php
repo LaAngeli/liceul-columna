@@ -151,14 +151,12 @@ it('profesorul nu poate șterge DEFINITIV o absență, nici pe a lui', function 
     expect(Gate::forUser($this->profesor)->check('restore', $absence))->toBeFalse();
 });
 
-it('acțiunile de ștergere forțată și restaurare nu apar profesorului pe pagina de editare', function () {
+it('acțiunile de ștergere forțată și restaurare apar administrației; profesorul nu mai deschide editarea deloc', function () {
     $absence = auditAbsence($this, $this->teacher->id);
     $absence->delete();
 
     // Acțiunile de înregistrare stau pe rândul butoanelor formularului, nu în antet
     // ({@see App\Filament\Concerns\PlacesRecordActionsWithForm}) → localizare prin schemaComponent.
-    // Într-o schemă, componenta ASCUNSĂ nici nu se montează, deci proba are două jumătăți:
-    // acțiunile există (administrația le vede) și îi lipsesc profesorului.
     $forceDelete = fn (): TestAction => TestAction::make('forceDelete')->schemaComponent('form-actions', schema: 'content');
     $restore = fn (): TestAction => TestAction::make('restore')->schemaComponent('form-actions', schema: 'content');
 
@@ -168,11 +166,12 @@ it('acțiunile de ștergere forțată și restaurare nu apar profesorului pe pag
         ->assertActionExists($forceDelete())
         ->assertActionExists($restore());
 
+    // Fluxul 04.08.2026: profesorul doar consemnează — editarea absențelor (deci și pagina ei)
+    // e a dirigintelui clasei / administrației. Profesorul primește 403, nu o pagină fără butoane.
     actingAs($this->profesor);
 
     Livewire::test(EditAbsence::class, ['record' => $absence->getKey()])
-        ->assertActionDoesNotExist($forceDelete())
-        ->assertActionDoesNotExist($restore());
+        ->assertForbidden();
 });
 
 it('administrația academică poate șterge definitiv și restaura o absență', function () {
@@ -182,18 +181,25 @@ it('administrația academică poate șterge definitiv și restaura o absență',
     expect(Gate::forUser($this->director)->check('restore', $absence))->toBeTrue();
 });
 
-it('profesorul retrage absențele lui și pe cele fără autor din scope, nu pe ale colegilor', function () {
-    $altProfesor = User::factory()->create();
-    $altProfesor->assignRole(UserRole::Profesor->value);
-    $altTeacher = Teacher::factory()->create(['user_id' => $altProfesor->id]);
-
+it('profesorul nu mai retrage nicio absență — nici pe a lui; retragerea e a dirigintelui clasei', function () {
+    // Fluxul 04.08.2026: profesorul CONSEMNEAZĂ doar; corectarea/retragerea unei consemnări
+    // greșite e act de gestiune a clasei (dirigintele ei sau administrația) — altfel autorul
+    // și-ar putea „retusa" catalogul propriu fără nicio a doua pereche de ochi.
     $aMea = auditAbsence($this, $this->teacher->id);
     $legacy = auditAbsence($this, null);
-    $aColegului = auditAbsence($this, $altTeacher->id);
 
-    expect(Gate::forUser($this->profesor)->check('delete', $aMea))->toBeTrue();
-    expect(Gate::forUser($this->profesor)->check('delete', $legacy))->toBeTrue();
-    expect(Gate::forUser($this->profesor)->check('delete', $aColegului))->toBeFalse();
+    expect(Gate::forUser($this->profesor)->check('delete', $aMea))->toBeFalse();
+    expect(Gate::forUser($this->profesor)->check('delete', $legacy))->toBeFalse();
+    expect(Gate::forUser($this->profesor)->check('update', $aMea))->toBeFalse();
+
+    // Dirigintele CLASEI absenței le retrage pe toate — inclusiv consemnările profesorilor.
+    $homeroomUser = User::factory()->create();
+    $homeroomUser->assignRole(UserRole::Diriginte->value);
+    $homeroom = Teacher::factory()->create(['user_id' => $homeroomUser->id]);
+    $this->class->update(['homeroom_teacher_id' => $homeroom->id]);
+
+    expect(Gate::forUser($homeroomUser->fresh())->check('delete', $aMea))->toBeTrue()
+        ->and(Gate::forUser($homeroomUser->fresh())->check('delete', $legacy))->toBeTrue();
 });
 
 it('autorul unei teme o poate retrage, dar nu o poate șterge definitiv', function () {

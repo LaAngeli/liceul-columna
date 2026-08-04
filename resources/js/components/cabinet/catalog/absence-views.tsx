@@ -27,6 +27,8 @@ export interface AbsenceSubjectTerm {
     total: number;
     motivated: number;
     unmotivated: number;
+    /** Consemnate de profesor, încă fără statut — dirigintele decide pe parcursul zilei. */
+    pending: number;
 }
 
 export interface AbsenceSubject {
@@ -50,7 +52,8 @@ export interface AbsenceEntry {
     teacher: string | null;
     /** Lecția, dedusă din orar — null unde disciplina apare de mai multe ori în acea zi. */
     lesson: { number: number; room: string | null } | null;
-    motivated: boolean;
+    /** null = fără statut încă (profesorul a consemnat, dirigintele nu a decis). */
+    motivated: boolean | null;
     recordedAt: string | null;
     deadline: string | null;
     deadlinePassed: boolean;
@@ -65,12 +68,14 @@ export interface AbsenceMonth {
     total: number;
     motivated: number;
     unmotivated: number;
+    pending: number;
 }
 
 export interface AbsenceSummary {
     total: number;
     motivated: number;
     unmotivated: number;
+    pending: number;
     motivatedRate: number | null;
     days: number;
     subjectsCount: number;
@@ -92,12 +97,12 @@ export interface AbsenceOverviewData {
     months: Record<number, AbsenceMonth[]>;
 }
 
-type StatusFilter = 'all' | 'motivated' | 'unmotivated';
+type StatusFilter = 'all' | 'motivated' | 'unmotivated' | 'pending';
 type ViewMode = 'subjects' | 'timeline' | 'calendar';
 
-/** Bara de proporție motivate/nemotivate — indicatorul de progres al modulului. */
-function SplitBar({ motivated, unmotivated, className }: { motivated: number; unmotivated: number; className?: string }) {
-    const total = motivated + unmotivated;
+/** Bara de proporție motivate/fără statut/nemotivate — indicatorul de progres al modulului. */
+function SplitBar({ motivated, unmotivated, pending = 0, className }: { motivated: number; unmotivated: number; pending?: number; className?: string }) {
+    const total = motivated + unmotivated + pending;
 
     if (total === 0) {
         return null;
@@ -106,6 +111,7 @@ function SplitBar({ motivated, unmotivated, className }: { motivated: number; un
     return (
         <div className={cn('flex h-2 overflow-hidden rounded-full bg-muted', className)} aria-hidden>
             <div className="bg-emerald-500" style={{ width: `${(motivated / total) * 100}%` }} />
+            {pending > 0 && <div className="bg-amber-400" style={{ width: `${(pending / total) * 100}%` }} />}
             <div className="bg-danger" style={{ width: `${(unmotivated / total) * 100}%` }} />
         </div>
     );
@@ -113,20 +119,24 @@ function SplitBar({ motivated, unmotivated, className }: { motivated: number; un
 
 /**
  * Eticheta de status a unei absențe — singurul loc care decide culoarea. Textul e la SINGULAR
- * („motivată" / „nemotivată"): chip-ul califică O absență; pluralul rămâne pentru contoare.
+ * („motivată" / „nemotivată" / „fără statut"): chip-ul califică O absență; pluralul rămâne pentru
+ * contoare. `motivated: null` = profesorul a consemnat, dirigintele nu a decis încă — chihlimbar,
+ * nu roșu: o absență nedecisă nu e o acuzație.
  */
-function StatusChip({ motivated, className }: { motivated: boolean; className?: string }) {
+function StatusChip({ motivated, className }: { motivated: boolean | null; className?: string }) {
     const t = useTranslations();
 
     return (
         <span
             className={cn(
                 'inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-semibold first-letter:uppercase',
-                motivated ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-destructive/10 text-destructive',
+                motivated === true && 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+                motivated === false && 'bg-destructive/10 text-destructive',
+                motivated === null && 'bg-amber-400/15 text-amber-700 dark:text-amber-400',
                 className,
             )}
         >
-            {t(motivated ? 'cabinet.motivated_one' : 'cabinet.unmotivated_one')}
+            {t(motivated === true ? 'cabinet.motivated_one' : motivated === false ? 'cabinet.unmotivated_one' : 'cabinet.pending_one')}
         </span>
     );
 }
@@ -213,11 +223,16 @@ export function AbsenceOverview({ overview, onRequestMotivation }: { overview: A
         const needle = query.trim().toLowerCase();
 
         return termEntries.filter((entry) => {
-            if (status === 'motivated' && !entry.motivated) {
+            // Comparație STRICTĂ: `motivated` are trei stări (true/false/null = fără statut).
+            if (status === 'motivated' && entry.motivated !== true) {
                 return false;
             }
 
-            if (status === 'unmotivated' && entry.motivated) {
+            if (status === 'unmotivated' && entry.motivated !== false) {
+                return false;
+            }
+
+            if (status === 'pending' && entry.motivated !== null) {
                 return false;
             }
 
@@ -363,13 +378,21 @@ function SummaryBand({ summary, onRequestMotivation }: { summary: AbsenceSummary
 
             {/* Proporția — se citește dintr-o privire, fără să numeri. */}
             <div className="mt-3">
-                <SplitBar motivated={summary.motivated} unmotivated={summary.unmotivated} />
+                <SplitBar motivated={summary.motivated} unmotivated={summary.unmotivated} pending={summary.pending} />
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                     <span className="inline-flex items-center gap-1.5">
                         <span className="size-2.5 rounded-sm bg-emerald-500" aria-hidden />
                         <span className="font-semibold tabular-nums">{summary.motivated}</span>
                         <span className="text-muted-foreground">{t(pluralKey('cabinet.motivated', summary.motivated))}</span>
                     </span>
+                    {/* Fără statut — dirigintele nu a decis încă; distinct de „nemotivate". */}
+                    {summary.pending > 0 && (
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="size-2.5 rounded-sm bg-amber-400" aria-hidden />
+                            <span className="font-semibold tabular-nums">{summary.pending}</span>
+                            <span className="text-muted-foreground">{t('cabinet.pending')}</span>
+                        </span>
+                    )}
                     <span className="inline-flex items-center gap-1.5">
                         <span className="size-2.5 rounded-sm bg-danger" aria-hidden />
                         <span className="font-semibold tabular-nums">{summary.unmotivated}</span>
@@ -434,6 +457,7 @@ function MonthlyChart({ months }: { months: AbsenceMonth[] }) {
                             title={`${month.label}: ${month.total}`}
                         >
                             <div className="w-full bg-danger" style={{ height: `${(month.unmotivated / peak) * 100}%` }} />
+                            <div className="w-full bg-amber-400" style={{ height: `${((month.pending ?? 0) / peak) * 100}%` }} />
                             <div className="w-full bg-emerald-500" style={{ height: `${(month.motivated / peak) * 100}%` }} />
                         </div>
                         <span className="w-full truncate text-center text-[10px] text-muted-foreground">{month.label}</span>
@@ -475,6 +499,7 @@ function Filters({
     const statuses: { value: StatusFilter; label: string }[] = [
         { value: 'all', label: t('cabinet.abs_status_all') },
         { value: 'unmotivated', label: t('cabinet.unmotivated') },
+        { value: 'pending', label: t('cabinet.pending') },
         { value: 'motivated', label: t('cabinet.motivated') },
     ];
 
@@ -539,7 +564,12 @@ function Filters({
                     >
                         {item.value !== 'all' && (
                             <span
-                                className={cn('size-2 rounded-full', item.value === 'motivated' ? 'bg-emerald-500' : 'bg-danger')}
+                                className={cn(
+                                    'size-2 rounded-full',
+                                    item.value === 'motivated' && 'bg-emerald-500',
+                                    item.value === 'pending' && 'bg-amber-400',
+                                    item.value === 'unmotivated' && 'bg-danger',
+                                )}
                                 aria-hidden
                             />
                         )}
@@ -588,11 +618,16 @@ function SubjectBreakdown({ subjects, entries, term }: { subjects: AbsenceSubjec
                         </div>
 
                         <div>
-                            <SplitBar motivated={stats?.motivated ?? 0} unmotivated={stats?.unmotivated ?? 0} />
+                            <SplitBar motivated={stats?.motivated ?? 0} unmotivated={stats?.unmotivated ?? 0} pending={stats?.pending ?? 0} />
                             <p className="mt-1 flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
                                 <span>
                                     {stats?.motivated ?? 0} {t(pluralKey('cabinet.motivated', stats?.motivated ?? 0))}
                                 </span>
+                                {(stats?.pending ?? 0) > 0 && (
+                                    <span className="font-medium text-amber-700 dark:text-amber-400">
+                                        {stats?.pending ?? 0} {t('cabinet.pending')}
+                                    </span>
+                                )}
                                 <span className={cn((stats?.unmotivated ?? 0) > 0 && 'font-medium text-destructive')}>
                                     {stats?.unmotivated ?? 0} {t(pluralKey('cabinet.unmotivated', stats?.unmotivated ?? 0))}
                                 </span>
@@ -600,24 +635,30 @@ function SubjectBreakdown({ subjects, entries, term }: { subjects: AbsenceSubjec
                         </div>
 
                         <ul className="flex flex-col gap-1.5">
-                            {items.map((entry) => (
-                                <li key={entry.id} className="flex items-start gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
-                                    <span className="w-14 shrink-0 text-xs font-semibold tabular-nums">{entry.date.slice(0, 5)}</span>
-                                    <div className="min-w-0 flex-1">
-                                        <span className="text-xs text-muted-foreground first-letter:uppercase">{entry.weekday}</span>
-                                        <EntryMeta entry={entry} />
-                                    </div>
-                                    <span
-                                        className={cn(
-                                            'mt-0.5 size-2.5 shrink-0 rounded-full',
-                                            entry.motivated ? 'bg-emerald-500' : 'bg-danger',
-                                        )}
-                                        title={t(entry.motivated ? 'cabinet.motivated' : 'cabinet.unmotivated')}
-                                    >
-                                        <span className="sr-only">{t(entry.motivated ? 'cabinet.motivated' : 'cabinet.unmotivated')}</span>
-                                    </span>
-                                </li>
-                            ))}
+                            {items.map((entry) => {
+                                const statusKey = entry.motivated === true ? 'cabinet.motivated' : entry.motivated === false ? 'cabinet.unmotivated' : 'cabinet.pending';
+
+                                return (
+                                    <li key={entry.id} className="flex items-start gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
+                                        <span className="w-14 shrink-0 text-xs font-semibold tabular-nums">{entry.date.slice(0, 5)}</span>
+                                        <div className="min-w-0 flex-1">
+                                            <span className="text-xs text-muted-foreground first-letter:uppercase">{entry.weekday}</span>
+                                            <EntryMeta entry={entry} />
+                                        </div>
+                                        <span
+                                            className={cn(
+                                                'mt-0.5 size-2.5 shrink-0 rounded-full',
+                                                entry.motivated === true && 'bg-emerald-500',
+                                                entry.motivated === false && 'bg-danger',
+                                                entry.motivated === null && 'bg-amber-400',
+                                            )}
+                                            title={t(statusKey)}
+                                        >
+                                            <span className="sr-only">{t(statusKey)}</span>
+                                        </span>
+                                    </li>
+                                );
+                            })}
                         </ul>
                     </li>
                 );
@@ -650,7 +691,8 @@ function Timeline({ entries }: { entries: AbsenceEntry[] }) {
             {days.map((day) => {
                 const header = day.monthLabel !== previousMonth ? day.monthLabel : null;
                 previousMonth = day.monthLabel;
-                const unmotivated = day.items.filter((i) => !i.motivated).length;
+                const unmotivated = day.items.filter((i) => i.motivated === false).length;
+                const pending = day.items.filter((i) => i.motivated === null).length;
 
                 return (
                     <div key={day.iso}>
@@ -665,6 +707,11 @@ function Timeline({ entries }: { entries: AbsenceEntry[] }) {
                                     {unmotivated > 0 && (
                                         <span className="ml-1.5 font-medium text-destructive">
                                             · {unmotivated} {t(pluralKey('cabinet.unmotivated', unmotivated))}
+                                        </span>
+                                    )}
+                                    {pending > 0 && (
+                                        <span className="ml-1.5 font-medium text-amber-700 dark:text-amber-400">
+                                            · {pending} {t('cabinet.pending')}
                                         </span>
                                     )}
                                 </p>
@@ -742,7 +789,8 @@ function AbsenceCalendar({ entries, months }: { entries: AbsenceEntry[]; months:
                                 const day = i + 1;
                                 const iso = `${year}-${String(monthIndex).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                                 const items = byDay.get(iso) ?? [];
-                                const unmotivated = items.filter((entry) => !entry.motivated).length;
+                                const unmotivated = items.filter((entry) => entry.motivated === false).length;
+                                const pending = items.filter((entry) => entry.motivated === null).length;
 
                                 return (
                                     <span
@@ -755,8 +803,10 @@ function AbsenceCalendar({ entries, months }: { entries: AbsenceEntry[]; months:
                                         className={cn(
                                             'flex aspect-square min-h-9 flex-col items-center justify-center rounded-md text-xs tabular-nums',
                                             items.length === 0 && 'text-muted-foreground/50',
+                                            // Prioritate: roșu (nemotivate) > chihlimbar (fără statut) > verde (toate motivate).
                                             items.length > 0 && unmotivated > 0 && 'bg-destructive/15 font-semibold text-destructive',
-                                            items.length > 0 && unmotivated === 0 && 'bg-emerald-500/15 font-semibold text-emerald-700 dark:text-emerald-400',
+                                            items.length > 0 && unmotivated === 0 && pending > 0 && 'bg-amber-400/20 font-semibold text-amber-700 dark:text-amber-400',
+                                            items.length > 0 && unmotivated === 0 && pending === 0 && 'bg-emerald-500/15 font-semibold text-emerald-700 dark:text-emerald-400',
                                         )}
                                     >
                                         {day}
@@ -778,6 +828,10 @@ function AbsenceCalendar({ entries, months }: { entries: AbsenceEntry[]; months:
                 <span className="inline-flex items-center gap-1.5">
                     <span className="size-2.5 rounded-sm bg-emerald-500/40 ring-1 ring-emerald-500/40" aria-hidden />
                     {t('cabinet.abs_cal_motivated')}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="size-2.5 rounded-sm bg-amber-400/40 ring-1 ring-amber-400/50" aria-hidden />
+                    {t('cabinet.abs_cal_pending')}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                     <span className="size-2.5 rounded-sm bg-destructive/40 ring-1 ring-destructive/40" aria-hidden />

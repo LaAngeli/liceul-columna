@@ -11,6 +11,11 @@
 */
 
 return [
+    'absence_status' => [
+        'pending' => 'Fără statut',
+        'motivated' => 'Motivată',
+        'unmotivated' => 'Nemotivată',
+    ],
     'request_status' => [
         'pending' => 'În așteptare',
         'approved' => 'Aprobată',

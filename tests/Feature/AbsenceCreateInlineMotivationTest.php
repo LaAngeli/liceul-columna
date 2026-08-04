@@ -61,7 +61,7 @@ it('motivarea inline la creare creează un AbsenceMotivation aprobat cu dovadă 
     Storage::disk('local')->assertExists((string) $motivation->document_path);
 });
 
-it('fără toggle, absența se creează NEMOTIVATĂ și fără AbsenceMotivation', function () {
+it('fără toggle, absența se creează FĂRĂ STATUT și fără AbsenceMotivation', function () {
     Livewire::test(CreateAbsence::class)
         ->fillForm([
             'school_class_id' => $this->class->id,
@@ -71,7 +71,8 @@ it('fără toggle, absența se creează NEMOTIVATĂ și fără AbsenceMotivation
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Absence::query()->firstOrFail()->is_motivated)->toBeFalse()
+    // Statutul implicit e „fără statut” — nedecis până alege cineva cu drept de decizie.
+    expect(Absence::query()->firstOrFail()->is_motivated)->toBeNull()
         ->and(AbsenceMotivation::query()->count())->toBe(0);
 });
 

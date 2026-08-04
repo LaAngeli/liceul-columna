@@ -97,8 +97,8 @@ export function SemesterAveragesTable({ averages }: { averages: SemesterAverages
     );
 }
 
-/** Badge-urile de total absențe (motivate/nemotivate) — antetul secțiunii de absențe. */
-export function AbsenceTotals({ motivated, unmotivated }: { motivated: number; unmotivated: number }) {
+/** Badge-urile de total absențe (motivate/fără statut/nemotivate) — antetul secțiunii de absențe. */
+export function AbsenceTotals({ motivated, unmotivated, pending = 0 }: { motivated: number; unmotivated: number; pending?: number }) {
     const t = useTranslations();
 
     return (
@@ -106,6 +106,12 @@ export function AbsenceTotals({ motivated, unmotivated }: { motivated: number; u
             <Badge variant="default" className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">
                 {motivated} {t('cabinet.motivated')}
             </Badge>
+            {/* Fără statut: dirigintele nu a decis încă — distinct de „nemotivate". */}
+            {pending > 0 && (
+                <Badge variant="default" className="bg-amber-400/15 text-amber-700 hover:bg-amber-400/15 dark:text-amber-400">
+                    {pending} {t('cabinet.pending')}
+                </Badge>
+            )}
             <Badge variant="destructive">
                 {unmotivated} {t('cabinet.unmotivated')}
             </Badge>

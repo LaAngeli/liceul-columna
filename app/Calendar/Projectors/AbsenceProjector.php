@@ -31,7 +31,11 @@ class AbsenceProjector implements CalendarProjector
             ->get();
 
         foreach ($absences as $absence) {
-            $title = (string) trans('cabinet_calendar.'.($absence->is_motivated ? 'auto_absence_motivated' : 'auto_absence'));
+            $title = (string) trans('cabinet_calendar.'.match ($absence->is_motivated) {
+                true => 'auto_absence_motivated',
+                false => 'auto_absence',
+                null => 'auto_absence_pending',
+            });
 
             $items[] = new CalendarItem(
                 id: "absence:{$absence->id}",

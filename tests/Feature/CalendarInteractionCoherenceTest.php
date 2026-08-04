@@ -127,8 +127,10 @@ it('absența devenită nemotivată prin mutarea datei primește termen de motiva
 
     $absence->refresh();
 
-    // Nemotivată + termen = 9 martie (luni) + 5 zile lucrătoare = 16 martie (luni).
-    expect($absence->is_motivated)->toBeFalse()
+    // Dovada nu mai acoperă noua zi → statutul redevine NEDECIS (fluxul 04.08.2026: motivarea
+    // rămasă fără temei nu se moștenește, dar nici nu decide „nemotivată" în locul dirigintelui).
+    // Termenul curge oricum: 9 martie (luni) + 5 zile lucrătoare = 16 martie (luni).
+    expect($absence->is_motivated)->toBeNull()
         ->and($absence->motivation_deadline)->not->toBeNull()
         ->and($absence->motivation_deadline->toDateString())->toBe('2026-03-16');
 });

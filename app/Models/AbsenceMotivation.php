@@ -140,10 +140,13 @@ class AbsenceMotivation extends Model implements Auditable
      */
     public function absencesInPeriod(): Builder
     {
+        // `toDateString()`, nu Carbon brut: legat cu tot cu oră, pe SQLite comparația de string
+        // cu strftime pică pe granița „>=" exact în ziua egală cu începutul perioadei — absența
+        // din prima zi a dovezii ar fi scăpat neatinsă (simetric cu Absence::hasApprovedMotivationOn).
         return Absence::query()
             ->where('student_id', $this->student_id)
-            ->whereDate('occurred_on', '>=', $this->period_start)
-            ->whereDate('occurred_on', '<=', $this->period_end);
+            ->whereDate('occurred_on', '>=', $this->period_start->toDateString())
+            ->whereDate('occurred_on', '<=', $this->period_end->toDateString());
     }
 
     /**
@@ -153,8 +156,10 @@ class AbsenceMotivation extends Model implements Auditable
     public function approve(int $reviewerId, ?string $note = null): void
     {
         // Marchează MOTIVATE + DEBLOCHEAZĂ absențele consolidate (cazul aprobării unei excepții).
+        // `notMotivated`, nu `= false`: dovada acoperă și absențele încă FĂRĂ STATUT (consemnate
+        // de profesor, neajunse la diriginte) — aprobarea motivării LE ESTE decizia dirigintelui.
         $this->absencesInPeriod()
-            ->where('is_motivated', false)
+            ->notMotivated()
             ->update(['is_motivated' => true, 'motivation_locked_at' => null]);
 
         $this->update([
