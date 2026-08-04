@@ -701,25 +701,24 @@ it('catalogul se deschide pe LUNA curentă, cu istoricul la o pastilă distanț�
         ->and(array_column($all->gradeColumns(), 'iso'))->toHaveCount(2);
 });
 
-it('peste pragul de coloane notele cad în șir, fără să dispară vreuna', function () {
+it('multe zile nu schimbă forma — tot coloane, doar mai lat', function () {
     actingAs($this->profUser);
 
     $a = $this->students->first();
 
-    for ($i = 0; $i <= ClassRegister::MAX_GRADE_COLUMNS; $i++) {
-        registerGrade($a, Carbon::today()->subDays(20 - $i)->toDateString(), 8);
+    // 30 de zile distincte — peste fostul prag care arunca notele înapoi în șir și făcea ca
+    // două clase să arate diferit pe aceeași pastilă „Toate" (cerința beneficiarului, 04.08.2026).
+    for ($i = 0; $i < 30; $i++) {
+        registerGrade($a, Carbon::today()->subDays(40 - $i)->toDateString(), 8);
     }
 
-    // Pragul se atinge doar pe o perioadă lungă → „Toate" explicit (implicitul e luna curentă).
     $page = Livewire::test(ClassRegister::class)->set('timeMode', 'toate')->instance();
 
-    expect($page->gradeColumns())->toHaveCount(ClassRegister::MAX_GRADE_COLUMNS + 1)
-        ->and($page->gradesAlignedByDate())->toBeFalse()
-        // Nimic ascuns: toate notele rămân în șirul cronologic.
-        ->and(collect($page->rows())->firstWhere('student.id', $a->id)['grades'])
-        ->toHaveCount(ClassRegister::MAX_GRADE_COLUMNS + 1);
+    expect($page->gradeColumns())->toHaveCount(30)
+        // O SINGURĂ formă: coloanele rămân, indiferent de volum.
+        ->and($page->gradesAlignedByDate())->toBeTrue()
+        ->and(collect($page->rows())->firstWhere('student.id', $a->id)['grades'])->toHaveCount(30);
 });
-
 it('filtrele de citire nu ating salvarea — se scrie tot pe elevii afișați', function () {
     actingAs($this->profUser);
 

@@ -2434,7 +2434,6 @@ return [
         'unmotivated_short' => 'nem.',
         'grade_tooltip' => 'Nota :value · :type · :date',
         'filters_label' => 'Vezi notele',
-        'filters_too_many_dates' => ':count zile cu note — restrângeți perioada (Zi / Săptămână / Lună) ca notele să se alinieze pe coloane.',
         'date_vacation' => 'Vacanță · intră în :term',
         'date_after_year' => 'Anul :year s-a încheiat',
         'after_year_title' => 'Ziua de azi nu aparține niciunui semestru',

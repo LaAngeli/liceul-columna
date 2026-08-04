@@ -2418,7 +2418,6 @@ return [
         'unmotivated_short' => 'unexc.',
         'grade_tooltip' => 'Grade :value · :type · :date',
         'filters_label' => 'Show grades',
-        'filters_too_many_dates' => ':count days with grades - narrow the period (Day / Week / Month) so the grades line up in columns.',
         'date_vacation' => 'Holiday - goes into :term',
         'date_after_year' => 'The :year school year has ended',
         'after_year_title' => 'Today does not belong to any term',

@@ -104,14 +104,6 @@ class ClassRegister extends Page
 
     public const DEFAULT_GRADE_TYPE = 'curenta';
 
-    /**
-     * Peste atâtea zile distincte, alinierea pe coloane devine un tabel imposibil de citit: notele
-     * cad înapoi în șir, cu invitația de a restrânge perioada. Nu ascundem date — schimbăm forma.
-     * Pragul acoperă o LUNĂ școlară întreagă (~23 de zile lucrătoare), ca modul „Lună" să se
-     * alinieze mereu — el e perioada de lucru obișnuită a profesorului.
-     */
-    public const MAX_GRADE_COLUMNS = 24;
-
     public function mount(): void
     {
         if ($this->entryDate === '') {
@@ -436,14 +428,8 @@ class ClassRegister extends Page
 
     /**
      * Catalogul se deschide pe LUNA curentă, nu pe tot istoricul (cerința beneficiarului,
-     * 04.08.2026).
-     *
-     * De ce: notele se aliniază pe coloane de dată doar până la {@see MAX_GRADE_COLUMNS} zile
-     * distincte; peste prag cad înapoi în șir. Cu „Toate", orice clasă cu un an de istoric importat
-     * depășea pragul, așa că aceeași școală arăta două tabele diferite — 1B pe șir, 7B pe coloane —
-     * și chiar aceeași clasă își schimba forma de la o disciplină la alta (16 din 53 de clase).
-     * Pe o lună, numărul de zile e mereu sub prag, deci forma e una singură. Istoricul complet
-     * rămâne la o pastilă distanță, ales conștient.
+     * 04.08.2026): luna e perioada de lucru a profesorului și încape fără derulare. „Toate"
+     * rămâne la o pastilă distanță — tot pe coloane, doar mai lat ({@see gradesAlignedByDate()}).
      */
     protected function defaultTimeMode(): ?string
     {
@@ -684,11 +670,20 @@ class ClassRegister extends Page
      * Se afișează pe COLOANE de dată? Doar când zilele distincte încap pe ecran; peste prag notele
      * cad înapoi în șir, cu invitația de a restrânge filtrul — nicio notă nu dispare, doar forma.
      */
+    /**
+     * O SINGURĂ formă, indiferent de volum (cerința beneficiarului, 04.08.2026): notele stau pe
+     * coloane de dată ori de câte ori există măcar una — și pe „Toate".
+     *
+     * Pragul de aici (fostul MAX_GRADE_COLUMNS) făcea forma dependentă de DATE: pe aceeași
+     * pastilă „Toate", clasa 1B cădea în șir (56 de zile), iar 7B stătea pe coloane (18) — două
+     * tabele diferite pentru aceeași alegere, ba chiar aceeași clasă își schimba forma de la o
+     * disciplină la alta. Multe zile nu mai schimbă forma, ci doar LĂȚIMEA: tabelul derulează
+     * orizontal în containerul lui, cu numele elevului lipit la stânga — ca un catalog de hârtie
+     * întins pe toată banca.
+     */
     public function gradesAlignedByDate(): bool
     {
-        $count = count($this->gradeColumns());
-
-        return $count > 0 && $count <= self::MAX_GRADE_COLUMNS;
+        return $this->gradeColumns() !== [];
     }
 
     /** Tipul revine la implicit; perioada are propriul buton „Toate" în bara temporală. */

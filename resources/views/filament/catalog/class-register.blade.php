@@ -240,13 +240,6 @@
                             </x-filament::input.wrapper>
                         </div>
 
-                        {{-- Peste prag nu mai putem alinia pe coloane: spunem DE CE și ce se poate
-                             face, în loc să lăsăm un tabel cât ecranul sau un șir necitibil. --}}
-                        @if (! $aligned && $gradeColumns !== [])
-                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                {{ __('panel.class_register.filters_too_many_dates', ['count' => count($gradeColumns)]) }}
-                            </p>
-                        @endif
                     </div>
 
                     {{-- Perioada: EXACT bara din Note/Absențe/Teme (același partial, aceeași stare
@@ -326,9 +319,10 @@
                                                 @enderror
                                             </td>
 
-                                            {{-- Notele semestrului; teza/ESI evidențiate. Aliniate pe
-                                                 COLOANE de dată când zilele încap (se citește vertical,
-                                                 ca în catalogul de hârtie), altfel în șir cronologic. --}}
+                                            {{-- Notele semestrului; teza/ESI evidențiate. MEREU pe coloane
+                                                 de dată (o singură formă, indiferent de clasă sau volum —
+                                                 04.08.2026); multe zile = tabel mai LAT, cu derulare
+                                                 orizontală și numele elevului lipit la stânga. --}}
                                             <td class="h-12 px-4 py-2 align-middle">
                                                 @if ($aligned)
                                                     <div class="grid gap-1" style="grid-template-columns: repeat({{ count($gradeColumns) }}, 2rem);">
@@ -353,26 +347,10 @@
                                                             </span>
                                                         @endforeach
                                                     </div>
-                                                @elseif ($row['grades'] === [])
-                                                    <span class="text-gray-300 dark:text-gray-600">—</span>
                                                 @else
-                                                    <div class="flex max-w-md flex-wrap gap-1">
-                                                        {{-- La survol: valoarea, tipul și DATA aplicării notei, formulate
-                                                             explicit („Nota 8 · Curentă · 20.07.2026"). Prima variantă
-                                                             arăta doar „Curentă 20.07" și părea o a doua valoare. --}}
-                                                        @foreach ($row['grades'] as $grade)
-                                                            <span
-                                                                title="{{ $grade['tooltip'] }}"
-                                                                @class([
-                                                                    'inline-flex h-6 min-w-6 items-center justify-center rounded px-1 text-xs font-semibold tabular-nums',
-                                                                    'bg-primary-50 text-primary-700 ring-1 ring-primary-600/30 dark:bg-primary-400/10 dark:text-primary-300 dark:ring-primary-400/30' => $grade['weighted'],
-                                                                    'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-200' => ! $grade['weighted'],
-                                                                ])
-                                                            >
-                                                                {{ $grade['value'] }}
-                                                            </span>
-                                                        @endforeach
-                                                    </div>
+                                                    {{-- Fără nicio notă în perioada+tipul ales (doar atunci
+                                                         $aligned e fals): liniuță, nu un șir alternativ. --}}
+                                                    <span class="text-gray-300 dark:text-gray-600">—</span>
                                                 @endif
                                             </td>
 

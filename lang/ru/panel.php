@@ -2418,7 +2418,6 @@ return [
         'unmotivated_short' => 'неув.',
         'grade_tooltip' => 'Оценка :value · :type · :date',
         'filters_label' => 'Показать отметки',
-        'filters_too_many_dates' => ':count дней с отметками — сузьте период (День / Неделя / Месяц), чтобы отметки выстроились в столбцы.',
         'date_vacation' => 'Каникулы · попадёт в :term',
         'date_after_year' => 'Учебный год :year завершён',
         'after_year_title' => 'Сегодняшний день не входит ни в один семестр',

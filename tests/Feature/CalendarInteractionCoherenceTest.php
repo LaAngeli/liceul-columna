@@ -49,8 +49,15 @@ beforeEach(function () {
 
     Holidays::flush();
 
-    $this->year = AcademicYear::factory()->create();
-    $this->term = Term::factory()->for($this->year)->create(['is_current' => true]);
+    // An cu granițe FIXE, aliniate datelor folosite în teste (2026-03-*): fabrica generează un an
+    // aleator (2000–2090), iar garda de rollover a absențelor compară data cu FINALUL anului —
+    // cu un an din, să zicem, 2013 sub date din 2026, testul pica sau trecea după zar.
+    $this->year = AcademicYear::factory()->create([
+        'name' => '2025–2026', 'starts_on' => '2025-09-01', 'ends_on' => '2026-06-30',
+    ]);
+    $this->term = Term::factory()->for($this->year)->create([
+        'is_current' => true, 'starts_on' => '2026-01-10', 'ends_on' => '2026-06-30',
+    ]);
     $this->class = SchoolClass::factory()->for($this->year)->create();
 });
 
