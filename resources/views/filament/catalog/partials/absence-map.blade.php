@@ -71,7 +71,12 @@
     @else
         {{-- Tabelul derulează ORIZONTAL în containerul lui; numele elevului rămâne lipit la stânga. --}}
         <div class="overflow-x-auto">
-            <table class="w-full min-w-max border-separate border-spacing-0 text-sm">
+            {{-- Lățimea urmează CONȚINUTUL (min-w-max, fără w-full): un tabel întins la container ar
+                 avea surplus de împărțit, iar el se scurgea în ultima coloană — de acolo golul dintre
+                 separatorul Total și cifre. Așa, blocul de totaluri stă lipit de grila zilelor.
+                 ⚠️ `w-full` pe o CELULĂ nu e alternativă: cu `min-w-max`, procentul intră în ciclu cu
+                 dimensionarea max-content și tabelul sare la ~10⁶ px (măsurat, 04.08.2026). --}}
+            <table class="min-w-max border-separate border-spacing-0 text-sm">
                 <thead>
                     <tr>
                         <th class="sticky left-0 z-10 border-b border-gray-200 bg-white px-4 py-2 text-start text-xs font-semibold text-gray-500 dark:border-white/10 dark:bg-gray-900 dark:text-gray-400">
@@ -84,11 +89,13 @@
                                 <span class="block text-[10px] font-normal text-gray-400 dark:text-gray-500">{{ $day['weekday'] }}</span>
                             </th>
                         @endforeach
-                        {{-- Antetul acoperă TOATE cele 4 piste, nu una singură: aceeași lățime ca
-                             grupul din celule (w-40 = 28 + 3×40 + 3×4), deci se citește ca titlu al
-                             blocului. Linia verticală îl desparte de grila zilelor. --}}
-                        <th class="border-b border-s border-gray-200 px-4 py-2 dark:border-white/10">
-                            <span class="ms-auto flex w-40 items-center justify-center text-[0.8625rem] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        {{-- Antetul acoperă TOATE cele 4 piste. Nu-i mai fixăm lățimea: coloana e
+                             deja exact cât grupul din celule, iar `block text-center` îl centrează
+                             pe toată lățimea ei — fără un număr magic de ținut sincron cu suma
+                             pistelor. Padding-ul trebuie să fie ACELAȘI ca la celule, altfel
+                             centrarea se decalează. --}}
+                        <th class="border-b border-s border-gray-200 ps-2 pe-4 py-2 dark:border-white/10">
+                            <span class="block text-center text-[0.8625rem] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                 {{ __('absence_map.totals') }}
                             </span>
                         </th>
@@ -171,9 +178,9 @@
                                  categorie la zero își lasă locul GOL, nu îl cedează vecinei:
                                  altfel „2✓" aluneca în pista lui „✗" și cifrele nu se mai puteau
                                  compara pe verticală. --}}
-                            <td class="whitespace-nowrap border-b border-s border-gray-100 border-s-gray-200 px-4 py-2 text-[0.8625rem] tabular-nums dark:border-white/5 dark:border-s-white/10">
-                                <span class="ms-auto flex w-40 items-center justify-end gap-1">
-                                    <span class="w-7 text-end font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
+                            <td class="whitespace-nowrap border-b border-s border-gray-100 border-s-gray-200 ps-2 pe-4 py-2 text-[0.8625rem] tabular-nums dark:border-white/5 dark:border-s-white/10">
+                                <span class="flex items-center justify-end gap-1">
+                                    <span class="w-6 text-start font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
 
                                     @foreach ($totalTracks as $track)
                                         {{-- Pistă de lățime fixă, randată și când e goală: locul liber
