@@ -37,6 +37,7 @@ final class CanteenWeek
         // Capetele ca zi ÎNTREAGĂ, nu ca șir de dată: pe SQLite (testele) coloana `date` se
         // stochează cu oră („2026-09-13 00:00:00"), iar „… <= 2026-09-13" ar pierde duminica.
         $menus = CanteenMenu::query()
+            ->visible()
             ->whereBetween('menu_date', [$monday->copy()->startOfDay(), $sunday->copy()->endOfDay()])
             ->get()
             ->keyBy(fn (CanteenMenu $menu): string => $menu->menu_date->toDateString());
@@ -78,7 +79,7 @@ final class CanteenWeek
         $today = SchoolCalendar::localNow()->startOfDay();
         $date = self::anchorDate((string) $anchorRaw, $today);
 
-        $menu = CanteenMenu::query()->whereDate('menu_date', $date->toDateString())->first();
+        $menu = CanteenMenu::query()->visible()->whereDate('menu_date', $date->toDateString())->first();
 
         return self::dayStruct($date, $menu, $today);
     }
@@ -95,6 +96,7 @@ final class CanteenWeek
         $today = SchoolCalendar::localNow()->startOfDay();
 
         $menus = CanteenMenu::query()
+            ->visible()
             // whereDate pe capete: pe SQLite coloana `date` poartă și ora.
             ->when($from !== null, fn ($query) => $query->whereDate('menu_date', '>=', $from))
             ->when($until !== null, fn ($query) => $query->whereDate('menu_date', '<=', $until))

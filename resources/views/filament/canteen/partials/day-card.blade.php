@@ -17,6 +17,12 @@
         <h3 class="text-sm font-semibold text-gray-950 dark:text-white">{{ $day['label'] }}</h3>
         @if ($day['isToday'])
             <x-filament::badge color="success">{{ __('panel.forms.canteen.planner_today') }}</x-filament::badge>
+        @elseif ($menu !== null && ! $menu->isPublished())
+            {{-- Cine scrie meniul vede și ce NU e încă public — altfel ar crede că salvarea n-a
+                 mers. Data publicării e spusă explicit, nu lăsată de ghicit. --}}
+            <x-filament::badge color="warning" :tooltip="__('panel.forms.canteen.unpublished_hint', ['date' => $menu->publishedOn()->format('d.m.Y')])">
+                {{ __('panel.forms.canteen.unpublished') }}
+            </x-filament::badge>
         @endif
     </header>
 

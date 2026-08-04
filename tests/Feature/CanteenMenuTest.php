@@ -249,15 +249,16 @@ it('cabinetul filtrează pe perioadă cu ACEEAȘI semantică precum panoul', fun
             ->has('groups', 5)
             ->where('groups.0.label', fn ($label) => is_string($label) && $label !== ''));
 
-    // TOATE: doar zilele CU meniu, recente întâi — consultare, fără zile goale.
+    // TOATE: doar zilele CU meniu, recente întâi — consultare, fără zile goale. Din 04.08.2026,
+    // „toate" înseamnă pentru familie fereastra PUBLICĂ: ziua din iunie e lună încheiată, deci a
+    // trecut în istoricul administratorului operațional și nu mai apare aici.
     $this->actingAs($parinte)
         ->get('/cabinet/meniu?mod=toate')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('period.mode', 'toate')
-            ->has('groups', 2)
-            ->where('groups.0.days.0.date', '2026-09-09')
-            ->where('groups.1.days.0.date', '2026-06-03'));
+            ->has('groups', 1)
+            ->where('groups.0.days.0.date', '2026-09-09'));
 
     // PERSONALIZAT: intervalul taie arhiva; ziua din iunie rămâne pe dinafară.
     $this->actingAs($parinte)

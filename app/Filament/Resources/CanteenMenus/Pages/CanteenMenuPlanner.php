@@ -62,6 +62,14 @@ class CanteenMenuPlanner extends Page
                 ->icon('heroicon-o-plus')
                 ->url(fn (): string => CanteenMenuResource::getUrl('create'))
                 ->visible(fn (): bool => self::canManage()),
+            // Arhiva lunilor încheiate — de când publicarea e amânată la 25, luna trecută dispare
+            // din planificator, deci trebuie să existe un loc de unde se poate recupera.
+            Action::make('history')
+                ->label(__('panel.forms.canteen.history_action'))
+                ->icon('heroicon-o-archive-box')
+                ->color('gray')
+                ->url(fn (): string => CanteenMenuResource::getUrl('history'))
+                ->visible(fn (): bool => self::canManage()),
         ];
     }
 
@@ -167,6 +175,7 @@ class CanteenMenuPlanner extends Page
     public function previousWeekMenu(string $date): ?CanteenMenu
     {
         return CanteenMenu::query()
+            ->visible()
             ->whereDate('menu_date', Carbon::parse($date)->subWeek()->toDateString())
             ->first();
     }

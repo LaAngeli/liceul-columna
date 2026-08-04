@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CanteenMenus;
 
+use App\Filament\Resources\CanteenMenus\Pages\CanteenMenuHistory;
 use App\Filament\Resources\CanteenMenus\Pages\CanteenMenuPlanner;
 use App\Filament\Resources\CanteenMenus\Pages\CreateCanteenMenu;
 use App\Filament\Resources\CanteenMenus\Pages\EditCanteenMenu;
@@ -84,6 +85,9 @@ class CanteenMenuResource extends Resource
     {
         return [
             'index' => CanteenMenuPlanner::route('/'),
+            // Istoricul e o pagină de resursă, nu una separată: aceeași secțiune, același model,
+            // doar altă lentilă (arhiva lunilor, pentru cine scrie meniul).
+            'history' => CanteenMenuHistory::route('/istoric'),
             'create' => CreateCanteenMenu::route('/create'),
             'edit' => EditCanteenMenu::route('/{record}/edit'),
         ];
