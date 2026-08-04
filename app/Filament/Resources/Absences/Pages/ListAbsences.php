@@ -118,16 +118,23 @@ class ListAbsences extends ListRecords implements CatalogNavigator
      * parcurge orizontal, cu săgețile din blade — numele elevului și totalurile rămân ancorate
      * la capete, deci lizibilitatea nu depinde de numărul de zile.
      *
+     * MODUL GRUPAT (`grouped`): fara disciplina in context (filtrul „Toate"), celula unei zile
+     * se afiseaza ca NUMARATOARE cu mini-lista absentelor la hover (decizia beneficiarului,
+     * 04.08.2026) — pastilele per absenta redeveneau ambigue cand o zi amesteca discipline.
+     * Cu disciplina aleasa, pastilele per absenta raman (doua ore de matematica = doua pastile).
+     * Datele celulelor NU se schimba intre moduri — blade-ul decide forma; aici doar semnalul.
+     *
      * @return array{
      *     days: list<array{iso: string, day: string, weekday: string, count: int}>,
      *     rows: list<array{student: Student, cells: array<string, list<array<string, mixed>>>, totals: array{total: int, motivated: int, unmotivated: int, pending: int}}>,
+     *     grouped: bool,
      *     canStatus: bool,
      * }
      */
     public function absenceMap(): array
     {
         if ($this->mapMemo !== []) {
-            /** @var array{days: list<array{iso: string, day: string, weekday: string, count: int}>, rows: list<array{student: Student, cells: array<string, list<array<string, mixed>>>, totals: array{total: int, motivated: int, unmotivated: int, pending: int}}>, canStatus: bool} */
+            /** @var array{days: list<array{iso: string, day: string, weekday: string, count: int}>, rows: list<array{student: Student, cells: array<string, list<array<string, mixed>>>, totals: array{total: int, motivated: int, unmotivated: int, pending: int}}>, grouped: bool, canStatus: bool} */
             return $this->mapMemo;
         }
 
@@ -202,6 +209,7 @@ class ListAbsences extends ListRecords implements CatalogNavigator
         return $this->mapMemo = [
             'days' => $days,
             'rows' => $rows,
+            'grouped' => $this->catalogSubjectIdInContext() === null,
             'canStatus' => $this->viewerCanStatusClass($classId),
         ];
     }
@@ -308,15 +316,21 @@ class ListAbsences extends ListRecords implements CatalogNavigator
     {
         $status = $absence->status();
 
+        $subjectLabel = $absence->subject !== null
+            ? ContentTranslator::subject((string) $absence->subject->name)
+            : (string) __('absence_map.whole_day');
+
         return [
             'id' => (int) $absence->id,
             'status' => $status->value,
+            'status_label' => $status->label(),
             'color' => $status->color(),
             'label' => (string) __('absence_map.marker'),
-            'title' => ($absence->subject !== null
-                ? ContentTranslator::subject((string) $absence->subject->name)
-                : (string) __('absence_map.whole_day'))
-                .' — '.$status->label(),
+            // Disciplina SEPARAT de titlu: mini-lista zilei (modul „Toate") o afișează ca rând de
+            // sine stătător — fiecare absență apare aparte, deci două ore de matematică din aceeași
+            // zi = două rânduri „Matematică", nu unul singur.
+            'subject_label' => $subjectLabel,
+            'title' => $subjectLabel.' — '.$status->label(),
             'url' => AbsenceResource::getUrl('edit', ['record' => $absence]),
         ];
     }

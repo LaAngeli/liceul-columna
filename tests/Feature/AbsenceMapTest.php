@@ -135,8 +135,10 @@ it('rândurile cuprind TOATĂ clasa alfabetic, coloanele doar zilele cu absențe
         ->instance()
         ->absenceMap();
 
-    // Coloane: DOAR zilele cu absențe, cronologic — nu tot calendarul lunii.
+    // Coloane: DOAR zilele cu absențe, cronologic — nu tot calendarul lunii. Fără disciplină în
+    // context, harta e în modul GRUPAT (pastilă-numărătoare per zi).
     expect(array_column($map['days'], 'iso'))->toBe([$zi1, $zi2])
+        ->and($map['grouped'])->toBeTrue()
         ->and($map['canStatus'])->toBeTrue();
 
     // Rânduri: toată clasa, alfabetic — inclusiv eleva fără nicio absență.
@@ -238,6 +240,54 @@ it('perioada implicită e LUNA curentă; absențele vechi apar doar pe „Toate"
         ->instance();
 
     expect($all->absenceMap()['days'])->toHaveCount(2);
+});
+
+it('două ore la ACEEAȘI disciplină în aceeași zi rămân absențe separate, în ambele moduri', function () {
+    /**
+     * Scenariul-cheie al modului grupat (decizia beneficiarului, 04.08.2026): două ore de
+     * matematică consecutive, elevul absent la amândouă. Pastila zilei numără 2, iar mini-lista
+     * desface ziua pe absențe — disciplina apare de DOUĂ ori, nu comasată. Pe filtrul de
+     * disciplină, aceleași două absențe rămân două pastile separate (modul negrupat).
+     */
+    $student = $this->students->first();
+    $zi = '2026-03-12';
+
+    absenceMapRecord($this, $student, $zi);                    // ora 1 — fără statut
+    absenceMapRecord($this, $student, $zi, motivated: false);  // ora 2 — nemotivată
+
+    actingAs($this->homeroomUser);
+
+    // Fără disciplină în context → modul GRUPAT; celula ține AMBELE absențe, fiecare aparte.
+    $grouped = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListAbsences::class)
+        ->instance()
+        ->absenceMap();
+
+    $rows = collect($grouped['rows'])->keyBy(fn (array $row): int => (int) $row['student']->id);
+    $cell = $rows[$student->id]['cells'][$zi];
+
+    expect($grouped['grouped'])->toBeTrue()
+        ->and($cell)->toHaveCount(2)
+        // Duplicatele NU se comasează: aceeași disciplină, de două ori, cu statuturi diferite.
+        ->and(array_column($cell, 'subject_label'))->toBe(['Chimie', 'Chimie'])
+        ->and(array_column($cell, 'status'))->toBe(['pending', 'unmotivated'])
+        // Id-uri DISTINCTE: mini-lista operează pe fiecare absență în parte.
+        ->and(array_unique(array_column($cell, 'id')))->toHaveCount(2);
+
+    // Cu disciplina în context → modul negrupat (pastile per absență), aceleași două înregistrări.
+    $filtered = Livewire::withQueryParams([
+        'clasa' => (string) $this->class->id,
+        'disciplina' => (string) $this->subject->id,
+        'mod' => 'toate',
+    ])
+        ->test(ListAbsences::class)
+        ->instance()
+        ->absenceMap();
+
+    $filteredRows = collect($filtered['rows'])->keyBy(fn (array $row): int => (int) $row['student']->id);
+
+    expect($filtered['grouped'])->toBeFalse()
+        ->and($filteredRows[$student->id]['cells'][$zi])->toHaveCount(2);
 });
 
 it('oricâte zile ar avea perioada, toate rămân coloane — nimic tăiat, nimic refuzat', function () {

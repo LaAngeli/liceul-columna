@@ -13,6 +13,9 @@
         'warning' => 'bg-amber-100 text-amber-800 ring-amber-600/30 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/30',
         'success' => 'bg-green-100 text-green-800 ring-green-600/30 dark:bg-green-400/10 dark:text-green-300 dark:ring-green-400/30',
         'danger' => 'bg-red-100 text-red-800 ring-red-600/30 dark:bg-red-400/10 dark:text-red-300 dark:ring-red-400/30',
+        // Pastila-numărătoare a zilei (modul „Toate") cu statuturi AMESTECATE: nicio culoare de
+        // statut n-ar spune adevărul, deci gri — detaliul e în mini-listă.
+        'mixed' => 'bg-gray-100 text-gray-700 ring-gray-600/30 dark:bg-white/10 dark:text-gray-200 dark:ring-white/20',
     ];
     // Pistele coloanei Total, în ordinea legendei. Definite o dată, nu pe fiecare rând: doar
     // numărul diferă de la elev la elev, restul (semn, culoare, etichetă citită de cititorul de
@@ -220,7 +223,82 @@
 
                             @foreach ($map['days'] as $day)
                                 <td class="border-b border-gray-100 px-1.5 py-1.5 text-center align-middle dark:border-white/5">
-                                    @foreach ($row['cells'][$day['iso']] ?? [] as $chip)
+                                    @php
+                                        $cellChips = $row['cells'][$day['iso']] ?? [];
+                                        $cellStatuses = array_unique(array_column($cellChips, 'color'));
+                                    @endphp
+
+                                    @if (($map['grouped'] ?? false) && $cellChips !== [])
+                                        {{-- MODUL „TOATE" (fără disciplină în context): pastila zilei arată
+                                             NUMĂRUL absențelor, iar mini-lista de la hover/click desface ziua
+                                             pe absențe — FIECARE aparte, deci două ore de matematică din
+                                             aceeași zi sunt două rânduri „Matematică" (cerința 04.08.2026).
+                                             Culoarea pastilei: a statutului comun, sau gri la amestec. --}}
+                                        <div
+                                            x-data="{ open: false }"
+                                            x-on:mouseenter="open = true"
+                                            x-on:mouseleave="open = false"
+                                            class="relative inline-block"
+                                        >
+                                            <button
+                                                type="button"
+                                                x-on:click="open = ! open"
+                                                x-on:click.outside="open = false"
+                                                x-on:keydown.escape.window="open = false"
+                                                aria-label="{{ trans_choice('absence_map.day_count', count($cellChips), ['count' => count($cellChips)]) }}: {{ implode(', ', array_column($cellChips, 'subject_label')) }}"
+                                                class="m-0.5 inline-flex min-h-7 min-w-7 items-center justify-center rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1 transition hover:brightness-95 {{ $chipPalette[count($cellStatuses) === 1 ? $cellStatuses[0] : 'mixed'] ?? $chipPalette['mixed'] }}"
+                                            >
+                                                {{ count($cellChips) }}
+                                            </button>
+
+                                            <div
+                                                x-cloak
+                                                x-show="open"
+                                                x-transition.opacity.duration.100ms
+                                                class="absolute start-1/2 z-20 mt-1 w-56 -translate-x-1/2 rounded-lg bg-white p-1 text-start shadow-lg ring-1 ring-gray-950/10 dark:bg-gray-800 dark:ring-white/20"
+                                            >
+                                                @foreach ($cellChips as $chip)
+                                                    <div class="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200">
+                                                        <span aria-hidden="true" class="h-2 w-2 shrink-0 rounded-full {{ match ($chip['color']) {
+                                                            'success' => 'bg-green-500',
+                                                            'danger' => 'bg-red-500',
+                                                            default => 'bg-amber-400',
+                                                        } }}"></span>
+                                                        <span class="truncate" title="{{ $chip['title'] }}">{{ $chip['subject_label'] }}</span>
+
+                                                        @if ($map['canStatus'])
+                                                            {{-- Statutul se fixează per ABSENȚĂ, ca la pastilele
+                                                                 individuale — doar așezat pe rândul listei. --}}
+                                                            <span class="ms-auto flex shrink-0 items-center gap-0.5">
+                                                                @foreach ($statusChoices as $status)
+                                                                    <button
+                                                                        type="button"
+                                                                        wire:click="setAbsenceMapStatus({{ $chip['id'] }}, '{{ $status->value }}')"
+                                                                        @disabled($chip['status'] === $status->value)
+                                                                        title="{{ $status->label() }}"
+                                                                        aria-label="{{ $chip['subject_label'] }} — {{ $status->label() }}"
+                                                                        class="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 transition hover:bg-gray-100 disabled:opacity-40 dark:text-gray-300 dark:hover:bg-white/10"
+                                                                    >
+                                                                        <x-filament::icon :icon="$status->icon()" class="h-4 w-4" />
+                                                                    </button>
+                                                                @endforeach
+                                                            </span>
+                                                        @else
+                                                            <a
+                                                                href="{{ $chip['url'] }}"
+                                                                title="{{ __('absence_map.open_record') }}"
+                                                                aria-label="{{ $chip['subject_label'] }} — {{ __('absence_map.open_record') }}"
+                                                                class="ms-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 transition hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-white/10"
+                                                            >
+                                                                <x-filament::icon icon="heroicon-o-arrow-top-right-on-square" class="h-4 w-4" />
+                                                            </a>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @else
+                                    @foreach ($cellChips as $chip)
                                         @if ($map['canStatus'])
                                             {{-- Pastila deschide alegerea statutului pe loc — fără modal. --}}
                                             <div x-data="{ open: false }" class="relative inline-block">
@@ -278,6 +356,7 @@
                                             </a>
                                         @endif
                                     @endforeach
+                                    @endif
                                 </td>
                             @endforeach
 
