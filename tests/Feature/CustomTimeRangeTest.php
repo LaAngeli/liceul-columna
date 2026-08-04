@@ -234,7 +234,8 @@ it('ABSENȚE: capătul superior prinde toată ziua, deși coloana e datetime', f
         'occurred_on' => '2025-11-21 08:00:00',
     ]);
 
-    Livewire::withQueryParams(['mod' => 'personalizat', 'de' => '2025-11-10', 'pana' => '2025-11-20'])
+    // forma=lista: în context de clasă vederea implicită e HARTA (04.08.2026); testul verifică TABELUL.
+    Livewire::withQueryParams(['mod' => 'personalizat', 'de' => '2025-11-10', 'pana' => '2025-11-20', 'forma' => 'lista'])
         ->test(ListAbsences::class)
         ->call('openCatalogEntity', $this->class->id)
         ->assertCanSeeTableRecords([$seara])

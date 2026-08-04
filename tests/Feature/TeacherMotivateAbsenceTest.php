@@ -134,8 +134,18 @@ it('profesorul de disciplină vede absența de la ora lui, dar nu o poate motiva
 
     expect($profesor->canMotivateAbsencesFor($this->class->id))->toBeFalse();
 
-    // Tabelul se randează în contextul clasei (navigatorul de catalog, 83a45c4).
-    Livewire::withQueryParams(['clasa' => (string) $this->class->id])
+    // În contextul clasei vederea implicită e HARTA (04.08.2026); tabelul rămâne pe ?forma=lista.
+    // Verificăm ambele fețe: absența LUI se vede, dar fără drept de statut / fără acțiunea de
+    // motivare. Perioada „toate" — data absenței din factory nu trebuie să cadă din luna curentă.
+    $map = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListAbsences::class)
+        ->instance()
+        ->absenceMap();
+
+    expect(collect($map['rows'])->flatMap(fn (array $row): array => array_keys($row['cells']))->all())->not->toBe([])
+        ->and($map['canStatus'])->toBeFalse();
+
+    Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'forma' => 'lista', 'mod' => 'toate'])
         ->test(ListAbsences::class)
         ->assertCanSeeTableRecords([$absence])
         ->assertTableActionHidden('motivate', $absence);

@@ -91,7 +91,8 @@ it('modul „zi" arată doar absențele zilei de referință; navigarea mută pe
     $onDay = absNavAbsence($this->ownStudent, $this->ownClass, $this->subject, $this->term, on: '2025-10-10');
     $otherDay = absNavAbsence($this->ownStudent, $this->ownClass, $this->subject, $this->term, on: '2025-10-11');
 
-    $component = Livewire::withQueryParams(['mod' => 'zi', 'ref' => '2025-10-10'])
+    // forma=lista: în context de clasă vederea implicită e HARTA (04.08.2026); testul verifică TABELUL.
+    $component = Livewire::withQueryParams(['mod' => 'zi', 'ref' => '2025-10-10', 'forma' => 'lista'])
         ->test(ListAbsences::class)
         ->call('openCatalogEntity', $this->ownClass->id)
         ->assertCanSeeTableRecords([$onDay])
@@ -129,7 +130,8 @@ it('deschiderea unei clase restrânge tabelul la absențele ei', function () {
     $own = absNavAbsence($this->ownStudent, $this->ownClass, $this->subject, $this->term);
     $foreign = absNavAbsence($this->foreignStudent, $this->foreignClass, $this->subject, $this->term);
 
-    Livewire::test(ListAbsences::class)
+    // forma=lista: vederea implicită în context de clasă e harta; aici se verifică TABELUL.
+    Livewire::withQueryParams(['forma' => 'lista', 'mod' => 'toate'])->test(ListAbsences::class)
         ->call('openCatalogEntity', $this->ownClass->id)
         ->assertCanSeeTableRecords([$own])
         ->assertCanNotSeeTableRecords([$foreign]);
@@ -150,7 +152,8 @@ it('absența pe ZI ÎNTREAGĂ (fără disciplină) apare în contextul clasei, s
     $wholeDay = absNavAbsence($this->ownStudent, $this->ownClass, null, $this->term);
     $onSubject = absNavAbsence($this->ownStudent, $this->ownClass, $this->subject, $this->term);
 
-    $component = Livewire::test(ListAbsences::class)
+    // forma=lista: vederea implicită în context de clasă e harta; aici se verifică TABELUL.
+    $component = Livewire::withQueryParams(['forma' => 'lista', 'mod' => 'toate'])->test(ListAbsences::class)
         ->call('openCatalogEntity', $this->ownClass->id)
         ->assertCanSeeTableRecords([$wholeDay, $onSubject]);
 
