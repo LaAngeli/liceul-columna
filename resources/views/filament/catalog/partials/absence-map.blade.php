@@ -116,7 +116,7 @@
             <table class="min-w-max border-separate border-spacing-0 text-sm">
                 <thead>
                     <tr>
-                        <th x-ref="nameTh" class="sticky left-0 z-10 border-b border-gray-200 bg-white px-4 py-2 text-start text-xs font-semibold text-gray-500 dark:border-white/10 dark:bg-gray-900 dark:text-gray-400">
+                        <th x-ref="nameTh" class="sticky left-0 z-10 border-b border-gray-200 bg-white ps-4 pe-12 py-2 text-start text-xs font-semibold text-gray-500 dark:border-white/10 dark:bg-gray-900 dark:text-gray-400">
                             {{ __('absence_map.student') }}
                         </th>
                         @foreach ($map['days'] as $day)
@@ -134,7 +134,7 @@
                         {{-- ANCORAT la dreapta (sticky), ca perechea lui din stânga: totalurile
                              rămân vizibile oricâte zile ar derula dedesubt. Fundal opac obligatoriu
                              — altfel coloanele zilelor s-ar vedea prin el. --}}
-                        <th x-ref="totalTh" class="sticky right-0 z-10 border-b border-s border-gray-200 bg-white px-2.5 py-2 dark:border-white/10 dark:bg-gray-900">
+                        <th x-ref="totalTh" class="sticky right-0 z-10 border-b border-s border-gray-200 bg-white ps-12 pe-2.5 py-2 dark:border-white/10 dark:bg-gray-900">
                             <span class="block text-center text-[0.8625rem] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                 {{ __('absence_map.totals') }}
                             </span>
@@ -148,7 +148,7 @@
                                  white/5): nuanța translucidă înlocuia gri-ul plin la hover, iar
                                  pastilele „A" derulate pe dedesubt se vedeau prin celulă (raport
                                  beneficiar, 04.08.2026). --}}
-                            <td class="sticky left-0 z-10 whitespace-nowrap border-b border-gray-100 bg-white px-4 py-2 font-medium text-gray-950 group-hover:bg-gray-50 dark:border-white/5 dark:bg-gray-900 dark:text-white dark:group-hover:bg-gray-800">
+                            <td class="sticky left-0 z-10 whitespace-nowrap border-b border-gray-100 bg-white ps-4 pe-12 py-2 font-medium text-gray-950 group-hover:bg-gray-50 dark:border-white/5 dark:bg-gray-900 dark:text-white dark:group-hover:bg-gray-800">
                                 {{ $row['student']->last_name }} {{ $row['student']->first_name }}
                             </td>
 
@@ -227,7 +227,7 @@
                                  dintre piste (gap-2.5) e aceeași cu distanța de la margini la date
                                  (px-2.5) — un singur pas peste toată coloana. Hover OPAC, vezi nota
                                  de la coloana numelui. --}}
-                            <td class="sticky right-0 z-10 whitespace-nowrap border-b border-s border-gray-100 border-s-gray-200 bg-white px-2.5 py-2 text-[0.8625rem] tabular-nums group-hover:bg-gray-50 dark:border-white/5 dark:border-s-white/10 dark:bg-gray-900 dark:group-hover:bg-gray-800">
+                            <td class="sticky right-0 z-10 whitespace-nowrap border-b border-s border-gray-100 border-s-gray-200 bg-white ps-12 pe-2.5 py-2 text-[0.8625rem] tabular-nums group-hover:bg-gray-50 dark:border-white/5 dark:border-s-white/10 dark:bg-gray-900 dark:group-hover:bg-gray-800">
                                 <span class="flex items-center justify-end gap-2.5">
                                     <span class="flex w-9 items-center justify-center font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
 
@@ -266,7 +266,7 @@
                 aria-label="{{ __('absence_map.scroll_left') }}"
                 title="{{ __('absence_map.scroll_left') }}"
                 class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
-                x-bind:style="'left: ' + (nameW + 6) + 'px; top: ' + arrowTop + 'px'"
+                x-bind:style="'left: ' + (nameW - 34) + 'px; top: ' + arrowTop + 'px'"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -282,7 +282,7 @@
                 aria-label="{{ __('absence_map.scroll_right') }}"
                 title="{{ __('absence_map.scroll_right') }}"
                 class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
-                x-bind:style="'right: ' + (totalW + 6) + 'px; top: ' + arrowTop + 'px'"
+                x-bind:style="'right: ' + (totalW - 34) + 'px; top: ' + arrowTop + 'px'"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
