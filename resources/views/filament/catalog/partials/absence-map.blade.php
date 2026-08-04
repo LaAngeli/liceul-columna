@@ -76,6 +76,7 @@
                 canRight: false,
                 nameW: 0,
                 totalW: 0,
+                arrowTop: 6,
                 sync() {
                     const el = this.$refs.scroller;
 
@@ -87,6 +88,11 @@
                     this.canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
                     this.nameW = this.$refs.nameTh?.offsetWidth ?? 0;
                     this.totalW = this.$refs.totalTh?.offsetWidth ?? 0;
+
+                    // Săgeata (28px) stă centrată pe RÂNDUL ANTETULUI cu date, oricâte rânduri ar
+                    // avea capul tabelului.
+                    const headH = el.querySelector('thead')?.offsetHeight ?? 0;
+                    this.arrowTop = Math.max(4, Math.round((headH - 28) / 2));
                 },
                 nudge(direction) {
                     const el = this.$refs.scroller;
@@ -128,7 +134,7 @@
                         {{-- ANCORAT la dreapta (sticky), ca perechea lui din stânga: totalurile
                              rămân vizibile oricâte zile ar derula dedesubt. Fundal opac obligatoriu
                              — altfel coloanele zilelor s-ar vedea prin el. --}}
-                        <th x-ref="totalTh" class="sticky right-0 z-10 border-b border-s border-gray-200 bg-white ps-2 pe-4 py-2 dark:border-white/10 dark:bg-gray-900">
+                        <th x-ref="totalTh" class="sticky right-0 z-10 border-b border-s border-gray-200 bg-white px-2.5 py-2 dark:border-white/10 dark:bg-gray-900">
                             <span class="block text-center text-[0.8625rem] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                 {{ __('absence_map.totals') }}
                             </span>
@@ -138,7 +144,11 @@
                 <tbody>
                     @foreach ($map['rows'] as $row)
                         <tr class="group">
-                            <td class="sticky left-0 z-10 whitespace-nowrap border-b border-gray-100 bg-white px-4 py-2 font-medium text-gray-950 group-hover:bg-gray-50 dark:border-white/5 dark:bg-gray-900 dark:text-white dark:group-hover:bg-white/5">
+                            {{-- ⚠️ Hover-ul celulelor ANCORATE trebuie să rămână OPAC (bg-gray-800, nu
+                                 white/5): nuanța translucidă înlocuia gri-ul plin la hover, iar
+                                 pastilele „A" derulate pe dedesubt se vedeau prin celulă (raport
+                                 beneficiar, 04.08.2026). --}}
+                            <td class="sticky left-0 z-10 whitespace-nowrap border-b border-gray-100 bg-white px-4 py-2 font-medium text-gray-950 group-hover:bg-gray-50 dark:border-white/5 dark:bg-gray-900 dark:text-white dark:group-hover:bg-gray-800">
                                 {{ $row['student']->last_name }} {{ $row['student']->first_name }}
                             </td>
 
@@ -212,15 +222,20 @@
                                  categorie la zero își lasă locul GOL, nu îl cedează vecinei:
                                  altfel „2✓" aluneca în pista lui „✗" și cifrele nu se mai puteau
                                  compara pe verticală. --}}
-                            <td class="sticky right-0 z-10 whitespace-nowrap border-b border-s border-gray-100 border-s-gray-200 bg-white ps-2 pe-4 py-2 text-[0.8625rem] tabular-nums group-hover:bg-gray-50 dark:border-white/5 dark:border-s-white/10 dark:bg-gray-900 dark:group-hover:bg-white/5">
-                                <span class="flex items-center justify-end gap-1">
-                                    <span class="w-6 text-start font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
+                            {{-- RITM UNIFORM (cerința beneficiarului, 04.08.2026): toate cele 4
+                                 piste au aceeași lățime (w-9), conținut CENTRAT, iar distanța
+                                 dintre piste (gap-2.5) e aceeași cu distanța de la margini la date
+                                 (px-2.5) — un singur pas peste toată coloana. Hover OPAC, vezi nota
+                                 de la coloana numelui. --}}
+                            <td class="sticky right-0 z-10 whitespace-nowrap border-b border-s border-gray-100 border-s-gray-200 bg-white px-2.5 py-2 text-[0.8625rem] tabular-nums group-hover:bg-gray-50 dark:border-white/5 dark:border-s-white/10 dark:bg-gray-900 dark:group-hover:bg-gray-800">
+                                <span class="flex items-center justify-end gap-2.5">
+                                    <span class="flex w-9 items-center justify-center font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
 
                                     @foreach ($totalTracks as $track)
                                         {{-- Pistă de lățime fixă, randată și când e goală: locul liber
                                              păstrează alinierea pe verticală. Cifra și semnul stau la
                                              o distanță vizibilă (gap-1.5), nu lipite. --}}
-                                        <span class="flex w-10 items-center justify-end gap-1.5 {{ $track['tone'] }}">
+                                        <span class="flex w-9 items-center justify-center gap-1.5 {{ $track['tone'] }}">
                                             @if ($row['totals'][$track['key']] > 0)
                                                 <span>{{ $row['totals'][$track['key']] }}</span>
                                                 <span aria-hidden="true">{{ $track['icon'] }}</span>
@@ -236,48 +251,43 @@
             </table>
             </div>
 
-            {{-- SĂGEȚILE CARUSELULUI — doar în interiorul zonei zilelor (offseturile = lățimile
-                 coloanelor ancorate, măsurate la sync) și doar când există mai multe zile decât
-                 încap: `canLeft` / `canRight` se sting singure la capete, deci pe un tabel care
-                 încape nu apar deloc.
+            {{-- SĂGEȚILE CARUSELULUI — INTEGRATE ÎN RÂNDUL CU DATE (cerința beneficiarului,
+                 04.08.2026), la capetele zonei zilelor: stânga imediat după coloana numelui,
+                 dreapta imediat înaintea coloanei Total. Offseturile vin din lățimile reale ale
+                 coloanelor ancorate, iar înălțimea din capul tabelului — ambele măsurate la sync,
+                 nu fixate în cod. Apar doar când există mai multe zile decât încap (`canLeft` /
+                 `canRight` se sting la capete), deci pe un tabel care încape nu apar deloc. --}}
+            <button
+                type="button"
+                x-cloak
+                x-show="canLeft"
+                x-transition.opacity
+                x-on:click="nudge(-1)"
+                aria-label="{{ __('absence_map.scroll_left') }}"
+                title="{{ __('absence_map.scroll_left') }}"
+                class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
+                x-bind:style="'left: ' + (nameW + 6) + 'px; top: ' + arrowTop + 'px'"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                </svg>
+            </button>
 
-                 De ce ȘINE sticky, nu butoane absolute la top-1/2: pe o clasă mare tabelul trece
-                 de 1300px, iar mijlocul LUI cade sub marginea ecranului — săgețile existau dar nu
-                 se vedeau (măsurat, 04.08.2026). Șina acoperă toată înălțimea zonei, iar butonul
-                 sticky din ea rămâne la mijlocul FERESTREI cât timp harta e pe ecran. --}}
-            <div class="pointer-events-none absolute inset-y-0 z-20" x-bind:style="'left: ' + (nameW + 8) + 'px'">
-                <button
-                    type="button"
-                    x-cloak
-                    x-show="canLeft"
-                    x-transition.opacity
-                    x-on:click="nudge(-1)"
-                    aria-label="{{ __('absence_map.scroll_left') }}"
-                    title="{{ __('absence_map.scroll_left') }}"
-                    class="pointer-events-auto sticky top-[45vh] flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="16" height="16" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                    </svg>
-                </button>
-            </div>
-
-            <div class="pointer-events-none absolute inset-y-0 z-20" x-bind:style="'right: ' + (totalW + 8) + 'px'">
-                <button
-                    type="button"
-                    x-cloak
-                    x-show="canRight"
-                    x-transition.opacity
-                    x-on:click="nudge(1)"
-                    aria-label="{{ __('absence_map.scroll_right') }}"
-                    title="{{ __('absence_map.scroll_right') }}"
-                    class="pointer-events-auto sticky top-[45vh] flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="16" height="16" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                    </svg>
-                </button>
-            </div>
+            <button
+                type="button"
+                x-cloak
+                x-show="canRight"
+                x-transition.opacity
+                x-on:click="nudge(1)"
+                aria-label="{{ __('absence_map.scroll_right') }}"
+                title="{{ __('absence_map.scroll_right') }}"
+                class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
+                x-bind:style="'right: ' + (totalW + 6) + 'px; top: ' + arrowTop + 'px'"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+            </button>
         </div>
     @endif
 </section>
