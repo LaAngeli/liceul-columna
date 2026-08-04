@@ -10,9 +10,9 @@ use App\Filament\Resources\Students\StudentResource;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
 use App\Models\Subject;
-use App\Models\Term;
 use App\Models\User;
 use App\Support\ContentTranslator;
+use App\Support\TermOptions;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -149,12 +149,13 @@ class AbsencesTable
                     ->searchable()
                     ->preload()
                     ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogSubjectIdInContext() !== null)),
+                // Semestrele: pe paginile de CATALOG doar ale anului activ; în fișa elevului toate,
+                // cu anul în etichetă (altfel „Semestrul I" apare de N ori, identic). {@see TermOptions}
                 SelectFilter::make('term_id')
                     ->label(__('panel.fields.term'))
-                    ->relationship('term', 'name')
-                    // Etichetele din dropdown se traduc ca peste tot; filtrarea rămâne pe id.
-                    ->getOptionLabelFromRecordUsing(fn (Term $record): string => ContentTranslator::term((string) $record->name))
-                    ->preload()
+                    ->options(fn ($livewire): array => $livewire instanceof CatalogNavigator
+                        ? TermOptions::current()
+                        : TermOptions::all())
                     ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogTermIdInContext() !== null)),
                 // Statut în TREI stări (fostul TernaryFilter DA/NU nu avea „fără statut" — exact
                 // filtrul de triaj al dirigintelui: „arată-mi ce am de decis").

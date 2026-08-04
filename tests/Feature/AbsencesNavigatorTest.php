@@ -19,6 +19,7 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\User;
+use App\Support\TermOptions;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -201,4 +202,56 @@ it('o disciplină care NU se predă în clasa din context nu se pre-completează
             'school_class_id' => $this->ownClass->id,
             'subject_id' => null,
         ]);
+});
+
+it('dimensiunea „Perioade" arată doar semestrele anului activ', function () {
+    /**
+     * Cerința beneficiarului (04.08.2026): semestrele anilor încheiați umpleau meniul cu carduri
+     * „fără înregistrări încă" — o listă care crește cu fiecare an, în care semestrul de lucru se
+     * pierde. Arhiva rămâne accesibilă acolo unde îi e locul (foaie matricolă, fișa elevului).
+     */
+    $vechi = AcademicYear::factory()->create(['name' => '2019–2020', 'starts_on' => '2019-09-01', 'ends_on' => '2020-06-30']);
+    Term::factory()->for($vechi)->create(['number' => 1, 'name' => 'Semestrul I', 'starts_on' => '2019-09-01', 'ends_on' => '2019-12-31']);
+    Term::factory()->for($vechi)->create(['number' => 2, 'name' => 'Semestrul II', 'starts_on' => '2020-01-15', 'ends_on' => '2020-06-30']);
+
+    $alDoilea = Term::factory()->for($this->year)->create([
+        'number' => 2, 'name' => 'Semestrul II', 'starts_on' => '2026-01-15', 'ends_on' => '2026-06-30',
+    ]);
+
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+    actingAs($director->fresh());
+
+    $cards = Livewire::test(ListAbsences::class)
+        ->call('setCatalogDimension', 'perioade')
+        ->instance()
+        ->catalogEntityCards();
+
+    // Doar cele două semestre ale anului activ, în ordine cronologică.
+    expect(array_column($cards, 'id'))->toBe([(int) $this->term->id, (int) $alDoilea->id])
+        ->and(array_unique(array_column($cards, 'subtitle')))->toBe([$this->year->name]);
+});
+
+it('filtrul „Semestrul" oferă anul activ în catalog și toți anii, cu anul în etichetă, pe fișa elevului', function () {
+    $vechi = AcademicYear::factory()->create(['name' => '2019–2020', 'starts_on' => '2019-09-01', 'ends_on' => '2020-06-30']);
+    $semVechi = Term::factory()->for($vechi)->create([
+        'number' => 1, 'name' => 'Semestrul I', 'starts_on' => '2019-09-01', 'ends_on' => '2019-12-31',
+    ]);
+
+    // În catalog: doar semestrele anului activ, etichete scurte (nu există ambiguitate).
+    expect(array_keys(TermOptions::current()))->toBe([(int) $this->term->id])
+        ->and(TermOptions::current()[(int) $this->term->id])->not->toContain('2019');
+
+    // În arhivă: toate, cu anul lipit — altfel două „Semestrul I" ar arăta identic.
+    $all = TermOptions::all();
+
+    expect(array_keys($all))->toContain((int) $semVechi->id, (int) $this->term->id)
+        ->and($all[(int) $semVechi->id])->toContain('2019–2020');
+});
+
+it('fără an curent definit, filtrul nu rămâne gol — cade pe toate semestrele', function () {
+    Term::query()->update(['is_current' => false]);
+
+    expect(TermOptions::current())->toBe(TermOptions::all())
+        ->and(TermOptions::current())->not->toBeEmpty();
 });

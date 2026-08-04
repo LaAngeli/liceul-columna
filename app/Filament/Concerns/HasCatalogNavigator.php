@@ -503,16 +503,31 @@ trait HasCatalogNavigator
         return $cards;
     }
 
-    /** @return array<int, array{id: int, title: string, subtitle: string|null, badge: string|null, stats: array<int, string>}> */
+    /**
+     * Perioadele afișate drept carduri: semestrele anului ACTIV (cerința beneficiarului,
+     * 04.08.2026). Semestrele anilor încheiați umpleau meniul cu carduri „fără înregistrări încă"
+     * — o listă care crește cu fiecare an și în care semestrul de lucru se pierde printre ele.
+     * Arhiva anilor trecuți trăiește oricum acolo unde îi e locul: foaia matricolă, fișa elevului,
+     * rapoarte (iar un link direct spre un semestru vechi rămâne valid — contextul se deschide).
+     *
+     * Fără an curent definit (rollover neefectuat), rămân TOATE: mai bine un meniu lung decât unul
+     * gol, într-un moment în care oricum școala are altceva de reparat.
+     *
+     * @return array<int, array{id: int, title: string, subtitle: string|null, badge: string|null, stats: array<int, string>}>
+     */
     protected function termCards(): array
     {
         $aggregates = $this->aggregatesBy('term_id');
 
         $cards = [];
+        $yearId = $this->currentAcademicYearId();
 
         $terms = Term::query()
             ->with('academicYear')
-            ->orderByDesc('starts_on')
+            ->when($yearId !== null, fn (Builder $query): Builder => $query->where('academic_year_id', $yearId))
+            // Într-un singur an ordinea firească e cronologică (Sem. I → Sem. II); pe fallback-ul
+            // cu toți anii rămâne inversă, ca cei recenți să fie primii.
+            ->orderBy('starts_on', $yearId !== null ? 'asc' : 'desc')
             ->get();
 
         foreach ($terms as $term) {

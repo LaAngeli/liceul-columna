@@ -12,8 +12,8 @@ use App\Filament\Resources\Students\StudentResource;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
 use App\Models\Subject;
-use App\Models\Term;
 use App\Support\ContentTranslator;
+use App\Support\TermOptions;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
@@ -126,12 +126,14 @@ class GradesTable
                     ->searchable()
                     ->preload()
                     ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogSubjectIdInContext() !== null)),
+                // Semestrele: pe paginile de CATALOG doar ale anului activ (semestrele anilor
+                // încheiați nu se pot alege util acolo, dar umpleau lista cu etichete identice);
+                // în fișa elevului — toate, cu anul în etichetă. Vezi {@see TermOptions}.
                 SelectFilter::make('term_id')
                     ->label(__('panel.fields.term'))
-                    ->relationship('term', 'name')
-                    // Etichetele din dropdown se traduc ca peste tot; filtrarea rămâne pe id.
-                    ->getOptionLabelFromRecordUsing(fn (Term $record): string => ContentTranslator::term((string) $record->name))
-                    ->preload()
+                    ->options(fn ($livewire): array => $livewire instanceof CatalogNavigator
+                        ? TermOptions::current()
+                        : TermOptions::all())
                     ->visible(fn ($livewire): bool => ! ($livewire instanceof CatalogNavigator && $livewire->catalogTermIdInContext() !== null)),
                 SelectFilter::make('evaluation_type')
                     ->label(__('panel.fields.evaluation_type'))
