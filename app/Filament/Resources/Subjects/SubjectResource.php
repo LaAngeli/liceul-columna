@@ -69,9 +69,12 @@ class SubjectResource extends Resource
     }
 
     /**
-     * Scoping pe rol (redefinit 2026-07-15, feedback beneficiar): profesorul/dirigintele vede
-     * STRICT disciplinele pe care le predă (cardurile navigatorului — vezi ListSubjects);
-     * administrația vede tot nomenclatorul (tabel + CRUD).
+     * Scoping pe CONTEXTUL pedagogic activ: profesorul vede strict disciplinele pe care le predă;
+     * dirigintele vede toate disciplinele clasei sale, oricine le-ar preda (spec §3.2 — „vizualizare
+     * completă (citire) pe toate disciplinele clasei sale"). Administrația vede tot nomenclatorul.
+     *
+     * CORECȚIE (raport beneficiar, 04.08.2026): filtrul era pe `taughtSubjectIds()` pentru toți, deci
+     * dirigintele își pierdea exact partea care îl privește — disciplinele colegilor de la clasa lui.
      */
     public static function getEloquentQuery(): Builder
     {
@@ -82,13 +85,11 @@ class SubjectResource extends Resource
             return $query;
         }
 
-        $teacher = $user->teacher;
-
-        if (! $teacher) {
+        if (! $user->teacher) {
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereKey($teacher->taughtSubjectIds());
+        return $query->whereKey($user->contextSubjectIds());
     }
 
     public static function getPages(): array

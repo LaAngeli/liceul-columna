@@ -161,9 +161,13 @@ enum StaffReportType: string implements HasLabel
 
         return match ($this) {
             self::ClassRoster => in_array($classId, $user->contextClassIds(), true), // contextul pedagogic activ (F3)
+            // Rapoarte pe (clasă, disciplină): profesorul doar la perechea pe care o predă;
+            // dirigintele la ORICE disciplină a clasei sale — spec §3.2 îi dă vizualizarea completă
+            // pe toate disciplinele clasei, iar un raport de citire e chiar forma ei agregată.
             self::ClassSubjectSituation,
             self::GradeDistribution => $subjectId !== null && $classId !== null
-                && $teacher->canGradeClassSubject($classId, $subjectId),
+                && ($teacher->canGradeClassSubject($classId, $subjectId)
+                    || in_array($classId, $user->contextHomeroomClassIds(), true)), // contextul pedagogic activ (F3)
             self::StudentRanking,
             self::AveragesEvolution,
             self::SubjectAverages,

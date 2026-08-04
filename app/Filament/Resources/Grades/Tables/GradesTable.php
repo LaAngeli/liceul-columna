@@ -158,12 +158,15 @@ class GradesTable
                         ->icon('heroicon-o-pencil-square')
                         ->color('warning')
                         ->modalSubmitActionLabel(__('panel.actions.request_correction.submit'))
-                        // Doar profesorul care PREDĂ (clasa, disciplina) notei poate cere corecția — nu
-                        // dirigintele pe o disciplină străină lui, deși vede nota clasei (audit M-1/#10).
+                        // Cererea de corecție e deschisă profesorului care predă perechea ȘI dirigintelui
+                        // clasei, pe orice disciplină a ei — spec §3.1: „o notă se corectează doar la
+                        // solicitarea profesorului/dirigintelui, cu acordul prim-vicedirectorului".
+                        // Nu e o modificare: e o SOLICITARE, care oricum trece prin aprobare — deci nu
+                        // atinge interdicția din §3.2 de a modifica notele colegilor.
                         // O notă nu poate avea două cereri în așteptare simultan.
                         ->visible(fn (Grade $record): bool => ! $record->isAnnulled()
                             && ! (auth('web')->user()?->canAdministerCatalog() ?? false)
-                            && self::teacherTeachesGrade($record)
+                            && self::canRequestCorrectionFor($record)
                             && ! $record->hasPendingCorrection())
                         ->modalHeading(fn (): string => __('panel.actions.request_correction.heading'))
                         ->modalDescription(fn (): string => __('panel.actions.request_correction.description'))
@@ -257,9 +260,9 @@ class GradesTable
     }
 
     /**
-     * Profesorul logat PREDĂ (clasa, disciplina) acestei note? Sursă pentru vizibilitatea acțiunilor
-     * de anulare / solicitare corecție la profesor: dirigintele vede notele clasei, dar nu operează
-     * pe disciplinele altor profesori. Administrația (canAdministerCatalog) e verificată separat.
+     * Profesorul logat PREDĂ (clasa, disciplina) acestei note? Sursă pentru vizibilitatea ANULĂRII:
+     * anularea scoate nota din medii, deci e o operație asupra ei — rămâne la titularul disciplinei
+     * (M-1/#07). Administrația (canAdministerCatalog) e verificată separat.
      */
     private static function teacherTeachesGrade(Grade $record): bool
     {
@@ -270,5 +273,27 @@ class GradesTable
         }
 
         return $teacher->canGradeClassSubject((int) $record->school_class_id, (int) $record->subject_id);
+    }
+
+    /**
+     * Poate SOLICITA o corecție pentru această notă?
+     *
+     * Deosebirea față de {@see teacherTeachesGrade} e cea dintre a schimba și a cere: cererea nu
+     * atinge nota, o trimite spre aprobare. Spec §3.1 numește explicit ambii solicitanți —
+     * profesorul ȘI dirigintele — iar §3.2 îi dă dirigintelui răspunderea întregii clase. Fără asta,
+     * dirigintele vedea o notă greșită la disciplina unui coleg și nu avea niciun buton: singura
+     * cale rămânea în afara platformei, adică fără urmă în catalog.
+     */
+    private static function canRequestCorrectionFor(Grade $record): bool
+    {
+        if (self::teacherTeachesGrade($record)) {
+            return true;
+        }
+
+        return in_array(
+            (int) $record->school_class_id,
+            auth('web')->user()?->contextHomeroomClassIds() ?? [], // contextul pedagogic activ (F3)
+            true,
+        );
     }
 }

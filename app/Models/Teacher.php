@@ -112,6 +112,55 @@ class Teacher extends Model implements Auditable
     }
 
     /**
+     * Disciplinele care se predau la clasele lui de DIRIGENȚIE — indiferent de titular.
+     *
+     * Dirigintele răspunde de clasă în întregime, deci o vede pe toată: spec §3.2 îi dă
+     * „vizualizare completă (citire) pe toate disciplinele clasei sale". De aceea lista NU se
+     * filtrează pe `teacher_id` — tocmai disciplinele COLEGILOR sunt cele care lipseau.
+     *
+     * @return list<int>
+     */
+    public function homeroomSubjectIds(): array
+    {
+        $classIds = $this->homeroomSchoolClassIds();
+
+        if ($classIds === []) {
+            return [];
+        }
+
+        return array_values(
+            TeachingAssignment::query()
+                ->whereIn('school_class_id', $classIds)
+                ->pluck('subject_id')
+                ->map(static fn ($id): int => (int) $id)
+                ->unique()
+                ->all()
+        );
+    }
+
+    /**
+     * Disciplinele vizibile în CONTEXTUL pedagogic dat — perechea lui {@see contextSchoolClassIds}.
+     *
+     * Profesor → doar cele predate de el; Diriginte → toate disciplinele claselor lui; fără context
+     * (mono-rol) → reuniunea. Sursă unică: înainte, fiecare suprafață chema direct
+     * `taughtSubjectIds()`, iar dirigintele își pierdea clasa pe drum — vedea în „Discipline" și în
+     * filtrele de rapoarte doar ce preda el însuși.
+     *
+     * @return list<int>
+     */
+    public function contextSubjectIds(?UserRole $context): array
+    {
+        return match ($context) {
+            UserRole::Profesor => $this->taughtSubjectIds(),
+            UserRole::Diriginte => $this->homeroomSubjectIds(),
+            default => array_values(array_unique([
+                ...$this->taughtSubjectIds(),
+                ...$this->homeroomSubjectIds(),
+            ])),
+        };
+    }
+
+    /**
      * Are dreptul să pună/editeze NOTE la (clasă, disciplină)? Doar dacă predă efectiv
      * acea disciplină la acea clasă (dirigintele VEDE tot, dar notează doar la disciplina lui).
      */

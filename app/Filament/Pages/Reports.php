@@ -324,8 +324,11 @@ class Reports extends Page
         $user = auth('web')->user();
         $query = Subject::query()->orderBy('name');
 
+        // Contextul pedagogic activ (F3): dirigintele alege și disciplinele colegilor de la clasa
+        // lui — altfel n-ar putea deschide raportul pe care §3.2 i-l dă („dosarul elevilor clasei",
+        // situația pe disciplină). Gardul real rămâne în StaffReportType::allows().
         if ($user instanceof User && ! $user->isAdministrator() && $user->teacher !== null) {
-            $query->whereKey($user->teacher->taughtSubjectIds());
+            $query->whereKey($user->contextSubjectIds());
         }
 
         $options = [];

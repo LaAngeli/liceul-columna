@@ -258,6 +258,18 @@ class User extends Authenticatable implements Auditable, FilamentUser
     }
 
     /**
+     * Disciplinele vizibile în contextul pedagogic activ: Profesor → predate; Diriginte → toate
+     * disciplinele claselor lui, oricine le-ar preda; fără context → reuniunea. Goală pentru
+     * conturile fără fișă. Perechea lui {@see contextClassIds}.
+     *
+     * @return list<int>
+     */
+    public function contextSubjectIds(): array
+    {
+        return $this->teacher?->contextSubjectIds($this->teachingContext()) ?? [];
+    }
+
+    /**
      * Puterile de DIRIGENȚIE în contextul activ: în context Profesor sunt STINSE (doc pct. 5 —
      * clasa de dirigenție se vede acolo „exclusiv cu drepturi de profesor"); altfel, desemnarea
      * de pe fișă. Sursa gate-urilor de motivări, calendar de clasă și rapoarte de dirigenție.

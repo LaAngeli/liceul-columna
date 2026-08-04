@@ -439,8 +439,11 @@ trait HasCatalogNavigator
     {
         $aggregates = $this->aggregatesBy('subject_id', withClasses: true);
 
+        // Disciplinele CU date ∪ disciplinele contextului pedagogic activ (F3). Pentru diriginte,
+        // a doua parte aduce și disciplinele colegilor de la clasa lui, ca ele să aibă card chiar
+        // înainte să existe prima notă — altfel harta clasei ar apărea cu goluri.
         $subjectIds = $aggregates->keys()
-            ->merge($this->catalogTeacherModel()?->taughtSubjectIds() ?? [])
+            ->merge($this->catalogTeacherModel()?->contextSubjectIds($this->catalogUser()?->teachingContext()) ?? [])
             ->unique()
             ->all();
 
@@ -889,7 +892,8 @@ trait HasCatalogNavigator
                 return Subject::query()->pluck('id')->map(fn ($id): int => (int) $id)->all();
             }
 
-            // Predatele lui ∪ disciplinele vizibile prin diriginție (au înregistrări în scope).
+            // Disciplinele cu înregistrări în scope ∪ cele ale contextului pedagogic activ (F3):
+            // ca profesor, ale lui; ca diriginte, toate ale clasei sale.
             $graded = $this->catalogCountableQuery()
                 ->toBase()
                 ->whereNotNull('subject_id')
@@ -897,7 +901,11 @@ trait HasCatalogNavigator
                 ->pluck('subject_id')
                 ->map(fn ($id): int => (int) $id);
 
-            return $graded->merge($teacher->taughtSubjectIds())->unique()->values()->all();
+            return $graded
+                ->merge($teacher->contextSubjectIds($this->catalogUser()?->teachingContext()))
+                ->unique()
+                ->values()
+                ->all();
         });
 
         return $ids;

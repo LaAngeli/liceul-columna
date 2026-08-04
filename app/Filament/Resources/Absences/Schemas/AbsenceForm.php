@@ -249,8 +249,9 @@ class AbsenceForm
 
             $query->whereKey($subjectIds->all());
         } elseif ($teacher !== null) {
-            // Fără clasă aleasă încă: profesorul vede disciplinele lui (se re-scopează la alegerea clasei).
-            $query->whereKey($teacher->taughtSubjectIds());
+            // Fără clasă aleasă încă: disciplinele contextului pedagogic activ (F3) — ale profesorului,
+            // respectiv toate ale claselor de dirigenție. Se re-scopează la alegerea clasei.
+            $query->whereKey(auth('web')->user()?->contextSubjectIds() ?? []);
         }
 
         $options = [];
