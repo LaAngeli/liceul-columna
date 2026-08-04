@@ -339,6 +339,16 @@ class ClassRegister extends Page
     public const DATE_AFTER_YEAR = 'after_year';
 
     /**
+     * VACANȚA DINTRE ANI: anul vechi s-a încheiat, anul nou E DESCHIS dar nu a început încă.
+     * Salvarea pe această dată rămâne refuzată (ziua nu aparține niciunui semestru), dar nu mai
+     * e nimic de reparat — se așteaptă 1 septembrie, iar semestrul curent comută singur
+     * (`app:sync-current-term`). Fără starea asta, banda de rollover ar fi mințit („anul nou nu
+     * are semestre definite") imediat DUPĂ deschiderea anului — prins pe 04.08.2026, la prima
+     * deschidere reală prin „Trecerea în anul nou".
+     */
+    public const DATE_BETWEEN_YEARS = 'between_years';
+
+    /**
      * Starea datei alese față de structura anului. Oglindește EXACT decizia de pe server
      * ({@see EnforcesGradeScope}/{@see EnforcesAbsenceScope}): ce anunță ecranul aici e ce se va
      * întâmpla la salvare — altfel semnalul ar fi doar decor.
@@ -355,9 +365,24 @@ class ClassRegister extends Page
 
         $yearEndsOn = SchoolCalendar::currentTerm()?->academicYear?->ends_on;
 
-        return $yearEndsOn !== null && $date->isAfter($yearEndsOn->startOfDay())
-            ? self::DATE_AFTER_YEAR
-            : self::DATE_VACATION;
+        if ($yearEndsOn === null || ! $date->isAfter($yearEndsOn->startOfDay())) {
+            return self::DATE_VACATION;
+        }
+
+        // După finalul anului curent: dacă există deja un semestru care ÎNCEPE după data aleasă,
+        // anul următor e deschis — suntem doar în golul dintre ani, nu într-un rollover lipsă.
+        return $this->nextTermAfter($date) !== null
+            ? self::DATE_BETWEEN_YEARS
+            : self::DATE_AFTER_YEAR;
+    }
+
+    /** Primul semestru care începe DUPĂ data dată — proba că anul următor există. */
+    public function nextTermAfter(Carbon $date): ?Term
+    {
+        return Term::query()
+            ->whereDate('starts_on', '>', $date->toDateString())
+            ->orderBy('starts_on')
+            ->first();
     }
 
     /** Anul care s-a încheiat (pentru mesajul de rollover) — null dacă nu există semestru curent. */
@@ -779,17 +804,31 @@ class ClassRegister extends Page
 
         abort_unless($canGrade || $canAbsent, 403);
 
-        // Data de după finalul anului: gărzile de pe server ar refuza oricum fiecare rând, dar
-        // mesajul ar veni de 25 de ori, pe rânduri. Îl spunem o dată, înainte să scriem ceva.
-        if ($this->entryDateState() === self::DATE_AFTER_YEAR) {
+        // Dată din afara oricărui semestru al vreunui an (rollover lipsă SAU golul dintre ani):
+        // gărzile de pe server ar refuza oricum fiecare rând, dar mesajul ar veni de 25 de ori,
+        // pe rânduri. Îl spunem o dată, înainte să scriem ceva — pe limba stării reale.
+        $dateState = $this->entryDateState();
+
+        if (in_array($dateState, [self::DATE_AFTER_YEAR, self::DATE_BETWEEN_YEARS], true)) {
+            $blockedDate = Carbon::parse($this->entryDate);
+            $next = $this->nextTermAfter($blockedDate);
+
             Notification::make()
                 ->title(__('panel.class_register.after_year_blocked', [
-                    'date' => Carbon::parse($this->entryDate)->format('d.m.Y'),
+                    'date' => $blockedDate->format('d.m.Y'),
                 ]))
-                ->body(__('panel.class_register.after_year_body', [
-                    'year' => $this->currentYearLabel() ?? '—',
-                    'date' => $this->currentYearEndsOn() ?? '—',
-                ]))
+                ->body($dateState === self::DATE_BETWEEN_YEARS
+                    ? __('panel.class_register.between_years_body', [
+                        'year' => $this->currentYearLabel() ?? '—',
+                        // În starea „între ani", $next există prin definiție (ea A DECIS starea);
+                        // anul lui poate lipsi doar teoretic (withTrashed pe relații).
+                        'next' => $next?->academicYear->name ?? '—',
+                        'start' => $next?->starts_on?->format('d.m.Y') ?? '—',
+                    ])
+                    : __('panel.class_register.after_year_body', [
+                        'year' => $this->currentYearLabel() ?? '—',
+                        'date' => $this->currentYearEndsOn() ?? '—',
+                    ]))
                 ->danger()
                 ->send();
 

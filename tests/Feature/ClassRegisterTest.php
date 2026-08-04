@@ -758,3 +758,47 @@ it('tipul e implicit „Curentă" și nu există opțiunea „toate tipurile"', 
     expect($rows[$a->id]['grades'])->toHaveCount(1)
         ->and($rows[$a->id]['grades'][0]['value'])->toBe('9');
 });
+
+it('cu anul nou DESCHIS dar neînceput, golul dintre ani nu mai e raportat ca rollover lipsă', function () {
+    // Exact situația de pe 04.08.2026, imediat după „Trecerea în anul nou": anul vechi încheiat,
+    // anul nou există cu semestre, dar începe la 1 septembrie. Banda de rollover ar fi mințit
+    // („anul nou nu are semestre definite") și ar fi trimis administrația să repare ceva deja făcut.
+    DB::table('terms')->where('id', $this->term->id)->update([
+        'starts_on' => Carbon::today()->subMonths(5)->toDateString(),
+        'ends_on' => Carbon::today()->subMonth()->toDateString(),
+    ]);
+    DB::table('academic_years')->where('id', $this->year->id)->update([
+        'starts_on' => Carbon::today()->subMonths(11)->toDateString(),
+        'ends_on' => Carbon::today()->subMonth()->toDateString(),
+    ]);
+
+    // Anul următor, deschis prin trecere: începe peste o lună.
+    $next = AcademicYear::factory()->create([
+        'starts_on' => Carbon::today()->addMonth()->toDateString(),
+        'ends_on' => Carbon::today()->addMonths(11)->toDateString(),
+    ]);
+    Term::factory()->for($next)->create([
+        'number' => 1, 'is_current' => false,
+        'starts_on' => Carbon::today()->addMonth()->toDateString(),
+        'ends_on' => Carbon::today()->addMonths(5)->toDateString(),
+    ]);
+
+    actingAs($this->profUser);
+
+    $page = Livewire::test(ClassRegister::class);
+
+    expect($page->instance()->entryDateState())->toBe(ClassRegister::DATE_BETWEEN_YEARS);
+
+    // Salvarea pe azi rămâne blocată ÎNAINTE de orice scriere (ziua nu aparține niciunui semestru).
+    $a = $this->students->first();
+    $page->set('entries', [(string) $a->id => ['value' => '9']])
+        ->call('saveEntries')
+        ->assertHasNoErrors();
+
+    expect(Grade::query()->count())->toBe(0);
+
+    // Iar fără anul următor, aceeași zi rămâne rollover lipsă — cele două stări nu se amestecă.
+    Term::query()->where('academic_year_id', $next->id)->delete();
+
+    expect(Livewire::test(ClassRegister::class)->instance()->entryDateState())->toBe(ClassRegister::DATE_AFTER_YEAR);
+});

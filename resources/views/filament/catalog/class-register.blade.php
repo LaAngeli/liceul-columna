@@ -129,12 +129,15 @@
                                 <p @class([
                                     'mt-1 flex h-4 items-center text-xs',
                                     'text-gray-400 dark:text-gray-500' => $dateState === \App\Filament\Pages\ClassRegister::DATE_IN_TERM,
-                                    'text-warning-600 dark:text-warning-400' => $dateState === \App\Filament\Pages\ClassRegister::DATE_VACATION,
+                                    'text-warning-600 dark:text-warning-400' => in_array($dateState, [\App\Filament\Pages\ClassRegister::DATE_VACATION, \App\Filament\Pages\ClassRegister::DATE_BETWEEN_YEARS], true),
                                     'font-medium text-danger-600 dark:text-danger-400' => $dateState === \App\Filament\Pages\ClassRegister::DATE_AFTER_YEAR,
                                 ])>
                                     @switch($dateState)
                                         @case(\App\Filament\Pages\ClassRegister::DATE_VACATION)
                                             {{ __('panel.class_register.date_vacation', ['term' => $activeTerm?->name ?? '—']) }}
+                                            @break
+                                        @case(\App\Filament\Pages\ClassRegister::DATE_BETWEEN_YEARS)
+                                            {{ __('panel.class_register.date_between_years') }}
                                             @break
                                         @case(\App\Filament\Pages\ClassRegister::DATE_AFTER_YEAR)
                                             {{ __('panel.class_register.date_after_year', ['year' => $this->currentYearLabel() ?? '—']) }}
@@ -202,6 +205,22 @@
                                         {{ __('panel.class_register.after_year_action') }}
                                     </x-filament::button>
                                 @endif
+                            </div>
+                        @elseif ($dateState === \App\Filament\Pages\ClassRegister::DATE_BETWEEN_YEARS)
+                            {{-- Anul nou EXISTĂ, doar că n-a început: chihlimbar, fără buton — nimic
+                                 de reparat, se așteaptă startul (semestrul comută singur la 1 sept). --}}
+                            @php($nextTerm = $this->nextTermAfter(\Illuminate\Support\Carbon::parse($this->entryDate)))
+                            <div class="mt-3 rounded-lg bg-warning-50 p-3 ring-1 ring-warning-600/20 dark:bg-warning-400/10 dark:ring-warning-400/30">
+                                <p class="text-sm font-semibold text-warning-800 dark:text-warning-300">
+                                    {{ __('panel.class_register.between_years_title') }}
+                                </p>
+                                <p class="mt-0.5 text-sm text-warning-800/90 dark:text-warning-300/90">
+                                    {{ __('panel.class_register.between_years_body', [
+                                        'year' => $this->currentYearLabel() ?? '—',
+                                        'next' => $nextTerm?->academicYear?->name ?? '—',
+                                        'start' => $nextTerm?->starts_on?->format('d.m.Y') ?? '—',
+                                    ]) }}
+                                </p>
                             </div>
                         @endif
 
