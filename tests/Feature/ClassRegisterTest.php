@@ -572,3 +572,145 @@ it('linkul „Deschide anul nou" apare doar cui poate chiar deschide anul', func
 
     expect(Livewire::test(ClassRegister::class)->instance()->yearTransitionUrl())->not->toBeNull();
 });
+
+// ── Filtre de citire + aliniere pe coloane de dată (04.08.2026) ───────────────────────────────
+// Cerința beneficiarului: notele stăteau una lângă alta, pe rândul elevului, deci „colonița" unei
+// zile — sau a ESS-ului — nu se putea urmări cu ochiul. Filtrele restrâng CE se vede, iar când
+// zilele rămase încap, notele se așază în coloane pe dată.
+
+/** Notă la (clasa, disciplina, semestrul) testului, pentru un elev anume. */
+function registerGrade(Student $student, string $date, int $value, EvaluationType $type = EvaluationType::Curenta): Grade
+{
+    return Grade::factory()->create([
+        'student_id' => $student->id,
+        'subject_id' => test()->subject->id,
+        'school_class_id' => test()->class->id,
+        'term_id' => test()->term->id,
+        'teacher_id' => test()->teacher->id,
+        'graded_on' => $date,
+        'value' => $value,
+        'evaluation_type' => $type,
+    ]);
+}
+
+it('notele se aliniază pe coloane de dată — cine n-a fost notat are celula goală', function () {
+    actingAs($this->profUser);
+
+    [$a, $b] = $this->students->all();
+    $zi1 = Carbon::today()->subDays(10)->toDateString();
+    $zi2 = Carbon::today()->subDays(3)->toDateString();
+
+    registerGrade($a, $zi1, 9);
+    registerGrade($a, $zi2, 7);
+    registerGrade($b, $zi2, 8); // $b lipsește din prima zi — exact golul care trebuie să se vadă
+
+    $page = Livewire::test(ClassRegister::class)->instance();
+
+    // Rigla de date: zilele distincte, cronologic — aceeași pentru antet și pentru toate rândurile.
+    expect(array_column($page->gradeColumns(), 'iso'))->toBe([$zi1, $zi2])
+        ->and($page->gradesAlignedByDate())->toBeTrue();
+
+    $rows = collect($page->rows())->keyBy(fn (array $row): int => (int) $row['student']->id);
+
+    expect(array_keys($rows[$a->id]['gradesByDate']))->toBe([$zi1, $zi2])
+        ->and($rows[$a->id]['gradesByDate'][$zi1][0]['value'])->toBe('9')
+        // Elevul fără notă în prima zi NU are cheia — celula rămâne goală, nu se decalează.
+        ->and(array_keys($rows[$b->id]['gradesByDate']))->toBe([$zi2]);
+});
+
+it('filtrul pe tip lasă doar sumativele, fără să ascundă vreun elev', function () {
+    actingAs($this->profUser);
+
+    [$a, $b] = $this->students->all();
+    registerGrade($a, Carbon::today()->subDays(10)->toDateString(), 9);
+    registerGrade($a, Carbon::today()->subDays(2)->toDateString(), 6, EvaluationType::Teza);
+    registerGrade($b, Carbon::today()->subDays(10)->toDateString(), 8);
+
+    $page = Livewire::test(ClassRegister::class)->set('gradeTypeFilter', EvaluationType::Teza->value);
+    $instance = $page->instance();
+
+    $rows = collect($instance->rows())->keyBy(fn (array $row): int => (int) $row['student']->id);
+
+    // O singură coloană (ziua tezei), iar clasa rămâne întreagă: golul e informația.
+    expect($instance->gradeColumns())->toHaveCount(1)
+        ->and($rows)->toHaveCount(3)
+        ->and($rows[$a->id]['grades'])->toHaveCount(1)
+        ->and($rows[$a->id]['grades'][0]['value'])->toBe('6')
+        ->and($rows[$b->id]['grades'])->toBe([]);
+});
+
+it('filtrul pe dată restrânge la ziua aleasă, iar opțiunile vin din zilele care chiar există', function () {
+    actingAs($this->profUser);
+
+    [$a, $b] = $this->students->all();
+    $zi1 = Carbon::today()->subDays(10)->toDateString();
+    $zi2 = Carbon::today()->subDays(3)->toDateString();
+
+    registerGrade($a, $zi1, 9);
+    registerGrade($a, $zi2, 7);
+    registerGrade($b, $zi2, 8);
+
+    $page = Livewire::test(ClassRegister::class);
+    $optiuni = $page->instance()->gradeDateOptions();
+
+    // Doar zilele cu note, cu numărul lor; „toate" rămâne prima.
+    expect(array_keys($optiuni))->toBe([ClassRegister::FILTER_ALL, $zi2, $zi1])
+        ->and($optiuni[$zi2])->toContain('(2)');
+
+    $filtered = $page->set('gradeDateFilter', $zi1)->instance();
+    $rows = collect($filtered->rows())->keyBy(fn (array $row): int => (int) $row['student']->id);
+
+    expect($filtered->gradeColumns())->toHaveCount(1)
+        ->and($rows[$a->id]['grades'])->toHaveCount(1)
+        ->and($rows[$b->id]['grades'])->toBe([]);
+});
+
+it('schimbarea tipului nu lasă în urmă o dată imposibilă', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $ziCurenta = Carbon::today()->subDays(10)->toDateString();
+    registerGrade($a, $ziCurenta, 9);
+    registerGrade($a, Carbon::today()->subDays(2)->toDateString(), 6, EvaluationType::Teza);
+
+    $page = Livewire::test(ClassRegister::class)
+        ->set('gradeDateFilter', $ziCurenta)
+        // Ziua aleasă n-are nicio teză: filtrul ar fi arătat gol, fără să spună de ce.
+        ->set('gradeTypeFilter', EvaluationType::Teza->value);
+
+    expect($page->get('gradeDateFilter'))->toBe(ClassRegister::FILTER_ALL);
+});
+
+it('peste pragul de coloane notele cad în șir, fără să dispară vreuna', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+
+    for ($i = 0; $i <= ClassRegister::MAX_GRADE_COLUMNS; $i++) {
+        registerGrade($a, Carbon::today()->subDays(20 - $i)->toDateString(), 8);
+    }
+
+    $page = Livewire::test(ClassRegister::class)->instance();
+
+    expect($page->gradeColumns())->toHaveCount(ClassRegister::MAX_GRADE_COLUMNS + 1)
+        ->and($page->gradesAlignedByDate())->toBeFalse()
+        // Nimic ascuns: toate notele rămân în șirul cronologic.
+        ->and(collect($page->rows())->firstWhere('student.id', $a->id)['grades'])
+        ->toHaveCount(ClassRegister::MAX_GRADE_COLUMNS + 1);
+});
+
+it('filtrele de citire nu ating salvarea — se scrie tot pe elevii afișați', function () {
+    actingAs($this->profUser);
+
+    [$a, $b] = $this->students->all();
+    registerGrade($a, Carbon::today()->subDays(5)->toDateString(), 9, EvaluationType::Teza);
+
+    // Filtrăm la teze (deci $b nu are nicio notă vizibilă) și totuși îi punem notă.
+    Livewire::test(ClassRegister::class)
+        ->set('gradeTypeFilter', EvaluationType::Teza->value)
+        ->set('entries', [(string) $b->id => ['value' => '10']])
+        ->call('saveEntries')
+        ->assertHasNoErrors();
+
+    expect(Grade::query()->where('student_id', $b->id)->count())->toBe(1);
+});

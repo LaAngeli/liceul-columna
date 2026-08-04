@@ -215,6 +215,54 @@
                     </div>
                 @endif
 
+                {{-- ── Filtrele de CITIRE ────────────────────────────────────────────────────
+                     Separate deliberat de controalele de INTRODUCERE de mai sus: acolo alegi unde
+                     SCRII, aici alegi ce CITEȘTI. Confuzia dintre ele ar fi cea mai scumpă din
+                     ecranul ăsta (o notă pusă pe altă zi decât cea din cap). --}}
+                @php($gradeColumns = $this->gradeColumns())
+                @php($aligned = $this->gradesAlignedByDate())
+                <div class="flex flex-wrap items-end gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+                    <span class="flex h-9 items-center text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                        {{ __('panel.class_register.filters_label') }}
+                    </span>
+
+                    <div class="w-44">
+                        <label for="borderou-filtru-tip" class="sr-only">{{ __('panel.fields.evaluation_type') }}</label>
+                        <x-filament::input.wrapper>
+                            <x-filament::input.select id="borderou-filtru-tip" wire:model.live="gradeTypeFilter">
+                                @foreach ($this->gradeTypeOptions() as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </x-filament::input.select>
+                        </x-filament::input.wrapper>
+                    </div>
+
+                    <div class="w-48">
+                        <label for="borderou-filtru-data" class="sr-only">{{ __('panel.fields.date') }}</label>
+                        <x-filament::input.wrapper>
+                            <x-filament::input.select id="borderou-filtru-data" wire:model.live="gradeDateFilter">
+                                @foreach ($this->gradeDateOptions() as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </x-filament::input.select>
+                        </x-filament::input.wrapper>
+                    </div>
+
+                    @if ($this->hasGradeFilters())
+                        <x-filament::button wire:click="clearGradeFilters" color="gray" size="sm" icon="heroicon-m-x-mark">
+                            {{ __('panel.class_register.filters_clear') }}
+                        </x-filament::button>
+                    @endif
+
+                    {{-- Peste prag nu mai putem alinia pe coloane: spunem DE CE și ce se poate face,
+                         în loc să lăsăm un tabel cât ecranul sau un șir care nu se poate citi. --}}
+                    @if (! $aligned && $gradeColumns !== [])
+                        <p class="flex h-9 items-center text-xs text-gray-500 dark:text-gray-400">
+                            {{ __('panel.class_register.filters_too_many_dates', ['count' => count($gradeColumns)]) }}
+                        </p>
+                    @endif
+                </div>
+
                 {{-- ── Borderoul ─────────────────────────────────────────────────────────── --}}
                 @if ($rows === [])
                     <div class="flex flex-col items-center gap-3 rounded-xl bg-white px-6 py-12 text-center shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
@@ -230,8 +278,25 @@
                                         <th class="sticky left-0 z-[1] bg-white px-4 py-3 text-start font-semibold text-gray-950 dark:bg-gray-900 dark:text-white">
                                             {{ __('panel.fields.student') }}
                                         </th>
+                                        {{-- Antetul notelor: când zilele încap, devine RIGLA de date pe
+                                             care se aliniază coloanele. Aceeași grilă ca în celule
+                                             (aceleași N coloane) → nota fiecărui elev cade fix sub ziua ei. --}}
                                         <th class="px-4 py-3 text-start font-semibold text-gray-950 dark:text-white">
-                                            {{ __('panel.class_register.grades_column') }}
+                                            @if ($aligned)
+                                                <span class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                                                    {{ __('panel.class_register.grades_column') }}
+                                                </span>
+                                                <span class="grid gap-1" style="grid-template-columns: repeat({{ count($gradeColumns) }}, 2rem);">
+                                                    @foreach ($gradeColumns as $column)
+                                                        <span class="flex flex-col items-center leading-tight" title="{{ $column['iso'] }}">
+                                                            <span class="text-[11px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">{{ $column['label'] }}</span>
+                                                            <span class="text-[9px] font-normal uppercase text-gray-400 dark:text-gray-500">{{ $column['weekday'] }}</span>
+                                                        </span>
+                                                    @endforeach
+                                                </span>
+                                            @else
+                                                {{ __('panel.class_register.grades_column') }}
+                                            @endif
                                         </th>
                                         <th class="px-3 py-3 text-center font-semibold text-gray-950 dark:text-white">
                                             {{ __('panel.class_register.average_column') }}
@@ -270,9 +335,34 @@
                                                 @enderror
                                             </td>
 
-                                            {{-- Notele semestrului, cronologic; teza/ESI evidențiate. --}}
+                                            {{-- Notele semestrului; teza/ESI evidențiate. Aliniate pe
+                                                 COLOANE de dată când zilele încap (se citește vertical,
+                                                 ca în catalogul de hârtie), altfel în șir cronologic. --}}
                                             <td class="h-12 px-4 py-2 align-middle">
-                                                @if ($row['grades'] === [])
+                                                @if ($aligned)
+                                                    <div class="grid gap-1" style="grid-template-columns: repeat({{ count($gradeColumns) }}, 2rem);">
+                                                        @foreach ($gradeColumns as $column)
+                                                            {{-- Celula GOALĂ e informația: se vede pe loc cine
+                                                                 n-a fost notat în ziua aceea. --}}
+                                                            <span class="flex flex-col items-center gap-0.5">
+                                                                @forelse ($row['gradesByDate'][$column['iso']] ?? [] as $grade)
+                                                                    <span
+                                                                        title="{{ $grade['tooltip'] }}"
+                                                                        @class([
+                                                                            'inline-flex h-6 w-8 items-center justify-center rounded text-xs font-semibold tabular-nums',
+                                                                            'bg-primary-50 text-primary-700 ring-1 ring-primary-600/30 dark:bg-primary-400/10 dark:text-primary-300 dark:ring-primary-400/30' => $grade['weighted'],
+                                                                            'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-200' => ! $grade['weighted'],
+                                                                        ])
+                                                                    >
+                                                                        {{ $grade['value'] }}
+                                                                    </span>
+                                                                @empty
+                                                                    <span class="inline-flex h-6 w-8 items-center justify-center text-xs text-gray-200 dark:text-gray-700" aria-hidden>·</span>
+                                                                @endforelse
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                @elseif ($row['grades'] === [])
                                                     <span class="text-gray-300 dark:text-gray-600">—</span>
                                                 @else
                                                     <div class="flex max-w-md flex-wrap gap-1">

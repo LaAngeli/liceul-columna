@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
+use App\Enums\SchoolCycle;
 use App\Enums\UserRole;
 use App\Filament\Concerns\EnforcesAbsenceScope;
 use App\Filament\Concerns\EnforcesGradeScope;
@@ -85,6 +86,31 @@ class ClassRegister extends Page
 
     /** Marcajul de absență al unui rând (starea „prezent" = null). */
     public const ABSENCE_MARKED = 'absent';
+
+    /**
+     * FILTRE DE CITIRE (cerința beneficiarului, 04.08.2026): notele stăteau una lângă alta, pe
+     * rândul elevului, deci „colonița" unei zile — sau a ESS-ului — nu se putea urmări cu ochiul.
+     *
+     * Filtrele restrâng ce se AFIȘEAZĂ (elevii rămân toți, altfel n-ar mai fi borderou), iar când
+     * mulțimea rămasă are puține zile distincte, notele se așază în COLOANE pe dată
+     * ({@see gradeColumns()}) — atunci se citește vertical, ca în catalogul de hârtie.
+     */
+    #[Url(as: 'tip_note', except: self::FILTER_ALL)]
+    public string $gradeTypeFilter = self::FILTER_ALL;
+
+    #[Url(as: 'data_note', except: self::FILTER_ALL)]
+    public string $gradeDateFilter = self::FILTER_ALL;
+
+    public const FILTER_ALL = 'all';
+
+    /**
+     * Peste atâtea zile distincte, alinierea pe coloane devine un tabel imposibil de citit: notele
+     * cad înapoi în șir, cu invitația de a restrânge filtrul. Nu ascundem date — schimbăm forma.
+     */
+    public const MAX_GRADE_COLUMNS = 14;
+
+    /** @var array<string, mixed> memoizare per-request (rows() e chemată și de saveEntries) */
+    private array $memo = [];
 
     public function mount(): void
     {
@@ -428,7 +454,8 @@ class ClassRegister extends Page
      *
      * @return list<array{
      *     student: Student,
-     *     grades: list<array{value: string, weighted: bool, tooltip: string}>,
+     *     grades: list<array{value: string, weighted: bool, tooltip: string, iso: string}>,
+     *     gradesByDate: array<string, list<array{value: string, weighted: bool, tooltip: string, iso: string}>>,
      *     average: string|null,
      *     absences: array{total: int, unmotivated: int, pending: int, dates: string}
      * }>
@@ -504,6 +531,20 @@ class ClassRegister extends Page
             ->get()
             ->groupBy('student_id');
 
+        // Datele care EXISTĂ în contextul curent (înainte de filtrul pe dată) — sursa dropdown-ului:
+        // se alege dintre zilele în care chiar s-a notat, nu dintr-un calendar cu 200 de zile goale.
+        $this->memo['date_options'] = $grades
+            ->flatten(1)
+            ->filter(fn (Grade $grade): bool => $this->gradeMatchesType($grade))
+            ->groupBy(fn (Grade $grade): string => $grade->graded_on->toDateString())
+            ->map(fn (Collection $group): int => $group->count())
+            ->sortKeysDesc()
+            ->all();
+
+        // Eticheta sumativei diferă pe ciclu (ESS la gimnaziu, teză la liceu) — un singur cod,
+        // două nume; borderoul trebuie să-l spună pe cel din clasa deschisă.
+        $cycle = SchoolCycle::fromGradeLevel((int) $class->grade_level);
+
         $rows = [];
 
         foreach ($students as $student) {
@@ -511,15 +552,24 @@ class ClassRegister extends Page
             $studentAbsences = $absences->get($student->getKey(), new Collection);
             $average = $averages->get($student->getKey());
 
-            /** @var list<array{value: string, weighted: bool, tooltip: string}> $gradeChips */
+            /** @var list<array{value: string, weighted: bool, tooltip: string, iso: string}> $gradeChips */
             $gradeChips = [];
+            /** @var array<string, list<array{value: string, weighted: bool, tooltip: string, iso: string}>> $byDate */
+            $byDate = [];
 
             foreach ($studentGrades as $grade) {
+                // FILTRELE de citire lovesc doar notele afișate, niciodată lista de elevi: un
+                // borderou din care dispar elevi n-ar mai fi borderou (și ar ascunde tocmai golul
+                // pe care profesorul îl caută — cine NU are notă la acea dată).
+                if (! $this->gradePassesFilters($grade)) {
+                    continue;
+                }
+
                 $displayValue = $grade->value !== null
                     ? (string) (int) (float) $grade->value
                     : (string) ($grade->calificativ ?? '—');
 
-                $gradeChips[] = [
+                $chip = [
                     'value' => $displayValue,
                     // Teza/ESI se disting prin culoare; tipul și DATA notei se citesc la survol.
                     // Formulare explicită („Nota 8 · Curentă · 20.07.2026”): prima variantă arăta
@@ -527,15 +577,22 @@ class ClassRegister extends Page
                     'weighted' => $grade->evaluation_type !== EvaluationType::Curenta,
                     'tooltip' => trans('panel.class_register.grade_tooltip', [
                         'value' => $displayValue,
-                        'type' => $grade->evaluation_type->label(),
+                        'type' => $grade->evaluation_type->labelForCycle($cycle),
                         'date' => $grade->graded_on->format('d.m.Y'),
                     ]),
+                    'iso' => $grade->graded_on->toDateString(),
                 ];
+
+                $gradeChips[] = $chip;
+                // Cheia pe ZI, nu pe notă: două note în aceeași zi (rar, dar există) stau una sub
+                // alta în aceeași celulă, ca să nu spargă alinierea coloanei.
+                $byDate[$chip['iso']][] = $chip;
             }
 
             $rows[] = [
                 'student' => $student,
                 'grades' => $gradeChips,
+                'gradesByDate' => $byDate,
                 'average' => $average?->value !== null
                     ? number_format((float) $average->value, 2, ',', '')
                     : null,
@@ -564,6 +621,135 @@ class ClassRegister extends Page
         return $rows;
     }
 
+    // ── Filtrele de citire ──────────────────────────────────────────────────────────────────
+
+    private function gradeMatchesType(Grade $grade): bool
+    {
+        return $this->gradeTypeFilter === self::FILTER_ALL
+            || $grade->evaluation_type->value === $this->gradeTypeFilter;
+    }
+
+    private function gradePassesFilters(Grade $grade): bool
+    {
+        if (! $this->gradeMatchesType($grade)) {
+            return false;
+        }
+
+        return $this->gradeDateFilter === self::FILTER_ALL
+            || $grade->graded_on->toDateString() === $this->gradeDateFilter;
+    }
+
+    /**
+     * Tipurile de evaluare, cu eticheta CICLULUI clasei deschise (ESS la gimnaziu, teză la liceu).
+     *
+     * @return array<string, string>
+     */
+    public function gradeTypeOptions(): array
+    {
+        $class = $this->activeClass();
+        $cycle = $class !== null ? SchoolCycle::fromGradeLevel((int) $class->grade_level) : null;
+
+        $options = [self::FILTER_ALL => (string) __('panel.class_register.filter_all_types')];
+
+        foreach (EvaluationType::cases() as $type) {
+            $options[$type->value] = $type->labelForCycle($cycle);
+        }
+
+        return $options;
+    }
+
+    /**
+     * Zilele în care CHIAR s-a notat în contextul curent (respectă filtrul de tip, ca cele două
+     * filtre să se compună: alegi „ESS", iar lista de date se restrânge la zilele cu ESS).
+     *
+     * @return array<string, string>
+     */
+    public function gradeDateOptions(): array
+    {
+        if (! array_key_exists('date_options', $this->memo)) {
+            $this->rows();
+        }
+
+        /** @var array<string, int> $counts */
+        $counts = $this->memo['date_options'] ?? [];
+
+        $options = [self::FILTER_ALL => (string) __('panel.class_register.filter_all_dates')];
+
+        foreach ($counts as $iso => $count) {
+            $options[$iso] = Carbon::parse($iso)->format('d.m.Y').' ('.$count.')';
+        }
+
+        return $options;
+    }
+
+    /**
+     * Coloanele de dată ale borderoului: zilele distincte din mulțimea FILTRATĂ, cronologic.
+     * Antetul și celulele folosesc aceeași listă → nota fiecărui elev cade fix sub ziua ei.
+     *
+     * @return list<array{iso: string, label: string, weekday: string}>
+     */
+    public function gradeColumns(): array
+    {
+        /** @var array<string, bool> $dates */
+        $dates = [];
+
+        foreach ($this->rows() as $row) {
+            foreach (array_keys($row['gradesByDate']) as $iso) {
+                $dates[(string) $iso] = true;
+            }
+        }
+
+        $isoList = array_keys($dates);
+        sort($isoList);
+
+        return array_map(fn (string $iso): array => [
+            'iso' => $iso,
+            'label' => Carbon::parse($iso)->format('d.m'),
+            'weekday' => Carbon::parse($iso)->translatedFormat('D'),
+        ], $isoList);
+    }
+
+    /**
+     * Se afișează pe COLOANE de dată? Doar când zilele distincte încap pe ecran; peste prag notele
+     * cad înapoi în șir, cu invitația de a restrânge filtrul — nicio notă nu dispare, doar forma.
+     */
+    public function gradesAlignedByDate(): bool
+    {
+        $count = count($this->gradeColumns());
+
+        return $count > 0 && $count <= self::MAX_GRADE_COLUMNS;
+    }
+
+    public function hasGradeFilters(): bool
+    {
+        return $this->gradeTypeFilter !== self::FILTER_ALL || $this->gradeDateFilter !== self::FILTER_ALL;
+    }
+
+    public function clearGradeFilters(): void
+    {
+        $this->gradeTypeFilter = self::FILTER_ALL;
+        $this->gradeDateFilter = self::FILTER_ALL;
+        $this->memo = [];
+    }
+
+    /**
+     * Schimbarea tipului poate scoate din listă data aleasă (ex. „ESS" într-o zi fără ESS) —
+     * un filtru care arată gol fără să spună de ce. O ducem înapoi pe „toate datele".
+     */
+    public function updatedGradeTypeFilter(): void
+    {
+        $this->memo = [];
+
+        if ($this->gradeDateFilter !== self::FILTER_ALL && ! array_key_exists($this->gradeDateFilter, $this->gradeDateOptions())) {
+            $this->gradeDateFilter = self::FILTER_ALL;
+        }
+    }
+
+    public function updatedGradeDateFilter(): void
+    {
+        $this->memo = [];
+    }
+
     /** Grupa de engleză a alocării PROPRII pe (clasă, disciplină) — null fără alocare sau grupă. */
     private function ownAssignmentGroup(int $classId, int $subjectId): ?int
     {
@@ -590,12 +776,16 @@ class ClassRegister extends Page
         $this->classParam = (string) $id;
         $this->subjectParam = null;
         $this->resetEntries();
+        // Alt context → alte note: un filtru rămas din clasa precedentă ar arăta „gol" fără
+        // nicio explicație (data de ieri nu există la clasa nouă).
+        $this->clearGradeFilters();
     }
 
     public function openSubject(int $id): void
     {
         $this->subjectParam = (string) $id;
         $this->resetEntries();
+        $this->clearGradeFilters();
     }
 
     /**
