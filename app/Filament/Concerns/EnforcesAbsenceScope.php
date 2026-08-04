@@ -5,6 +5,7 @@ namespace App\Filament\Concerns;
 use App\Models\Absence;
 use App\Models\Enrollment;
 use App\Models\Term;
+use App\Support\SchoolCalendar;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -40,11 +41,31 @@ trait EnforcesAbsenceScope
         // cu fallback la semestrul curent când data cade în afara oricărui interval (ex. vacanță).
         if ($occurredOn !== null) {
             $term = Term::forDate($occurredOn);
-            $data['term_id'] = $term instanceof Term
-                ? $term->id
-                : Term::query()->where('is_current', true)->value('id');
 
-            $this->rejectClosedYear($data['term_id'] ?? null, 'data.occurred_on');
+            if ($term instanceof Term) {
+                $data['term_id'] = $term->id;
+            } else {
+                $current = SchoolCalendar::currentTerm();
+
+                // GARD DE ROLLOVER, simetric cu {@see EnforcesGradeScope}: o dată ULTERIOARĂ
+                // finalului anului din care face parte semestrul curent înseamnă că anul nou a
+                // început fără structură definită. Fallback-ul tăcut ar fi pus absența de
+                // septembrie în semestrul anului ÎNCHEIAT — exact eroarea invizibilă pe care garda
+                // notelor o refuză de la început. Asimetria a ieșit la iveală când data implicită a
+                // borderoului a devenit „azi" (04.08.2026): nota era refuzată, absența trecea.
+                $yearEndsOn = $current?->academicYear?->ends_on;
+
+                if ($current === null || ($yearEndsOn !== null && $occurredOn->startOfDay()->isAfter($yearEndsOn))) {
+                    throw ValidationException::withMessages([
+                        'data.occurred_on' => __('panel.validation.absence.no_term_for_date'),
+                    ]);
+                }
+
+                $data['term_id'] = $current->id;
+            }
+
+            // Ambele ramuri au stabilit semestrul (a treia aruncă), deci valoarea există sigur.
+            $this->rejectClosedYear($data['term_id'], 'data.occurred_on');
         }
 
         // (3) Anti-duplicat: aceeași absență ACTIVĂ (elev + zi + disciplină) nu se consemnează de 2 ori.

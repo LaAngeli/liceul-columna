@@ -121,8 +121,27 @@
                                         max="{{ \Illuminate\Support\Carbon::today()->toDateString() }}"
                                     />
                                 </x-filament::input.wrapper>
-                                <p class="mt-1 flex h-4 items-center text-xs text-gray-400 dark:text-gray-500">
-                                    {{ $activeTerm?->name }}
+                                {{-- Subtitlul spune ADEVĂRUL despre data aleasă: semestrul în care
+                                     intră, „vacanță" când se salvează prin fallback, sau anul
+                                     încheiat când salvarea va fi refuzată. Un nume de semestru
+                                     afișat sub o dată în care nu se poate scrie ar fi o minciună. --}}
+                                @php($dateState = $this->entryDateState())
+                                <p @class([
+                                    'mt-1 flex h-4 items-center text-xs',
+                                    'text-gray-400 dark:text-gray-500' => $dateState === \App\Filament\Pages\ClassRegister::DATE_IN_TERM,
+                                    'text-warning-600 dark:text-warning-400' => $dateState === \App\Filament\Pages\ClassRegister::DATE_VACATION,
+                                    'font-medium text-danger-600 dark:text-danger-400' => $dateState === \App\Filament\Pages\ClassRegister::DATE_AFTER_YEAR,
+                                ])>
+                                    @switch($dateState)
+                                        @case(\App\Filament\Pages\ClassRegister::DATE_VACATION)
+                                            {{ __('panel.class_register.date_vacation', ['term' => $activeTerm?->name ?? '—']) }}
+                                            @break
+                                        @case(\App\Filament\Pages\ClassRegister::DATE_AFTER_YEAR)
+                                            {{ __('panel.class_register.date_after_year', ['year' => $this->currentYearLabel() ?? '—']) }}
+                                            @break
+                                        @default
+                                            {{ $activeTerm?->name }}
+                                    @endswitch
                                 </p>
                             </div>
 
@@ -160,6 +179,31 @@
                                 <p class="mt-1 h-4"></p>
                             </div>
                         </div>
+
+                        {{-- Data de azi nu aparține niciunui semestru: spunem DE CE și CE e de făcut,
+                             în locul vechii mutări tăcute a datei. Butonul apare doar cui poate
+                             deschide anul; profesorul primește explicația (și o duce mai departe). --}}
+                        @if ($dateState === \App\Filament\Pages\ClassRegister::DATE_AFTER_YEAR)
+                            <div class="mt-3 flex flex-wrap items-start justify-between gap-3 rounded-lg bg-danger-50 p-3 ring-1 ring-danger-600/20 dark:bg-danger-400/10 dark:ring-danger-400/30">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-danger-800 dark:text-danger-300">
+                                        {{ __('panel.class_register.after_year_title') }}
+                                    </p>
+                                    <p class="mt-0.5 text-sm text-danger-800/90 dark:text-danger-300/90">
+                                        {{ __('panel.class_register.after_year_body', [
+                                            'year' => $this->currentYearLabel() ?? '—',
+                                            'date' => $this->currentYearEndsOn() ?? '—',
+                                        ]) }}
+                                    </p>
+                                </div>
+
+                                @if ($transitionUrl = $this->yearTransitionUrl())
+                                    <x-filament::button :href="$transitionUrl" tag="a" color="danger" size="sm" icon="heroicon-m-arrow-right-circle">
+                                        {{ __('panel.class_register.after_year_action') }}
+                                    </x-filament::button>
+                                @endif
+                            </div>
+                        @endif
 
                         <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
                             {{ __('panel.class_register.entry_hint') }}

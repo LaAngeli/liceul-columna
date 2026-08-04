@@ -1554,6 +1554,7 @@ return [
         'absence' => [
             'future' => 'Data absenței nu poate fi în viitor.',
             'duplicate' => 'Există deja o absență pentru acest elev, în această zi, la această disciplină.',
+            'no_term_for_date' => 'Nu există un semestru definit pentru această dată. Deschide anul școlar nou (semestre cu intervale) înainte de a consemna absențe în el.',
         ],
         'grade' => [
             'value_must_be_integer' => 'Nota este un număr întreg de la 1 la 10. Zecimalele apar doar la medii.',
@@ -2432,6 +2433,12 @@ return [
         'absent_column' => 'Absent',
         'unmotivated_short' => 'nem.',
         'grade_tooltip' => 'Nota :value · :type · :date',
+        'date_vacation' => 'Vacanță · intră în :term',
+        'date_after_year' => 'Anul :year s-a încheiat',
+        'after_year_title' => 'Ziua de azi nu aparține niciunui semestru',
+        'after_year_body' => 'Anul școlar :year s-a încheiat pe :date, iar anul nou nu are încă semestre definite — până atunci, notele și absențele de azi nu se pot salva. Pentru a completa catalogul anului încheiat, alegeți o dată din interiorul lui.',
+        'after_year_action' => 'Deschide anul nou',
+        'after_year_blocked' => 'Nimic nu s-a salvat — data :date nu aparține niciunui semestru',
         'absence_mark' => 'Absent',
         'absence_mark_title' => 'Marchează absent (fără statut — îl fixează dirigintele)',
         'pending_short' => 'fără statut',

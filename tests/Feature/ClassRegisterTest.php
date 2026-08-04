@@ -408,9 +408,10 @@ it('schimbarea datei golește intrările începute — nu se scriu pe alt semest
     expect($component->get('entries'))->toBe([]);
 });
 
-it('în vacanță data implicită cade în semestru, nu pe ziua de azi', function () {
-    // Anul s-a încheiat luna trecută: „azi" nu mai aparține niciunui semestru. Fără corecție,
-    // fiecare salvare pica pe garda de rollover, deși profesorul nu greșise nimic.
+it('data implicită e ZIUA de azi, chiar când azi nu cade în niciun semestru', function () {
+    // Anul s-a încheiat luna trecută: „azi" nu mai aparține niciunui semestru. Varianta veche muta
+    // TĂCUT data pe ultima zi a semestrului — ecranul arăta altă zi decât cea în care lucrezi, iar
+    // o notă pusă din reflex se scria pe 30 iunie. Acum data rămâne azi, iar starea e SPUSĂ.
     // Query builder: gărzile de model pe intervale ar refuza mutarea în trecut a unui an care
     // începe mai devreme — aici ne interesează doar starea rezultată, nu calea de configurare.
     DB::table('terms')->where('id', $this->term->id)->update([
@@ -426,16 +427,55 @@ it('în vacanță data implicită cade în semestru, nu pe ziua de azi', functio
 
     $page = Livewire::test(ClassRegister::class);
 
-    expect($page->get('entryDate'))->toBe(Carbon::today()->subMonth()->toDateString());
+    expect($page->get('entryDate'))->toBe(Carbon::today()->toDateString())
+        // Ecranul anunță exact ce va decide serverul: dată de după finalul anului.
+        ->and($page->instance()->entryDateState())->toBe(ClassRegister::DATE_AFTER_YEAR);
 
-    // Iar cu acea dată, salvarea chiar trece.
+    // Iar salvarea se oprește ÎNAINTE de orice scriere — o dată, nu un mesaj per rând.
     $a = $this->students->first();
+
+    $page->set('entries', [(string) $a->id => ['value' => '9', 'absence' => ClassRegister::ABSENCE_MARKED]])
+        ->call('saveEntries')
+        ->assertHasNoErrors();
+
+    expect(Grade::query()->count())->toBe(0)
+        ->and(Absence::query()->count())->toBe(0);
+
+    // Alegând o zi din interiorul anului încheiat, catalogul lui se poate completa normal.
+    $page->set('entryDate', Carbon::today()->subMonths(2)->toDateString())
+        ->set('entries', [(string) $a->id => ['value' => '9']])
+        ->call('saveEntries')
+        ->assertHasNoErrors();
+
+    expect(Grade::query()->count())->toBe(1);
+});
+
+it('o dată din vacanța DINAINTEA semestrului curent rămâne salvabilă, prin fallback', function () {
+    // Vacanța de iarnă din interiorul anului: nu cade în niciun semestru, dar anul e în curs —
+    // fallback-ul la semestrul curent e legitim, iar ecranul o spune ca atare (nu ca eroare).
+    DB::table('terms')->where('id', $this->term->id)->update([
+        'starts_on' => Carbon::today()->addMonth()->toDateString(),
+        'ends_on' => Carbon::today()->addMonths(4)->toDateString(),
+    ]);
+    DB::table('academic_years')->where('id', $this->year->id)->update([
+        'starts_on' => Carbon::today()->subMonths(4)->toDateString(),
+        'ends_on' => Carbon::today()->addMonths(6)->toDateString(),
+    ]);
+
+    actingAs($this->profUser);
+
+    $page = Livewire::test(ClassRegister::class);
+    $a = $this->students->first();
+
+    expect($page->get('entryDate'))->toBe(Carbon::today()->toDateString())
+        ->and($page->instance()->entryDateState())->toBe(ClassRegister::DATE_VACATION);
 
     $page->set('entries', [(string) $a->id => ['value' => '9']])
         ->call('saveEntries')
         ->assertHasNoErrors();
 
-    expect(Grade::query()->count())->toBe(1);
+    expect(Grade::query()->count())->toBe(1)
+        ->and((int) Grade::query()->sole()->term_id)->toBe($this->term->id);
 });
 
 it('teza intră cu tipul ales și apare evidențiată în rând', function () {
@@ -510,4 +550,25 @@ it('notele intră pe disciplina ACTIVĂ, nu pe prima a clasei', function () {
         ->assertHasNoErrors();
 
     expect(Grade::query()->sole()->subject_id)->toBe($second->id);
+});
+
+it('linkul „Deschide anul nou" apare doar cui poate chiar deschide anul', function () {
+    // Semnalul de rollover e pentru toți, dar butonul nu: profesorului i-ar deschide un 403.
+    // El primește explicația (și o duce la administrație), directorul primește calea.
+    DB::table('academic_years')->where('id', $this->year->id)->update([
+        'ends_on' => Carbon::today()->subMonth()->toDateString(),
+    ]);
+    DB::table('terms')->where('id', $this->term->id)->update([
+        'starts_on' => Carbon::today()->subMonths(5)->toDateString(),
+        'ends_on' => Carbon::today()->subMonth()->toDateString(),
+    ]);
+
+    actingAs($this->profUser);
+    expect(Livewire::test(ClassRegister::class)->instance()->yearTransitionUrl())->toBeNull();
+
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+    actingAs($director->fresh());
+
+    expect(Livewire::test(ClassRegister::class)->instance()->yearTransitionUrl())->not->toBeNull();
 });

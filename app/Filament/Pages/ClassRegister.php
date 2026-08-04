@@ -296,29 +296,71 @@ class ClassRegister extends Page
     }
 
     /**
-     * Data implicită: AZI dacă e zi de școală, altfel ultima zi a semestrului curent.
+     * Data implicită: ÎNTOTDEAUNA ziua în care se deschide borderoul (cerința beneficiarului,
+     * 04.08.2026).
      *
-     * Fără asta, în vacanță (când azi nu cade în niciun semestru) fiecare salvare pica pe garda de
-     * rollover — „Nu există un semestru definit pentru această dată" — deși profesorul nu greșise
-     * nimic: doar data implicită era imposibilă. Raportat de beneficiar pe 30 iulie, cu anul
-     * încheiat pe 30 iunie.
+     * Varianta anterioară muta tăcut data pe ultima zi a semestrului curent când „azi" nu cădea în
+     * niciun semestru (vacanță, an neînchis). Scopul era bun — salvarea trecea — dar mijlocul era
+     * greșit: ecranul arăta o ALTĂ zi decât cea în care lucrezi, iar o notă pusă din reflex se
+     * scria pe 30 iunie fără ca nimeni să o ceară. Substituția tăcută a fost înlocuită cu ADEVĂRUL
+     * spus la vedere: data rămâne azi, iar dacă azi nu aparține niciunui semestru, ecranul o spune
+     * și arată ce e de făcut ({@see entryDateState()}).
      */
     private function defaultEntryDate(): string
     {
-        $today = Carbon::today();
+        return Carbon::today()->toDateString();
+    }
 
-        if (Term::forDate($today) instanceof Term) {
-            return $today->toDateString();
+    /** Data aleasă cade într-un semestru — cazul normal, nimic de semnalat. */
+    public const DATE_IN_TERM = 'in_term';
+
+    /** Vacanță din INTERIORUL anului: salvarea trece, cu semestrul curent (fallback legitim). */
+    public const DATE_VACATION = 'vacation';
+
+    /** Dată de DUPĂ finalul anului: structura anului nou lipsește → salvarea e refuzată. */
+    public const DATE_AFTER_YEAR = 'after_year';
+
+    /**
+     * Starea datei alese față de structura anului. Oglindește EXACT decizia de pe server
+     * ({@see EnforcesGradeScope}/{@see EnforcesAbsenceScope}): ce anunță ecranul aici e ce se va
+     * întâmpla la salvare — altfel semnalul ar fi doar decor.
+     */
+    public function entryDateState(): string
+    {
+        $date = $this->entryDate !== ''
+            ? Carbon::parse($this->entryDate)->startOfDay()
+            : Carbon::today();
+
+        if (Term::forDate($date) instanceof Term) {
+            return self::DATE_IN_TERM;
         }
 
-        $current = SchoolCalendar::currentTerm();
+        $yearEndsOn = SchoolCalendar::currentTerm()?->academicYear?->ends_on;
 
-        // Ultima zi a semestrului curent, dar niciodată în viitor (garda „fără note în viitor").
-        if ($current instanceof Term && $current->ends_on !== null) {
-            return $current->ends_on->startOfDay()->min($today)->toDateString();
-        }
+        return $yearEndsOn !== null && $date->isAfter($yearEndsOn->startOfDay())
+            ? self::DATE_AFTER_YEAR
+            : self::DATE_VACATION;
+    }
 
-        return $today->toDateString();
+    /** Anul care s-a încheiat (pentru mesajul de rollover) — null dacă nu există semestru curent. */
+    public function currentYearLabel(): ?string
+    {
+        return SchoolCalendar::currentTerm()?->academicYear?->name;
+    }
+
+    public function currentYearEndsOn(): ?string
+    {
+        return SchoolCalendar::currentTerm()?->academicYear?->ends_on?->format('d.m.Y');
+    }
+
+    /**
+     * Linkul spre ecranul de deschidere a anului nou — DOAR pentru cine îl poate folosi.
+     * Un buton care duce la 403 ar muta problema, nu ar rezolva-o; profesorul primește doar
+     * explicația (și pe ea o duce mai departe la administrație).
+     */
+    public function yearTransitionUrl(): ?string
+    {
+        return SchoolYearTransition::canAccess() ? SchoolYearTransition::getUrl() : null;
     }
 
     // ── Drepturi pe contextul activ ─────────────────────────────────────────────────────────
@@ -604,6 +646,23 @@ class ClassRegister extends Page
         $canAbsent = $this->canRecordAbsences();
 
         abort_unless($canGrade || $canAbsent, 403);
+
+        // Data de după finalul anului: gărzile de pe server ar refuza oricum fiecare rând, dar
+        // mesajul ar veni de 25 de ori, pe rânduri. Îl spunem o dată, înainte să scriem ceva.
+        if ($this->entryDateState() === self::DATE_AFTER_YEAR) {
+            Notification::make()
+                ->title(__('panel.class_register.after_year_blocked', [
+                    'date' => Carbon::parse($this->entryDate)->format('d.m.Y'),
+                ]))
+                ->body(__('panel.class_register.after_year_body', [
+                    'year' => $this->currentYearLabel() ?? '—',
+                    'date' => $this->currentYearEndsOn() ?? '—',
+                ]))
+                ->danger()
+                ->send();
+
+            return;
+        }
 
         $date = $this->entryDate !== '' ? $this->entryDate : Carbon::today()->toDateString();
         $numeric = $this->gradingType() === GradingType::Numeric;

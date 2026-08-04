@@ -2,8 +2,8 @@
 
 use App\Enums\UserRole;
 use App\Filament\Concerns\EnforcesAbsenceScope;
-use App\Models\AcademicYear;
 use App\Models\Absence;
+use App\Models\AcademicYear;
 use App\Models\Student;
 use App\Models\Term;
 use App\Models\User;
@@ -16,7 +16,12 @@ beforeEach(function () {
         Role::findOrCreate($role->value, 'web');
     }
 
-    $year = AcademicYear::factory()->create();
+    // Anul primește ACELEAȘI granițe ca semestrele lui: fabrica generează un an aleator
+    // (2000–2090), iar garda de rollover compară data cu finalul ANULUI — cu un an din 2043 sub
+    // semestre din 2025, fixture-ul se contrazicea singur și rezultatul depindea de zar.
+    $year = AcademicYear::factory()->create([
+        'name' => '2025–2026', 'starts_on' => '2025-09-01', 'ends_on' => '2026-06-30',
+    ]);
     $this->semI = Term::factory()->for($year)->create([
         'number' => 1, 'name' => 'Semestrul I',
         'starts_on' => '2025-09-01', 'ends_on' => '2025-12-31', 'is_current' => true,
@@ -106,3 +111,19 @@ it('editarea aceleiași absențe nu se auto-respinge ca duplicat (exclude id-ul 
 
     expect($data['term_id'])->toBe($this->semI->id);
 });
+
+it('respinge o absență datată DUPĂ finalul anului — garda de rollover, simetrică cu notele', function () {
+    /**
+     * Asimetria a ieșit la iveală când data implicită a borderoului a devenit „azi" (04.08.2026):
+     * nota de azi era refuzată („Nu există un semestru definit"), dar absența de azi trecea tăcut
+     * în semestrul anului ÎNCHEIAT. Structura anului nou lipsește — nu e o vacanță, e un rollover
+     * neefectuat, iar fallback-ul ar fi produs exact eroarea invizibilă pe care garda notelor o
+     * refuză de la început.
+     */
+    $student = Student::factory()->create();
+
+    absenceScope()->run([
+        'occurred_on' => '2026-07-20', // după 30.06.2026, finalul anului
+        'student_id' => $student->id,
+    ]);
+})->throws(ValidationException::class);

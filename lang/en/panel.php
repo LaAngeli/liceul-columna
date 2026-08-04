@@ -1538,6 +1538,7 @@ return [
         'absence' => [
             'future' => 'The absence date cannot be in the future.',
             'duplicate' => 'An absence already exists for this student, on this day, for this subject.',
+            'no_term_for_date' => 'No term is defined for this date. Open the new school year (terms with date ranges) before recording absences in it.',
         ],
         'grade' => [
             'value_must_be_integer' => 'A grade is a whole number from 1 to 10. Decimals belong to averages only.',
@@ -2416,6 +2417,12 @@ return [
         'absent_column' => 'Absent',
         'unmotivated_short' => 'unexc.',
         'grade_tooltip' => 'Grade :value · :type · :date',
+        'date_vacation' => 'Holiday - goes into :term',
+        'date_after_year' => 'The :year school year has ended',
+        'after_year_title' => 'Today does not belong to any term',
+        'after_year_body' => 'The :year school year ended on :date and the new year has no terms defined yet - until then, grades and absences dated today cannot be saved. To complete the register of the finished year, pick a date inside it.',
+        'after_year_action' => 'Open the new year',
+        'after_year_blocked' => 'Nothing was saved - the date :date does not belong to any term',
         'absence_mark' => 'Absent',
         'absence_mark_title' => 'Mark absent (no status — the homeroom teacher sets it)',
         'pending_short' => 'no status',
