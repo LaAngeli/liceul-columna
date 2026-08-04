@@ -152,20 +152,24 @@
                             @endforeach
 
                             {{-- Totaluri per elev: se vede dintr-o privire cine acumulează.
-                                 Flex cu gap, nu margini pe span-uri condiționale: grupurile stăteau
-                                 lipite una de alta (raport beneficiar, 04.08.2026). --}}
+                                 PISTE VERTICALE FIXE (raport beneficiar, 04.08.2026): fiecare
+                                 categorie — total / motivate / nemotivate / fără statut — are
+                                 coloana ei cu lățime fixă, aliniată pe toate rândurile. O
+                                 categorie la zero își lasă locul GOL, nu îl cedează vecinei:
+                                 altfel „2✓" aluneca în pista lui „✗" și cifrele nu se mai puteau
+                                 compara pe verticală. --}}
                             <td class="whitespace-nowrap border-b border-gray-100 px-4 py-2 text-xs tabular-nums dark:border-white/5">
-                                <span class="flex items-center justify-end gap-3">
-                                    <span class="font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
-                                    @if ($row['totals']['motivated'] > 0)
-                                        <span class="inline-flex items-center gap-0.5 text-green-600 dark:text-green-400">{{ $row['totals']['motivated'] }}<span aria-hidden="true">✓</span></span>
-                                    @endif
-                                    @if ($row['totals']['unmotivated'] > 0)
-                                        <span class="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400">{{ $row['totals']['unmotivated'] }}<span aria-hidden="true">✗</span></span>
-                                    @endif
-                                    @if ($row['totals']['pending'] > 0)
-                                        <span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400">{{ $row['totals']['pending'] }}<span aria-hidden="true">?</span></span>
-                                    @endif
+                                <span class="flex items-center justify-end gap-1">
+                                    <span class="w-7 text-end font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
+                                    <span class="w-9 text-end text-green-600 dark:text-green-400">
+                                        @if ($row['totals']['motivated'] > 0){{ $row['totals']['motivated'] }}<span aria-hidden="true">✓</span>@endif
+                                    </span>
+                                    <span class="w-9 text-end text-red-600 dark:text-red-400">
+                                        @if ($row['totals']['unmotivated'] > 0){{ $row['totals']['unmotivated'] }}<span aria-hidden="true">✗</span>@endif
+                                    </span>
+                                    <span class="w-9 text-end text-amber-600 dark:text-amber-400">
+                                        @if ($row['totals']['pending'] > 0){{ $row['totals']['pending'] }}<span aria-hidden="true">?</span>@endif
+                                    </span>
                                 </span>
                             </td>
                         </tr>
