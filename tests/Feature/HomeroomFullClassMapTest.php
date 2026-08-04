@@ -17,6 +17,7 @@ use App\Enums\StaffReportType;
 use App\Enums\UserRole;
 use App\Filament\Concerns\EnforcesGradeScope;
 use App\Filament\Resources\Grades\Pages\ListGrades;
+use App\Filament\Resources\Subjects\Pages\ListSubjects;
 use App\Filament\Resources\Subjects\SubjectResource;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
@@ -122,6 +123,37 @@ it('vede în „Discipline" și disciplina predată de coleg la clasa lui', func
         ->toContain($this->mySubject->id)
         ->toContain($this->colleagueSubject->id)
         ->not->toContain($this->foreignSubject->id);
+});
+
+it('vede disciplina colegului pe ECRANUL „Discipline", nu doar în interogarea resursei', function () {
+    /**
+     * REGRESIE PRINSĂ LA VERIFICAREA LIVE (04.08.2026): scoping-ul corectat pe
+     * `SubjectResource::getEloquentQuery()` NU ajungea aici. Pagina pentru cadre nu randează tabelul
+     * resursei, ci carduri construite din propria interogare — două căi paralele peste aceleași date,
+     * iar corectarea uneia nu se vedea în cealaltă. Testul se uită la ce vede omul pe ecran.
+     */
+    actingAs($this->user->fresh());
+
+    $titluri = collect(Livewire::test(ListSubjects::class)->instance()->subjectCards())->pluck('title');
+
+    expect($titluri)
+        ->toContain($this->mySubject->name)
+        ->toContain($this->colleagueSubject->name)
+        ->not->toContain($this->foreignSubject->name);
+});
+
+it('în context PROFESOR ecranul revine la disciplinele proprii', function () {
+    // Cealaltă față a aceleiași reguli: dacă lărgirea ar fi scăpat de sub context, profesorul ar
+    // fi început să vadă orele colegilor — exact scurgerea pe care scoping-ul o previne.
+    $this->user->assignRole(UserRole::Profesor->value);
+    actingAs($this->user->fresh());
+    session()->put(ActiveRole::SESSION_KEY, UserRole::Profesor->value);
+
+    $titluri = collect(Livewire::test(ListSubjects::class)->instance()->subjectCards())->pluck('title');
+
+    expect($titluri)
+        ->toContain($this->mySubject->name)
+        ->not->toContain($this->colleagueSubject->name);
 });
 
 it('poate deschide rapoartele pe disciplina colegului, la clasa lui', function () {
