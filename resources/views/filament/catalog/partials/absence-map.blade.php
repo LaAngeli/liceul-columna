@@ -14,6 +14,14 @@
         'success' => 'bg-green-100 text-green-800 ring-green-600/30 dark:bg-green-400/10 dark:text-green-300 dark:ring-green-400/30',
         'danger' => 'bg-red-100 text-red-800 ring-red-600/30 dark:bg-red-400/10 dark:text-red-300 dark:ring-red-400/30',
     ];
+    // Pistele coloanei Total, în ordinea legendei. Definite o dată, nu pe fiecare rând: doar
+    // numărul diferă de la elev la elev, restul (semn, culoare, etichetă citită de cititorul de
+    // ecran) e același peste tot.
+    $totalTracks = [
+        ['key' => 'motivated', 'icon' => '✓', 'tone' => 'text-green-600 dark:text-green-400', 'label' => \App\Enums\AbsenceStatus::Motivated->label()],
+        ['key' => 'unmotivated', 'icon' => '✗', 'tone' => 'text-red-600 dark:text-red-400', 'label' => \App\Enums\AbsenceStatus::Unmotivated->label()],
+        ['key' => 'pending', 'icon' => '?', 'tone' => 'text-amber-600 dark:text-amber-400', 'label' => \App\Enums\AbsenceStatus::Pending->label()],
+    ];
 @endphp
 
 <section class="rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
@@ -76,8 +84,13 @@
                                 <span class="block text-[10px] font-normal text-gray-400 dark:text-gray-500">{{ $day['weekday'] }}</span>
                             </th>
                         @endforeach
-                        <th class="border-b border-gray-200 px-4 py-2 text-end text-xs font-semibold text-gray-500 dark:border-white/10 dark:text-gray-400">
-                            {{ __('absence_map.totals') }}
+                        {{-- Antetul acoperă TOATE cele 4 piste, nu una singură: aceeași lățime ca
+                             grupul din celule (w-40 = 28 + 3×40 + 3×4), deci se citește ca titlu al
+                             blocului. Linia verticală îl desparte de grila zilelor. --}}
+                        <th class="border-b border-s border-gray-200 px-4 py-2 dark:border-white/10">
+                            <span class="ms-auto flex w-40 items-center justify-center text-[0.8625rem] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                {{ __('absence_map.totals') }}
+                            </span>
                         </th>
                     </tr>
                 </thead>
@@ -158,18 +171,22 @@
                                  categorie la zero își lasă locul GOL, nu îl cedează vecinei:
                                  altfel „2✓" aluneca în pista lui „✗" și cifrele nu se mai puteau
                                  compara pe verticală. --}}
-                            <td class="whitespace-nowrap border-b border-gray-100 px-4 py-2 text-xs tabular-nums dark:border-white/5">
-                                <span class="flex items-center justify-end gap-1">
+                            <td class="whitespace-nowrap border-b border-s border-gray-100 border-s-gray-200 px-4 py-2 text-[0.8625rem] tabular-nums dark:border-white/5 dark:border-s-white/10">
+                                <span class="ms-auto flex w-40 items-center justify-end gap-1">
                                     <span class="w-7 text-end font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
-                                    <span class="w-9 text-end text-green-600 dark:text-green-400">
-                                        @if ($row['totals']['motivated'] > 0){{ $row['totals']['motivated'] }}<span aria-hidden="true">✓</span>@endif
-                                    </span>
-                                    <span class="w-9 text-end text-red-600 dark:text-red-400">
-                                        @if ($row['totals']['unmotivated'] > 0){{ $row['totals']['unmotivated'] }}<span aria-hidden="true">✗</span>@endif
-                                    </span>
-                                    <span class="w-9 text-end text-amber-600 dark:text-amber-400">
-                                        @if ($row['totals']['pending'] > 0){{ $row['totals']['pending'] }}<span aria-hidden="true">?</span>@endif
-                                    </span>
+
+                                    @foreach ($totalTracks as $track)
+                                        {{-- Pistă de lățime fixă, randată și când e goală: locul liber
+                                             păstrează alinierea pe verticală. Cifra și semnul stau la
+                                             o distanță vizibilă (gap-1.5), nu lipite. --}}
+                                        <span class="flex w-10 items-center justify-end gap-1.5 {{ $track['tone'] }}">
+                                            @if ($row['totals'][$track['key']] > 0)
+                                                <span>{{ $row['totals'][$track['key']] }}</span>
+                                                <span aria-hidden="true">{{ $track['icon'] }}</span>
+                                                <span class="sr-only">{{ $track['label'] }}</span>
+                                            @endif
+                                        </span>
+                                    @endforeach
                                 </span>
                             </td>
                         </tr>
