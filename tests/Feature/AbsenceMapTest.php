@@ -14,6 +14,7 @@
  */
 
 use App\Enums\UserRole;
+use App\Filament\Resources\Absences\AbsenceResource;
 use App\Filament\Resources\Absences\Pages\ListAbsences;
 use App\Models\Absence;
 use App\Models\AcademicYear;
@@ -25,6 +26,7 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\User;
+use App\Policies\AbsencePolicy;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -288,6 +290,86 @@ it('două ore la ACEEAȘI disciplină în aceeași zi rămân absențe separate,
 
     expect($filtered['grouped'])->toBeFalse()
         ->and($filteredRows[$student->id]['cells'][$zi])->toHaveCount(2);
+});
+
+it('absența pe ZI ÎNTREAGĂ intră în numărătoarea zilei și își spune numele în listă', function () {
+    /**
+     * Scenariile cu zi întreagă în modul „Toate" (verificare cerută de beneficiar, 05.08.2026):
+     * singură, amestecată cu o disciplină, sau de două ori în aceeași zi. Toate trebuie să
+     * numere corect și să se desfacă în mini-listă ca rânduri de sine stătătoare.
+     */
+    $student = $this->students->first();
+
+    $singura = '2026-03-02';
+    $amestec = '2026-03-03';
+    $dubla = '2026-03-04';
+
+    absenceMapRecord($this, $student, $singura, motivated: true, wholeDay: true);
+
+    absenceMapRecord($this, $student, $amestec, wholeDay: true);
+    absenceMapRecord($this, $student, $amestec, motivated: false);
+
+    absenceMapRecord($this, $student, $dubla, wholeDay: true);
+    absenceMapRecord($this, $student, $dubla, motivated: false, wholeDay: true);
+
+    actingAs($this->homeroomUser);
+
+    $map = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListAbsences::class)
+        ->instance()
+        ->absenceMap();
+
+    $cells = collect($map['rows'])->firstWhere('student.id', $student->id)['cells'];
+    $ziIntreaga = __('absence_map.whole_day');
+
+    expect(array_column($cells[$singura], 'subject_label'))->toBe([$ziIntreaga])
+        // Amestec: ziua întreagă stă lângă disciplină, ca rânduri distincte.
+        ->and(array_column($cells[$amestec], 'subject_label'))->toBe([$ziIntreaga, 'Chimie'])
+        // Două zile întregi în aceeași zi: două rânduri, nu unul comasat.
+        ->and($cells[$dubla])->toHaveCount(2)
+        ->and(array_column($cells[$dubla], 'status'))->toBe(['pending', 'unmotivated']);
+
+    // Profesorul de disciplină NU vede absențele pe zi întreagă (n-au disciplina lui): ziua
+    // „singură" dispare complet din harta lui, iar ziua de amestec rămâne cu o singură absență.
+    actingAs($this->teacherUser);
+
+    $alProfesorului = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListAbsences::class)
+        ->instance()
+        ->absenceMap();
+
+    $cellsProfesor = collect($alProfesorului['rows'])->firstWhere('student.id', $student->id)['cells'];
+
+    expect(array_column($alProfesorului['days'], 'iso'))->not->toContain($singura)
+        ->and($cellsProfesor[$amestec] ?? [])->toHaveCount(1)
+        ->and(array_column($cellsProfesor[$amestec], 'subject_label'))->toBe(['Chimie']);
+});
+
+it('profesorul de disciplină nu primește pârghii de statut în hartă — nici măcar ca link', function () {
+    /**
+     * REGRESIE (raport beneficiar, 05.08.2026): pastilele îi apăreau profesorului ca LINK spre
+     * fișa absenței, iar clickul se lovea de 403. Nu era o nepotrivire de nuanță: `canStatus`
+     * folosește exact aceeași verificare ca {@see AbsencePolicy::update}
+     * (`canMotivateAbsencesFor`), deci ORICINE ajunge pe ramura „fără statut" nu poate deschide
+     * fișa — linkul era o fundătură garantată.
+     */
+    $student = $this->students->first();
+    $grade = absenceMapRecord($this, $student, '2026-03-05');
+
+    actingAs($this->teacherUser);
+
+    $component = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListAbsences::class);
+
+    expect($component->instance()->absenceMap()['canStatus'])->toBeFalse();
+
+    // Ecranul lui nu conține nicio cale spre editarea absenței.
+    $component->assertDontSee(AbsenceResource::getUrl('edit', ['record' => $grade]), escape: false);
+
+    // Iar dacă ar forța apelul, serverul refuză și statutul rămâne neatins.
+    $component->call('setAbsenceMapStatus', $grade->id, 'motivated');
+
+    expect($grade->fresh()->is_motivated)->toBeNull();
 });
 
 it('oricâte zile ar avea perioada, toate rămân coloane — nimic tăiat, nimic refuzat', function () {

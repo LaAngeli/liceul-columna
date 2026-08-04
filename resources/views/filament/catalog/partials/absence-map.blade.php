@@ -289,14 +289,12 @@
                                                                 @endforeach
                                                             </span>
                                                         @else
-                                                            <a
-                                                                href="{{ $chip['url'] }}"
-                                                                title="{{ __('absence_map.open_record') }}"
-                                                                aria-label="{{ $chip['subject_label'] }} — {{ __('absence_map.open_record') }}"
-                                                                class="ms-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 transition hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-white/10"
-                                                            >
-                                                                <x-filament::icon icon="heroicon-o-arrow-top-right-on-square" class="h-4 w-4" />
-                                                            </a>
+                                                            {{-- Fără drept de statut (profesorul de disciplină): rândul
+                                                                 rămâne INFORMATIV. Vezi nota de la pastila individuală —
+                                                                 linkul spre fișă ducea garantat în 403. --}}
+                                                            <span class="ms-auto shrink-0 text-[0.6875rem] text-gray-400 dark:text-gray-500">
+                                                                {{ $chip['status_label'] }}
+                                                            </span>
                                                         @endif
                                                     </div>
                                                 @endforeach
@@ -350,15 +348,21 @@
                                                 </div>
                                             </div>
                                         @else
-                                            {{-- Fără drept de statut: pastila duce la fișă (unde politica decide mai departe). --}}
-                                            <a
-                                                href="{{ $chip['url'] }}"
+                                            {{-- FĂRĂ drept de statut = profesorul de disciplină: pastila e INFORMATIVĂ,
+                                                 nu link.
+
+                                                 ⚠️ Nu e o simplă alegere de stil: `canStatus` folosește exact aceeași
+                                                 verificare ca {@see AbsencePolicy::update} (`canMotivateAbsencesFor`),
+                                                 deci cine ajunge pe ramura asta NU poate deschide fișa — vechiul link
+                                                 spre editare ducea garantat în 403 (raport beneficiar, 05.08.2026).
+                                                 Profesorul consemnează absența; gestiunea ei e a dirigintelui. --}}
+                                            <span
                                                 title="{{ $chip['title'] }}"
                                                 aria-label="{{ $chip['title'] }}"
-                                                class="m-0.5 inline-flex min-h-7 items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 transition hover:brightness-95 {{ $chipPalette[$chip['color']] ?? $chipPalette['warning'] }}"
+                                                class="m-0.5 inline-flex min-h-7 items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 {{ $chipPalette[$chip['color']] ?? $chipPalette['warning'] }}"
                                             >
                                                 {{ $chip['label'] }}
-                                            </a>
+                                            </span>
                                         @endif
                                     @endforeach
                                     @endif
