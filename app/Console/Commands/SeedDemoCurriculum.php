@@ -414,6 +414,18 @@ class SeedDemoCurriculum extends Command
             return;
         }
 
+        // Mediile calculate din notele imposibile trebuie să plece odată cu ele: o medie fără note
+        // rămâne pe ecran ca o afirmație despre ceva ce nu s-a întâmplat (copil de clasa I cu medie
+        // la Fizică). `app:compute-averages` le retrage acum și el, ca plasă generală.
+        DB::table('term_averages')
+            ->whereIn('subject_id', $impossible)
+            ->whereIn('student_id', fn ($query) => $query
+                ->select('student_id')
+                ->from('enrollments')
+                ->where('school_class_id', $class['id'])
+                ->whereNull('deleted_at'))
+            ->delete();
+
         DB::table('grades')->where('school_class_id', $class['id'])->whereIn('subject_id', $impossible)->delete();
         DB::table('absences')->where('school_class_id', $class['id'])->whereIn('subject_id', $impossible)->delete();
         DB::table('lessons')->where('school_class_id', $class['id'])->whereIn('subject_id', $impossible)->delete();

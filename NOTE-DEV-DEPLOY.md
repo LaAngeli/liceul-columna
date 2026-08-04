@@ -56,6 +56,10 @@ Toate datele de test sunt marcate `[DEMO]` → NU trebuie să ajungă în produc
   ⚠️ Ce NU se poate întoarce: alocările *imposibile* curățate la seed (disciplină care nu se predă la treapta
   clasei — Fizică într-a I-a, rămasă din zona demo veche) și evaluările lor. Sunt date demo invalide, pe care
   interfața oricum le-ar fi refuzat; curățarea completă a zonei rămâne `app:seed-demo-zone --remove`.
+- `php artisan app:seed-demo-timeline --remove` — **activitatea pe axa timpului** (04.08.2026): note în
+  semestrul precedent (trecutul, ca evoluția și media anuală să aibă de unde compara) + note/absențe/teme
+  în ultimele trei săptămâni ale semestrului curent, cu absențe „fără statut" garantate pentru elevii
+  conturilor demo. Șterge exact rândurile din `storage/app/demo/timeline.json` și recalculează mediile.
 - ⚠️ **Clasele demo PROMOVATE își pierd marcajul.** „Trecerea în anul nou" derivă numele din treaptă
   (`[DEMO] 1A` → `II`), deci clasele promovate ale zonei demo ajung în anul nou fără `[DEMO]` — invizibile
   pentru orice curățare pe marcaj. `app:seed-demo-curriculum` le **adoptă** (le redenumește cu marcaj și le
