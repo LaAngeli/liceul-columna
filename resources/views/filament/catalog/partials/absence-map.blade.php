@@ -76,6 +76,9 @@
                 canRight: false,
                 nameW: 0,
                 totalW: 0,
+                dayW: 80,
+                nCols: 1,
+                extra: 0,
                 arrowTop: 6,
                 sync() {
                     const el = this.$refs.scroller;
@@ -87,7 +90,22 @@
                     this.canLeft = el.scrollLeft > 1;
                     this.canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
                     this.nameW = this.$refs.nameTh?.offsetWidth ?? 0;
-                    this.totalW = this.$refs.totalTh?.offsetWidth ?? 0;
+                    this.dayW = this.$refs.firstDayTh?.offsetWidth || this.dayW;
+
+                    // Fereastra zilelor ține doar coloane ÎNTREGI: restul împărțirii se varsă în
+                    // culoarul separatorului Total (--map-extra), deci AMBELE granițe cad mereu pe
+                    // muchie de coloană — nicio pastilă tăiată la oprire. Excepție: fereastră mai
+                    // îngustă decât o singură coloană (telefon) — acolo restul nu are unde să se
+                    // ducă, derularea rămâne liberă.
+                    const totalBase = (this.$refs.totalTh?.offsetWidth ?? 0) - this.extra;
+                    const days = el.querySelectorAll('thead th').length - 2;
+                    const avail = el.clientWidth - this.nameW - totalBase;
+                    this.nCols = Math.max(1, Math.floor(avail / this.dayW));
+
+                    this.extra = (this.nCols >= days || avail < this.dayW)
+                        ? 0
+                        : Math.max(0, Math.round(avail - this.nCols * this.dayW));
+                    this.totalW = totalBase + this.extra;
 
                     // Săgeata (28px) stă centrată pe RÂNDUL ANTETULUI cu date, oricâte rânduri ar
                     // avea capul tabelului.
@@ -95,10 +113,12 @@
                     this.arrowTop = Math.max(4, Math.round((headH - 28) / 2));
                 },
                 nudge(direction) {
+                    // Pasul = numărul de coloane care încap, sărind DOAR pe muchii de coloană
+                    // (coloanele au lățime uniformă, deci pozițiile valide sunt multipli de dayW).
                     const el = this.$refs.scroller;
-                    const step = Math.max(120, el.clientWidth - this.nameW - this.totalW - 48);
+                    const current = Math.round(el.scrollLeft / this.dayW);
 
-                    el.scrollBy({ left: direction * step, behavior: 'smooth' });
+                    el.scrollTo({ left: (current + direction * this.nCols) * this.dayW, behavior: 'smooth' });
                 },
             }"
             {{-- Sync dublu la pornire: browserul poate restaura scrollLeft DUPĂ primul tick (fără
@@ -106,8 +126,17 @@
             x-init="$nextTick(() => sync()); setTimeout(() => sync(), 300)"
             x-on:resize.window.debounce.150ms="sync()"
             class="relative"
+            x-bind:style="'--map-extra: ' + extra + 'px'"
         >
-            <div x-ref="scroller" x-on:scroll.passive.debounce.50ms="sync()" class="overflow-x-auto">
+            {{-- Scroll-snap pe muchii de coloană (scroll-padding = coloana ancorată a numelui) —
+                 și derularea LIBERĂ (rotiță/atingere) se așază tot pe muchie, nu doar săgețile.
+                 Bara orizontală e ascunsă (cerința 04.08.2026): săgețile sunt navigarea. --}}
+            <div
+                x-ref="scroller"
+                x-on:scroll.passive.debounce.50ms="sync()"
+                class="snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                x-bind:style="'scroll-padding-left: ' + nameW + 'px'"
+            >
             {{-- Lățimea urmează CONȚINUTUL (min-w-max, fără w-full): un tabel întins la container ar
                  avea surplus de împărțit, iar el se scurgea în ultima coloană — de acolo golul dintre
                  separatorul Total și cifre. Așa, blocul de totaluri stă lipit de grila zilelor.
@@ -116,11 +145,11 @@
             <table class="min-w-max border-separate border-spacing-0 text-sm">
                 <thead>
                     <tr>
-                        <th x-ref="nameTh" class="sticky left-0 z-10 border-b border-gray-200 bg-white ps-4 pe-12 py-2 text-start text-xs font-semibold text-gray-500 dark:border-white/10 dark:bg-gray-900 dark:text-gray-400">
+                        <th x-ref="nameTh" class="sticky left-0 z-10 border-b border-e border-gray-200 bg-white ps-4 pe-9 py-2 text-start text-xs font-semibold text-gray-500 dark:border-white/10 dark:bg-gray-900 dark:text-gray-400">
                             {{ __('absence_map.student') }}
                         </th>
                         @foreach ($map['days'] as $day)
-                            <th class="border-b border-gray-200 px-2 py-2 text-center text-xs font-semibold text-gray-500 dark:border-white/10 dark:text-gray-400"
+                            <th @if ($loop->first) x-ref="firstDayTh" @endif class="w-20 min-w-20 snap-start border-b border-gray-200 px-2 py-2 text-center text-xs font-semibold text-gray-500 dark:border-white/10 dark:text-gray-400"
                                 title="{{ trans_choice('absence_map.day_count', $day['count'], ['count' => $day['count']]) }}">
                                 <span class="block tabular-nums">{{ $day['day'] }}</span>
                                 <span class="block text-[10px] font-normal text-gray-400 dark:text-gray-500">{{ $day['weekday'] }}</span>
@@ -134,7 +163,7 @@
                         {{-- ANCORAT la dreapta (sticky), ca perechea lui din stânga: totalurile
                              rămân vizibile oricâte zile ar derula dedesubt. Fundal opac obligatoriu
                              — altfel coloanele zilelor s-ar vedea prin el. --}}
-                        <th x-ref="totalTh" class="sticky right-0 z-10 border-b border-s border-gray-200 bg-white ps-12 pe-2.5 py-2 dark:border-white/10 dark:bg-gray-900">
+                        <th x-ref="totalTh" class="sticky right-0 z-10 border-b border-s border-gray-200 bg-white ps-[calc(2.25rem+var(--map-extra,0px))] pe-2 py-2 dark:border-white/10 dark:bg-gray-900">
                             <span class="block text-center text-[0.8625rem] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                 {{ __('absence_map.totals') }}
                             </span>
@@ -148,7 +177,7 @@
                                  white/5): nuanța translucidă înlocuia gri-ul plin la hover, iar
                                  pastilele „A" derulate pe dedesubt se vedeau prin celulă (raport
                                  beneficiar, 04.08.2026). --}}
-                            <td class="sticky left-0 z-10 whitespace-nowrap border-b border-gray-100 bg-white ps-4 pe-12 py-2 font-medium text-gray-950 group-hover:bg-gray-50 dark:border-white/5 dark:bg-gray-900 dark:text-white dark:group-hover:bg-gray-800">
+                            <td class="sticky left-0 z-10 whitespace-nowrap border-b border-e border-gray-100 border-e-gray-200 bg-white ps-4 pe-9 py-2 font-medium dark:border-e-white/10 text-gray-950 group-hover:bg-gray-50 dark:border-white/5 dark:bg-gray-900 dark:text-white dark:group-hover:bg-gray-800">
                                 {{ $row['student']->last_name }} {{ $row['student']->first_name }}
                             </td>
 
@@ -227,8 +256,8 @@
                                  dintre piste (gap-2.5) e aceeași cu distanța de la margini la date
                                  (px-2.5) — un singur pas peste toată coloana. Hover OPAC, vezi nota
                                  de la coloana numelui. --}}
-                            <td class="sticky right-0 z-10 whitespace-nowrap border-b border-s border-gray-100 border-s-gray-200 bg-white ps-12 pe-2.5 py-2 text-[0.8625rem] tabular-nums group-hover:bg-gray-50 dark:border-white/5 dark:border-s-white/10 dark:bg-gray-900 dark:group-hover:bg-gray-800">
-                                <span class="flex items-center justify-end gap-2.5">
+                            <td class="sticky right-0 z-10 whitespace-nowrap border-b border-s border-gray-100 border-s-gray-200 bg-white ps-[calc(2.25rem+var(--map-extra,0px))] pe-2 py-2 text-[0.8625rem] tabular-nums group-hover:bg-gray-50 dark:border-white/5 dark:border-s-white/10 dark:bg-gray-900 dark:group-hover:bg-gray-800">
+                                <span class="flex items-center justify-end gap-2">
                                     <span class="flex w-9 items-center justify-center font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
 
                                     @foreach ($totalTracks as $track)
@@ -266,7 +295,7 @@
                 aria-label="{{ __('absence_map.scroll_left') }}"
                 title="{{ __('absence_map.scroll_left') }}"
                 class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
-                x-bind:style="'left: ' + (nameW - 34) + 'px; top: ' + arrowTop + 'px'"
+                x-bind:style="'left: ' + (nameW - 32) + 'px; top: ' + arrowTop + 'px'"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -282,7 +311,7 @@
                 aria-label="{{ __('absence_map.scroll_right') }}"
                 title="{{ __('absence_map.scroll_right') }}"
                 class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
-                x-bind:style="'right: ' + (totalW - 34) + 'px; top: ' + arrowTop + 'px'"
+                x-bind:style="'right: ' + (totalW - 32) + 'px; top: ' + arrowTop + 'px'"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
