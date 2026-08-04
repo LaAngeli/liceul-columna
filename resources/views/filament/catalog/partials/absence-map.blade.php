@@ -79,6 +79,7 @@
                 dayW: 80,
                 nCols: 1,
                 extra: 0,
+                fill: 0,
                 arrowTop: 6,
                 sync() {
                     const el = this.$refs.scroller;
@@ -94,17 +95,34 @@
 
                     // Fereastra zilelor ține doar coloane ÎNTREGI: restul împărțirii se varsă în
                     // culoarul separatorului Total (--map-extra), deci AMBELE granițe cad mereu pe
-                    // muchie de coloană — nicio pastilă tăiată la oprire. Excepție: fereastră mai
-                    // îngustă decât o singură coloană (telefon) — acolo restul nu are unde să se
-                    // ducă, derularea rămâne liberă.
+                    // muchie de coloană — nicio pastilă tăiată la oprire.
+                    //
+                    // Când zilele sunt PUȚINE (tabelul n-ar umple cardul), restul se varsă în
+                    // umplutorul din coada zonei zilelor (--map-fill): coloana Total ajunge astfel
+                    // MEREU la marginea dreaptă a cardului, cu separatorul lipit de cifre — nu
+                    {{-- ⚠️ Aici suntem ÎN INTERIORUL atributului x-data (delimitat cu ghilimele
+                         duble) — niciun caracter " în comentariile JS, altfel atributul se închide
+                         și restul codului se varsă ca TEXT pe pagină (pățit, 04.08.2026). --}}
+                    // rămâne suspendată după ultima zi (raport beneficiar, modul Zi).
+                    //
+                    // Fereastră mai îngustă decât o singură coloană (telefon): restul nu are unde
+                    // să se ducă, derularea rămâne liberă.
                     const totalBase = (this.$refs.totalTh?.offsetWidth ?? 0) - this.extra;
-                    const days = el.querySelectorAll('thead th').length - 2;
+                    const days = el.querySelectorAll('thead th').length - 3; // nume + umplutor + total
                     const avail = el.clientWidth - this.nameW - totalBase;
                     this.nCols = Math.max(1, Math.floor(avail / this.dayW));
 
-                    this.extra = (this.nCols >= days || avail < this.dayW)
-                        ? 0
-                        : Math.max(0, Math.round(avail - this.nCols * this.dayW));
+                    if (avail < this.dayW) {
+                        this.extra = 0;
+                        this.fill = 0;
+                    } else if (this.nCols >= days) {
+                        this.extra = 0;
+                        this.fill = Math.max(0, Math.round(avail - days * this.dayW));
+                    } else {
+                        this.extra = Math.max(0, Math.round(avail - this.nCols * this.dayW));
+                        this.fill = 0;
+                    }
+
                     this.totalW = totalBase + this.extra;
 
                     // Săgeata (28px) stă centrată pe RÂNDUL ANTETULUI cu date, oricâte rânduri ar
@@ -121,12 +139,25 @@
                     el.scrollTo({ left: (current + direction * this.nCols) * this.dayW, behavior: 'smooth' });
                 },
             }"
-            {{-- Sync dublu la pornire: browserul poate restaura scrollLeft DUPĂ primul tick (fără
-                 eveniment de scroll), iar starea săgeților ar rămâne cea din momentul greșit. --}}
-            x-init="$nextTick(() => sync()); setTimeout(() => sync(), 300)"
+            {{-- Sync dublu la pornire (browserul poate restaura scrollLeft DUPĂ primul tick, fără
+                 eveniment de scroll) + OBSERVATOR pe tabel: morph-ul Livewire (altă disciplină, alt
+                 statut, altă perioadă) schimbă DOM-ul fără resize și fără scroll, iar măsurătorile
+                 rămâneau vechi — umplutor de 708px într-un card de 900px, săgeți-fantomă (măsurat,
+                 04.08.2026). Observatorul repornește sync() la ORICE schimbare din tabel. --}}
+            x-init="
+                $nextTick(() => sync());
+                setTimeout(() => sync(), 300);
+                new MutationObserver(() => { clearTimeout(window.__mapSyncT); window.__mapSyncT = setTimeout(() => sync(), 80); })
+                    .observe($refs.scroller, { childList: true, subtree: true, characterData: true });
+            "
             x-on:resize.window.debounce.150ms="sync()"
             class="relative"
-            x-bind:style="'--map-extra: ' + extra + 'px'"
+            x-bind:style="'--map-extra: ' + extra + 'px; --map-fill: ' + fill + 'px'"
+            {{-- Cheia FORȚEAZĂ reconstrucția componentei Alpine la schimbarea perioadei/clasei:
+                 morph-ul Livewire păstrează DOM-ul, deci starea măsurată (săgeți, lățimi) rămânea
+                 cea a tabelului VECHI — o săgeată „>" plutea după comutarea pe „Zi", fără să mai
+                 existe surplus (raport beneficiar, 04.08.2026). --}}
+            wire:key="absence-map-{{ count($map['days']) }}-{{ $map['days'][0]['iso'] ?? 'gol' }}-{{ $map['days'][count($map['days']) - 1]['iso'] ?? '' }}"
         >
             {{-- Scroll-snap pe muchii de coloană (scroll-padding = coloana ancorată a numelui) —
                  și derularea LIBERĂ (rotiță/atingere) se așază tot pe muchie, nu doar săgețile.
@@ -155,6 +186,12 @@
                                 <span class="block text-[10px] font-normal text-gray-400 dark:text-gray-500">{{ $day['weekday'] }}</span>
                             </th>
                         @endforeach
+                        {{-- UMPLUTORUL elastic din coada zonei zilelor (--map-fill): când zilele
+                             sunt puține, el consumă restul cardului, ca Total să stea la marginea
+                             dreaptă cu separatorul lipit de cifre. La surplus e 0 și dispare.
+                             Lățime în px prin variabilă, NU procent — procentul + min-w-max e
+                             capcana de 10⁶ px din nota de mai sus. --}}
+                        <th aria-hidden="true" class="border-b border-gray-200 p-0 dark:border-white/10" style="width: var(--map-fill, 0px)"></th>
                         {{-- Antetul acoperă TOATE cele 4 piste. Nu-i mai fixăm lățimea: coloana e
                              deja exact cât grupul din celule, iar `block text-center` îl centrează
                              pe toată lățimea ei — fără un număr magic de ținut sincron cu suma
@@ -244,6 +281,9 @@
                                 </td>
                             @endforeach
 
+                            {{-- Perechea umplutorului din antet — aceeași lățime, prin variabilă. --}}
+                            <td aria-hidden="true" class="border-b border-gray-100 p-0 dark:border-white/5" style="width: var(--map-fill, 0px)"></td>
+
                             {{-- Totaluri per elev: se vede dintr-o privire cine acumulează.
                                  PISTE VERTICALE FIXE (raport beneficiar, 04.08.2026): fiecare
                                  categorie — total / motivate / nemotivate / fără statut — are
@@ -288,14 +328,12 @@
                  `canRight` se sting la capete), deci pe un tabel care încape nu apar deloc. --}}
             <button
                 type="button"
-                x-cloak
-                x-show="canLeft"
-                x-transition.opacity
+                style="display: none"
                 x-on:click="nudge(-1)"
                 aria-label="{{ __('absence_map.scroll_left') }}"
                 title="{{ __('absence_map.scroll_left') }}"
                 class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
-                x-bind:style="'left: ' + (nameW - 32) + 'px; top: ' + arrowTop + 'px'"
+                x-bind:style="'left: ' + (nameW - 32) + 'px; top: ' + arrowTop + 'px; display: ' + (canLeft ? 'flex' : 'none')"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -304,14 +342,12 @@
 
             <button
                 type="button"
-                x-cloak
-                x-show="canRight"
-                x-transition.opacity
+                style="display: none"
                 x-on:click="nudge(1)"
                 aria-label="{{ __('absence_map.scroll_right') }}"
                 title="{{ __('absence_map.scroll_right') }}"
                 class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
-                x-bind:style="'right: ' + (totalW - 32) + 'px; top: ' + arrowTop + 'px'"
+                x-bind:style="'right: ' + (totalW - 32) + 'px; top: ' + arrowTop + 'px; display: ' + (canRight ? 'flex' : 'none')"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
