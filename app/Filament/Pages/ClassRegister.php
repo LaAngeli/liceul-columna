@@ -434,6 +434,22 @@ class ClassRegister extends Page
         return $user->teacher?->canRecordAbsence((int) $class->getKey(), (int) $subject->getKey()) ?? false;
     }
 
+    /**
+     * Catalogul se deschide pe LUNA curentă, nu pe tot istoricul (cerința beneficiarului,
+     * 04.08.2026).
+     *
+     * De ce: notele se aliniază pe coloane de dată doar până la {@see MAX_GRADE_COLUMNS} zile
+     * distincte; peste prag cad înapoi în șir. Cu „Toate", orice clasă cu un an de istoric importat
+     * depășea pragul, așa că aceeași școală arăta două tabele diferite — 1B pe șir, 7B pe coloane —
+     * și chiar aceeași clasă își schimba forma de la o disciplină la alta (16 din 53 de clase).
+     * Pe o lună, numărul de zile e mereu sub prag, deci forma e una singură. Istoricul complet
+     * rămâne la o pastilă distanță, ales conștient.
+     */
+    protected function defaultTimeMode(): ?string
+    {
+        return 'luna';
+    }
+
     /** Bara temporală filtrează pe DATA notei — aceeași coloană ca în lista Note. */
     protected function timeDateExpression(): string|Expression
     {

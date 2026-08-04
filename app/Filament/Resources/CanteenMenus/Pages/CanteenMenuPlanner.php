@@ -7,7 +7,6 @@ use App\Filament\Resources\CanteenMenus\CanteenMenuResource;
 use App\Models\CanteenMenu;
 use App\Providers\Filament\AdminPanelProvider;
 use App\Support\CanteenWeek;
-use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Database\Query\Expression;
@@ -74,37 +73,16 @@ class CanteenMenuPlanner extends Page
     // ── Axa temporală, adaptată paginii fără tabel ─────────────────────────────────────────────
 
     /**
-     * Modul implicit al MENIULUI e Săptămâna (acolo se planifică), nu „Toate" ca în registre:
-     * URL-ul fără `?mod` înseamnă săptămâna, iar „Toate" e o valoare EXPLICITĂ (`?mod=toate`) —
-     * altfel starea „Toate" nu ar supraviețui unui reload.
+     * Modul implicit al MENIULUI e Săptămâna — acolo se planifică.
+     *
+     * Pagina își ținea până acum propriile copii ale lui `timeMode()`/`setTimeMode()`, cu lista de
+     * moduri scrisă a doua oară și cu un `CarbonImmutable::today()` rămas pe ora SERVERULUI — exact
+     * greșeala de fus orar găsită pe această pagină și corectată în trait. Regula a urcat acolo
+     * ({@see HasTimeNavigator::defaultTimeMode()}), aici rămâne doar alegerea.
      */
-    public function timeMode(): ?string
+    protected function defaultTimeMode(): ?string
     {
-        return match (true) {
-            $this->timeMode === 'toate' => null,
-            in_array($this->timeMode, ['zi', 'saptamana', 'luna', self::TIME_MODE_CUSTOM], true) => $this->timeMode,
-            default => 'saptamana',
-        };
-    }
-
-    public function setTimeMode(string $mode): void
-    {
-        $previous = $this->timeRange();
-
-        $this->timeMode = in_array($mode, ['toate', 'zi', 'saptamana', 'luna', self::TIME_MODE_CUSTOM], true)
-            ? $mode
-            : null;
-        $this->timeRef = null;
-
-        if ($this->timeMode === self::TIME_MODE_CUSTOM) {
-            // Continuitate: intervalul liber pornește de la perioada tocmai privită.
-            [$from, $until] = $previous ?? [CarbonImmutable::today()->startOfMonth(), CarbonImmutable::today()->endOfMonth()];
-            $this->timeFrom = $from?->toDateString();
-            $this->timeUntil = $until?->toDateString();
-        } else {
-            $this->timeFrom = null;
-            $this->timeUntil = null;
-        }
+        return 'saptamana';
     }
 
     /** Cerut de trait pentru filtrarea de tabel — pagina n-are tabel, dar contractul rămâne. */

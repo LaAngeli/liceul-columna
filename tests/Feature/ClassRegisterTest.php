@@ -608,7 +608,8 @@ it('notele se aliniază pe coloane de dată — cine n-a fost notat are celula g
     registerGrade($a, $zi2, 7);
     registerGrade($b, $zi2, 8); // $b lipsește din prima zi — exact golul care trebuie să se vadă
 
-    $page = Livewire::test(ClassRegister::class)->instance();
+    // „Toate" EXPLICIT: implicitul e luna curentă, iar zilele testului pot cădea în luni diferite.
+    $page = Livewire::test(ClassRegister::class)->set('timeMode', 'toate')->instance();
 
     // Rigla de date: zilele distincte, cronologic — aceeași pentru antet și pentru toate rândurile.
     expect(array_column($page->gradeColumns(), 'iso'))->toBe([$zi1, $zi2])
@@ -668,10 +669,36 @@ it('bara temporală restrânge la perioada aleasă — aceeași ca în Note', fu
         // Elevii NU dispar niciodată — golul e informația.
         ->and($rows)->toHaveCount(3);
 
-    // „Toate" (fără mod) aduce înapoi ambele zile.
-    $all = Livewire::test(ClassRegister::class)->instance();
+    // „Toate" — de acum o alegere EXPLICITĂ (implicitul e luna curentă) — aduce ambele zile.
+    $all = Livewire::test(ClassRegister::class)->set('timeMode', 'toate')->instance();
 
     expect(array_column($all->gradeColumns(), 'iso'))->toBe([$zi1, $zi2]);
+});
+
+it('catalogul se deschide pe LUNA curentă, cu istoricul la o pastilă distanță', function () {
+    /**
+     * Cerința beneficiarului (04.08.2026): cu implicitul „Toate", clasele cu un an de istoric
+     * depășeau pragul de coloane și cădeau în șir, așa că 1B și 7B arătau două tabele diferite.
+     * Pe o lună, forma e una singură. Datele testului sunt alese să nu depindă de ziua rulării:
+     * azi e mereu în luna curentă, acum 40 de zile e mereu în afara ei.
+     */
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    registerGrade($a, Carbon::today()->toDateString(), 9);
+    registerGrade($a, Carbon::today()->subDays(40)->toDateString(), 5);
+
+    $page = Livewire::test(ClassRegister::class)->instance();
+
+    expect($page->timeMode())->toBe('luna')
+        ->and(array_column($page->gradeColumns(), 'iso'))->toBe([Carbon::today()->toDateString()]);
+
+    // Pastila „Toate" rămâne calea spre istoricul complet — nimic nu s-a pierdut, doar nu se
+    // deschide peste tot.
+    $all = Livewire::test(ClassRegister::class)->set('timeMode', 'toate')->instance();
+
+    expect($all->timeMode())->toBeNull()
+        ->and(array_column($all->gradeColumns(), 'iso'))->toHaveCount(2);
 });
 
 it('peste pragul de coloane notele cad în șir, fără să dispară vreuna', function () {
@@ -683,7 +710,8 @@ it('peste pragul de coloane notele cad în șir, fără să dispară vreuna', fu
         registerGrade($a, Carbon::today()->subDays(20 - $i)->toDateString(), 8);
     }
 
-    $page = Livewire::test(ClassRegister::class)->instance();
+    // Pragul se atinge doar pe o perioadă lungă → „Toate" explicit (implicitul e luna curentă).
+    $page = Livewire::test(ClassRegister::class)->set('timeMode', 'toate')->instance();
 
     expect($page->gradeColumns())->toHaveCount(ClassRegister::MAX_GRADE_COLUMNS + 1)
         ->and($page->gradesAlignedByDate())->toBeFalse()
@@ -715,7 +743,8 @@ it('tipul e implicit „Curentă" și nu există opțiunea „toate tipurile"', 
     registerGrade($a, Carbon::today()->subDays(4)->toDateString(), 9);
     registerGrade($a, Carbon::today()->subDays(2)->toDateString(), 6, EvaluationType::Teza);
 
-    $page = Livewire::test(ClassRegister::class);
+    // Testul e despre filtrul de TIP; perioada nu trebuie să-i taie zilele (implicitul = luna).
+    $page = Livewire::test(ClassRegister::class)->set('timeMode', 'toate');
     $instance = $page->instance();
 
     // Amestecul de tipuri pe același rând era chiar starea din care nu se putea citi nimic:

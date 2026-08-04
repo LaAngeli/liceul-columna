@@ -31,6 +31,16 @@ trait HasTimeNavigator
     /** Modul liber: capetele intervalului se aleg din calendar, nu prin pași. */
     public const TIME_MODE_CUSTOM = 'personalizat';
 
+    /**
+     * „Toate" ca valoare EXPLICITĂ, nu ca absență.
+     *
+     * O pagină cu alt mod implicit (vezi {@see defaultTimeMode()}) nu poate reprezenta „Toate" prin
+     * `null`: URL-ul fără `?mod` ar însemna atunci implicitul, iar alegerea utilizatorului n-ar
+     * supraviețui unui reload. Cu sentinela, `?mod=toate` rămâne în adresă și se poate pune la
+     * favorite. Pentru paginile cu implicitul „Toate" nu se schimbă nimic vizibil.
+     */
+    public const TIME_MODE_ALL = 'toate';
+
     /** Modul temporal activ: zi / saptamana / luna / personalizat; null = toate. */
     #[Url(as: 'mod', except: null)]
     public ?string $timeMode = null;
@@ -69,10 +79,33 @@ trait HasTimeNavigator
         return ['zi', 'saptamana', 'luna', self::TIME_MODE_CUSTOM];
     }
 
+    /**
+     * Modul cu care se DESCHIDE pagina când URL-ul nu spune altceva; `null` = „Toate".
+     *
+     * Registrele de listare (Note / Absențe / Teme) pornesc de la tot, fiindcă acolo întrebarea e
+     * de regulă „unde e nota lui X?". Paginile de LUCRU pornesc de la perioada în care se lucrează
+     * — vezi {@see ClassRegister} (luna) și {@see CanteenMenuPlanner} (săptămâna).
+     */
+    protected function defaultTimeMode(): ?string
+    {
+        return null;
+    }
+
     /** Modul temporal VALIDAT — URL-ul nu se ia de bun. */
     public function timeMode(): ?string
     {
-        return in_array($this->timeMode, self::timeModes(), true) ? $this->timeMode : null;
+        // „Toate", ales explicit: se oprește aici, ca implicitul paginii să nu-l suprascrie.
+        if ($this->timeMode === self::TIME_MODE_ALL) {
+            return null;
+        }
+
+        if (in_array($this->timeMode, self::timeModes(), true)) {
+            return $this->timeMode;
+        }
+
+        $default = $this->defaultTimeMode();
+
+        return in_array($default, self::timeModes(), true) ? $default : null;
     }
 
     /** Data de referință VALIDATĂ (fallback: azi). */
@@ -105,7 +138,9 @@ trait HasTimeNavigator
     {
         $previous = $this->timeRange();
 
-        $this->timeMode = in_array($mode, self::timeModes(), true) ? $mode : null;
+        // Orice altceva decât un mod valid înseamnă „Toate" — păstrat EXPLICIT, ca alegerea să
+        // supraviețuiască reload-ului chiar și pe paginile cu alt implicit.
+        $this->timeMode = in_array($mode, self::timeModes(), true) ? $mode : self::TIME_MODE_ALL;
         $this->timeRef = null;
 
         if ($this->timeMode === self::TIME_MODE_CUSTOM) {
