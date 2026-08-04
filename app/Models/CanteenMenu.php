@@ -5,7 +5,7 @@ namespace App\Models;
 use App\Providers\AppServiceProvider;
 use App\Support\CanteenWeek;
 use App\Support\SchoolCalendar;
-use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Database\Factories\CanteenMenuFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -86,11 +86,12 @@ class CanteenMenu extends Model implements Auditable
     /**
      * Data la care meniul ACESTA devine public: ziua 25 a lunii dinaintea lui.
      *
-     * Tip IMUTABIL, nu `Illuminate\Support\Carbon`: aplicația rulează cu
-     * `Date::use(CarbonImmutable::class)` ({@see AppServiceProvider}), deci
-     * `menu_date` e imutabilă, iar orice derivare din ea la fel.
+     * `CarbonInterface`, nu un tip concret: aplicația rulează cu `Date::use(CarbonImmutable::class)`
+     * ({@see AppServiceProvider}), deci la RULARE `menu_date` — și tot ce derivă din ea — e
+     * imutabilă, în timp ce phpdoc-urile modelelor o descriu, ca peste tot în proiect, prin
+     * `Illuminate\Support\Carbon`. Interfața comună e singurul tip adevărat în ambele lumi.
      */
-    public function publishedOn(): CarbonImmutable
+    public function publishedOn(): CarbonInterface
     {
         return $this->menu_date->copy()->startOfMonth()->subMonthNoOverflow()->setDay(self::PUBLISH_DAY)->startOfDay();
     }
