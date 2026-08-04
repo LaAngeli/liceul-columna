@@ -137,8 +137,7 @@ it('rândurile cuprind TOATĂ clasa alfabetic, coloanele doar zilele cu absențe
 
     // Coloane: DOAR zilele cu absențe, cronologic — nu tot calendarul lunii.
     expect(array_column($map['days'], 'iso'))->toBe([$zi1, $zi2])
-        ->and($map['canStatus'])->toBeTrue()
-        ->and($map['overflow'])->toBeNull();
+        ->and($map['canStatus'])->toBeTrue();
 
     // Rânduri: toată clasa, alfabetic — inclusiv eleva fără nicio absență.
     $names = array_map(fn (array $row): string => (string) $row['student']->last_name, $map['rows']);
@@ -241,10 +240,16 @@ it('perioada implicită e LUNA curentă; absențele vechi apar doar pe „Toate"
     expect($all->absenceMap()['days'])->toHaveCount(2);
 });
 
-it('peste pragul de zile harta cere restrângerea perioadei, nu taie coloane pe tăcute', function () {
+it('oricâte zile ar avea perioada, toate rămân coloane — nimic tăiat, nimic refuzat', function () {
+    /**
+     * Fostul plafon (31 de zile → mesaj „restrângeți perioada") a fost scos la decizia
+     * beneficiarului (04.08.2026): surplusul se parcurge orizontal cu săgețile de carusel, iar
+     * numele și totalurile stau ancorate la capete. Testul apără NOUL contract: nicio zi nu
+     * dispare și niciun refuz nu se întoarce pe tăcute.
+     */
     $student = $this->students->first();
 
-    for ($i = 0; $i <= ListAbsences::MAX_MAP_DAYS; $i++) {
+    for ($i = 0; $i < 40; $i++) {
         absenceMapRecord($this, $student, Carbon::today()->subDays(80 - $i)->toDateString());
     }
 
@@ -255,6 +260,8 @@ it('peste pragul de zile harta cere restrângerea perioadei, nu taie coloane pe 
         ->instance()
         ->absenceMap();
 
-    expect($map['overflow'])->toBe(ListAbsences::MAX_MAP_DAYS + 1)
-        ->and($map['rows'])->toBe([]);
+    $rows = collect($map['rows'])->keyBy(fn (array $row): int => (int) $row['student']->id);
+
+    expect($map['days'])->toHaveCount(40)
+        ->and($rows[$student->id]['totals']['total'])->toBe(40);
 });

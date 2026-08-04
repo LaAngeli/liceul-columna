@@ -42,12 +42,6 @@ class ListAbsences extends ListRecords implements CatalogNavigator
 
     protected string $view = 'filament.catalog.list-with-navigator';
 
-    /**
-     * Peste atâtea zile distincte, coloanele nu se mai pot parcurge — se cere restrângerea
-     * perioadei, ca la catalogul de note. O lună școlară încape întotdeauna.
-     */
-    public const MAX_MAP_DAYS = 31;
-
     /** Forma vederii în context de clasă: null = harta (implicit), 'lista' = tabelul clasic. */
     #[Url(as: 'forma', except: null)]
     public ?string $absenceView = null;
@@ -120,17 +114,20 @@ class ListAbsences extends ListRecords implements CatalogNavigator
      * o informație (elevul care nu lipsește se vede), iar dirigintele își recunoaște clasa
      * întreagă, în aceeași ordine alfabetică precum catalogul.
      *
+     * Zilele NU se plafonează (decizia beneficiarului, 04.08.2026): surplusul de coloane se
+     * parcurge orizontal, cu săgețile din blade — numele elevului și totalurile rămân ancorate
+     * la capete, deci lizibilitatea nu depinde de numărul de zile.
+     *
      * @return array{
      *     days: list<array{iso: string, day: string, weekday: string, count: int}>,
      *     rows: list<array{student: Student, cells: array<string, list<array<string, mixed>>>, totals: array{total: int, motivated: int, unmotivated: int, pending: int}}>,
-     *     overflow: int|null,
      *     canStatus: bool,
      * }
      */
     public function absenceMap(): array
     {
         if ($this->mapMemo !== []) {
-            /** @var array{days: list<array{iso: string, day: string, weekday: string, count: int}>, rows: list<array{student: Student, cells: array<string, list<array<string, mixed>>>, totals: array{total: int, motivated: int, unmotivated: int, pending: int}}>, overflow: int|null, canStatus: bool} */
+            /** @var array{days: list<array{iso: string, day: string, weekday: string, count: int}>, rows: list<array{student: Student, cells: array<string, list<array<string, mixed>>>, totals: array{total: int, motivated: int, unmotivated: int, pending: int}}>, canStatus: bool} */
             return $this->mapMemo;
         }
 
@@ -158,15 +155,6 @@ class ListAbsences extends ListRecords implements CatalogNavigator
             $absences[] = $record;
             $iso = $record->occurred_on->toDateString();
             $countsByDay[$iso] = ($countsByDay[$iso] ?? 0) + 1;
-        }
-
-        if (count($countsByDay) > self::MAX_MAP_DAYS) {
-            return $this->mapMemo = [
-                'days' => [],
-                'rows' => [],
-                'overflow' => count($countsByDay),
-                'canStatus' => false,
-            ];
         }
 
         $days = [];
@@ -214,7 +202,6 @@ class ListAbsences extends ListRecords implements CatalogNavigator
         return $this->mapMemo = [
             'days' => $days,
             'rows' => $rows,
-            'overflow' => null,
             'canStatus' => $this->viewerCanStatusClass($classId),
         ];
     }

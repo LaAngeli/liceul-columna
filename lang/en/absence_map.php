@@ -27,7 +27,8 @@ return [
     'open_record' => 'Open record',
 
     'empty_period' => 'No absences in the chosen period. Pick another period from the bar above.',
-    'overflow' => 'The chosen period has :days days with absences — too many for columns. Narrow the period (Day / Week / Month) so the map fits on screen.',
+    'scroll_left' => 'Scroll the days left',
+    'scroll_right' => 'Scroll the days right',
 
     'status_reset' => 'The absence is back to "no status".',
     'status_denied' => 'Your account cannot change the status of this absence.',

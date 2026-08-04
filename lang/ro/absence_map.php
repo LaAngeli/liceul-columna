@@ -30,7 +30,8 @@ return [
     'open_record' => 'Deschide fișa',
 
     'empty_period' => 'Nicio absență în perioada aleasă. Alege altă perioadă din bara de mai sus.',
-    'overflow' => 'În perioada aleasă sunt :days zile cu absențe — prea multe pentru coloane. Restrânge perioada (Zi / Săptămână / Lună) ca harta să încapă pe ecran.',
+    'scroll_left' => 'Derulează zilele spre stânga',
+    'scroll_right' => 'Derulează zilele spre dreapta',
 
     'status_reset' => 'Absența a revenit la „fără statut".',
     'status_denied' => 'Statutul acestei absențe nu poate fi schimbat de contul tău.',
