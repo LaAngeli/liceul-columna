@@ -307,8 +307,13 @@ class ListAbsences extends ListRecords implements CatalogNavigator
     }
 
     /**
-     * O absență, redusă la ce randează celula: statut (culoarea), eticheta disciplinei și
-     * linkul fișei. Blade-ul nu primește modelul întreg — doar ce afișează.
+     * O absență, redusă la ce randează celula: statut (culoarea), marcajul „A" și linkul fișei.
+     * Blade-ul nu primește modelul întreg — doar ce afișează.
+     *
+     * Eticheta e MEREU același marcaj (cerința beneficiarului, 04.08.2026): abrevierile de
+     * disciplină făceau harta pestriță și greu de citit dintr-o privire — un singur semn, ca „a"-ul
+     * din catalogul de hârtie, lasă CULOAREA să spună statutul. Disciplina și statutul rămân la
+     * hover (title) și în numele accesibil al pastilei.
      *
      * @return array<string, mixed>
      */
@@ -320,9 +325,7 @@ class ListAbsences extends ListRecords implements CatalogNavigator
             'id' => (int) $absence->id,
             'status' => $status->value,
             'color' => $status->color(),
-            'label' => $absence->subject !== null
-                ? ($absence->subject->abbreviation ?? mb_substr((string) $absence->subject->name, 0, 3))
-                : (string) __('absence_map.whole_day_short'),
+            'label' => (string) __('absence_map.marker'),
             'title' => ($absence->subject !== null
                 ? ContentTranslator::subject((string) $absence->subject->name)
                 : (string) __('absence_map.whole_day'))

@@ -150,9 +150,15 @@ it('rândurile cuprind TOATĂ clasa alfabetic, coloanele doar zilele cu absențe
     expect($rows[$vulpe->id]['totals'])->toBe(['total' => 3, 'motivated' => 1, 'unmotivated' => 1, 'pending' => 1])
         ->and($rows[$barbu->id]['totals']['total'])->toBe(1)
         // Celula zilei 2 a lui Vulpe ține AMBELE absențe (disciplină + zi întreagă).
-        ->and($rows[$vulpe->id]['cells'][$zi2])->toHaveCount(2)
-        // Absența pe zi întreagă își spune numele, nu abrevierea unei discipline.
-        ->and(collect($rows[$vulpe->id]['cells'][$zi2])->pluck('label'))->toContain(__('absence_map.whole_day_short'));
+        ->and($rows[$vulpe->id]['cells'][$zi2])->toHaveCount(2);
+
+    // Eticheta vizibilă e MEREU marcajul „A" (cerința 04.08.2026) — deosebirea dintre absențe
+    // trăiește în title (hover + nume accesibil): disciplina, respectiv „zi întreagă", plus statutul.
+    $cellChips = collect($rows[$vulpe->id]['cells'][$zi2]);
+
+    expect($cellChips->pluck('label')->unique()->all())->toBe([__('absence_map.marker')])
+        ->and($cellChips->pluck('title')->join(' '))->toContain(__('absence_map.whole_day'))
+        ->and(collect($rows[$vulpe->id]['cells'][$zi1])->pluck('title')->join(' '))->toContain('Chimie');
 });
 
 it('dirigintele fixează statutul direct din hartă — inclusiv înapoi la „fără statut"', function () {

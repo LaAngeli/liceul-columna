@@ -16,7 +16,10 @@ return [
     'day_count' => '{1} :count absence on this day|[2,*] :count absences on this day',
 
     'whole_day' => 'Whole day',
-    'whole_day_short' => 'Day',
+
+    // The single chip marker; colour carries the status, the subject shows on hover. Same sign in
+    // every language on purpose: it is a symbol, not a word.
+    'marker' => 'A',
 
     'switch_to_list' => 'Show list',
     'switch_to_map' => 'Show map',

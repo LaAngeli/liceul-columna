@@ -19,7 +19,10 @@ return [
     'day_count' => '{1} :count absență în această zi|[2,19] :count absențe în această zi|[20,*] :count de absențe în această zi',
 
     'whole_day' => 'Zi întreagă',
-    'whole_day_short' => 'Zi',
+
+    // Marcajul unic al pastilei — ca „a"-ul din catalogul de hârtie; statutul îl spune culoarea,
+    // disciplina rămâne la hover. Același semn în toate limbile, deliberat: e simbol, nu cuvânt.
+    'marker' => 'A',
 
     'switch_to_list' => 'Vezi lista',
     'switch_to_map' => 'Vezi harta',

@@ -94,13 +94,16 @@
                                         @if ($map['canStatus'])
                                             {{-- Pastila deschide alegerea statutului pe loc — fără modal. --}}
                                             <div x-data="{ open: false }" class="relative inline-block">
+                                                {{-- Eticheta vizibilă e doar marcajul „A" — numele accesibil poartă
+                                                     disciplina și statutul, ca hover-ul. --}}
                                                 <button
                                                     type="button"
                                                     x-on:click="open = ! open"
                                                     x-on:click.outside="open = false"
                                                     x-on:keydown.escape.window="open = false"
                                                     title="{{ $chip['title'] }}"
-                                                    class="m-0.5 inline-flex min-h-7 items-center rounded-md px-1.5 py-0.5 text-xs font-medium ring-1 transition hover:brightness-95 {{ $chipPalette[$chip['color']] ?? $chipPalette['warning'] }}"
+                                                    aria-label="{{ $chip['title'] }}"
+                                                    class="m-0.5 inline-flex min-h-7 items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 transition hover:brightness-95 {{ $chipPalette[$chip['color']] ?? $chipPalette['warning'] }}"
                                                 >
                                                     {{ $chip['label'] }}
                                                 </button>
@@ -138,7 +141,8 @@
                                             <a
                                                 href="{{ $chip['url'] }}"
                                                 title="{{ $chip['title'] }}"
-                                                class="m-0.5 inline-flex min-h-7 items-center rounded-md px-1.5 py-0.5 text-xs font-medium ring-1 transition hover:brightness-95 {{ $chipPalette[$chip['color']] ?? $chipPalette['warning'] }}"
+                                                aria-label="{{ $chip['title'] }}"
+                                                class="m-0.5 inline-flex min-h-7 items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 transition hover:brightness-95 {{ $chipPalette[$chip['color']] ?? $chipPalette['warning'] }}"
                                             >
                                                 {{ $chip['label'] }}
                                             </a>
