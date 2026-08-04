@@ -151,18 +151,22 @@
                                 </td>
                             @endforeach
 
-                            {{-- Totaluri per elev: se vede dintr-o privire cine acumulează. --}}
-                            <td class="whitespace-nowrap border-b border-gray-100 px-4 py-2 text-end text-xs tabular-nums dark:border-white/5">
-                                <span class="font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
-                                @if ($row['totals']['motivated'] > 0)
-                                    <span class="ms-1.5 text-green-600 dark:text-green-400">{{ $row['totals']['motivated'] }}✓</span>
-                                @endif
-                                @if ($row['totals']['unmotivated'] > 0)
-                                    <span class="ms-1.5 text-red-600 dark:text-red-400">{{ $row['totals']['unmotivated'] }}✗</span>
-                                @endif
-                                @if ($row['totals']['pending'] > 0)
-                                    <span class="ms-1.5 text-amber-600 dark:text-amber-400">{{ $row['totals']['pending'] }}?</span>
-                                @endif
+                            {{-- Totaluri per elev: se vede dintr-o privire cine acumulează.
+                                 Flex cu gap, nu margini pe span-uri condiționale: grupurile stăteau
+                                 lipite una de alta (raport beneficiar, 04.08.2026). --}}
+                            <td class="whitespace-nowrap border-b border-gray-100 px-4 py-2 text-xs tabular-nums dark:border-white/5">
+                                <span class="flex items-center justify-end gap-3">
+                                    <span class="font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
+                                    @if ($row['totals']['motivated'] > 0)
+                                        <span class="inline-flex items-center gap-0.5 text-green-600 dark:text-green-400">{{ $row['totals']['motivated'] }}<span aria-hidden="true">✓</span></span>
+                                    @endif
+                                    @if ($row['totals']['unmotivated'] > 0)
+                                        <span class="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400">{{ $row['totals']['unmotivated'] }}<span aria-hidden="true">✗</span></span>
+                                    @endif
+                                    @if ($row['totals']['pending'] > 0)
+                                        <span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400">{{ $row['totals']['pending'] }}<span aria-hidden="true">?</span></span>
+                                    @endif
+                                </span>
                             </td>
                         </tr>
                     @endforeach
