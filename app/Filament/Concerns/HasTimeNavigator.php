@@ -50,6 +50,19 @@ trait HasTimeNavigator
     /** Coloana (sau expresia) de DATĂ pe care filtrează bara temporală. */
     abstract protected function timeDateExpression(): string|Expression;
 
+    /**
+     * Ce se resetează la schimbarea perioadei. Pe paginile de LISTARE e paginarea tabelului
+     * (altfel ai rămâne pe pagina 7 a unei perioade cu 2 rânduri). Borderoul clasei folosește
+     * aceeași bară, dar e o pagină custom, fără tabel Filament — acolo nu e nimic de resetat,
+     * iar apelul necondiționat ar fi fost fatal („Call to undefined method resetTable()").
+     */
+    private function resetTimeDependentState(): void
+    {
+        if (method_exists($this, 'resetTable')) {
+            $this->resetTable();
+        }
+    }
+
     /** @return list<string> */
     private static function timeModes(): array
     {
@@ -108,7 +121,7 @@ trait HasTimeNavigator
             $this->timeUntil = null;
         }
 
-        $this->resetTable();
+        $this->resetTimeDependentState();
     }
 
     /** Normalizează capetele intervalului liber după fiecare alegere din calendar. */
@@ -135,7 +148,7 @@ trait HasTimeNavigator
             [$this->timeFrom, $this->timeUntil] = [$this->timeUntil, $this->timeFrom];
         }
 
-        $this->resetTable();
+        $this->resetTimeDependentState();
     }
 
     private static function normalizeDate(?string $value): ?string
@@ -173,7 +186,7 @@ trait HasTimeNavigator
     {
         $this->timeFrom = null;
         $this->timeUntil = null;
-        $this->resetTable();
+        $this->resetTimeDependentState();
     }
 
     /**
@@ -205,13 +218,13 @@ trait HasTimeNavigator
             'saptamana' => $ref->addWeeks($step)->toDateString(),
             default => $ref->addMonthsNoOverflow($step)->toDateString(),
         };
-        $this->resetTable();
+        $this->resetTimeDependentState();
     }
 
     public function goToTimeToday(): void
     {
         $this->timeRef = null;
-        $this->resetTable();
+        $this->resetTimeDependentState();
     }
 
     public function timeRefIsToday(): bool
@@ -328,8 +341,13 @@ trait HasTimeNavigator
      * Constrângerea temporală pe interogarea tabelului — apelată automat din
      * {@see HasCatalogNavigator::applyCatalogContext()} când trait-ul e prezent.
      *
-     * @param  Builder<Model>  $query
-     * @return Builder<Model>
+     * Generică pe model: constrângerea nu schimbă tipul interogării, deci un `Builder<Grade>`
+     * (borderoul clasei) iese tot `Builder<Grade>`, nu degradat la `Builder<Model>`.
+     *
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
      */
     public function applyTimeRange(Builder $query): Builder
     {

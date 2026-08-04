@@ -491,7 +491,11 @@ it('teza intră cu tipul ales și apare evidențiată în rând', function () {
 
     expect(Grade::query()->sole()->evaluation_type)->toBe(EvaluationType::Teza);
 
-    $rows = Livewire::test(ClassRegister::class)->instance()->rows();
+    // Borderoul se citește pe UN tip (implicit „Curentă", 04.08.2026) — teza se vede alegând-o.
+    $rows = Livewire::test(ClassRegister::class)
+        ->set('gradeTypeFilter', EvaluationType::Teza->value)
+        ->instance()
+        ->rows();
     $rowA = collect($rows)->first(fn (array $row): bool => $row['student']->id === $a->id);
 
     expect($rowA['grades'][0]['weighted'])->toBeTrue();
@@ -639,7 +643,7 @@ it('filtrul pe tip lasă doar sumativele, fără să ascundă vreun elev', funct
         ->and($rows[$b->id]['grades'])->toBe([]);
 });
 
-it('filtrul pe dată restrânge la ziua aleasă, iar opțiunile vin din zilele care chiar există', function () {
+it('bara temporală restrânge la perioada aleasă — aceeași ca în Note', function () {
     actingAs($this->profUser);
 
     [$a, $b] = $this->students->all();
@@ -650,35 +654,24 @@ it('filtrul pe dată restrânge la ziua aleasă, iar opțiunile vin din zilele c
     registerGrade($a, $zi2, 7);
     registerGrade($b, $zi2, 8);
 
-    $page = Livewire::test(ClassRegister::class);
-    $optiuni = $page->instance()->gradeDateOptions();
-
-    // Doar zilele cu note, cu numărul lor; „toate" rămâne prima.
-    expect(array_keys($optiuni))->toBe([ClassRegister::FILTER_ALL, $zi2, $zi1])
-        ->and($optiuni[$zi2])->toContain('(2)');
-
-    $filtered = $page->set('gradeDateFilter', $zi1)->instance();
-    $rows = collect($filtered->rows())->keyBy(fn (array $row): int => (int) $row['student']->id);
-
-    expect($filtered->gradeColumns())->toHaveCount(1)
-        ->and($rows[$a->id]['grades'])->toHaveCount(1)
-        ->and($rows[$b->id]['grades'])->toBe([]);
-});
-
-it('schimbarea tipului nu lasă în urmă o dată imposibilă', function () {
-    actingAs($this->profUser);
-
-    $a = $this->students->first();
-    $ziCurenta = Carbon::today()->subDays(10)->toDateString();
-    registerGrade($a, $ziCurenta, 9);
-    registerGrade($a, Carbon::today()->subDays(2)->toDateString(), 6, EvaluationType::Teza);
-
+    // Modul „Zi" pe ziua întâi: o singură coloană, iar ziua a doua rămâne pe dinafară.
     $page = Livewire::test(ClassRegister::class)
-        ->set('gradeDateFilter', $ziCurenta)
-        // Ziua aleasă n-are nicio teză: filtrul ar fi arătat gol, fără să spună de ce.
-        ->set('gradeTypeFilter', EvaluationType::Teza->value);
+        ->set('timeMode', 'zi')
+        ->set('timeRef', $zi1);
 
-    expect($page->get('gradeDateFilter'))->toBe(ClassRegister::FILTER_ALL);
+    $instance = $page->instance();
+    $rows = collect($instance->rows())->keyBy(fn (array $row): int => (int) $row['student']->id);
+
+    expect(array_column($instance->gradeColumns(), 'iso'))->toBe([$zi1])
+        ->and($rows[$a->id]['grades'])->toHaveCount(1)
+        ->and($rows[$b->id]['grades'])->toBe([])
+        // Elevii NU dispar niciodată — golul e informația.
+        ->and($rows)->toHaveCount(3);
+
+    // „Toate" (fără mod) aduce înapoi ambele zile.
+    $all = Livewire::test(ClassRegister::class)->instance();
+
+    expect(array_column($all->gradeColumns(), 'iso'))->toBe([$zi1, $zi2]);
 });
 
 it('peste pragul de coloane notele cad în șir, fără să dispară vreuna', function () {
@@ -713,4 +706,27 @@ it('filtrele de citire nu ating salvarea — se scrie tot pe elevii afișați', 
         ->assertHasNoErrors();
 
     expect(Grade::query()->where('student_id', $b->id)->count())->toBe(1);
+});
+
+it('tipul e implicit „Curentă" și nu există opțiunea „toate tipurile"', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    registerGrade($a, Carbon::today()->subDays(4)->toDateString(), 9);
+    registerGrade($a, Carbon::today()->subDays(2)->toDateString(), 6, EvaluationType::Teza);
+
+    $page = Livewire::test(ClassRegister::class);
+    $instance = $page->instance();
+
+    // Amestecul de tipuri pe același rând era chiar starea din care nu se putea citi nimic:
+    // se alege mereu UN tip, deci coloana înseamnă ceva.
+    expect($page->get('gradeTypeFilter'))->toBe(EvaluationType::Curenta->value)
+        ->and(array_keys($instance->gradeTypeOptions()))
+        ->toBe(array_map(fn (EvaluationType $type): string => $type->value, EvaluationType::cases()));
+
+    $rows = collect($instance->rows())->keyBy(fn (array $row): int => (int) $row['student']->id);
+
+    // Implicit se văd DOAR notele curente — teza rămâne pe dinafară până e cerută.
+    expect($rows[$a->id]['grades'])->toHaveCount(1)
+        ->and($rows[$a->id]['grades'][0]['value'])->toBe('9');
 });

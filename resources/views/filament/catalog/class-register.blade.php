@@ -221,46 +221,37 @@
                      ecranul ăsta (o notă pusă pe altă zi decât cea din cap). --}}
                 @php($gradeColumns = $this->gradeColumns())
                 @php($aligned = $this->gradesAlignedByDate())
-                <div class="flex flex-wrap items-end gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
-                    <span class="flex h-9 items-center text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                        {{ __('panel.class_register.filters_label') }}
-                    </span>
+                <div class="space-y-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                            {{ __('panel.class_register.filters_label') }}
+                        </span>
 
-                    <div class="w-44">
-                        <label for="borderou-filtru-tip" class="sr-only">{{ __('panel.fields.evaluation_type') }}</label>
-                        <x-filament::input.wrapper>
-                            <x-filament::input.select id="borderou-filtru-tip" wire:model.live="gradeTypeFilter">
-                                @foreach ($this->gradeTypeOptions() as $value => $label)
-                                    <option value="{{ $value }}">{{ $label }}</option>
-                                @endforeach
-                            </x-filament::input.select>
-                        </x-filament::input.wrapper>
+                        {{-- Tipul: mereu UNUL (fără „toate"), fiindcă amestecul de curente, ESI și
+                             teze pe același rând e chiar starea din care nu se putea citi nimic. --}}
+                        <div class="w-48">
+                            <label for="borderou-filtru-tip" class="sr-only">{{ __('panel.fields.evaluation_type') }}</label>
+                            <x-filament::input.wrapper>
+                                <x-filament::input.select id="borderou-filtru-tip" wire:model.live="gradeTypeFilter">
+                                    @foreach ($this->gradeTypeOptions() as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </x-filament::input.select>
+                            </x-filament::input.wrapper>
+                        </div>
+
+                        {{-- Peste prag nu mai putem alinia pe coloane: spunem DE CE și ce se poate
+                             face, în loc să lăsăm un tabel cât ecranul sau un șir necitibil. --}}
+                        @if (! $aligned && $gradeColumns !== [])
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ __('panel.class_register.filters_too_many_dates', ['count' => count($gradeColumns)]) }}
+                            </p>
+                        @endif
                     </div>
 
-                    <div class="w-48">
-                        <label for="borderou-filtru-data" class="sr-only">{{ __('panel.fields.date') }}</label>
-                        <x-filament::input.wrapper>
-                            <x-filament::input.select id="borderou-filtru-data" wire:model.live="gradeDateFilter">
-                                @foreach ($this->gradeDateOptions() as $value => $label)
-                                    <option value="{{ $value }}">{{ $label }}</option>
-                                @endforeach
-                            </x-filament::input.select>
-                        </x-filament::input.wrapper>
-                    </div>
-
-                    @if ($this->hasGradeFilters())
-                        <x-filament::button wire:click="clearGradeFilters" color="gray" size="sm" icon="heroicon-m-x-mark">
-                            {{ __('panel.class_register.filters_clear') }}
-                        </x-filament::button>
-                    @endif
-
-                    {{-- Peste prag nu mai putem alinia pe coloane: spunem DE CE și ce se poate face,
-                         în loc să lăsăm un tabel cât ecranul sau un șir care nu se poate citi. --}}
-                    @if (! $aligned && $gradeColumns !== [])
-                        <p class="flex h-9 items-center text-xs text-gray-500 dark:text-gray-400">
-                            {{ __('panel.class_register.filters_too_many_dates', ['count' => count($gradeColumns)]) }}
-                        </p>
-                    @endif
+                    {{-- Perioada: EXACT bara din Note/Absențe/Teme (același partial, aceeași stare
+                         în URL) — profesorul învață un singur mecanism pentru tot catalogul. --}}
+                    @include('filament.catalog.partials.time-bar')
                 </div>
 
                 {{-- ── Borderoul ─────────────────────────────────────────────────────────── --}}
