@@ -47,6 +47,23 @@ Toate datele de test sunt marcate `[DEMO]` → NU trebuie să ajungă în produc
   șterge corecțiile ÎNAINTEA temelor (altfel CASCADE le-ar lua tăcut și raportul ar arăta 0) și temele `[DEMO]`
   după subiect, NU după autor: profesorul demo e legat de o fișă REALĂ, ale cărei teme din legacy sunt date reale.
 
+- `php artisan app:seed-demo-curriculum --remove` — **școala demo completată** (04.08.2026): clasele I ale
+  anului nou + bobocii lor, gama completă de discipline pe fiecare clasă demo (catedră proprie: la primar
+  învățătorul ține trunchiul, specialiștii restul), notele/absențele/temele semestrului curent și orarul
+  săptămânal. Șterge EXACT rândurile din manifestul `storage/app/demo/curriculum.json`, în ordine FK-safe,
+  și **redă numele originale** claselor pe care le-a re-marcat (vezi mai jos). Rulează ÎNAINTEA lui
+  `app:seed-demo-zone --remove` (ea șterge clasele/elevii pe care se sprijină manifestul).
+  ⚠️ Ce NU se poate întoarce: alocările *imposibile* curățate la seed (disciplină care nu se predă la treapta
+  clasei — Fizică într-a I-a, rămasă din zona demo veche) și evaluările lor. Sunt date demo invalide, pe care
+  interfața oricum le-ar fi refuzat; curățarea completă a zonei rămâne `app:seed-demo-zone --remove`.
+- ⚠️ **Clasele demo PROMOVATE își pierd marcajul.** „Trecerea în anul nou" derivă numele din treaptă
+  (`[DEMO] 1A` → `II`), deci clasele promovate ale zonei demo ajung în anul nou fără `[DEMO]` — invizibile
+  pentru orice curățare pe marcaj. `app:seed-demo-curriculum` le **adoptă** (le redenumește cu marcaj și le
+  trece în manifest); dacă rulezi trecerea în anul nou din nou, re-rulează și comanda, altfel rămân
+  nemarcate. Verificare rapidă:
+  `SELECT c.id, c.name FROM school_classes c JOIN enrollments e ON e.school_class_id = c.id JOIN students s ON s.id = e.student_id WHERE s.last_name LIKE '[DEMO]%' AND c.name NOT LIKE '[DEMO]%' GROUP BY c.id, c.name;`
+  — trebuie să întoarcă zero rânduri.
+
 ⚠️ Date `[DEMO]` în producție = elev real „corigent" fictiv + conturi cu parola `password` (risc de securitate)
 + mesaje de test vizibile părinților. Verifică cu `app:demo-accounts` că nu mai rămâne nimic.
 
