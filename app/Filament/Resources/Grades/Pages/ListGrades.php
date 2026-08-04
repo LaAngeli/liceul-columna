@@ -25,6 +25,12 @@ class ListGrades extends ListRecords implements CatalogNavigator
 
     protected string $view = 'filament.catalog.list-with-navigator';
 
+    /** Vara, „azi" nu e zi de școală: registrul se deschide pe ultima zi de curs, nu pe un tabel gol. */
+    protected function anchorsToSchoolYear(): bool
+    {
+        return true;
+    }
+
     protected function timeDateExpression(): string|Expression
     {
         return 'graded_on';

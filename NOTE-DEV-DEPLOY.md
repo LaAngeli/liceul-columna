@@ -60,6 +60,15 @@ Toate datele de test sunt marcate `[DEMO]` → NU trebuie să ajungă în produc
   semestrul precedent (trecutul, ca evoluția și media anuală să aibă de unde compara) + note/absențe/teme
   în ultimele trei săptămâni ale semestrului curent, cu absențe „fără statut" garantate pentru elevii
   conturilor demo. Șterge exact rândurile din `storage/app/demo/timeline.json` și recalculează mediile.
+- ⚠️ **Manifestul se poate pierde — `--remove` are plasă de siguranță.** Manifestul e un fișier din
+  `storage/`, deci dispare la o restaurare parțială, la o copiere de proiect fără `storage` sau dacă cineva
+  curăță directorul; rândurile din baza de date rămân, iar curățarea de go-live n-ar mai avea ce șterge.
+  `app:seed-demo-curriculum --remove` mătură de aceea și **clasele I demo rămase fără manifest** (semnătură
+  neechivocă: nume `[DEMO] I` + treapta I), cu elevii, alocările, orarul și temele lor — și o raportează.
+  Din același motiv, seed-ul **reutilizează** o clasă I demo existentă în loc să încerce un rând nou:
+  indexul unic `(an, treaptă, literă)` nu tolerează un al doilea, nici măcar unul șters logic.
+  ⚠️ Testele NU mai ating `storage/app/demo` (izolare prin `useStoragePath` în `tests/Pest.php`) — înainte,
+  o rulare a suitei ștergea manifestele reale de dezvoltare și lăsa datele demo fără cheie de ștergere.
 - ⚠️ **Clasele demo PROMOVATE își pierd marcajul.** „Trecerea în anul nou" derivă numele din treaptă
   (`[DEMO] 1A` → `II`), deci clasele promovate ale zonei demo ajung în anul nou fără `[DEMO]` — invizibile
   pentru orice curățare pe marcaj. `app:seed-demo-curriculum` le **adoptă** (le redenumește cu marcaj și le

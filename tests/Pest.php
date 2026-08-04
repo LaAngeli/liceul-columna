@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 /*
@@ -21,6 +22,16 @@ pest()->extend(TestCase::class)
     // (ContentTranslator/enum-uri sensibile la limbă) → fragilitate de ordine. Reset = suită deterministă.
     ->beforeEach(function () {
         app()->setLocale(config('app.locale'));
+
+        // Izolează `storage_path()` de storage-ul REAL al dezvoltatorului. Comenzile care scriu
+        // sub `storage/app` la rulare (manifestele demo) erau altfel citite ȘI ȘTERSE de teste:
+        // suita curăța `storage/app/demo/*.json`, dar rândurile din MySQL rămâneau — datele demo
+        // deveneau imposibil de retras cu `--remove`, adică exact scurgerea pe care manifestul o
+        // previne la go-live. Discurile (`Storage::disk`) NU se mișcă: rădăcinile lor sunt deja
+        // rezolvate în config la boot, deci fixăm doar apelurile de la rulare.
+        $isolated = base_path('storage/framework/testing/isolated');
+        File::ensureDirectoryExists($isolated.'/app/demo');
+        app()->useStoragePath($isolated);
     })
     ->in('Feature');
 

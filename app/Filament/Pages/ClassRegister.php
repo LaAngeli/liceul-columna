@@ -461,6 +461,12 @@ class ClassRegister extends Page
         return 'luna';
     }
 
+    /** Vara, „azi" nu e zi de școală: registrul se deschide pe ultima zi de curs, nu pe un tabel gol. */
+    protected function anchorsToSchoolYear(): bool
+    {
+        return true;
+    }
+
     /** Bara temporală filtrează pe DATA notei — aceeași coloană ca în lista Note. */
     protected function timeDateExpression(): string|Expression
     {

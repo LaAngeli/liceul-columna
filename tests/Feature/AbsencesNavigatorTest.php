@@ -20,6 +20,7 @@ use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\User;
 use App\Support\TermOptions;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -257,4 +258,81 @@ it('fără an curent definit, filtrul nu rămâne gol — cade pe toate semestre
 
     expect(TermOptions::current())->toBe(TermOptions::all())
         ->and(TermOptions::current())->not->toBeEmpty();
+});
+
+it('catalogul oferă clasele anului CURENT, nu pe cele ale anului care n-a început', function () {
+    /**
+     * Raportul beneficiarului (05.08.2026): deschidea „[DEMO] VIII B" și găsea zero absențe. Nu
+     * lipseau datele — clasa aparținea anului URMĂTOR, creat de trecerea în anul nou, care începe
+     * pe 1 septembrie. Un an viitor nu POATE avea note sau absențe: gărzile refuză viitorul. Deci
+     * nici nu are ce căuta în meniul catalogului, lângă clasele de acum.
+     */
+    $viitor = AcademicYear::factory()->create([
+        'name' => '2026–2027', 'starts_on' => '2026-09-01', 'ends_on' => '2027-06-30',
+    ]);
+    $clasaViitoare = SchoolClass::factory()->for($viitor)->create(['name' => 'ABS-VIITOR', 'section' => null]);
+
+    $user = absNavTeacher($this->ownClass, $this->subject);
+    $teacher = User::query()->whereKey($user->id)->sole()->teacher;
+
+    // Același profesor predă și în clasa anului viitor (exact ce face promovarea alocărilor).
+    TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id, 'school_class_id' => $clasaViitoare->id, 'subject_id' => $this->subject->id,
+    ]);
+
+    actingAs($user->fresh());
+
+    $page = Livewire::test(ListAbsences::class)->instance();
+
+    expect(collect($page->catalogEntityCards())->pluck('id')->all())->toBe([$this->ownClass->id]);
+
+    // Nici pe URL: ce nu se poate alege nu se poate nici deschide.
+    $direct = Livewire::withQueryParams(['clasa' => (string) $clasaViitoare->id])->test(ListAbsences::class);
+
+    expect($direct->instance()->hasCatalogContext())->toBeFalse();
+});
+
+it('profesorul fără nicio clasă în anul curent NU rămâne cu meniul gol', function () {
+    // Plasa de siguranță: cine a predat doar în anul încheiat trebuie să-și poată deschide totuși
+    // catalogul — altfel „curățăm" lista până la zero.
+    $vechi = AcademicYear::factory()->create([
+        'name' => '2019–2020', 'starts_on' => '2019-09-01', 'ends_on' => '2020-06-30',
+    ]);
+    $clasaVeche = SchoolClass::factory()->for($vechi)->create(['name' => 'ABS-VECHI', 'section' => null]);
+
+    $user = User::factory()->create();
+    $user->assignRole(UserRole::Profesor->value);
+    $teacher = Teacher::factory()->create(['user_id' => $user->id]);
+    TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id, 'school_class_id' => $clasaVeche->id, 'subject_id' => $this->subject->id,
+    ]);
+
+    actingAs($user->fresh());
+
+    expect(collect(Livewire::test(ListAbsences::class)->instance()->catalogEntityCards())->pluck('id')->all())
+        ->toBe([$clasaVeche->id]);
+});
+
+it('în vacanță registrul se deschide pe ultima zi de școală, nu pe un tabel gol', function () {
+    // Azi = 15 august: între semestre. „Azi" nu e o zi de școală, deci deschiderea pe ziua curentă
+    // ar arăta gol pentru ORICE clasă — se citește drept „lipsesc datele".
+    Carbon::setTestNow(Carbon::parse('2026-08-15 10:00:00'));
+
+    Term::query()->update(['is_current' => false]);
+    $incheiat = Term::factory()->for($this->year)->create([
+        'number' => 2, 'starts_on' => '2026-02-01', 'ends_on' => '2026-07-31', 'is_current' => true,
+    ]);
+
+    actingAs(absNavDirector());
+
+    expect(Livewire::test(ListAbsences::class)->instance()->timeRef()->toDateString())
+        ->toBe('2026-07-31');
+
+    // În timpul anului școlar cerința rămâne neatinsă: ziua implicită E ziua accesării.
+    Carbon::setTestNow(Carbon::parse($incheiat->starts_on)->addMonth());
+
+    expect(Livewire::test(ListAbsences::class)->instance()->timeRef()->toDateString())
+        ->toBe(Carbon::parse($incheiat->starts_on)->addMonth()->toDateString());
+
+    Carbon::setTestNow();
 });

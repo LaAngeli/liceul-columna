@@ -181,6 +181,10 @@ it('modul „săptămână" filtrează pe DATA LECȚIEI — axa unică după eli
         ->assertCanNotSeeTableRecords([$outside]);
 
     // Mod/ref INVALIDE din URL → „Toate" (nu se ia nimic de bun).
+    // Ceasul ancorat ÎN semestru: în afara lui, referința implicită e ultima zi de curs, nu azi
+    // (vezi `anchorsToSchoolYear()`) — altfel testul ar depinde de luna în care e rulat.
+    Carbon::setTestNow(Carbon::parse('2025-11-20 12:00', SchoolCalendar::TIMEZONE));
+
     $component = Livewire::withQueryParams(['mod' => 'trimestru', 'ref' => 'nu-e-data'])
         ->test(ListHomeworkAssignments::class)
         ->instance();
@@ -188,6 +192,8 @@ it('modul „săptămână" filtrează pe DATA LECȚIEI — axa unică după eli
     expect($component->timeMode())->toBeNull()
         // Referința implicită = ziua ȘCOLII (isToday() ar compara cu ziua serverului, UTC).
         ->and($component->timeRef()->toDateString())->toBe(SchoolCalendar::localNow()->toDateString());
+
+    Carbon::setTestNow();
 });
 
 it('navigarea pe perioadă: ◀ ▶ mută referința cu pasul modului, „Azi" o resetează', function () {

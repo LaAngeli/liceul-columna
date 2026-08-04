@@ -12,6 +12,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use RuntimeException;
 
 /**
  * Aduce ȘCOALA DEMO la scara unei școli reale (cerința beneficiarului, 04.08.2026).
@@ -158,6 +159,34 @@ class SeedDemoCurriculum extends Command
         $currentYearId = (int) $currentTerm->academic_year_id;
         $newYearId = $this->nextYearId($currentYearId);
 
+        try {
+            $this->seed($currentYearId, $newYearId, $currentTerm);
+        } catch (RuntimeException $e) {
+            // Conflict prevăzut (o clasă reală pe poziția unei clase demo): mesaj clar, nu urmă de
+            // stivă. Tranzacția a fost deja anulată — baza rămâne exact cum era.
+            $this->components->error($e->getMessage());
+
+            return self::FAILURE;
+        }
+
+        File::ensureDirectoryExists(storage_path('app/demo'));
+        File::put(
+            storage_path('app/'.self::MANIFEST),
+            (string) json_encode($this->manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+        );
+
+        $this->report();
+
+        $this->components->info('Recalculez mediile semestriale…');
+
+        $this->call('app:compute-averages');
+
+        return self::SUCCESS;
+    }
+
+    /** Tot ce se creează, într-o singură tranzacție: ori intră complet, ori deloc. */
+    private function seed(int $currentYearId, ?int $newYearId, Term $currentTerm): void
+    {
         DB::transaction(function () use ($currentYearId, $newYearId, $currentTerm): void {
             $now = Carbon::now();
 
@@ -178,7 +207,11 @@ class SeedDemoCurriculum extends Command
                 : $this->makeFirstGradeClasses($newYearId, $now);
 
             // ── 3. Gama completă de discipline, pe fiecare clasă demo ────────────────────────
-            $catedra = [];
+            // CONTURILE demo intră în catedră ÎNAINTEA profesorilor nou-creați: altfel rămân fără
+            // nicio disciplină, iar testerul care se autentifică pe ele găsește un catalog gol.
+            // (Exact ce s-a întâmplat: `profesor@` preda, din zona veche, discipline de gimnaziu la
+            // clase primare — curățarea alocărilor imposibile i-a șters, pe drept, tot.)
+            $catedra = $this->accountCatedra();
             $assignmentsByClass = [];
 
             // Întâi CURĂȚĂM alocările imposibile: zona demo veche punea aceleași 7 discipline peste
@@ -223,20 +256,10 @@ class SeedDemoCurriculum extends Command
             foreach ([...$newClasses, ...$firstGrade] as $class) {
                 $this->seedTimetable($class, $assignmentsByClass[$class['id']], (int) $newYearId, $now);
             }
+
+            // La FINAL: notele si orarul exista deja, deci re-atribuirea le poate lua cu ea.
+            $this->adoptAccountAssignments($catedra);
         });
-
-        File::ensureDirectoryExists(storage_path('app/demo'));
-        File::put(
-            storage_path('app/'.self::MANIFEST),
-            (string) json_encode($this->manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
-        );
-
-        $this->report();
-
-        $this->components->info('Recalculez mediile semestriale…');
-        $this->call('app:compute-averages');
-
-        return self::SUCCESS;
     }
 
     /** Anul care începe DUPĂ anul curent — cel deschis prin „Trecerea în anul nou". */
@@ -328,6 +351,60 @@ class SeedDemoCurriculum extends Command
     }
 
     /**
+     * Clasa I a anului nou - REUTILIZATA daca exista deja una demo pe acelasi (an, treapta, litera).
+     *
+     * Indexul unic (academic_year_id, grade_level, section) nu tolereaza un al doilea rand, nici
+     * macar unul sters logic. Un `insert` orb pica deci ori de cate ori comanda se re-ruleaza peste
+     * o clasa ramasa dintr-o rulare careia i s-a pierdut manifestul - exact situatia in care
+     * re-rularea e mai necesara. Reutilizam randul demo (il reinviem daca era sters) in loc sa
+     * cerem o curatare manuala in baza de date.
+     *
+     * O clasa REALA pe aceeasi pozitie nu se atinge: comanda se opreste cu un mesaj clar.
+     */
+    private function firstGradeClassId(int $newYearId, string $section, int $homeroomId, Carbon $now): int
+    {
+        $existing = DB::table('school_classes')
+            ->where('academic_year_id', $newYearId)
+            ->where('grade_level', 1)
+            ->where('section', $section)
+            ->first(['id', 'name']);
+
+        if ($existing !== null && ! str_starts_with((string) $existing->name, self::MARK)) {
+            throw new RuntimeException(
+                'Exista deja o clasa REALA I'.$section.' in anul nou - comanda demo nu o modifica. '
+                .'Schimba literele claselor demo sau sterge clasa demo veche manual.'
+            );
+        }
+
+        if ($existing !== null) {
+            DB::table('school_classes')->where('id', $existing->id)->update([
+                'name' => self::MARK.' I',
+                'homeroom_teacher_id' => $homeroomId,
+                'deleted_at' => null,
+                'updated_at' => $now,
+            ]);
+
+            $this->manifest['classes'][] = (int) $existing->id;
+
+            return (int) $existing->id;
+        }
+
+        $classId = (int) DB::table('school_classes')->insertGetId([
+            'academic_year_id' => $newYearId,
+            'grade_level' => 1,
+            'name' => self::MARK.' I',
+            'section' => $section,
+            'homeroom_teacher_id' => $homeroomId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $this->manifest['classes'][] = $classId;
+
+        return $classId;
+    }
+
+    /**
      * Clasele I ale anului nou + bobocii. Nu vin din promovare (n-au de unde), deci sunt exact
      * pasul manual pe care ecranul „Trecerea în anul nou" îl anunță ca rămas de făcut.
      *
@@ -343,16 +420,7 @@ class SeedDemoCurriculum extends Command
             // Învățătoarea clasei — la primar ea e și diriginte, și profesor de trunchi.
             $homeroomId = $this->makeTeacher('Învățătoare I'.$section, $now);
 
-            $classId = (int) DB::table('school_classes')->insertGetId([
-                'academic_year_id' => $newYearId,
-                'grade_level' => 1,
-                'name' => self::MARK.' I',
-                'section' => $section,
-                'homeroom_teacher_id' => $homeroomId,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-            $this->manifest['classes'][] = $classId;
+            $classId = $this->firstGradeClassId($newYearId, $section, $homeroomId, $now);
 
             foreach (range(1, $perClass) as $ignored) {
                 $studentId = (int) DB::table('students')->insertGetId([
@@ -432,6 +500,107 @@ class SeedDemoCurriculum extends Command
         DB::table('teaching_assignments')->where('school_class_id', $class['id'])->whereIn('subject_id', $impossible)->delete();
 
         $this->pruned += count($impossible);
+    }
+
+    /**
+     * Disciplinele ținute de CONTURILE demo de profesor — puse în catedră din start, ca ele să
+     * predea în toate clasele demo, nu într-un colț.
+     *
+     * Un cont pe disciplină, ca într-o școală mică: contul „profesor" e catedra de matematică
+     * (predă la toate clasele de gimnaziu și liceu), contul „diriginte" ține limba română. Așa
+     * ambele au ce arăta la testare, iar dubla calitate a dirigintelui — profesor la mai multe
+     * clase, diriginte la una singură — rămâne observabilă pe același cont.
+     *
+     * @return array<string, int>
+     */
+    private function accountCatedra(): array
+    {
+        $catedra = [];
+
+        foreach (['profesor@columna.test' => 'Matematică', 'diriginte@columna.test' => 'Limba și literatura română'] as $email => $subject) {
+            $teacherId = DB::table('teachers')
+                ->join('users', 'users.id', '=', 'teachers.user_id')
+                ->where('users.email', $email)
+                ->whereNull('teachers.deleted_at')
+                ->value('teachers.id');
+
+            if ($teacherId !== null) {
+                $catedra[$subject] = (int) $teacherId;
+            }
+        }
+
+        return $catedra;
+    }
+
+    /**
+     * Trece disciplina contului demo pe TOATE clasele unde e deja alocată altcuiva.
+     *
+     * Numai pre-încărcarea catedrei nu ajunge: alocarea există deja aproape peste tot (din zona
+     * demo veche), iar acolo comanda păstrează deliberat profesorul existent, ca să nu dubleze.
+     * Rezultatul era un cont `profesor@` fără nicio disciplină — se autentifica și găsea catalogul
+     * gol, exact la rolul pe care se testează cel mai des.
+     *
+     * Clasele primare nu se ating: acolo disciplina o ține învățătorul, care e și dirigintele —
+     * a i-o lua ar rupe tocmai modelul pe care îl arătăm. Notele si orele de orar trec la noul profesor,
+     * altfel catalogul ar afirma că le-a pus cineva care nu predă disciplina.
+     *
+     * @param  array<string, int>  $catedra
+     */
+    private function adoptAccountAssignments(array $catedra): void
+    {
+        foreach ($catedra as $subjectName => $teacherId) {
+            /** @var list<int> $subjectIds */
+            $subjectIds = DB::table('subjects')
+                ->whereNull('deleted_at')
+                ->where('name', $subjectName)
+                ->pluck('id')
+                ->map(intval(...))
+                ->values()
+                ->all();
+
+            if ($subjectIds === []) {
+                continue;
+            }
+
+            // Două pași (select, apoi update după id): `UPDATE ... JOIN` nu există în SQLite.
+            /** @var list<array{id: int, school_class_id: int, subject_id: int}> $rows */
+            $rows = DB::table('teaching_assignments as ta')
+                ->join('school_classes as c', 'c.id', '=', 'ta.school_class_id')
+                ->where('c.name', 'like', self::MARK.'%')
+                ->whereNull('c.deleted_at')
+                ->whereIn('ta.subject_id', $subjectIds)
+                ->whereNull('ta.deleted_at')
+                ->where('ta.teacher_id', '!=', $teacherId)
+                // Trunchiul primar rămâne al ÎNVĂȚĂTORULUI. La gimnaziu/liceu dirigintele e un
+                // specialist ca oricare, deci disciplina lui poate trece la catedra contului demo.
+                ->where(fn ($q) => $q->where('c.grade_level', '>', 4)
+                    ->orWhereNull('c.homeroom_teacher_id')
+                    ->orWhereColumn('ta.teacher_id', '!=', 'c.homeroom_teacher_id'))
+                ->get(['ta.id', 'ta.school_class_id', 'ta.subject_id'])
+                ->map(fn (object $row): array => [
+                    'id' => (int) $row->id,
+                    'school_class_id' => (int) $row->school_class_id,
+                    'subject_id' => (int) $row->subject_id,
+                ])
+                ->all();
+
+            if ($rows === []) {
+                continue;
+            }
+
+            DB::table('teaching_assignments')
+                ->whereIn('id', array_column($rows, 'id'))
+                ->update(['teacher_id' => $teacherId]);
+
+            foreach ($rows as $row) {
+                foreach (['grades', 'lessons'] as $table) {
+                    DB::table($table)
+                        ->where('school_class_id', $row['school_class_id'])
+                        ->where('subject_id', $row['subject_id'])
+                        ->update(['teacher_id' => $teacherId]);
+                }
+            }
+        }
     }
 
     /**
@@ -820,7 +989,9 @@ class SeedDemoCurriculum extends Command
         $path = storage_path('app/'.self::MANIFEST);
 
         if (! File::exists($path)) {
-            $this->components->warn('Fără manifest ('.self::MANIFEST.') — nimic de șters.');
+            $swept = $this->sweepOrphans();
+
+            $this->components->warn('Fără manifest ('.self::MANIFEST.').'.($swept !== '' ? $swept : ' Nimic de șters.'));
 
             return self::SUCCESS;
         }
@@ -858,9 +1029,78 @@ class SeedDemoCurriculum extends Command
 
         File::delete($path);
 
-        $this->components->info('Datele demo de curriculum au fost șterse; numele claselor promovate au fost restaurate.');
+        $swept = $this->sweepOrphans();
+
+        $this->components->info('Datele demo de curriculum au fost șterse; numele claselor promovate au fost restaurate.'.$swept);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Matura clasele I demo ramase FARA manifest - plasa de siguranta a curatarii de go-live.
+     *
+     * Manifestul e o cheie, nu un contract: daca fisierul se pierde (o rulare de teste care curata
+     * `storage/app/demo`, o restaurare partiala, o copiere de proiect fara `storage`), randurile
+     * din baza de date raman orfane si `--remove` n-ar mai avea ce sterge - adica exact datele
+     * demo pe care go-live-ul trebuie sa NU le duca in productie. Semnatura acestor clase e
+     * neechivoca (nume marcat + treapta I), deci le putem regasi fara manifest.
+     *
+     * Ruleaza si cand comanda n-a gasit niciun manifest: "nimic de sters" nu e o concluzie sigura.
+     */
+    private function sweepOrphans(): string
+    {
+        $classes = DB::table('school_classes')
+            ->where('grade_level', 1)
+            ->where('name', self::MARK.' I')
+            ->get(['id', 'section']);
+
+        if ($classes->isEmpty()) {
+            return '';
+        }
+
+        /** @var list<int> $classIds */
+        $classIds = $classes->pluck('id')->map(intval(...))->values()->all();
+
+        /** @var list<string> $sections */
+        $sections = $classes->pluck('section')->filter()->map(strval(...))->values()->all();
+
+        DB::transaction(function () use ($classIds, $sections): void {
+            /** @var list<int> $students elevii DEMO ai acestor clase (bobocii creati aici) */
+            $students = DB::table('enrollments')
+                ->join('students', 'students.id', '=', 'enrollments.student_id')
+                ->whereIn('enrollments.school_class_id', $classIds)
+                ->where('students.last_name', 'like', self::MARK.'%')
+                ->pluck('students.id')
+                ->map(intval(...))
+                ->unique()
+                ->values()
+                ->all();
+
+            foreach (['grades', 'absences', 'lessons', 'teaching_assignments', 'term_averages', 'enrollments'] as $table) {
+                DB::table($table)->whereIn('school_class_id', $classIds)->delete();
+            }
+
+            // Temele NU poartă clasa: se adresează unei (treapte, litere) — vezi `homework-visibility`.
+            if ($sections !== []) {
+                DB::table('homework_assignments')
+                    ->where('grade_level', 1)
+                    ->whereIn('section', $sections)
+                    ->where('topic', 'like', self::MARK.'%')
+                    ->delete();
+            }
+
+            if ($students !== []) {
+                foreach (['grades', 'absences', 'term_averages', 'enrollments'] as $table) {
+                    DB::table($table)->whereIn('student_id', $students)->delete();
+                }
+
+                DB::table('students')->whereIn('id', $students)->delete();
+            }
+
+            DB::table('school_classes')->whereIn('id', $classIds)->delete();
+        });
+
+        return ' Măturate și '.count($classIds).' clase demo orfane (fără manifest).';
     }
 
     /** @param  array<int, int|string>  $ids */

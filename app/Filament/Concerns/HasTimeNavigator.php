@@ -2,8 +2,10 @@
 
 namespace App\Filament\Concerns;
 
+use App\Models\Term;
 use App\Support\DateRangePicker;
 use App\Support\SchoolCalendar;
+use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Builder;
@@ -108,18 +110,66 @@ trait HasTimeNavigator
         return in_array($default, self::timeModes(), true) ? $default : null;
     }
 
-    /** Data de referință VALIDATĂ (fallback: azi). */
+    /** Data de referință VALIDATĂ (fallback: azi, sau ultima zi de școală — vezi {@see timeAnchor()}). */
     public function timeRef(): CarbonImmutable
     {
         if (is_string($this->timeRef) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $this->timeRef) === 1) {
             try {
                 return CarbonImmutable::createFromFormat('Y-m-d', $this->timeRef)->startOfDay();
             } catch (\Throwable) {
-                // cade pe azi
+                // cade pe ancoră
             }
         }
 
-        return self::timeToday();
+        return $this->timeAnchor();
+    }
+
+    /**
+     * Se ancorează pagina în ANUL ȘCOLAR când azi cade în afara lui?
+     *
+     * Registrele de catalog (note, absențe, teme, borderou) da: în vacanța de vară „azi" nu e o zi
+     * de școală, deci deschiderea pe ziua curentă arată un tabel gol pentru ORICE clasă — ceea ce
+     * se citește drept „lipsesc datele", nu „nu e perioadă de școală". Planificatorul cantinei nu:
+     * acolo se lucrează tocmai ÎNAINTE, la meniul lunii care vine.
+     */
+    protected function anchorsToSchoolYear(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Ziua de la care pornește pagina: azi, iar în afara oricărui semestru — ultima zi de școală.
+     *
+     * Cerința beneficiarului rămâne intactă acolo unde a fost formulată („data implicită = ziua
+     * accesării"): în timpul anului școlar azi E într-un semestru, deci ancora ESTE azi.
+     */
+    private function timeAnchor(): CarbonImmutable
+    {
+        $today = self::timeToday();
+
+        if (! $this->anchorsToSchoolYear()) {
+            return $today;
+        }
+
+        $day = $today->toDateString();
+
+        $inTerm = Term::query()
+            ->whereDate('starts_on', '<=', $day)
+            ->whereDate('ends_on', '>=', $day)
+            ->exists();
+
+        if ($inTerm) {
+            return $today;
+        }
+
+        $lastDay = Term::query()
+            ->whereDate('ends_on', '<', $day)
+            ->orderByDesc('ends_on')
+            ->value('ends_on');
+
+        return $lastDay === null
+            ? $today
+            : CarbonImmutable::createFromFormat('Y-m-d', Carbon::parse($lastDay)->toDateString())->startOfDay();
     }
 
     /**
@@ -258,7 +308,10 @@ trait HasTimeNavigator
 
     public function goToTimeToday(): void
     {
-        $this->timeRef = null;
+        // Ziua se scrie EXPLICIT, nu prin „fără referință": pe paginile ancorate în anul școlar
+        // (vezi {@see anchorsToSchoolYear()}) lipsa referinței înseamnă ultima zi de curs, iar un
+        // buton numit „Azi" care duce în iulie ar minți.
+        $this->timeRef = self::timeToday()->toDateString();
         $this->resetTimeDependentState();
     }
 

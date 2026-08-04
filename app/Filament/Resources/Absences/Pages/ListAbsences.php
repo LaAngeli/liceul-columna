@@ -46,6 +46,12 @@ class ListAbsences extends ListRecords implements CatalogNavigator
     #[Url(as: 'forma', except: null)]
     public ?string $absenceView = null;
 
+    /** Vara, „azi" nu e zi de școală: registrul se deschide pe ultima zi de curs, nu pe un tabel gol. */
+    protected function anchorsToSchoolYear(): bool
+    {
+        return true;
+    }
+
     /** @var array<string, mixed> memoizare per-request a hărții (blade-ul o citește de mai multe ori) */
     private array $mapMemo = [];
 

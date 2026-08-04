@@ -16,6 +16,7 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Term;
+use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -144,4 +145,98 @@ it('„--remove" întoarce baza la starea dinainte — curățarea de go-live', 
 it('refuză o a doua rulare peste un manifest existent', function () {
     $this->artisan('app:seed-demo-curriculum', ['--first-graders' => 2])->assertSuccessful();
     $this->artisan('app:seed-demo-curriculum')->assertFailed();
+});
+
+it('lasă contul demo de profesor CU discipline de predat', function () {
+    // Contul demo, legat de o fișă de profesor care nu preda nimic (alocările lui vechi fuseseră
+    // curățate ca imposibile). Fără el în catedră, testerul se autentifica pe rolul „profesor" și
+    // găsea catalogul gol.
+    $account = User::factory()->create(['name' => '[DEMO] Profesor', 'email' => 'profesor@columna.test']);
+    $teacher = Teacher::factory()->create(['last_name' => '[DEMO] Catedră', 'user_id' => $account->id]);
+
+    // O clasă de gimnaziu demo, cu Matematica deja alocată ALTCUIVA (zona demo veche).
+    $other = Teacher::factory()->create(['last_name' => '[DEMO] Altcineva']);
+    $gimnaziu = SchoolClass::factory()->for($this->year)->create([
+        'name' => '[DEMO] 6A', 'section' => 'A', 'grade_level' => 6, 'homeroom_teacher_id' => $other->id,
+    ]);
+    $student = Student::factory()->create(['last_name' => '[DEMO] Rusu']);
+    Enrollment::factory()->for($student)->for($gimnaziu)->for($this->year)->create(['left_on' => null]);
+
+    DB::table('teaching_assignments')->insert([
+        'teacher_id' => $other->id,
+        'subject_id' => Subject::query()->where('name', 'Matematică')->where('min_grade', 5)->value('id'),
+        'school_class_id' => $gimnaziu->id,
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+
+    $this->artisan('app:seed-demo-curriculum', ['--first-graders' => 2])->assertSuccessful();
+
+    $mine = DB::table('teaching_assignments')->where('teacher_id', $teacher->id)->whereNull('deleted_at');
+
+    expect($mine->count())->toBeGreaterThan(0)
+        // Notele DISCIPLINEI îl urmează: catalogul nu poate arăta note puse de cineva care nu predă.
+        ->and(DB::table('grades')
+            ->where('school_class_id', $gimnaziu->id)
+            ->where('subject_id', Subject::query()->where('name', 'Matematică')->where('min_grade', 5)->value('id'))
+            ->where('teacher_id', '!=', $teacher->id)
+            ->count())->toBe(0);
+});
+
+it('nu ia învățătorului disciplina de trunchi când o preia contul demo', function () {
+    $account = User::factory()->create(['name' => '[DEMO] Profesor', 'email' => 'profesor@columna.test']);
+    Teacher::factory()->create(['last_name' => '[DEMO] Catedră', 'user_id' => $account->id]);
+
+    $this->artisan('app:seed-demo-curriculum', ['--first-graders' => 2])->assertSuccessful();
+
+    // Clasa primară din fixture: Matematica rămâne la învățătoarea-dirigintă.
+    $primary = DB::table('teaching_assignments')
+        ->join('subjects', 'subjects.id', '=', 'teaching_assignments.subject_id')
+        ->where('teaching_assignments.school_class_id', $this->class->id)
+        ->where('subjects.name', 'Matematică')
+        ->value('teaching_assignments.teacher_id');
+
+    expect((int) $primary)->toBe($this->teacher->id);
+});
+
+it('curăță clasele demo rămase FĂRĂ manifest — plasa de siguranță de go-live', function () {
+    $before = ['classes' => SchoolClass::query()->count(), 'students' => Student::query()->count()];
+
+    $this->artisan('app:seed-demo-curriculum', ['--first-graders' => 2])->assertSuccessful();
+
+    // Manifestul se pierde (rulare de teste care curăță `storage/app/demo`, restaurare parțială,
+    // proiect copiat fără `storage`). Rândurile din baza de date rămân — și ele contează.
+    File::delete(storage_path('app/demo/curriculum.json'));
+
+    $this->artisan('app:seed-demo-curriculum', ['--remove' => true])->assertSuccessful();
+
+    expect(SchoolClass::query()->where('grade_level', 1)->count())->toBe(0)
+        ->and(SchoolClass::query()->count())->toBe($before['classes'])
+        ->and(Student::query()->count())->toBe($before['students'])
+        // Temele nu poartă clasa (treaptă + literă), deci se pot rata tăcut la măturare.
+        ->and(DB::table('homework_assignments')->where('grade_level', 1)->count())->toBe(0);
+});
+
+it('se re-rulează peste o clasă I demo rămasă, fără să lovească indexul unic', function () {
+    $this->artisan('app:seed-demo-curriculum', ['--first-graders' => 2])->assertSuccessful();
+
+    $existing = SchoolClass::query()->where('grade_level', 1)->pluck('id')->sort()->values();
+
+    File::delete(storage_path('app/demo/curriculum.json'));
+
+    // Fără manifest, comanda pornește din nou: clasa I A există deja, iar (an, treaptă, literă) e
+    // unic — inclusiv pentru rândurile șterse logic. Rândul demo se reutilizează.
+    $this->artisan('app:seed-demo-curriculum', ['--first-graders' => 2])->assertSuccessful();
+
+    expect(SchoolClass::query()->where('grade_level', 1)->pluck('id')->sort()->values()->all())
+        ->toBe($existing->all());
+});
+
+it('nu atinge o clasă I REALĂ de pe aceeași poziție', function () {
+    $real = SchoolClass::factory()->for($this->nextYear)->create([
+        'name' => 'I', 'section' => 'A', 'grade_level' => 1,
+    ]);
+
+    $this->artisan('app:seed-demo-curriculum', ['--first-graders' => 2])->assertFailed();
+
+    expect($real->fresh()->name)->toBe('I');
 });

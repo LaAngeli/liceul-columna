@@ -699,19 +699,35 @@ trait HasCatalogNavigator
      */
     protected function navigatorClasses(): Collection
     {
-        $query = SchoolClass::query()
+        $base = SchoolClass::query()
             ->with('homeroomTeacher')
             ->orderBy('grade_level')
             ->orderBy('name')
             ->orderBy('section');
 
         if (($teacher = $this->catalogTeacherModel()) !== null) {
-            $query->whereKey($teacher->contextSchoolClassIds($this->catalogUser()?->teachingContext())); // contextul pedagogic activ (F3)
-        } elseif (($yearId = $this->currentAcademicYearId()) !== null) {
-            $query->where('academic_year_id', $yearId);
+            $base->whereKey($teacher->contextSchoolClassIds($this->catalogUser()?->teachingContext())); // contextul pedagogic activ (F3)
         }
 
-        return $query->get();
+        $yearId = $this->currentAcademicYearId();
+
+        if ($yearId === null) {
+            return $base->get();
+        }
+
+        // ANUL CURENT pentru TOȚI, nu doar pentru administrație (raportul beneficiarului,
+        // 05.08.2026): profesorul primea clasele din toți anii în care a predat vreodată, deci
+        // lângă clasa lui de acum stătea și cea de anul VIITOR — creată de trecerea în anul nou,
+        // goală prin definiție (anul ei începe pe 1 septembrie, iar catalogul refuză note și
+        // absențe în viitor). Ai fi deschis-o crezând că s-au pierdut datele.
+        //
+        // Fallback pe TOT ce are: un profesor fără nicio clasă în anul curent (a predat doar în
+        // anul încheiat) trebuie să-și poată deschide totuși catalogul. Aceeași regulă ca în
+        // {@see \App\Filament\Pages\ClassRegister::classOptions()} — două liste ale aceleiași
+        // persoane, în același panou, nu au voie să difere.
+        $current = (clone $base)->where('academic_year_id', $yearId)->get();
+
+        return $current->isNotEmpty() ? $current : $base->get();
     }
 
     protected function currentAcademicYearId(): ?int
@@ -886,11 +902,12 @@ trait HasCatalogNavigator
     {
         /** @var array<int, int> $ids */
         $ids = $this->catalogMemo('allowedClasses', function (): array {
-            if (($teacher = $this->catalogTeacherModel()) !== null) {
-                return $teacher->contextSchoolClassIds($this->catalogUser()?->teachingContext()); // contextul pedagogic activ (F3)
-            }
-
-            return SchoolClass::query()->pluck('id')->map(fn ($id): int => (int) $id)->all();
+            // Ce se poate DESCHIDE = exact ce se poate ALEGE din meniu ({@see navigatorClasses()}).
+            // Altfel un `?clasa=` vechi ar deschide o clasă pe care meniul n-o mai oferă — inclusiv
+            // una din anul viitor, goală prin definiție.
+            return $this->navigatorClasses()
+                ->map(fn (SchoolClass $class): int => (int) $class->getKey())
+                ->all();
         });
 
         return $ids;
