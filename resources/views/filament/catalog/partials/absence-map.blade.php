@@ -94,34 +94,39 @@
                     this.canLeft = el.scrollLeft > 1;
                     this.canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
                     this.nameW = this.$refs.nameTh?.offsetWidth ?? 0;
-                    this.dayW = this.$refs.firstDayTh?.offsetWidth || this.dayW;
 
-                    // Fereastra zilelor ține doar coloane ÎNTREGI: restul împărțirii se varsă în
-                    // culoarul separatorului Total (--map-extra), deci AMBELE granițe cad mereu pe
-                    // muchie de coloană — nicio pastilă tăiată la oprire.
+                    // Fereastra zilelor se împarte în coloane ÎNTREGI, iar restul împărțirii
+                    // ÎNTINDE UȘOR coloanele (80 → max 96px, prin --map-day), în loc să se verse
+                    // într-un culoar lângă separatorul Total: culoarul rămâne astfel FIX (36px),
+                    // fără zona moartă care creștea până la o coloană întreagă (raport beneficiar,
+                    // 05.08.2026). Ambele granițe cad tot pe muchie de coloană — nimic tăiat.
                     //
-                    // Când zilele sunt PUȚINE (tabelul n-ar umple cardul), restul se varsă în
-                    // umplutorul din coada zonei zilelor (--map-fill): coloana Total ajunge astfel
-                    // MEREU la marginea dreaptă a cardului, cu separatorul lipit de cifre — nu
+                    // Zile PUȚINE (tabelul n-ar umple cardul): restul intră în umplutorul din coada
+                    // zonei (--map-fill), ca Total să stea la marginea cardului — neschimbat.
+                    //
                     {{-- ⚠️ Aici suntem ÎN INTERIORUL atributului x-data (delimitat cu ghilimele
                          duble) — niciun caracter " în comentariile JS, altfel atributul se închide
                          și restul codului se varsă ca TEXT pe pagină (pățit, 04.08.2026). --}}
-                    // rămâne suspendată după ultima zi (raport beneficiar, modul Zi).
-                    //
-                    // Fereastră mai îngustă decât o singură coloană (telefon): restul nu are unde
-                    // să se ducă, derularea rămâne liberă.
+                    // Fereastră mai îngustă decât o coloană (telefon): derularea rămâne liberă;
+                    // `extra` mai poate fi nenul DOAR acolo, când plafonul de 96px taie întinderea.
                     const totalBase = (this.$refs.totalTh?.offsetWidth ?? 0) - this.extra;
                     const days = el.querySelectorAll('thead th').length - 3; // nume + umplutor + total
                     const avail = el.clientWidth - this.nameW - totalBase;
-                    this.nCols = Math.max(1, Math.floor(avail / this.dayW));
+                    const base = 80;
 
-                    if (avail < this.dayW) {
+                    if (avail < base) {
+                        this.nCols = 1;
+                        this.dayW = base;
                         this.extra = 0;
                         this.fill = 0;
-                    } else if (this.nCols >= days) {
+                    } else if (Math.floor(avail / base) >= days) {
+                        this.nCols = Math.max(1, days);
+                        this.dayW = Math.min(96, avail / Math.max(1, days));
                         this.extra = 0;
-                        this.fill = Math.max(0, Math.round(avail - days * this.dayW));
+                        this.fill = Math.max(0, Math.round(avail - this.nCols * this.dayW));
                     } else {
+                        this.nCols = Math.max(1, Math.floor(avail / base));
+                        this.dayW = Math.min(96, avail / this.nCols);
                         this.extra = Math.max(0, Math.round(avail - this.nCols * this.dayW));
                         this.fill = 0;
                     }
@@ -155,7 +160,7 @@
             "
             x-on:resize.window.debounce.150ms="sync()"
             class="relative"
-            x-bind:style="'--map-extra: ' + extra + 'px; --map-fill: ' + fill + 'px'"
+            x-bind:style="'--map-extra: ' + extra + 'px; --map-fill: ' + fill + 'px; --map-day: ' + dayW + 'px'"
             {{-- Cheia FORȚEAZĂ reconstrucția componentei Alpine la schimbarea perioadei/clasei:
                  morph-ul Livewire păstrează DOM-ul, deci starea măsurată (săgeți, lățimi) rămânea
                  cea a tabelului VECHI — o săgeată „>" plutea după comutarea pe „Zi", fără să mai
@@ -183,7 +188,7 @@
                             {{ __('absence_map.student') }}
                         </th>
                         @foreach ($map['days'] as $day)
-                            <th @if ($loop->first) x-ref="firstDayTh" @endif class="w-20 min-w-20 snap-start border-b border-gray-200 px-2 py-2 text-center text-xs font-semibold text-gray-500 dark:border-white/10 dark:text-gray-400"
+                            <th @if ($loop->first) x-ref="firstDayTh" @endif style="width: var(--map-day, 5rem)" class="min-w-20 snap-start border-b border-gray-200 px-2 py-2 text-center text-xs font-semibold text-gray-500 dark:border-white/10 dark:text-gray-400"
                                 title="{{ trans_choice('absence_map.day_count', $day['count'], ['count' => $day['count']]) }}">
                                 <span class="block tabular-nums">{{ $day['day'] }}</span>
                                 <span class="block text-[10px] font-normal text-gray-400 dark:text-gray-500">{{ $day['weekday'] }}</span>
