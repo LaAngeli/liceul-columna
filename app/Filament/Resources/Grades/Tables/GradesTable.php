@@ -8,6 +8,7 @@ use App\Enums\GradingType;
 use App\Enums\SchoolCycle;
 use App\Filament\Contracts\CatalogNavigator;
 use App\Filament\Exports\GradeExporter;
+use App\Filament\Resources\Grades\Pages\ListGrades;
 use App\Filament\Resources\Students\StudentResource;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
@@ -265,8 +266,12 @@ class GradesTable
      * Profesorul logat PREDĂ (clasa, disciplina) acestei note? Sursă pentru vizibilitatea ANULĂRII:
      * anularea scoate nota din medii, deci e o operație asupra ei — rămâne la titularul disciplinei
      * (M-1/#07). Administrația (canAdministerCatalog) e verificată separat.
+     *
+     * PUBLICĂ deliberat: harta notelor ({@see ListGrades})
+     * arată aceleași pârghii pe pastile — o singură sursă pentru regulă, ca tabelul și harta să nu
+     * poată diverge (lecția 403 din harta absențelor, 05.08.2026).
      */
-    private static function teacherTeachesGrade(Grade $record): bool
+    public static function teacherTeachesGrade(Grade $record): bool
     {
         $teacher = auth('web')->user()?->teacher;
 
@@ -286,7 +291,7 @@ class GradesTable
      * dirigintele vedea o notă greșită la disciplina unui coleg și nu avea niciun buton: singura
      * cale rămânea în afara platformei, adică fără urmă în catalog.
      */
-    private static function canRequestCorrectionFor(Grade $record): bool
+    public static function canRequestCorrectionFor(Grade $record): bool
     {
         if (self::teacherTeachesGrade($record)) {
             return true;

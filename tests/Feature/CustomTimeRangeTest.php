@@ -54,10 +54,14 @@ beforeEach(function () {
     actingAs($this->director);
 });
 
-/** Componenta „Note", deschisă direct în contextul clasei de test. */
+/**
+ * Componenta „Note", deschisă direct în contextul clasei de test — în forma LISTĂ: aici se
+ * verifică bara temporală prin tabel, iar în context de clasă vederea implicită a devenit harta
+ * (05.08.2026). Harta are suita ei (GradeMapTest).
+ */
 function customRangePage(array $query = [])
 {
-    return Livewire::withQueryParams($query)->test(ListGrades::class);
+    return Livewire::withQueryParams($query + ['forma' => 'lista'])->test(ListGrades::class);
 }
 
 it('intervalul liber filtrează pe capetele alese, indiferent cât de departe sunt', function () {

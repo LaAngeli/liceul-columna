@@ -95,14 +95,21 @@ it('bara temporală filtrează notele pe data acordării; intervalul liber acope
     $outsideWeek = navigatorGrade($this->ownStudent, $this->ownClass, $this->subject, $this->term, on: '2025-10-20');
 
     // Modul „săptămână" pe referința 2025-10-06 (săptămâna 6–12 oct).
-    Livewire::withQueryParams(['mod' => 'saptamana', 'ref' => '2025-10-06'])
+    Livewire::withQueryParams(['mod' => 'saptamana', 'ref' => '2025-10-06', 'forma' => 'lista'])
         ->test(ListGrades::class)
         ->call('openCatalogEntity', $this->ownClass->id)
         ->assertCanSeeTableRecords([$inWeek])
         ->assertCanNotSeeTableRecords([$outsideWeek]);
 
-    // Mod invalid din URL → „Toate" (ambele vizibile).
-    Livewire::withQueryParams(['mod' => 'decada'])
+    // Mod invalid din URL → implicitul PAGINII (luna, din 05.08.2026), nu „Toate": URL-ul nu se
+    // ia de bun. „Toate" ramane o alegere explicita.
+    $fallback = Livewire::withQueryParams(['mod' => 'decada'])
+        ->test(ListGrades::class)
+        ->call('openCatalogEntity', $this->ownClass->id);
+
+    expect($fallback->instance()->timeMode())->toBe('luna');
+
+    Livewire::withQueryParams(['mod' => 'toate', 'forma' => 'lista'])
         ->test(ListGrades::class)
         ->call('openCatalogEntity', $this->ownClass->id)
         ->assertCanSeeTableRecords([$inWeek, $outsideWeek]);
@@ -110,7 +117,7 @@ it('bara temporală filtrează notele pe data acordării; intervalul liber acope
     // Perioadele arbitrare trec acum prin modul „Personalizat" al BAREI, nu printr-un filtru
     // paralel din pâlnie: acela dubla bara și se aplica simultan cu ea (interval uitat = filtrare
     // tăcută), deci a fost eliminat — vezi CustomTimeRangeTest pentru scenariile de graniță.
-    Livewire::withQueryParams(['mod' => 'personalizat', 'de' => '2025-10-15', 'pana' => '2025-10-25'])
+    Livewire::withQueryParams(['mod' => 'personalizat', 'de' => '2025-10-15', 'pana' => '2025-10-25', 'forma' => 'lista'])
         ->test(ListGrades::class)
         ->call('openCatalogEntity', $this->ownClass->id)
         ->assertCanSeeTableRecords([$outsideWeek])
@@ -169,7 +176,7 @@ it('deschiderea unei clase restrânge tabelul la notele ei', function () {
     $ownGrade = navigatorGrade($this->ownStudent, $this->ownClass, $this->subject, $this->term);
     $foreignGrade = navigatorGrade($this->foreignStudent, $this->foreignClass, $this->subject, $this->term);
 
-    Livewire::test(ListGrades::class)
+    Livewire::withQueryParams(['forma' => 'lista', 'mod' => 'toate'])->test(ListGrades::class)
         ->call('openCatalogEntity', $this->ownClass->id)
         ->assertCanSeeTableRecords([$ownGrade])
         ->assertCanNotSeeTableRecords([$foreignGrade]);
@@ -196,7 +203,7 @@ it('contextul de perioadă (semestru) restrânge tabelul', function () {
     $inTerm = navigatorGrade($this->ownStudent, $this->ownClass, $this->subject, $this->term);
     $outTerm = navigatorGrade($this->ownStudent, $this->ownClass, $this->subject, $otherTerm);
 
-    Livewire::test(ListGrades::class)
+    Livewire::withQueryParams(['forma' => 'lista', 'mod' => 'toate'])->test(ListGrades::class)
         ->call('setCatalogDimension', 'perioade')
         ->call('openCatalogEntity', $this->term->id)
         ->assertCanSeeTableRecords([$inTerm])
@@ -210,7 +217,7 @@ it('chip-ul de disciplină restrânge suplimentar contextul clasei', function ()
     $mathGrade = navigatorGrade($this->ownStudent, $this->ownClass, $this->subject, $this->term);
     $otherGrade = navigatorGrade($this->ownStudent, $this->ownClass, $otherSubject, $this->term);
 
-    Livewire::test(ListGrades::class)
+    Livewire::withQueryParams(['forma' => 'lista', 'mod' => 'toate'])->test(ListGrades::class)
         ->call('openCatalogEntity', $this->ownClass->id)
         ->call('setCatalogChip', $this->subject->id)
         ->assertCanSeeTableRecords([$mathGrade])
@@ -267,7 +274,7 @@ it('cardurile de profesori agregă notele pe autor, iar contextul restrânge tab
     $byTeacher = navigatorGrade($this->ownStudent, $this->ownClass, $this->subject, $this->term, $teacher);
     $byNobody = navigatorGrade($this->foreignStudent, $this->foreignClass, $this->subject, $this->term);
 
-    $component = Livewire::test(ListGrades::class)->call('setCatalogDimension', 'profesori');
+    $component = Livewire::withQueryParams(['forma' => 'lista', 'mod' => 'toate'])->test(ListGrades::class)->call('setCatalogDimension', 'profesori');
 
     expect(collect($component->instance()->catalogEntityCards())->pluck('id')->all())->toBe([$teacher->id]);
 

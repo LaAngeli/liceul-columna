@@ -144,13 +144,13 @@ it('catalogul de note se restrânge pe clasă (contextul navigatorului) și se c
     $this->actingAs(staffWithRole(UserRole::Admin));
 
     // Contextul clasei restrânge tabelul (nota altei clase nu apare).
-    Livewire::withQueryParams(['clasa' => (string) $classA->id])
+    Livewire::withQueryParams(['clasa' => (string) $classA->id, 'forma' => 'lista', 'mod' => 'toate'])
         ->test(ListGrades::class)
         ->assertCanSeeTableRecords([$gradeA, $gradeB])
         ->assertCanNotSeeTableRecords([$gradeOtherClass]);
 
     // Căutarea după numele elevului, în interiorul contextului.
-    Livewire::withQueryParams(['clasa' => (string) $classA->id])
+    Livewire::withQueryParams(['clasa' => (string) $classA->id, 'forma' => 'lista', 'mod' => 'toate'])
         ->test(ListGrades::class)
         ->searchTable('Aaaaa')
         ->assertCanSeeTableRecords([$gradeA])
