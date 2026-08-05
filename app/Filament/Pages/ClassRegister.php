@@ -30,9 +30,6 @@ use App\Support\Holidays;
 use App\Support\SchoolCalendar;
 use BackedEnum;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -1132,107 +1129,99 @@ class ClassRegister extends Page
     }
 
     /**
-     * Anulează o notă din popover-ul zilei — semantica și gărzile acțiunii din tabelul Note.
-     * Nota rămâne în istoric, iese din medii (observerul recalculează singur).
+     * Anulează o notă DIN PANOU — metodă Livewire, nu acțiune Filament.
+     *
+     * ⚠️ De ce nu acțiune: butonul stă în `modalContent`-ul panoului, iar Filament NU montează o
+     * acțiune peste una montată din conținutul modalului (acțiunile imbricate se declară prin
+     * `extraModalFooterActions`, care sunt globale pe modal — aici trebuie una PER NOTĂ). Prins
+     * live pe rolul profesor: butoanele existau, clickul nu deschidea nimic. Formularul e acum
+     * inline, în panou — aceleași gărzi, un singur modal, mai puține clicuri.
+     *
+     * Semantica rămâne a acțiunii din tabelul Note: nota rămâne în istoric, iese din medii
+     * (observerul recalculează), motivul e obligatoriu.
      */
-    public function annulGradeAction(): Action
+    public function annulDayGrade(int $gradeId, string $reason): void
     {
-        return Action::make('annulGrade')
-            ->label(__('panel.actions.annul.label'))
-            ->icon('heroicon-o-no-symbol')
-            ->color('danger')
-            ->requiresConfirmation()
-            ->modalHeading(__('panel.actions.annul.heading'))
-            ->modalDescription(__('panel.actions.annul.description'))
-            ->schema([
-                Textarea::make('annulment_reason')
-                    ->label(__('panel.actions.annul.reason'))
-                    ->required()
-                    ->maxLength(255),
-            ])
-            ->action(function (array $arguments, array $data): void {
-                $grade = $this->dayActionGrade($arguments);
+        $grade = $this->dayActionGrade(['id' => $gradeId]);
+        $reason = trim($reason);
 
-                if ($grade === null || $grade->isAnnulled()
-                    || ! ($this->dayRights()['is_admin'] || GradesTable::teacherTeachesGrade($grade))) {
-                    $this->denyDayAction();
+        if ($grade === null || $grade->isAnnulled()
+            || ! ($this->dayRights()['is_admin'] || GradesTable::teacherTeachesGrade($grade))) {
+            $this->denyDayAction();
 
-                    return;
-                }
+            return;
+        }
 
-                $grade->update([
-                    'annulled_at' => now(),
-                    'annulled_by_user_id' => auth()->id(),
-                    'annulment_reason' => $data['annulment_reason'],
-                ]);
+        if ($reason === '') {
+            Notification::make()->danger()->title(__('panel.actions.annul.reason_required'))->send();
 
-                Notification::make()
-                    ->success()
-                    ->title(__('panel.actions.annul.success'))
-                    ->send();
-            });
+            return;
+        }
+
+        $grade->update([
+            'annulled_at' => now(),
+            'annulled_by_user_id' => auth()->id(),
+            'annulment_reason' => mb_substr($reason, 0, 255),
+        ]);
+
+        Notification::make()->success()->title(__('panel.actions.annul.success'))->send();
     }
 
-    /** Solicită corecția unei note din popover — fluxul §3.1 (cerere → aprobarea administrației). */
-    public function requestGradeCorrectionAction(): Action
+    /**
+     * Solicită corecția unei note DIN PANOU — fluxul §3.1 (cerere → aprobarea administrației).
+     * Valoarea propusă urmează disciplina: întreg 1–10 la numerice, simbol din scală la
+     * calificative; invariantele finale stau oricum pe {@see GradeCorrection}.
+     */
+    public function requestDayCorrection(int $gradeId, string $value, string $reason): void
     {
-        return Action::make('requestGradeCorrection')
-            ->label(__('panel.actions.request_correction.label'))
-            ->icon('heroicon-o-pencil-square')
-            ->color('warning')
-            ->modalHeading(__('panel.actions.request_correction.heading'))
-            ->modalDescription(__('panel.actions.request_correction.description'))
-            ->modalSubmitActionLabel(__('panel.actions.request_correction.submit'))
-            ->schema([
-                TextInput::make('new_value')
-                    ->label(__('panel.actions.request_correction.new_value'))
-                    ->validationAttribute(__('panel.actions.request_correction.new_value'))
-                    ->numeric()
-                    // Aceeași scală ca nota: întreg 1–10 (vezi nota din ListGrades).
-                    ->step(1)
-                    ->rules(['integer'])
-                    ->minValue(1)
-                    ->maxValue(10)
-                    ->visible(fn (Action $action): bool => $this->dayActionGrade($action->getArguments())?->subject?->grading_type === GradingType::Numeric)
-                    ->requiredWithout('new_calificativ'),
-                Select::make('new_calificativ')
-                    ->label(__('panel.actions.request_correction.new_calificativ'))
-                    ->validationAttribute(__('panel.actions.request_correction.new_calificativ'))
-                    ->options(Calificativ::groupedOptions())
-                    ->native(false)
-                    ->visible(fn (Action $action): bool => $this->dayActionGrade($action->getArguments())?->subject?->grading_type !== GradingType::Numeric)
-                    ->requiredWithout('new_value'),
-                Textarea::make('reason')
-                    ->label(__('panel.actions.request_correction.reason'))
-                    ->required()
-                    ->maxLength(255),
-            ])
-            ->action(function (array $arguments, array $data): void {
-                $grade = $this->dayActionGrade($arguments);
+        $grade = $this->dayActionGrade(['id' => $gradeId]);
+        $value = trim($value);
+        $reason = trim($reason);
 
-                if ($grade === null || $grade->isAnnulled() || $grade->hasPendingCorrection()
-                    || ! GradesTable::canRequestCorrectionFor($grade)) {
-                    $this->denyDayAction();
+        if ($grade === null || $grade->isAnnulled() || $grade->hasPendingCorrection()
+            || ! GradesTable::canRequestCorrectionFor($grade)) {
+            $this->denyDayAction();
 
-                    return;
-                }
+            return;
+        }
 
-                GradeCorrection::create([
-                    'grade_id' => $grade->id,
-                    'requested_by_user_id' => auth()->id(),
-                    'old_value' => $grade->value,
-                    'new_value' => $data['new_value'] ?? null,
-                    'old_calificativ' => $grade->calificativ,
-                    'new_calificativ' => $data['new_calificativ'] ?? null,
-                    'reason' => $data['reason'],
-                ]);
+        if ($reason === '' || $value === '') {
+            Notification::make()->danger()->title(__('panel.actions.request_correction.fields_required'))->send();
 
-                Notification::make()
-                    ->success()
-                    ->title(__('panel.actions.request_correction.success_title'))
-                    ->body(__('panel.actions.request_correction.success_body'))
-                    ->send();
-            });
+            return;
+        }
+
+        $numeric = $grade->subject?->grading_type === GradingType::Numeric;
+
+        if ($numeric && (! ctype_digit($value) || (int) $value < 1 || (int) $value > 10)) {
+            Notification::make()->danger()->title(__('panel.class_register.invalid_value'))->send();
+
+            return;
+        }
+
+        $calificativ = $numeric ? null : Calificativ::normalize($value);
+
+        if (! $numeric && $calificativ === null) {
+            Notification::make()->danger()->title(__('panel.class_register.invalid_calificativ'))->send();
+
+            return;
+        }
+
+        GradeCorrection::create([
+            'grade_id' => $grade->id,
+            'requested_by_user_id' => auth()->id(),
+            'old_value' => $grade->value,
+            'new_value' => $numeric ? (int) $value : null,
+            'old_calificativ' => $grade->calificativ,
+            'new_calificativ' => $calificativ?->value,
+            'reason' => mb_substr($reason, 0, 255),
+        ]);
+
+        Notification::make()
+            ->success()
+            ->title(__('panel.actions.request_correction.success_title'))
+            ->body(__('panel.actions.request_correction.success_body'))
+            ->send();
     }
 
     /**

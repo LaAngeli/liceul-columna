@@ -531,6 +531,7 @@ return [
             'heading' => 'Annul grade (with reason)',
             'description' => 'The grade is not deleted — it stays in history, but no longer counts toward averages and does not appear in the cabinet.',
             'reason' => 'Reason for annulment',
+            'reason_required' => 'The annulment reason is required.',
         ],
         'request_correction' => [
             'label' => 'Request correction',
@@ -542,6 +543,7 @@ return [
             'submit' => 'Send correction',
             'success_title' => 'Correction requested',
             'success_body' => 'It will be reviewed by administration.',
+            'fields_required' => 'The proposed value and the reason are required.',
             'already_pending' => 'This grade already has a correction pending.',
             'expired_note' => 'The request became void: the grade was annulled.',
             'withdraw' => 'Withdraw request',
@@ -2430,6 +2432,7 @@ return [
         'grades_column' => 'Grades',
         'day_panel' => [
             'close' => 'Close',
+            'cancel' => 'Cancel',
             'grades_heading' => 'Grades of the day',
             'add_grade_heading' => 'Add a grade for this day…',
             'add_grade_button' => 'Add grade',

@@ -544,6 +544,7 @@ return [
             'heading' => 'Anulează nota (cu motiv)',
             'description' => 'Nota nu se șterge — rămâne în istoric, dar nu va mai conta la medii și nu apare în cabinet.',
             'reason' => 'Motivul anulării',
+            'reason_required' => 'Motivul anulării este obligatoriu.',
         ],
         'request_correction' => [
             'label' => 'Solicită corecție',
@@ -555,6 +556,7 @@ return [
             'submit' => 'Trimite corecția',
             'success_title' => 'Corecție solicitată',
             'success_body' => 'Va fi revizuită de administrație.',
+            'fields_required' => 'Valoarea propusă și motivul sunt obligatorii.',
             'already_pending' => 'Nota are deja o corecție în așteptare.',
             'expired_note' => 'Cererea a rămas fără obiect: nota a fost anulată.',
             'withdraw' => 'Retrage cererea',
@@ -2446,6 +2448,7 @@ return [
         'grades_column' => 'Note',
         'day_panel' => [
             'close' => 'Închide',
+            'cancel' => 'Renunță',
             'grades_heading' => 'Notele zilei',
             'add_grade_heading' => 'Adaugă notă pe această zi…',
             'add_grade_button' => 'Adaugă nota',

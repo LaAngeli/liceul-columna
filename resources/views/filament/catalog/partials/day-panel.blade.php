@@ -30,7 +30,12 @@
         @else
             <ul class="space-y-2">
                 @foreach ($panel['grades'] as $grade)
-                    <li class="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/5">
+                    {{-- Formularele de anulare/corecție se deschid INLINE, în rândul notei.
+                         ⚠️ NU acțiuni Filament montate din modal: `mountAction` nu montează peste
+                         o acțiune deja montată (acțiunile imbricate se declară prin
+                         `extraModalFooterActions`, care sunt globale pe modal — aici trebuie una
+                         per notă). Butoanele existau, dar clickul nu deschidea nimic. --}}
+                    <li x-data="{ mode: null, reason: '', value: '' }" class="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/5">
                         <span @class([
                             'inline-flex h-7 w-9 items-center justify-center rounded text-sm font-semibold tabular-nums ring-1',
                             'bg-primary-50 text-primary-700 ring-primary-600/30 dark:bg-primary-400/10 dark:text-primary-300 dark:ring-primary-400/30' => $grade['weighted'] && ! $grade['annulled'],
@@ -63,7 +68,7 @@
                             @if ($grade['can_request'])
                                 <button
                                     type="button"
-                                    wire:click="mountAction('requestGradeCorrection', { id: {{ $grade['id'] }} })"
+                                    x-on:click="mode = (mode === 'corectie' ? null : 'corectie')"
                                     class="rounded-md px-2 py-1 text-xs font-medium text-warning-600 hover:bg-warning-50 dark:text-warning-400 dark:hover:bg-warning-400/10"
                                 >
                                     {{ __('panel.actions.request_correction.label') }}
@@ -73,13 +78,71 @@
                             @if ($grade['can_annul'])
                                 <button
                                     type="button"
-                                    wire:click="mountAction('annulGrade', { id: {{ $grade['id'] }} })"
+                                    x-on:click="mode = (mode === 'anulare' ? null : 'anulare')"
                                     class="rounded-md px-2 py-1 text-xs font-medium text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-400/10"
                                 >
                                     {{ __('panel.actions.annul.label') }}
                                 </button>
                             @endif
                         </span>
+
+                        {{-- ANULARE: motivul e obligatoriu — nota iese din medii, dar rămâne în
+                             istoric cu explicația ei. --}}
+                        <div x-show="mode === 'anulare'" x-cloak class="w-full space-y-2 border-t border-gray-200 pt-2 dark:border-white/10">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('panel.actions.annul.description') }}</p>
+                            <textarea
+                                x-model="reason"
+                                rows="2"
+                                maxlength="255"
+                                placeholder="{{ __('panel.actions.annul.reason') }}"
+                                class="w-full rounded-lg border-0 bg-white text-sm text-gray-950 shadow-sm ring-1 ring-gray-950/10 focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
+                            ></textarea>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    x-bind:disabled="reason.trim() === ''"
+                                    x-on:click="$wire.annulDayGrade({{ $grade['id'] }}, reason); mode = null; reason = '';"
+                                    class="inline-flex h-8 items-center rounded-lg bg-danger-600 px-3 text-xs font-semibold text-white transition hover:bg-danger-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {{ __('panel.actions.annul.label') }}
+                                </button>
+                                <button type="button" x-on:click="mode = null" class="text-xs text-gray-500 hover:underline dark:text-gray-400">
+                                    {{ __('panel.class_register.day_panel.cancel') }}
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- CORECȚIE: valoarea propusă + motivul; decizia rămâne a administrației. --}}
+                        <div x-show="mode === 'corectie'" x-cloak class="w-full space-y-2 border-t border-gray-200 pt-2 dark:border-white/10">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('panel.actions.request_correction.description') }}</p>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <input
+                                    type="text"
+                                    x-model="value"
+                                    @if ($panel['numeric']) inputmode="numeric" maxlength="2" placeholder="1–10" @else maxlength="10" placeholder="FB / B / S" @endif
+                                    aria-label="{{ __('panel.actions.request_correction.new_value') }}"
+                                    class="h-9 w-20 rounded-lg border-0 bg-white text-center text-sm font-semibold text-gray-950 shadow-sm ring-1 ring-gray-950/10 focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
+                                />
+                                <input
+                                    type="text"
+                                    x-model="reason"
+                                    maxlength="255"
+                                    placeholder="{{ __('panel.actions.request_correction.reason') }}"
+                                    class="h-9 min-w-40 flex-1 rounded-lg border-0 bg-white px-2 text-sm text-gray-950 shadow-sm ring-1 ring-gray-950/10 focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
+                                />
+                                <button
+                                    type="button"
+                                    x-bind:disabled="value.trim() === '' || reason.trim() === ''"
+                                    x-on:click="$wire.requestDayCorrection({{ $grade['id'] }}, value, reason); mode = null; value = ''; reason = '';"
+                                    class="inline-flex h-9 items-center rounded-lg bg-warning-500 px-3 text-xs font-semibold text-white transition hover:bg-warning-400 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-warning-400 dark:text-warning-950"
+                                >
+                                    {{ __('panel.actions.request_correction.submit') }}
+                                </button>
+                                <button type="button" x-on:click="mode = null" class="text-xs text-gray-500 hover:underline dark:text-gray-400">
+                                    {{ __('panel.class_register.day_panel.cancel') }}
+                                </button>
+                            </div>
+                        </div>
                     </li>
                 @endforeach
             </ul>

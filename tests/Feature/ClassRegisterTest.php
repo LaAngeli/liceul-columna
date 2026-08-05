@@ -21,6 +21,7 @@ use App\Models\Absence;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\Grade;
+use App\Models\GradeCorrection;
 use App\Models\Lesson;
 use App\Models\SchoolClass;
 use App\Models\Student;
@@ -952,4 +953,97 @@ it('o zi cu date rămâne vizibilă chiar dacă nu e zi de lecție (recuperare, 
     );
 
     expect($columns)->toContain($sambata->toDateString());
+});
+
+it('anularea din panou cere motiv, scoate nota din medii și o lasă în istoric', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    $page = Livewire::test(ClassRegister::class);
+    $page->call('addDayGrade', $a->id, $azi, '4', 'curenta');
+
+    $grade = Grade::query()->sole();
+
+    // Fără motiv: nimic nu se anulează.
+    $page->call('annulDayGrade', $grade->id, '   ');
+
+    expect($grade->fresh()->annulled_at)->toBeNull();
+
+    $page->call('annulDayGrade', $grade->id, 'notă pusă din greșeală');
+
+    $grade->refresh();
+
+    expect($grade->annulled_at)->not->toBeNull()
+        ->and($grade->annulment_reason)->toBe('notă pusă din greșeală')
+        // Rămâne în istoric, dar iese din medii (observerul a recalculat).
+        ->and(Grade::query()->count())->toBe(1)
+        ->and(TermAverage::query()->where('student_id', $a->id)->whereNull('deleted_at')->count())->toBe(0)
+        // Iar în panou apare gri, fără pârghii.
+        ->and($page->instance()->dayPanel($a->id, $azi)['grades'][0]['annulled'])->toBeTrue()
+        ->and($page->instance()->dayPanel($a->id, $azi)['grades'][0]['can_annul'])->toBeFalse();
+});
+
+it('corecția din panou intră în coada de aprobare; a doua cerere e refuzată', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    $page = Livewire::test(ClassRegister::class);
+    $page->call('addDayGrade', $a->id, $azi, '7', 'curenta');
+
+    $grade = Grade::query()->sole();
+
+    // Câmpuri incomplete: nu se creează nimic.
+    $page->call('requestDayCorrection', $grade->id, '9', '');
+    $page->call('requestDayCorrection', $grade->id, '', 'motiv');
+
+    expect(GradeCorrection::query()->count())->toBe(0);
+
+    // Valoare în afara scalei: refuzată prietenos.
+    $page->call('requestDayCorrection', $grade->id, '11', 'greșeală de tastare');
+
+    expect(GradeCorrection::query()->count())->toBe(0);
+
+    $page->call('requestDayCorrection', $grade->id, '9', 'greșeală de tastare');
+
+    $correction = GradeCorrection::query()->sole();
+
+    expect((int) $correction->new_value)->toBe(9)
+        ->and((int) $correction->grade_id)->toBe($grade->id)
+        ->and($correction->isPending())->toBeTrue()
+        // Nota nu s-a schimbat singură — decizia e a administrației.
+        ->and((int) $grade->fresh()->value)->toBe(7)
+        // A doua cerere pe aceeași notă: refuzată cât timp una e în așteptare.
+        ->and($page->instance()->dayPanel($a->id, $azi)['grades'][0]['can_request'])->toBeFalse();
+
+    $page->call('requestDayCorrection', $grade->id, '10', 'încă o dată');
+
+    expect(GradeCorrection::query()->count())->toBe(1);
+});
+
+it('profesorul STRĂIN de pereche nu anulează și nu cere corecție, nici cu apel forțat', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+    Livewire::test(ClassRegister::class)->call('addDayGrade', $a->id, $azi, '8', 'curenta');
+
+    $grade = Grade::query()->sole();
+
+    // Alt profesor, fără nicio alocare pe (clasă, disciplină).
+    $strainUser = User::factory()->create();
+    $strainUser->assignRole(UserRole::Profesor->value);
+    Teacher::factory()->create(['user_id' => $strainUser->id]);
+
+    actingAs($strainUser->fresh());
+
+    $page = Livewire::withQueryParams(['clasa' => (string) $this->class->id])->test(ClassRegister::class);
+    $page->call('annulDayGrade', $grade->id, 'nu e treaba mea');
+    $page->call('requestDayCorrection', $grade->id, '10', 'nici asta');
+
+    expect($grade->fresh()->annulled_at)->toBeNull()
+        ->and(GradeCorrection::query()->count())->toBe(0);
 });
