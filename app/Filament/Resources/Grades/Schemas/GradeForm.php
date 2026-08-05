@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Grades\Schemas;
 
+use App\Enums\Calificativ;
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
 use App\Models\Enrollment;
@@ -93,9 +94,13 @@ class GradeForm
                     ->visible(fn (Get $get): bool => self::showsValue($get))
                     ->required(fn (Get $get): bool => self::gradingType($get) === GradingType::Numeric),
                 // Câmpul de CALIFICATIV: vizibil + obligatoriu DOAR pentru disciplinele pe calificativ/descriptiv.
-                TextInput::make('calificativ')
+                // Scală ÎNCHISĂ ({@see Calificativ}), nu text liber: era „cel mult 10 caractere", deci
+                // accepta orice simbol inventat. `Select` aplică singur regula `in:` din opțiuni —
+                // restricția e reală și pe server, nu doar în browser.
+                Select::make('calificativ')
                     ->label(__('panel.fields.calificativ'))
-                    ->maxLength(10)
+                    ->options(Calificativ::groupedOptions())
+                    ->native(false)
                     ->visible(fn (Get $get): bool => self::showsCalificativ($get))
                     ->required(fn (Get $get): bool => self::gradingType($get) !== null
                         && self::gradingType($get) !== GradingType::Numeric),

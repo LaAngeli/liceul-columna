@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Calificativ;
 use App\Enums\CorrectionStatus;
 use App\Observers\GradeCorrectionObserver;
 use Database\Factories\GradeCorrectionFactory;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -56,6 +58,45 @@ class GradeCorrection extends Model implements Auditable
             'new_value' => 'decimal:2',
             'reviewed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * PROPUNEREA respectă aceeași scală ca nota pe care vrea s-o înlocuiască: întreg 1–10 la
+     * numerice, simbol din {@see Calificativ} la celelalte.
+     *
+     * DE CE pe model, nu doar pe formular: cererea se depune din PATRU locuri (harta notelor,
+     * tabelul de note, panoul zilei din catalog, procesarea unei contestații), iar regula pusă în
+     * fiecare formular ține doar cât timp câmpul e VIZIBIL — vizibilitatea depinde de rezolvarea
+     * notei-țintă, deci un câmp care nu se rezolvă rămâne și nevalidat. Măsurat: prin acea cale,
+     * până și `maxValue(10)` nu se aplica, iar o propunere de 99 trecea.
+     *
+     * Aici invariantul nu mai depinde de UI: orice cale — formular, comandă, viitor API — trece
+     * pe aici. Garda oglindește exact perechea de gărzi de pe {@see Grade}, ca o propunere să nu
+     * poată promite ceva ce nota n-ar accepta la aprobare.
+     */
+    protected static function booted(): void
+    {
+        static::saving(static function (self $correction): void {
+            $value = $correction->getAttribute('new_value');
+
+            if ($correction->isDirty('new_value') && $value !== null
+                && ((float) $value !== floor((float) $value) || (float) $value < 1.0 || (float) $value > 10.0)) {
+                throw ValidationException::withMessages([
+                    'new_value' => __('panel.validation.grade.value_must_be_integer'),
+                ]);
+            }
+
+            $calificativ = $correction->getAttribute('new_calificativ');
+
+            if ($correction->isDirty('new_calificativ') && $calificativ !== null && $calificativ !== ''
+                && Calificativ::tryFrom((string) $calificativ) === null) {
+                throw ValidationException::withMessages([
+                    'new_calificativ' => __('panel.validation.grade.calificativ_unknown', [
+                        'list' => implode(', ', Calificativ::values()),
+                    ]),
+                ]);
+            }
+        });
     }
 
     public function isPending(): bool

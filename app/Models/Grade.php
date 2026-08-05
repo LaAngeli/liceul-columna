@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Calificativ;
 use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
 use App\Models\Concerns\ScopedToTeachingCapacity;
@@ -103,7 +104,42 @@ class Grade extends Model implements Auditable
                     'value' => __('panel.validation.grade.value_must_be_integer'),
                 ]);
             }
+
+            self::guardCalificativ($grade);
         });
+    }
+
+    /**
+     * Calificativul e un SIMBOL dintr-o scală închisă ({@see Calificativ}), nu text liber.
+     *
+     * Aceeași logică de plasare ca la garda de mai sus: formularul e o singură cale, iar cererea
+     * de corecție ajunge la notă prin `GradeCorrection::approve()` → `$grade->update(...)`, deci
+     * doar o gardă pe model acoperă și propunerile aprobate, nu doar ce se tastează în panou.
+     *
+     * Se declanșează DOAR când câmpul e atins (`isDirty`): la import există două rânduri istorice
+     * cu simboluri greșite din sistemul vechi („R", „7"), iar o gardă necondiționată ar bloca
+     * editarea oricărui ALT câmp pe acele note, fără ca cineva să fi cerut asta. La creare tot e
+     * „dirty", deci notele noi rămân integral acoperite.
+     */
+    private static function guardCalificativ(self $grade): void
+    {
+        if (! $grade->isDirty('calificativ')) {
+            return;
+        }
+
+        $calificativ = $grade->getAttribute('calificativ');
+
+        if ($calificativ === null || $calificativ === '') {
+            return;
+        }
+
+        if (Calificativ::tryFrom((string) $calificativ) === null) {
+            throw ValidationException::withMessages([
+                'calificativ' => __('panel.validation.grade.calificativ_unknown', [
+                    'list' => implode(', ', Calificativ::values()),
+                ]),
+            ]);
+        }
     }
 
     /**

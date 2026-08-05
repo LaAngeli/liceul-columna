@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\DocumentRequests;
 
+use App\Enums\Calificativ;
 use App\Enums\CorrectionStatus;
 use App\Enums\DocumentRequestType;
 use App\Enums\GradingType;
@@ -159,14 +160,18 @@ class DocumentRequestActions
                     ->label(__('panel.actions.request_correction.new_value'))
                     ->validationAttribute(__('panel.actions.request_correction.new_value'))
                     ->numeric()
+                    // Aceeași scală ca nota: întreg 1–10 (vezi nota din ListGrades).
+                    ->step(1)
+                    ->rules(['integer'])
                     ->minValue(1)
                     ->maxValue(10)
                     ->visible(fn (Get $get, DocumentRequest $record): bool => self::targetGradeIsNumeric($record, $get('grade_id')))
                     ->requiredWithout('new_calificativ'),
-                TextInput::make('new_calificativ')
+                Select::make('new_calificativ')
                     ->label(__('panel.actions.request_correction.new_calificativ'))
                     ->validationAttribute(__('panel.actions.request_correction.new_calificativ'))
-                    ->maxLength(10)
+                    ->options(Calificativ::groupedOptions())
+                    ->native(false)
                     ->visible(fn (Get $get, DocumentRequest $record): bool => ! self::targetGradeIsNumeric($record, $get('grade_id')))
                     ->requiredWithout('new_value'),
                 // Motivul PROPRIU al procesatorului — FĂRĂ default copiat din textul familiei

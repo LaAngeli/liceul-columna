@@ -68,6 +68,18 @@ return [
         'gm' => 'German',
         'nu' => 'None',
     ],
+    'calificativ' => [
+        'group' => [
+            'calificative' => 'Descriptive marks',
+            'descriptori' => 'Descriptors',
+        ],
+        'FB' => 'Very good (FB)',
+        'B' => 'Good (B)',
+        'S' => 'Satisfactory (S)',
+        'i' => 'Independently (i)',
+        'g' => 'With guidance (g)',
+        'sp' => 'With support (sp)',
+    ],
     'grading_type' => [
         'n' => 'Numeric grade',
         'c' => 'Mark',

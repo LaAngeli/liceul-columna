@@ -71,6 +71,18 @@ return [
         'gm' => 'Germană',
         'nu' => 'Fără',
     ],
+    'calificativ' => [
+        'group' => [
+            'calificative' => 'Calificative',
+            'descriptori' => 'Descriptori',
+        ],
+        'FB' => 'Foarte bine (FB)',
+        'B' => 'Bine (B)',
+        'S' => 'Suficient (S)',
+        'i' => 'Independent (i)',
+        'g' => 'Ghidat (g)',
+        'sp' => 'Cu sprijin (sp)',
+    ],
     'grading_type' => [
         'n' => 'Notă numerică',
         'c' => 'Calificativ',

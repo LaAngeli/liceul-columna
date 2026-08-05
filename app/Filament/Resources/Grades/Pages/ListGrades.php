@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Grades\Pages;
 
+use App\Enums\Calificativ;
 use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
@@ -20,6 +21,7 @@ use App\Models\User;
 use App\Support\ContentTranslator;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -493,14 +495,22 @@ class ListGrades extends ListRecords implements CatalogNavigator
                     ->label(__('panel.actions.request_correction.new_value'))
                     ->validationAttribute(__('panel.actions.request_correction.new_value'))
                     ->numeric()
+                    // Propunerea respectă ACEEAȘI scală ca nota însăși: întreg 1–10. Fără `integer`
+                    // se putea cere „6,5", iar aprobarea o scria în notă — unde garda de model o
+                    // respingea abia atunci, după ce cererea trecuse deja de aprobator.
+                    ->step(1)
+                    ->rules(['integer'])
                     ->minValue(1)
                     ->maxValue(10)
                     ->visible(fn (Action $action): bool => $this->mapActionGrade($action->getArguments())?->subject?->grading_type === GradingType::Numeric)
                     ->requiredWithout('new_calificativ'),
-                TextInput::make('new_calificativ')
+                // Scală ÎNCHISĂ, nu text liber: `Select` aplică singur regula `in:` din opțiuni,
+                // deci alegerea e limitată și în browser, și pe server.
+                Select::make('new_calificativ')
                     ->label(__('panel.actions.request_correction.new_calificativ'))
                     ->validationAttribute(__('panel.actions.request_correction.new_calificativ'))
-                    ->maxLength(10)
+                    ->options(Calificativ::groupedOptions())
+                    ->native(false)
                     ->visible(fn (Action $action): bool => $this->mapActionGrade($action->getArguments())?->subject?->grading_type !== GradingType::Numeric)
                     ->requiredWithout('new_value'),
                 Textarea::make('reason')

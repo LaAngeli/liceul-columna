@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Grades\Tables;
 
+use App\Enums\Calificativ;
 use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
@@ -20,6 +21,7 @@ use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Actions\ExportBulkAction;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -186,14 +188,18 @@ class GradesTable
                                 ->label(__('panel.actions.request_correction.new_value'))
                                 ->validationAttribute(__('panel.actions.request_correction.new_value'))
                                 ->numeric()
+                                // Aceeași scală ca nota: întreg 1–10 (vezi nota din ListGrades).
+                                ->step(1)
+                                ->rules(['integer'])
                                 ->minValue(1)
                                 ->maxValue(10)
                                 ->visible(fn (Grade $record): bool => $record->subject->grading_type === GradingType::Numeric)
                                 ->requiredWithout('new_calificativ'),
-                            TextInput::make('new_calificativ')
+                            Select::make('new_calificativ')
                                 ->label(__('panel.actions.request_correction.new_calificativ'))
                                 ->validationAttribute(__('panel.actions.request_correction.new_calificativ'))
-                                ->maxLength(10)
+                                ->options(Calificativ::groupedOptions())
+                                ->native(false)
                                 ->visible(fn (Grade $record): bool => $record->subject->grading_type !== GradingType::Numeric)
                                 ->requiredWithout('new_value'),
                             Textarea::make('reason')
