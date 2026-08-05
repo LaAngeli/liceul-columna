@@ -26,6 +26,8 @@ use App\Models\Teacher;
 use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
+use App\Support\Holidays;
+use App\Support\SchoolCalendar;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -613,6 +615,15 @@ class ClassRegister extends Page
             }
         }
 
+        // ZILELE DE LECȚIE ale perioadei, chiar dacă n-au încă nimic scris (05.08.2026): altfel
+        // ziua de azi — care abia urmează să primească notele lecției — nu are coloană, deci nu
+        // are nici celulă de deschis, iar panoul (singura cale de scriere) devine inaccesibil fix
+        // când e nevoie de el. Catalogul de hârtie are coloană pentru fiecare lecție, goală până
+        // se scrie în ea; aici la fel.
+        foreach ($this->lessonDaysInRange() as $iso) {
+            $dates[$iso] = true;
+        }
+
         $isoList = array_keys($dates);
         sort($isoList);
 
@@ -621,6 +632,71 @@ class ClassRegister extends Page
             'label' => Carbon::parse($iso)->format('d.m'),
             'weekday' => Carbon::parse($iso)->translatedFormat('D'),
         ], $isoList);
+    }
+
+    /**
+     * Zilele din perioadă în care clasa ARE lecția disciplinei — din orar; fără orar (sau fără
+     * lecțiile disciplinei în el), toate zilele lucrătoare, ca registrul să rămână utilizabil.
+     *
+     * Mărginite la ZIUA DE AZI: o coloană în viitor ar fi o fundătură (gărzile refuză scrierea
+     * înainte), iar sărbătorile legale ies — școala e închisă, nu se consemnează nimic.
+     *
+     * @return list<string>
+     */
+    private function lessonDaysInRange(): array
+    {
+        $range = $this->timeRange();
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+
+        if ($range === null || $class === null || $subject === null) {
+            return [];
+        }
+
+        [$start, $end] = $range;
+
+        if ($start === null || $end === null) {
+            return [];
+        }
+
+        $today = SchoolCalendar::localNow()->startOfDay();
+        $cursor = Carbon::parse($start->toDateString())->startOfDay();
+        $last = Carbon::parse($end->toDateString())->startOfDay();
+
+        if ($last->greaterThan($today)) {
+            $last = $today->copy();
+        }
+
+        // Plasă de siguranță: o perioadă absurd de lungă (interval liber pe ani) n-are voie să
+        // producă mii de coloane — ziua cu date rămâne oricum vizibilă din ramura de mai sus.
+        if ($cursor->greaterThan($last) || $cursor->diffInDays($last) > 400) {
+            return [];
+        }
+
+        // `day_of_week` e cast la enumul Weekday (Luni = 1, ca `isoWeekday()`).
+        $lessonDays = Lesson::query()
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->get(['day_of_week'])
+            ->map(fn (Lesson $lesson): int => $lesson->day_of_week->value)
+            ->unique()
+            ->all();
+
+        $days = [];
+
+        while ($cursor->lessThanOrEqualTo($last)) {
+            $isLessonDay = $lessonDays === []
+                ? $cursor->isWeekday()
+                : in_array($cursor->isoWeekday(), $lessonDays, true);
+
+            if ($isLessonDay && ! Holidays::isHoliday($cursor)) {
+                $days[] = $cursor->toDateString();
+            }
+
+            $cursor->addDay();
+        }
+
+        return $days;
     }
 
     /**
@@ -1041,11 +1117,12 @@ class ClassRegister extends Page
             ->map(fn ($n): int => (int) $n)
             ->all();
 
-        $timetable = $this->timetableHours($iso);
-
-        // Cu orar: DOAR orele lui — a N+1-a apăsare peste orele zilei nu inventează o oră care
-        // nu există în orar. Fără orar: ordinalele 1–8.
-        foreach (($timetable !== [] ? $timetable : range(1, 8)) as $hour) {
+        // Orarul e SUGESTIE, nu adevăr absolut: întâi orele lui (prima apăsare = prima oră reală
+        // a zilei), apoi ordinalele rămase. Varianta strictă — doar orele din orar — bloca exact
+        // scenariul cerut când orarul e incomplet: o oră dublă neînregistrată în el făcea a doua
+        // absență imposibilă, deși profesorul știe că elevul a lipsit la ambele. Ceea ce s-a
+        // întâmplat în clasă bate ce scrie în orar.
+        foreach ([...$this->timetableHours($iso), ...range(1, 8)] as $hour) {
             if (! in_array($hour, $taken, true)) {
                 return $hour;
             }

@@ -482,7 +482,9 @@ it('notele se aliniază pe coloane de dată — cine n-a fost notat are celula g
         ->instance();
 
     // Rigla de date: zilele distincte, cronologic — aceeași pentru antet și pentru toate rândurile.
-    expect(array_column($page->gradeColumns(), 'iso'))->toBe([$zi1, $zi2])
+    // Zilele cu note SUNT pe riglă; rigla mai poartă și zilele de lecție goale (05.08.2026),
+    // ca ziua fără nimic scris să poată fi totuși deschisă.
+    expect(array_column($page->gradeColumns(), 'iso'))->toContain($zi1, $zi2)
         ->and($page->gradesAlignedByDate())->toBeTrue();
 
     $rows = collect($page->rows())->keyBy(fn (array $row): int => (int) $row['student']->id);
@@ -506,8 +508,10 @@ it('filtrul pe tip lasă doar sumativele, fără să ascundă vreun elev', funct
 
     $rows = collect($instance->rows())->keyBy(fn (array $row): int => (int) $row['student']->id);
 
-    // O singură coloană (ziua tezei), iar clasa rămâne întreagă: golul e informația.
-    expect($instance->gradeColumns())->toHaveCount(1)
+    // Ziua TEZEI e pe riglă, cea a notelor curente NU (filtrul taie interogarea), iar clasa
+    // rămâne întreagă: golul e informația.
+    expect(array_column($instance->gradeColumns(), 'iso'))->toContain(Carbon::today()->subDays(2)->toDateString())
+        ->and(array_column($instance->gradeColumns(), 'iso'))->not->toContain(Carbon::today()->subDays(10)->toDateString())
         ->and($rows)->toHaveCount(3)
         ->and($rows[$a->id]['grades'])->toHaveCount(1)
         ->and($rows[$a->id]['grades'][0]['value'])->toBe('6')
@@ -533,7 +537,8 @@ it('bara temporală restrânge la perioada aleasă — aceeași ca în Note', fu
     $instance = $page->instance();
     $rows = collect($instance->rows())->keyBy(fn (array $row): int => (int) $row['student']->id);
 
-    expect(array_column($instance->gradeColumns(), 'iso'))->toBe([$zi1])
+    expect(array_column($instance->gradeColumns(), 'iso'))->toContain($zi1)
+        ->and(array_column($instance->gradeColumns(), 'iso'))->not->toContain($zi2)
         ->and($rows[$a->id]['grades'])->toHaveCount(1)
         ->and($rows[$b->id]['grades'])->toBe([])
         // Elevii NU dispar niciodată — golul e informația.
@@ -547,7 +552,7 @@ it('bara temporală restrânge la perioada aleasă — aceeași ca în Note', fu
         ->set('timeUntil', $zi2)
         ->instance();
 
-    expect(array_column($all->gradeColumns(), 'iso'))->toBe([$zi1, $zi2]);
+    expect(array_column($all->gradeColumns(), 'iso'))->toContain($zi1, $zi2);
 });
 
 it('catalogul se deschide pe LUNA curentă, cu istoricul la o pastilă distanță', function () {
@@ -566,7 +571,9 @@ it('catalogul se deschide pe LUNA curentă, cu istoricul la o pastilă distanț�
     $page = Livewire::test(ClassRegister::class)->instance();
 
     expect($page->timeMode())->toBe('luna')
-        ->and(array_column($page->gradeColumns(), 'iso'))->toBe([Carbon::today()->toDateString()]);
+        // Luna curentă: ziua notei e pe riglă, cea de acum 40 de zile (altă lună) NU.
+        ->and(array_column($page->gradeColumns(), 'iso'))->toContain(Carbon::today()->toDateString())
+        ->and(array_column($page->gradeColumns(), 'iso'))->not->toContain(Carbon::today()->subDays(40)->toDateString());
 
     // „Toate" NU mai există în borderou (05.08.2026): pastila lipsește din bară, iar un
     // ‹?mod=toate› venit din URL cade pe implicitul paginii — luna — nu pe tot istoricul.
@@ -574,7 +581,7 @@ it('catalogul se deschide pe LUNA curentă, cu istoricul la o pastilă distanț�
 
     expect($all->timeMode())->toBe('luna')
         ->and(collect($all->timePills())->pluck('key'))->not->toContain('toate')
-        ->and(array_column($all->gradeColumns(), 'iso'))->toBe([Carbon::today()->toDateString()]);
+        ->and(array_column($all->gradeColumns(), 'iso'))->not->toContain(Carbon::today()->subDays(40)->toDateString());
 });
 
 it('multe zile nu schimbă forma — tot coloane, doar mai lat', function () {
@@ -594,7 +601,10 @@ it('multe zile nu schimbă forma — tot coloane, doar mai lat', function () {
         ->set('timeUntil', Carbon::today()->toDateString())
         ->instance();
 
-    expect($page->gradeColumns())->toHaveCount(30)
+    // Toate cele 30 de zile cu note sunt pe riglă (peste ele se adaugă zilele de lecție goale).
+    $isoList = array_column($page->gradeColumns(), 'iso');
+
+    expect(collect(range(0, 29))->every(fn (int $i): bool => in_array(Carbon::today()->subDays(40 - $i)->toDateString(), $isoList, true)))->toBeTrue()
         // O SINGURĂ formă: coloanele rămân, indiferent de volum.
         ->and($page->gradesAlignedByDate())->toBeTrue()
         ->and(collect($page->rows())->firstWhere('student.id', $a->id)['grades'])->toHaveCount(30);
@@ -645,7 +655,7 @@ it('două ore consecutive ale aceleiași discipline = două absențe distincte, 
     $a = $this->students->first();
     $azi = Carbon::today()->toDateString();
 
-    // Orarul: Biologia (disciplina fixture) are DOUĂ ore consecutive azi.
+    // Orarul: disciplina are DOUĂ ore consecutive azi.
     foreach ([2, 3] as $hour) {
         Lesson::query()->create([
             'academic_year_id' => $this->year->id,
@@ -663,19 +673,58 @@ it('două ore consecutive ale aceleiași discipline = două absențe distincte, 
     // Panoul oferă exact orele din orar.
     expect($page->instance()->timetableHours($azi))->toBe([2, 3]);
 
-    // Absent la AMBELE ore — două consemnări, fiecare pe ora ei.
-    $page->call('addDayAbsence', $a->id, $azi, 2)
-        ->call('addDayAbsence', $a->id, $azi, 3);
+    // Absent la AMBELE ore — două apăsări, două consemnări, fiecare pe ora ei.
+    $page->call('addDayAbsence', $a->id, $azi);
+    $page->call('addDayAbsence', $a->id, $azi);
 
-    expect(Absence::query()->where('student_id', $a->id)->whereDate('occurred_on', $azi)->orderBy('lesson_number')->pluck('lesson_number')->all())
-        ->toBe([2, 3]);
-
-    // Aceeași oră a doua oară = duplicat, refuzat pe server.
-    $page->call('addDayAbsence', $a->id, $azi, 3);
-
-    expect(Absence::query()->where('student_id', $a->id)->whereDate('occurred_on', $azi)->count())->toBe(2)
+    expect(Absence::query()->where('student_id', $a->id)->orderBy('lesson_number')->pluck('lesson_number')->all())
+        ->toBe([2, 3])
         // Ambele pleacă FĂRĂ statut: profesorul consemnează, dirigintele decide.
         ->and(Absence::query()->where('student_id', $a->id)->whereNull('is_motivated')->count())->toBe(2);
+});
+
+it('orarul e sugestie, nu gard: o oră dublă nescrisă în el nu blochează a doua absență', function () {
+    // Orarul zice O oră; în realitate au fost două (orar incomplet — cazul obișnuit la import).
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    Lesson::query()->create([
+        'academic_year_id' => $this->year->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $this->subject->id,
+        'title' => 'x',
+        'teacher_name' => 'x',
+        'day_of_week' => Carbon::today()->isoWeekday(),
+        'lesson_number' => 4,
+    ]);
+
+    $page = Livewire::test(ClassRegister::class);
+    $page->call('addDayAbsence', $a->id, $azi);
+    $page->call('addDayAbsence', $a->id, $azi);
+
+    // Prima ia ora din orar; a doua continuă pe primul ordinal liber — nu se pierde.
+    expect(Absence::query()->where('student_id', $a->id)->orderBy('lesson_number')->pluck('lesson_number')->all())
+        ->toBe([1, 4]);
+});
+
+it('când toate cele opt ore ale zilei sunt consemnate, apăsarea e refuzată', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+    $page = Livewire::test(ClassRegister::class);
+
+    foreach (range(1, 8) as $ignored) {
+        $page->call('addDayAbsence', $a->id, $azi);
+    }
+
+    expect(Absence::query()->where('student_id', $a->id)->count())->toBe(8);
+
+    $page->call('addDayAbsence', $a->id, $azi);
+
+    expect(Absence::query()->where('student_id', $a->id)->count())->toBe(8);
 });
 
 it('absent la o oră, notă la cealaltă — ziua le poartă pe amândouă, distinct', function () {
@@ -832,4 +881,75 @@ it('nota din panou respectă gărzile: dirigintele-fără-alocare NU poate nota'
         ->call('addDayGrade', $a->id, Carbon::today()->subDays(4)->toDateString(), '9', 'curenta');
 
     expect(Grade::query()->where('student_id', $a->id)->count())->toBe(0);
+});
+
+it('ziua de lecție are coloană chiar dacă e goală — altfel prima notă a zilei n-are cum fi pusă', function () {
+    actingAs($this->profUser);
+
+    // Orar: disciplina se predă LUNEA. Nicio notă, nicio absență — ziua trebuie să existe oricum.
+    $luni = Carbon::today()->startOfWeek();
+
+    Lesson::query()->create([
+        'academic_year_id' => $this->year->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $this->subject->id,
+        'title' => 'x',
+        'teacher_name' => 'x',
+        'day_of_week' => 1,
+        'lesson_number' => 1,
+    ]);
+
+    $columns = array_column(Livewire::test(ClassRegister::class)->instance()->gradeColumns(), 'iso');
+
+    expect($columns)->toContain($luni->toDateString())
+        // Doar zilele de LECȚIE: marțea nu se predă, deci nu are coloană.
+        ->and($columns)->not->toContain($luni->copy()->addDay()->toDateString())
+        // Și nimic în VIITOR: o coloană acolo ar fi fundătură (gărzile refuză scrierea).
+        ->and(collect($columns)->every(fn (string $iso): bool => $iso <= Carbon::today()->toDateString()))->toBeTrue();
+});
+
+it('fără orar, zilele lucrătoare ale perioadei rămân deschise — registrul nu devine inutilizabil', function () {
+    actingAs($this->profUser);
+
+    $columns = array_column(
+        Livewire::test(ClassRegister::class)->set('timeMode', 'saptamana')->instance()->gradeColumns(),
+        'iso',
+    );
+
+    $luni = Carbon::today()->startOfWeek();
+
+    expect($columns)->toContain($luni->toDateString())
+        // Weekendul nu e zi de școală.
+        ->and($columns)->not->toContain($luni->copy()->addDays(5)->toDateString())
+        ->and($columns)->not->toContain($luni->copy()->addDays(6)->toDateString());
+});
+
+it('o zi cu date rămâne vizibilă chiar dacă nu e zi de lecție (recuperare, corectură)', function () {
+    actingAs($this->profUser);
+
+    // Lecțiile sunt lunea; nota cade sâmbătă (recuperare) — ziua ei nu se pierde.
+    Lesson::query()->create([
+        'academic_year_id' => $this->year->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $this->subject->id,
+        'title' => 'x',
+        'teacher_name' => 'x',
+        'day_of_week' => 1,
+        'lesson_number' => 1,
+    ]);
+
+    $sambata = Carbon::today()->startOfWeek()->addDays(5);
+
+    if ($sambata->isFuture()) {
+        $sambata = $sambata->subWeek();
+    }
+
+    registerGrade($this->students->first(), $sambata->toDateString(), 9);
+
+    $columns = array_column(
+        Livewire::test(ClassRegister::class)->set('timeMode', 'luna')->instance()->gradeColumns(),
+        'iso',
+    );
+
+    expect($columns)->toContain($sambata->toDateString());
 });
