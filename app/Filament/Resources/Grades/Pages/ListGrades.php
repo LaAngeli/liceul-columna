@@ -15,6 +15,7 @@ use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
 use App\Models\Student;
+use App\Models\TermAverage;
 use App\Models\User;
 use App\Support\ContentTranslator;
 use Filament\Actions\Action;
@@ -40,10 +41,10 @@ use Livewire\Attributes\Url;
  * rezolvă excepțiile (anulare / solicitare de corecție); introducerea notelor rămâne DOAR în
  * Catalogul Electronic — un singur canal de scriere, cu gărzile lui.
  *
- * Totalurile pe rând sunt NUMĂRĂTORI (note / sub 5 / sumative), deliberat fără medii: media
- * oficială se calculează pe semestru cu ponderarea tezei și trunchiere ({@see
- * \App\Actions\ComputeTermAverage}) — o medie aritmetică a perioadei filtrate ar contrazice-o.
- * Mediile au case: borderoul, cabinetul, foaia matricolă. Detalii: docs/PLAN-HARTA-NOTELOR.md.
+ * Disciplina e MEREU aleasă (pastila „Toate" nu există aici, decizia 05.08.2026), iar coloana
+ * Total arată Note / Sub 5 / MEDIA — media OFICIALĂ din term_averages (semestrul curent), nu o
+ * medie aritmetică a perioadei filtrate: cu disciplina unică, cifra oficială e legitimă și pe
+ * hartă. Detalii: docs/PLAN-HARTA-NOTELOR.md.
  */
 class ListGrades extends ListRecords implements CatalogNavigator
 {
@@ -109,6 +110,44 @@ class ListGrades extends ListRecords implements CatalogNavigator
 
     // ── Harta clasei (elevi × zile) ─────────────────────────────────────────────────────────
 
+    /**
+     * Pe Note, disciplina e MEREU aleasă (decizia beneficiarului, 05.08.2026): pastila „Toate"
+     * dispare din rândul de discipline, iar la intrarea în contextul clasei se alege automat
+     * primul chip. Cu disciplina unică, media oficială a semestrului devine legitimă în coloana
+     * Total — exact ce amestecul de discipline interzicea.
+     */
+    public function catalogChipsIncludeAll(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Rulează înaintea FIECĂREI randări (mount, deschidere de clasă, comutare de chip): dacă
+     * clasa e în context fără disciplină, se alege automat primul chip — bara de context și harta
+     * citesc deci mereu un context complet, fără să suprascriem metode din trait.
+     */
+    public function rendering(): void
+    {
+        $this->ensureSubjectContext();
+    }
+
+    /** Fără disciplină în contextul clasei → primul chip (aceeași ordine ca pe ecran). */
+    private function ensureSubjectContext(): void
+    {
+        if ($this->catalogActiveDimension() !== 'clase'
+            || $this->catalogClassIdInContext() === null
+            || $this->catalogSubjectIdInContext() !== null) {
+            return;
+        }
+
+        $chips = $this->catalogChips();
+
+        if ($chips !== []) {
+            $this->catalogSubject = (string) $chips[0]['id'];
+            $this->catalogNavMemo = [];
+        }
+    }
+
     /** Harta se arată doar în context de CLASĂ — pe celelalte dimensiuni rămâne tabelul. */
     public function showsGradeMap(): bool
     {
@@ -132,16 +171,20 @@ class ListGrades extends ListRecords implements CatalogNavigator
      * calculate pe server cu ACELEAȘI gărzi ca tabelul ({@see GradesTable::teacherTeachesGrade},
      * {@see GradesTable::canRequestCorrectionFor}) — nimic care să ducă în 403.
      *
+     * Coloana Total (redesign 05.08.2026, la cererea beneficiarului): Note / Sub 5 / MEDIA —
+     * media e cea OFICIALĂ din term_averages (semestrul curent, disciplina contextului), nu o
+     * medie aritmetică a perioadei; cu disciplina mereu unică, afișarea ei a devenit legitimă.
+     *
      * @return array{
      *     days: list<array{iso: string, day: string, weekday: string, count: int}>,
-     *     rows: list<array{student: Student, cells: array<string, list<array<string, mixed>>>, totals: array{total: int, below: int, summative: int}}>,
+     *     rows: list<array{student: Student, cells: array<string, list<array<string, mixed>>>, totals: array{total: int, below: int, average: string|null}}>,
      *     canAct: bool,
      * }
      */
     public function gradeMap(): array
     {
         if ($this->gradeMapMemo !== []) {
-            /** @var array{days: list<array{iso: string, day: string, weekday: string, count: int}>, rows: list<array{student: Student, cells: array<string, list<array<string, mixed>>>, totals: array{total: int, below: int, summative: int}}>, canAct: bool} */
+            /** @var array{days: list<array{iso: string, day: string, weekday: string, count: int}>, rows: list<array{student: Student, cells: array<string, list<array<string, mixed>>>, totals: array{total: int, below: int, average: string|null}}>, canAct: bool} */
             return $this->gradeMapMemo;
         }
 
@@ -188,7 +231,7 @@ class ListGrades extends ListRecords implements CatalogNavigator
 
         /** @var array<int, array<string, list<array<string, mixed>>>> $cellsByStudent */
         $cellsByStudent = [];
-        /** @var array<int, array{total: int, below: int, summative: int}> $totalsByStudent */
+        /** @var array<int, array{total: int, below: int}> $totalsByStudent */
         $totalsByStudent = [];
 
         foreach ($grades as $grade) {
@@ -198,20 +241,27 @@ class ListGrades extends ListRecords implements CatalogNavigator
             $chip = $this->gradeChip($grade, $cycle);
             $cellsByStudent[$studentId][$iso][] = $chip;
 
-            $totals = $totalsByStudent[$studentId] ?? ['total' => 0, 'below' => 0, 'summative' => 0];
+            $totals = $totalsByStudent[$studentId] ?? ['total' => 0, 'below' => 0];
             $totals['total']++;
             $totals['below'] += $chip['below'] ? 1 : 0;
-            $totals['summative'] += $chip['summative'] ? 1 : 0;
             $totalsByStudent[$studentId] = $totals;
         }
+
+        // Media OFICIALĂ a semestrului curent la disciplina contextului — o singură interogare,
+        // pe toți elevii. Sursa e term_averages (motorul cu ponderare + trunchiere), nu un calcul
+        // pe perioada filtrată.
+        $averages = $this->officialAverages($classId);
 
         $rows = [];
 
         foreach ($this->gradeMapStudents($classId, $grades) as $student) {
+            $totals = $totalsByStudent[$student->id] ?? ['total' => 0, 'below' => 0];
+            $totals['average'] = $averages[$student->id] ?? null;
+
             $rows[] = [
                 'student' => $student,
                 'cells' => $cellsByStudent[$student->id] ?? [],
-                'totals' => $totalsByStudent[$student->id] ?? ['total' => 0, 'below' => 0, 'summative' => 0],
+                'totals' => $totals,
             ];
         }
 
@@ -269,6 +319,30 @@ class ListGrades extends ListRecords implements CatalogNavigator
             'can_annul' => $isAdmin || $teaches,
             'can_request' => ! $isAdmin && ! $pending && GradesTable::canRequestCorrectionFor($grade),
         ];
+    }
+
+    /**
+     * Media OFICIALĂ a semestrului CURENT la disciplina contextului, per elev — dintr-o singură
+     * interogare. `value` e castul decimal:2 al motorului (trunchiere, nu rotunjire); se predă
+     * blade-ului ca STRING, exact cum e stocată.
+     *
+     * @return array<int, string>
+     */
+    private function officialAverages(int $classId): array
+    {
+        $subjectId = $this->catalogSubjectIdInContext();
+
+        if ($subjectId === null) {
+            return [];
+        }
+
+        return TermAverage::query()
+            ->where('school_class_id', $classId)
+            ->where('subject_id', $subjectId)
+            ->whereHas('term', fn ($q) => $q->where('is_current', true))
+            ->pluck('value', 'student_id')
+            ->map(fn ($v): string => (string) $v)
+            ->all();
     }
 
     /**

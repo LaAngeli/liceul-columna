@@ -13,12 +13,6 @@
         'summative' => 'bg-amber-100 text-amber-800 ring-amber-600/30 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/30',
         'normal' => 'bg-gray-50 text-gray-800 ring-gray-950/10 dark:bg-white/5 dark:text-gray-200 dark:ring-white/15',
     ];
-    // Pistele coloanei Total: numărători, NU medii (media oficială se calculează pe semestru, cu
-    // ponderare și trunchiere — o medie a perioadei filtrate ar contrazice-o; vezi planul).
-    $totalTracks = [
-        ['key' => 'below', 'marker' => __('grade_map.below_marker'), 'tone' => 'text-red-600 dark:text-red-400', 'label' => __('grade_map.legend_below')],
-        ['key' => 'summative', 'marker' => __('grade_map.summative_marker'), 'tone' => 'text-amber-600 dark:text-amber-400', 'label' => __('grade_map.legend_summative')],
-    ];
 @endphp
 
 <section class="rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
@@ -161,9 +155,14 @@
                              restul cardului ca Total să stea la marginea dreaptă. Lățime în px
                              prin variabilă, NU procent (capcana 10⁶ px). --}}
                         <th aria-hidden="true" class="border-b border-gray-200 p-0 dark:border-white/10" style="width: var(--map-fill, 0px)"></th>
+                        {{-- Antetul Total = TREI micro-coloane ETICHETATE (redesign 05.08.2026):
+                             marcajele criptice (<5, S) au ieșit — fiecare pistă își spune numele,
+                             iar cifrele de dedesubt cad exact sub eticheta lor. --}}
                         <th x-ref="totalTh" class="sticky right-0 z-10 border-b border-s border-gray-200 bg-white ps-[calc(2.25rem+var(--map-extra,0px))] pe-2 py-2 dark:border-white/10 dark:bg-gray-900">
-                            <span class="block text-center text-[0.8625rem] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                {{ __('grade_map.totals') }}
+                            <span class="flex items-center justify-end gap-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                <span class="w-9 text-center">{{ __('grade_map.totals_grades') }}</span>
+                                <span class="w-9 text-center text-red-500/80 dark:text-red-400/80">{{ __('grade_map.legend_below') }}</span>
+                                <span class="w-12 text-center">{{ __('grade_map.totals_average') }}</span>
                             </span>
                         </th>
                     </tr>
@@ -264,21 +263,31 @@
 
                             <td aria-hidden="true" class="border-b border-gray-100 p-0 dark:border-white/5" style="width: var(--map-fill, 0px)"></td>
 
-                            {{-- Totaluri per elev: piste FIXE (total · sub 5 · sumative), ritm
-                                 uniform — golul rămâne gol, cifrele se compară pe verticală. --}}
+                            {{-- Totaluri per elev, sub etichetele din antet: câte note în perioadă,
+                                 câte sub 5, și MEDIA oficială a semestrului (term_averages — cu
+                                 ponderare și trunchiere, nu o medie a perioadei). Golul rămâne gol;
+                                 media sub 5 se aprinde roșu. --}}
                             <td class="sticky right-0 z-10 whitespace-nowrap border-b border-s border-gray-100 border-s-gray-200 bg-white ps-[calc(2.25rem+var(--map-extra,0px))] pe-2 py-2 text-[0.8625rem] tabular-nums group-hover:bg-gray-50 dark:border-white/5 dark:border-s-white/10 dark:bg-gray-900 dark:group-hover:bg-gray-800">
                                 <span class="flex items-center justify-end gap-2">
-                                    <span class="flex w-9 items-center justify-center font-semibold text-gray-950 dark:text-white">{{ $row['totals']['total'] }}</span>
+                                    <span class="flex w-9 items-center justify-center text-gray-700 dark:text-gray-200">
+                                        @if ($row['totals']['total'] > 0){{ $row['totals']['total'] }}@endif
+                                        <span class="sr-only">{{ __('grade_map.totals_grades') }}</span>
+                                    </span>
 
-                                    @foreach ($totalTracks as $track)
-                                        <span class="flex w-9 items-center justify-center gap-1 {{ $track['tone'] }}">
-                                            @if ($row['totals'][$track['key']] > 0)
-                                                <span>{{ $row['totals'][$track['key']] }}</span>
-                                                <span aria-hidden="true" class="text-[0.6875rem]">{{ $track['marker'] }}</span>
-                                                <span class="sr-only">{{ $track['label'] }}</span>
-                                            @endif
-                                        </span>
-                                    @endforeach
+                                    <span class="flex w-9 items-center justify-center font-semibold text-red-600 dark:text-red-400">
+                                        @if ($row['totals']['below'] > 0){{ $row['totals']['below'] }}@endif
+                                        <span class="sr-only">{{ __('grade_map.legend_below') }}</span>
+                                    </span>
+
+                                    @php $media = $row['totals']['average']; @endphp
+                                    <span @class([
+                                        'flex w-12 items-center justify-center font-semibold',
+                                        'text-red-600 dark:text-red-400' => $media !== null && (float) $media < 5,
+                                        'text-gray-950 dark:text-white' => $media === null || (float) $media >= 5,
+                                    ])>
+                                        {{ $media ?? '—' }}
+                                        <span class="sr-only">{{ __('grade_map.totals_average') }}</span>
+                                    </span>
                                 </span>
                             </td>
                         </tr>

@@ -21,8 +21,8 @@ return [
     'legend_summative' => 'Summative',
     'legend_pending' => 'Correction pending',
 
-    'below_marker' => '<5',
-    'summative_marker' => 'S',
+    'totals_grades' => 'Grades',
+    'totals_average' => 'Average',
 
     'switch_to_list' => 'Show list',
     'switch_to_map' => 'Show map',

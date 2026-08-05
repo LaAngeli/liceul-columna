@@ -21,10 +21,10 @@ return [
     'legend_summative' => 'Sumativă',
     'legend_pending' => 'Corecție în așteptare',
 
-    // Marcajele pistelor din coloana Total — scurte, ca să încapă lângă cifră; sensul complet
-    // stă în legendă și în textul citit de cititorul de ecran.
-    'below_marker' => '<5',
-    'summative_marker' => 'S',
+    // Etichetele micro-coloanelor din antetul Total (redesign 05.08.2026): fiecare pistă își
+    // spune numele, fără marcaje criptice.
+    'totals_grades' => 'Note',
+    'totals_average' => 'Media',
 
     'switch_to_list' => 'Vezi lista',
     'switch_to_map' => 'Vezi harta',

@@ -613,6 +613,16 @@ trait HasCatalogNavigator
     }
 
     /**
+     * Rândul de chips oferă și pastila „Toate"? Implicit da — paginile care lucrează pe UN
+     * singur chip obligatoriu (harta notelor: disciplina e mereu aleasă, decizia beneficiarului
+     * 05.08.2026) o sting și își auto-aleg primul chip la intrarea în context.
+     */
+    public function catalogChipsIncludeAll(): bool
+    {
+        return true;
+    }
+
+    /**
      * ÎN CE CALITATE vezi clasa din context — diriginte (toată clasa) sau profesor (disciplinele
      * tale). Cerința beneficiarului (2026-07-27): drepturile se derivă PER CLASĂ din desemnarea de
      * dirigenție, nu din rolul contului, deci aceeași persoană are perimetre diferite de la o

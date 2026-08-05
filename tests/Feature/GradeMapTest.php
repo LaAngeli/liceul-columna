@@ -6,7 +6,8 @@
  * Testele fixează promisiunile proprii notelor:
  *  - VALOAREA e eticheta (întreagă, fără zecimalele castului), pragul dă culoarea, sumativa
  *    accentul; notele ANULATE nu există pe hartă (nu contează la medii);
- *  - totalurile sunt NUMĂRĂTORI (note / sub 5 / sumative), deliberat fără medii;
+ *  - disciplina e MEREU aleasă (fără „Toate"): la intrarea în clasă se alege automat primul
+ *    chip, iar coloana Total arată Note / Sub 5 / MEDIA oficială din term_averages;
  *  - pastila poartă DOAR pârghiile privitorului — nimic care să ducă în 403 (lecția absențelor);
  *  - acțiunile din hartă trec prin ACELEAȘI gărzi ca tabelul, pe server, iar efectele curg mai
  *    departe: anularea recalculează mediile, corecția intră în coada de aprobare.
@@ -130,15 +131,20 @@ it('valoarea e eticheta (întreagă), pragul și sumativa dau culorile, totaluri
     gradeMapRecord($this, $vulpe, $zi, 9);
     gradeMapRecord($this, $vulpe, $zi, 4);            // sub prag, aceeași disciplină, aceeași zi
     gradeMapRecord($this, $vulpe, $zi, 8, 'teza');    // sumativă (ESS la gimnaziu)
+    // Nota lui Barbu la ISTORIE: cu disciplina auto-aleasă (Chimie, prima alfabetic), ea NU e
+    // în hartă — dovada că harta e mereu pe O disciplină.
     gradeMapRecord($this, $barbu, $zi, 10, 'curenta', $this->otherSubject);
     gradeMapRecord($this, $barbu, $zi, 2, annulled: true); // ANULATĂ — nu există pe hartă
 
     actingAs($this->director);
 
-    $map = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
-        ->test(ListGrades::class)
-        ->instance()
-        ->gradeMap();
+    $component = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListGrades::class);
+
+    // Fără ?disciplina, contextul se auto-alege pe PRIMUL chip (alfabetic: Chimie).
+    expect($component->instance()->catalogSubjectIdInContext())->toBe($this->subject->id);
+
+    $map = $component->instance()->gradeMap();
 
     $rows = collect($map['rows'])->keyBy(fn (array $row): int => (int) $row['student']->id);
     $vulpeCell = $rows[$vulpe->id]['cells'][$zi];
@@ -154,10 +160,17 @@ it('valoarea e eticheta (întreagă), pragul și sumativa dau culorile, totaluri
         ->and(array_column($vulpeCell, 'summative'))->toBe([false, false, true])
         // Eticheta tipului urmează CICLUL (gimnaziu → ESS).
         ->and(collect($vulpeCell)->firstWhere('summative', true)['type_label'])->toContain('ESS')
-        ->and($rows[$vulpe->id]['totals'])->toBe(['total' => 3, 'below' => 1, 'summative' => 1])
-        // Anulata nu apare NICĂIERI: nici pastilă, nici în totaluri.
-        ->and($rows[$barbu->id]['totals'])->toBe(['total' => 1, 'below' => 0, 'summative' => 0])
-        ->and(collect($rows[$barbu->id]['cells'][$zi])->pluck('label')->all())->toBe(['10']);
+        ->and($rows[$vulpe->id]['totals']['total'])->toBe(3)
+        ->and($rows[$vulpe->id]['totals']['below'])->toBe(1)
+        // MEDIA din Total = cea OFICIALĂ din term_averages (motorul cu ponderare), nu un calcul
+        // propriu al hărții — egalitate pe sursă.
+        ->and($rows[$vulpe->id]['totals']['average'])->toBe((string) TermAverage::query()
+        ->where('student_id', $vulpe->id)->where('subject_id', $this->subject->id)
+        ->where('term_id', $this->term->id)->value('value'))
+        // Istoria lui Barbu NU e pe harta de Chimie; anulata de Chimie — nici ea. Rând gol, fără medie.
+        ->and($rows[$barbu->id]['totals']['total'])->toBe(0)
+        ->and($rows[$barbu->id]['totals']['average'])->toBeNull()
+        ->and($rows[$barbu->id]['cells'])->toBe([]);
 });
 
 it('pastila poartă DOAR pârghiile privitorului — nimic spre 403', function () {
@@ -192,10 +205,19 @@ it('pastila poartă DOAR pârghiile privitorului — nimic spre 403', function (
         ->and($teacherChips[$aTitularului->id]['can_annul'])->toBeTrue()
         ->and($teacherChips[$aTitularului->id]['can_request'])->toBeTrue();
 
-    // DIRIGINTELE (nu predă nimic): vede ambele note, poate DOAR solicita corecție.
-    $homeroomChips = collect($chipsFor($this->homeroomUser))->keyBy('id');
+    // DIRIGINTELE (nu predă nimic): pe chip-ul Istoriei vede nota colegului — doar corecție.
+    actingAs($this->homeroomUser);
 
-    expect($homeroomChips)->toHaveCount(2)
+    $istorie = collect(Livewire::withQueryParams([
+        'clasa' => (string) $this->class->id,
+        'disciplina' => (string) $this->otherSubject->id,
+        'mod' => 'toate',
+    ])->test(ListGrades::class)->instance()->gradeMap()['rows'])
+        ->firstWhere('student.id', $this->students->first()->id)['cells'][$zi] ?? [];
+
+    $homeroomChips = collect($istorie)->keyBy('id');
+
+    expect($homeroomChips)->toHaveCount(1)
         ->and($homeroomChips[$aColegului->id]['edit_url'])->toBeNull()
         ->and($homeroomChips[$aColegului->id]['can_annul'])->toBeFalse()
         ->and($homeroomChips[$aColegului->id]['can_request'])->toBeTrue();

@@ -21,8 +21,8 @@ return [
     'legend_summative' => 'Суммативная',
     'legend_pending' => 'Коррекция на рассмотрении',
 
-    'below_marker' => '<5',
-    'summative_marker' => 'С',
+    'totals_grades' => 'Оценки',
+    'totals_average' => 'Средняя',
 
     'switch_to_list' => 'Показать список',
     'switch_to_map' => 'Показать карту',

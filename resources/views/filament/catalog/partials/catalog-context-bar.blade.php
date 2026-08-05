@@ -93,17 +93,19 @@
                 {{ $this->catalogChipsLabel() }}
             </span>
 
-            <button
-                type="button"
-                wire:click="setCatalogChip(null)"
-                @class([
-                    'rounded-full px-3 py-1 text-sm font-medium ring-1 transition duration-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
-                    'bg-primary-600 text-white ring-primary-600' => $activeChipId === null,
-                    'bg-white text-gray-700 ring-gray-950/10 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-white/10' => $activeChipId !== null,
-                ])
-            >
-                {{ __('panel.catalog_nav.all') }}
-            </button>
+            @if ($this->catalogChipsIncludeAll())
+                <button
+                    type="button"
+                    wire:click="setCatalogChip(null)"
+                    @class([
+                        'rounded-full px-3 py-1 text-sm font-medium ring-1 transition duration-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
+                        'bg-primary-600 text-white ring-primary-600' => $activeChipId === null,
+                        'bg-white text-gray-700 ring-gray-950/10 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-white/10' => $activeChipId !== null,
+                    ])
+                >
+                    {{ __('panel.catalog_nav.all') }}
+                </button>
+            @endif
 
             @foreach ($chips as $chip)
                 <button
