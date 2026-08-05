@@ -396,14 +396,25 @@ class ListAcademicRecords extends ListRecords
 
     // ── Interogări de acces (perimetrele rămân definite în resurse) ─────────────────────────
 
-    /** @return Builder<SchoolClass> */
+    /**
+     * Clasele dintre care se alege — pe CONTEXTUL pedagogic activ (F3), ca peste tot în catalog.
+     *
+     * Folosea `visibleSchoolClassIds()` (predate ∪ dirigenție), insensibil la rolul activ, în timp
+     * ce înregistrările se filtrează pe context în {@see AcademicRecordResource::getEloquentQuery()}.
+     * Cele două perimetre se contraziceau: în context Profesor, un diriginte-și-profesor primea
+     * cardurile claselor lui de DIRIGENȚIE, le deschidea, și fiecare elev raporta „fără înregistrări
+     * încă" — deși foile existau; doar că nu erau vizibile în capacitatea activă. Un gol care minte
+     * e mai rău decât o clasă care nu apare.
+     *
+     * @return Builder<SchoolClass>
+     */
     private function classAccessQuery(): Builder
     {
         $query = SchoolClass::query();
         $user = auth('web')->user();
 
         if ($user && ! $user->isAdministrator()) {
-            $query->whereKey($user->teacher?->visibleSchoolClassIds() ?? []);
+            $query->whereKey($user->teacher?->contextSchoolClassIds($user->teachingContext()) ?? []);
         }
 
         return $query;

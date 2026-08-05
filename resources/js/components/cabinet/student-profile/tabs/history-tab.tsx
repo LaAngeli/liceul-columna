@@ -14,6 +14,11 @@ interface TranscriptSubject {
 
 interface TranscriptLevel {
     grade_level: number;
+    /** Cifra romană a treptei + ciclul, ca pe documentele oficiale (vin de la server). */
+    roman: string;
+    cycle: string;
+    /** Media anuală a disciplinelor afișate — null când treapta e doar pe calificative. */
+    average: string | null;
     subjects: TranscriptSubject[];
 }
 
@@ -102,8 +107,19 @@ export function HistoryTab({
                     <div className="flex flex-col gap-3">
                         {transcript.map((level, idx) => (
                             <details key={level.grade_level} open={idx === 0} className="overflow-hidden rounded-xl border">
-                                <summary className="cursor-pointer bg-muted/50 px-4 py-2 text-sm font-medium">
-                                    {t('cabinet.class')} {level.grade_level}
+                                {/* Aceeași antetă ca în panou: treapta cu cifră romană + ciclul, iar
+                                    la dreapta media anuală a disciplinelor afișate. Familia și
+                                    școala citesc același document, la fel etichetat. */}
+                                <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-x-3 gap-y-1 bg-muted/50 px-4 py-2 text-sm font-medium">
+                                    <span>
+                                        {t('cabinet.class')} {level.roman}
+                                        <span className="ml-2 font-normal text-muted-foreground">{level.cycle}</span>
+                                    </span>
+                                    {level.average !== null && (
+                                        <span className="font-normal text-muted-foreground">
+                                            {t('cabinet.transcript_level_average')}: <span className="font-semibold text-foreground">{level.average}</span>
+                                        </span>
+                                    )}
                                 </summary>
                                 <table className="w-full text-sm">
                                     <thead className="text-left text-muted-foreground">

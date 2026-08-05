@@ -782,6 +782,7 @@ return [
         'no_homework' => 'No recent homework.',
         'no_dynamics' => 'Not enough data for trends.',
         'no_transcript' => 'Transcript is empty for now.',
+        'transcript_level_average' => 'Annual average of the subjects shown',
         'absences_by_subject' => 'Absences by subject',
         'motivated' => 'excused',
         'unmotivated' => 'unexcused',

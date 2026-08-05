@@ -787,6 +787,7 @@ return [
         'no_homework' => 'Fără teme recente.',
         'no_dynamics' => 'Date insuficiente pentru dinamică.',
         'no_transcript' => 'Foaie matricolă goală deocamdată.',
+        'transcript_level_average' => 'Media anuală a disciplinelor afișate',
         'absences_by_subject' => 'Absențe pe discipline',
         'motivated' => 'motivate',
         'unmotivated' => 'nemotivate',

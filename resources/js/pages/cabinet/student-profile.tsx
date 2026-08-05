@@ -82,7 +82,13 @@ interface Props {
     // Defer (sosesc progresiv într-un al 2-lea request după mount)
     gradebook?: GradeBookData;
     absenceOverview?: AbsenceOverviewData;
-    transcript?: { grade_level: number; subjects: { subject: string; sem1: string | null; sem2: string | null; annual: string | null }[] }[];
+    transcript?: {
+        grade_level: number;
+        roman: string;
+        cycle: string;
+        average: string | null;
+        subjects: { subject: string; sem1: string | null; sem2: string | null; annual: string | null }[];
+    }[];
     homework?: HomeworkItem[];
     dynamics?: Dynamics;
     // Orarul săptămânal NORMALIZAT (publicat/structurat, o singură formă — App\Support\WeeklySchedule).

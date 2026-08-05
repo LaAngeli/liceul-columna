@@ -13,11 +13,13 @@ use App\Enums\CorrectionStatus;
 use App\Enums\DocumentRequestType;
 use App\Enums\GeneratedDocumentType;
 use App\Enums\RequestStatus;
+use App\Enums\SchoolCycle;
 use App\Enums\StudentStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Concerns\BuildsStudentCatalogData;
 use App\Models\Absence;
 use App\Models\AbsenceMotivation;
+use App\Models\AcademicRecord;
 use App\Models\AcademicYear;
 use App\Models\CorigentaExam;
 use App\Models\DocumentRequest;
@@ -31,6 +33,7 @@ use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
 use App\Support\ContentTranslator;
+use App\Support\GradeLevels;
 use App\Support\Grades;
 use App\Support\SchoolCalendar;
 use Illuminate\Database\Eloquent\Builder;
@@ -1347,6 +1350,16 @@ class CabinetController extends Controller
      * Foaia matricolă: pe fiecare treaptă (descrescător), media pe disciplină
      * la semestrul I, semestrul II și anuală.
      *
+     * ACELAȘI document ca în panou ({@see ListAcademicRecords::transcriptLevels()}) — de aceea
+     * respectă ACELEAȘI trei convenții, care aici lipseau (găsite 05.08.2026, la verificarea pe
+     * date demo; afectau și PDF-ul oficial, care se generează tot de aici):
+     *  • ORDINEA disciplinelor = `report_order`, apoi numele. Fără sortare, rândurile ieșeau în
+     *    ordinea id-urilor din baza de date — familia și școala citeau aceeași foaie în două
+     *    succesiuni diferite, iar succesiunea nu însemna nimic;
+     *  • FORMATUL mediei = „9,30", nu „9.3": documentul e românesc, iar mediile se calculează la
+     *    sutimi (§2.4) — un cast la string tăia zecimala nesemnificativă și schimba separatorul;
+     *  • ETICHETA treptei = cifra romană + ciclul, cum apare pe documentele oficiale.
+     *
      * @return array<int, array<string, mixed>>
      */
     private function transcript(Student $student): array
@@ -1360,19 +1373,43 @@ class CabinetController extends Controller
                 $byPeriod = [];
                 foreach ($items as $record) {
                     $byPeriod[$record->period->value] = $record->value !== null
-                        ? (string) Grades::truncate2((float) $record->value)
+                        ? number_format(Grades::truncate2((float) $record->value), 2, ',', '')
                         : ($record->calificativ ?: null);
                 }
+                $subject = $items->first()->subject;
                 $subjects[] = [
-                    'subject' => ContentTranslator::subject((string) $items->first()->subject->name),
+                    'subject' => ContentTranslator::subject((string) $subject->name),
                     // Numele RO canonic (netradus) — cheia dicționarelor; PDF-ul bilingv derivă EN din el.
-                    'subject_ro' => (string) $items->first()->subject->name,
+                    'subject_ro' => (string) $subject->name,
+                    'order' => [$subject->report_order ?? PHP_INT_MAX, (string) $subject->name],
                     'sem1' => $byPeriod[AcademicRecordPeriod::SemesterI->value] ?? null,
                     'sem2' => $byPeriod[AcademicRecordPeriod::SemesterII->value] ?? null,
                     'annual' => $byPeriod[AcademicRecordPeriod::Annual->value] ?? null,
                 ];
             }
-            $levels[] = ['grade_level' => (int) $gradeLevel, 'subjects' => $subjects];
+
+            usort($subjects, fn (array $a, array $b): int => $a['order'] <=> $b['order']);
+            $subjects = array_map(static function (array $row): array {
+                unset($row['order']);
+
+                return $row;
+            }, $subjects);
+
+            // Media anuală a disciplinelor afișate — doar anualele numerice (calificativele nu
+            // intră), trunchiere la sutimi. Aceeași regulă ca în panou.
+            $annuals = $records
+                ->filter(fn (AcademicRecord $record): bool => $record->period === AcademicRecordPeriod::Annual && $record->value !== null)
+                ->map(fn (AcademicRecord $record): float => (float) $record->value);
+
+            $levels[] = [
+                'grade_level' => (int) $gradeLevel,
+                'roman' => GradeLevels::roman((int) $gradeLevel),
+                'cycle' => SchoolCycle::fromGradeLevel((int) $gradeLevel)->label(),
+                'average' => $annuals->isNotEmpty()
+                    ? number_format(Grades::truncate2((float) $annuals->avg()), 2, ',', '')
+                    : null,
+                'subjects' => $subjects,
+            ];
         }
         usort($levels, fn (array $a, array $b): int => $b['grade_level'] <=> $a['grade_level']);
 
