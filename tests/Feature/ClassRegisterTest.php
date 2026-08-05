@@ -21,6 +21,7 @@ use App\Models\Absence;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\Grade;
+use App\Models\Lesson;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
@@ -608,8 +609,13 @@ it('notele se aliniază pe coloane de dată — cine n-a fost notat are celula g
     registerGrade($a, $zi2, 7);
     registerGrade($b, $zi2, 8); // $b lipsește din prima zi — exact golul care trebuie să se vadă
 
-    // „Toate" EXPLICIT: implicitul e luna curentă, iar zilele testului pot cădea în luni diferite.
-    $page = Livewire::test(ClassRegister::class)->set('timeMode', 'toate')->instance();
+    // Intervalul LIBER acoperă ambele zile: pastila „Toate" nu mai există în borderou
+    // (decizia beneficiarului, 05.08.2026), iar zilele testului pot cădea în luni diferite.
+    $page = Livewire::test(ClassRegister::class)
+        ->set('timeMode', 'personalizat')
+        ->set('timeFrom', $zi1)
+        ->set('timeUntil', $zi2)
+        ->instance();
 
     // Rigla de date: zilele distincte, cronologic — aceeași pentru antet și pentru toate rândurile.
     expect(array_column($page->gradeColumns(), 'iso'))->toBe([$zi1, $zi2])
@@ -669,8 +675,13 @@ it('bara temporală restrânge la perioada aleasă — aceeași ca în Note', fu
         // Elevii NU dispar niciodată — golul e informația.
         ->and($rows)->toHaveCount(3);
 
-    // „Toate" — de acum o alegere EXPLICITĂ (implicitul e luna curentă) — aduce ambele zile.
-    $all = Livewire::test(ClassRegister::class)->set('timeMode', 'toate')->instance();
+    // Istoricul complet se cere prin intervalul LIBER cu capete deschise — „Toate" a ieșit
+    // din borderou; un ‹?mod=toate› rămas într-un URL vechi cade pe implicitul paginii (luna).
+    $all = Livewire::test(ClassRegister::class)
+        ->set('timeMode', 'personalizat')
+        ->set('timeFrom', $zi1)
+        ->set('timeUntil', $zi2)
+        ->instance();
 
     expect(array_column($all->gradeColumns(), 'iso'))->toBe([$zi1, $zi2]);
 });
@@ -693,12 +704,13 @@ it('catalogul se deschide pe LUNA curentă, cu istoricul la o pastilă distanț�
     expect($page->timeMode())->toBe('luna')
         ->and(array_column($page->gradeColumns(), 'iso'))->toBe([Carbon::today()->toDateString()]);
 
-    // Pastila „Toate" rămâne calea spre istoricul complet — nimic nu s-a pierdut, doar nu se
-    // deschide peste tot.
+    // „Toate" NU mai există în borderou (05.08.2026): pastila lipsește din bară, iar un
+    // ‹?mod=toate› venit din URL cade pe implicitul paginii — luna — nu pe tot istoricul.
     $all = Livewire::test(ClassRegister::class)->set('timeMode', 'toate')->instance();
 
-    expect($all->timeMode())->toBeNull()
-        ->and(array_column($all->gradeColumns(), 'iso'))->toHaveCount(2);
+    expect($all->timeMode())->toBe('luna')
+        ->and(collect($all->timePills())->pluck('key'))->not->toContain('toate')
+        ->and(array_column($all->gradeColumns(), 'iso'))->toBe([Carbon::today()->toDateString()]);
 });
 
 it('multe zile nu schimbă forma — tot coloane, doar mai lat', function () {
@@ -712,7 +724,11 @@ it('multe zile nu schimbă forma — tot coloane, doar mai lat', function () {
         registerGrade($a, Carbon::today()->subDays(40 - $i)->toDateString(), 8);
     }
 
-    $page = Livewire::test(ClassRegister::class)->set('timeMode', 'toate')->instance();
+    $page = Livewire::test(ClassRegister::class)
+        ->set('timeMode', 'personalizat')
+        ->set('timeFrom', Carbon::today()->subDays(40)->toDateString())
+        ->set('timeUntil', Carbon::today()->toDateString())
+        ->instance();
 
     expect($page->gradeColumns())->toHaveCount(30)
         // O SINGURĂ formă: coloanele rămân, indiferent de volum.
@@ -801,4 +817,160 @@ it('cu anul nou DESCHIS dar neînceput, golul dintre ani nu mai e raportat ca ro
     Term::query()->where('academic_year_id', $next->id)->delete();
 
     expect(Livewire::test(ClassRegister::class)->instance()->entryDateState())->toBe(ClassRegister::DATE_AFTER_YEAR);
+});
+
+// ── Panoul zilei + identitatea de oră (05.08.2026) ─────────────────────────────────────────
+
+it('două ore consecutive ale aceleiași discipline = două absențe distincte, pe ore', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    // Orarul: Biologia (disciplina fixture) are DOUĂ ore consecutive azi.
+    foreach ([2, 3] as $hour) {
+        Lesson::query()->create([
+            'academic_year_id' => $this->year->id,
+            'school_class_id' => $this->class->id,
+            'subject_id' => $this->subject->id,
+            'title' => 'x',
+            'teacher_name' => 'x',
+            'day_of_week' => Carbon::today()->isoWeekday(),
+            'lesson_number' => $hour,
+        ]);
+    }
+
+    $page = Livewire::test(ClassRegister::class);
+
+    // Panoul oferă exact orele din orar.
+    expect($page->instance()->timetableHours($azi))->toBe([2, 3]);
+
+    // Absent la AMBELE ore — două consemnări, fiecare pe ora ei.
+    $page->call('addDayAbsence', $a->id, $azi, 2)
+        ->call('addDayAbsence', $a->id, $azi, 3);
+
+    expect(Absence::query()->where('student_id', $a->id)->whereDate('occurred_on', $azi)->orderBy('lesson_number')->pluck('lesson_number')->all())
+        ->toBe([2, 3]);
+
+    // Aceeași oră a doua oară = duplicat, refuzat pe server.
+    $page->call('addDayAbsence', $a->id, $azi, 3);
+
+    expect(Absence::query()->where('student_id', $a->id)->whereDate('occurred_on', $azi)->count())->toBe(2)
+        // Ambele pleacă FĂRĂ statut: profesorul consemnează, dirigintele decide.
+        ->and(Absence::query()->where('student_id', $a->id)->whereNull('is_motivated')->count())->toBe(2);
+});
+
+it('absent la o oră, notă la cealaltă — ziua le poartă pe amândouă, distinct', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    // Nota orei la care a fost prezent, prin introducerea rapidă a borderoului.
+    Livewire::test(ClassRegister::class)
+        ->set('entries', [(string) $a->id => ['value' => '9']])
+        ->call('saveEntries')
+        ->assertHasNoErrors();
+
+    // Absența orei la care a lipsit, pe ora 3, din panoul zilei.
+    Livewire::test(ClassRegister::class)->call('addDayAbsence', $a->id, $azi, 3);
+
+    $page = Livewire::test(ClassRegister::class)->instance();
+    $rows = collect($page->rows())->keyBy(fn (array $row): int => (int) $row['student']->id);
+
+    // Rândul elevului poartă ambele fapte pe aceeași zi — nota ȘI absența orei 3.
+    expect($rows[$a->id]['gradesByDate'][$azi][0]['value'])->toBe('9')
+        ->and($rows[$a->id]['absencesByDate'][$azi])->toHaveCount(1)
+        ->and($rows[$a->id]['absencesByDate'][$azi][0]['lesson'])->toBe(3);
+
+    // Panoul zilei le arată împreună, cu pârghiile privitorului.
+    $panel = $page->dayPanel($a->id, $azi);
+
+    expect($panel['grades'])->toHaveCount(1)
+        ->and($panel['absences'])->toHaveCount(1)
+        ->and($panel['absences'][0]['lesson'])->toBe(3)
+        ->and($panel['hours']['taken'])->toBe([3]);
+});
+
+it('statutul absenței din panoul zilei: dirigintele decide, profesorul de disciplină NU', function () {
+    // Dirigintele clasei — el statutează.
+    $homeroomUser = User::factory()->create();
+    $homeroomUser->assignRole(UserRole::Diriginte->value);
+    $homeroom = Teacher::factory()->create(['user_id' => $homeroomUser->id]);
+    $this->class->update(['homeroom_teacher_id' => $homeroom->id]);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    $absence = Absence::factory()->create([
+        'student_id' => $a->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $this->subject->id,
+        'term_id' => $this->term->id,
+        'occurred_on' => $azi,
+        'is_motivated' => null,
+    ]);
+
+    // Profesorul de disciplină: consemnează, dar NU decide — statutul rămâne neatins.
+    actingAs($this->profUser);
+    Livewire::withQueryParams(['clasa' => (string) $this->class->id])
+        ->test(ClassRegister::class)
+        ->call('setDayAbsenceStatus', $absence->id, 'motivated');
+
+    expect($absence->fresh()->is_motivated)->toBeNull();
+
+    // Dirigintele: decide pe loc, din același panou.
+    actingAs($homeroomUser->fresh());
+    Livewire::withQueryParams(['clasa' => (string) $this->class->id])
+        ->test(ClassRegister::class)
+        ->call('setDayAbsenceStatus', $absence->id, 'motivated');
+
+    expect($absence->fresh()->is_motivated)->toBeTrue();
+});
+
+it('panoul zilei validează ținta: elev străin de clasă = panou gol, fără date scurse', function () {
+    actingAs($this->profUser);
+
+    // Elev dintr-o ALTĂ clasă — nu e al contextului.
+    $foreignClass = SchoolClass::factory()->for($this->year)->create(['name' => 'IX', 'section' => 'B', 'grade_level' => 9]);
+    $foreign = Student::factory()->create();
+    Enrollment::factory()->for($foreign)->for($foreignClass)->for($this->year)->create(['left_on' => null]);
+
+    $page = Livewire::test(ClassRegister::class)->instance();
+    $panel = $page->dayPanel($foreign->id, Carbon::today()->toDateString());
+
+    expect($panel['student'])->toBeNull()
+        ->and($panel['grades'])->toBe([])
+        ->and($panel['absences'])->toBe([]);
+
+    // Nici consemnarea nu trece pe un elev străin (enrolled-gard în EnforcesAbsenceScope).
+    Livewire::test(ClassRegister::class)->call('addDayAbsence', $foreign->id, Carbon::today()->toDateString(), 1);
+
+    expect(Absence::query()->where('student_id', $foreign->id)->count())->toBe(0);
+});
+
+it('panoul zilei arată și nota anulată (gri, fără pârghii) — ziua se citește întreagă', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    $grade = Grade::factory()->create([
+        'student_id' => $a->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $this->subject->id,
+        'teacher_id' => $this->teacher->id,
+        'term_id' => $this->term->id,
+        'graded_on' => $azi,
+        'value' => 4,
+        'annulled_at' => now(),
+        'annulment_reason' => 'test',
+    ]);
+
+    $panel = Livewire::test(ClassRegister::class)->instance()->dayPanel($a->id, $azi);
+
+    expect($panel['grades'])->toHaveCount(1)
+        ->and($panel['grades'][0]['annulled'])->toBeTrue()
+        ->and($panel['grades'][0]['can_annul'])->toBeFalse()
+        ->and($panel['grades'][0]['can_request'])->toBeFalse();
 });

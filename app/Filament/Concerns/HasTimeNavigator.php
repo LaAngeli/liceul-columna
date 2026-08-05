@@ -93,11 +93,21 @@ trait HasTimeNavigator
         return null;
     }
 
+    /**
+     * Oferă bara pastila „Toate"? Implicit da; paginile unde tot istoricul aduce mai multă
+     * confuzie decât folos (Catalogul Electronic, decizia beneficiarului 05.08.2026) o sting —
+     * atunci și un `?mod=toate` venit din URL cade pe implicitul paginii.
+     */
+    protected function timeIncludesAll(): bool
+    {
+        return true;
+    }
+
     /** Modul temporal VALIDAT — URL-ul nu se ia de bun. */
     public function timeMode(): ?string
     {
         // „Toate", ales explicit: se oprește aici, ca implicitul paginii să nu-l suprascrie.
-        if ($this->timeMode === self::TIME_MODE_ALL) {
+        if ($this->timeMode === self::TIME_MODE_ALL && $this->timeIncludesAll()) {
             return null;
         }
 
@@ -189,8 +199,11 @@ trait HasTimeNavigator
         $previous = $this->timeRange();
 
         // Orice altceva decât un mod valid înseamnă „Toate" — păstrat EXPLICIT, ca alegerea să
-        // supraviețuiască reload-ului chiar și pe paginile cu alt implicit.
-        $this->timeMode = in_array($mode, self::timeModes(), true) ? $mode : self::TIME_MODE_ALL;
+        // supraviețuiască reload-ului chiar și pe paginile cu alt implicit. Unde „Toate" e EXCLUS,
+        // cade pe implicitul paginii (null → timeMode() îl rezolvă).
+        $this->timeMode = in_array($mode, self::timeModes(), true)
+            ? $mode
+            : ($this->timeIncludesAll() ? self::TIME_MODE_ALL : null);
         $this->timeRef = null;
 
         if ($this->timeMode === self::TIME_MODE_CUSTOM) {
@@ -376,11 +389,15 @@ trait HasTimeNavigator
     {
         $active = $this->timeMode();
 
-        $pills = [[
-            'key' => 'toate',
-            'label' => (string) __('panel.homework_time.all'),
-            'active' => $active === null,
-        ]];
+        $pills = [];
+
+        if ($this->timeIncludesAll()) {
+            $pills[] = [
+                'key' => 'toate',
+                'label' => (string) __('panel.homework_time.all'),
+                'active' => $active === null,
+            ];
+        }
 
         foreach (self::timeModes() as $mode) {
             $pills[] = [
@@ -435,10 +452,14 @@ trait HasTimeNavigator
      * @template TModel of Model
      *
      * @param  Builder<TModel>  $query
+     * @param  string|Expression|null  $column  coloana de dată, când diferă de cea implicită a
+     *                                          paginii (borderoul filtrează notele pe graded_on
+     *                                          și absențele pe occurred_on cu ACEEAȘI perioadă)
      * @return Builder<TModel>
      */
-    public function applyTimeRange(Builder $query): Builder
+    public function applyTimeRange(Builder $query, string|Expression|null $column = null): Builder
     {
+        $column ??= $this->timeDateExpression();
         $range = $this->timeRange();
 
         if ($range === null) {
@@ -452,13 +473,13 @@ trait HasTimeNavigator
         // Capetele lipsă (doar în modul liber) devin comparații deschise, nu un interval fabricat.
         if ($start !== null && $end !== null) {
             $query->whereBetween(
-                $this->timeDateExpression(),
+                $column,
                 [$start->toDateString(), $end->toDateTimeString()],
             );
         } elseif ($start !== null) {
-            $query->where($this->timeDateExpression(), '>=', $start->toDateString());
+            $query->where($column, '>=', $start->toDateString());
         } else {
-            $query->where($this->timeDateExpression(), '<=', $end->toDateTimeString());
+            $query->where($column, '<=', $end->toDateTimeString());
         }
 
         return $query;

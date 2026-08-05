@@ -68,9 +68,16 @@ trait EnforcesAbsenceScope
             $this->rejectClosedYear($data['term_id'], 'data.occurred_on');
         }
 
-        // (3) Anti-duplicat: aceeași absență ACTIVĂ (elev + zi + disciplină) nu se consemnează de 2 ori.
+        // (3) Anti-duplicat pe SLOT: aceeași absență ACTIVĂ (elev + zi + disciplină + ORĂ) nu se
+        // consemnează de 2 ori. Ora face parte din identitate (05.08.2026): două ore consecutive
+        // ale aceleiași discipline sunt două absențe legitime — pe ore DIFERITE. „Fără oră
+        // precizată" (null) e propriul slot: consemnarea rapidă rămâne una pe zi, iar a doua
+        // absență a zilei se pune numind ora, din panoul zilei.
         if ($occurredOn !== null && isset($data['student_id'])) {
             $subjectId = isset($data['subject_id']) && $data['subject_id'] !== '' ? (int) $data['subject_id'] : null;
+            $lessonNumber = isset($data['lesson_number']) && $data['lesson_number'] !== ''
+                ? (int) $data['lesson_number']
+                : null;
 
             $duplicate = Absence::query()
                 ->where('student_id', (int) $data['student_id'])
@@ -79,6 +86,11 @@ trait EnforcesAbsenceScope
                     $subjectId !== null,
                     fn (Builder $q): Builder => $q->where('subject_id', $subjectId),
                     fn (Builder $q): Builder => $q->whereNull('subject_id'),
+                )
+                ->when(
+                    $lessonNumber !== null,
+                    fn (Builder $q): Builder => $q->where('lesson_number', $lessonNumber),
+                    fn (Builder $q): Builder => $q->whereNull('lesson_number'),
                 )
                 ->when($ignoreId !== null, fn (Builder $q): Builder => $q->whereKeyNot($ignoreId))
                 ->exists();

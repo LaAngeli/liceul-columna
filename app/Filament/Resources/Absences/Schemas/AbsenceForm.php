@@ -96,6 +96,17 @@ class AbsenceForm
                             : (string) __('panel.forms.absence.free_day_warning', ['name' => $holiday->name]);
                     })
                     ->validationMessages(['before_or_equal' => __('validation.not_future_date')]),
+                // ORA lecției (opțional) — identitatea care face posibile DOUĂ absențe la aceeași
+                // disciplină în aceeași zi (două ore consecutive, 05.08.2026). Necompletat =
+                // „ziua, fără oră precizată" — un singur asemenea slot pe zi.
+                Select::make('lesson_number')
+                    ->label(__('panel.forms.absence.lesson_number'))
+                    ->helperText(__('panel.forms.absence.lesson_number_hint'))
+                    ->options(array_combine(
+                        range(1, 8),
+                        array_map(fn (int $n): string => (string) __('panel.forms.absence.lesson_option', ['number' => $n]), range(1, 8)),
+                    ))
+                    ->placeholder(__('panel.forms.absence.lesson_unspecified')),
                 // STATUTUL absenței — DOAR pentru cine îl poate fixa (dirigintele clasei alese /
                 // administrația). Profesorul consemnează FĂRĂ statut („Absent"): el rareori știe de
                 // ce lipsește elevul; dirigintele află pe parcursul zilei și decide (04.08.2026).

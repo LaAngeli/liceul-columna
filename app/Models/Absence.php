@@ -19,6 +19,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * @property Carbon $occurred_on
+ * @property int|null $lesson_number a câta lecție a zilei (1–8); null = ziua, fără oră precizată
  * @property bool|null $is_motivated null = consemnată de profesor, în așteptarea statutului de la diriginte
  * @property Carbon|null $motivation_deadline
  * @property Carbon|null $motivation_locked_at
@@ -38,6 +39,7 @@ class Absence extends Model implements Auditable
         'term_id',
         'teacher_id',
         'occurred_on',
+        'lesson_number',
         'is_motivated',
         'motivation_deadline',
         'motivation_locked_at',
@@ -47,6 +49,7 @@ class Absence extends Model implements Auditable
     {
         return [
             'occurred_on' => 'date',
+            'lesson_number' => 'integer',
             'is_motivated' => 'boolean',
             'motivation_deadline' => 'date',
             'motivation_locked_at' => 'datetime',

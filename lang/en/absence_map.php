@@ -31,5 +31,6 @@ return [
     'scroll_right' => 'Scroll the days right',
 
     'status_reset' => 'The absence is back to "no status".',
+    'status_saved' => 'The absence status has been saved.',
     'status_denied' => 'Your account cannot change the status of this absence.',
 ];

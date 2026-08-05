@@ -2,6 +2,8 @@
 
 namespace App\Filament\Pages;
 
+use App\Enums\AbsenceStatus;
+use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
 use App\Enums\SchoolCycle;
@@ -9,9 +11,13 @@ use App\Enums\UserRole;
 use App\Filament\Concerns\EnforcesAbsenceScope;
 use App\Filament\Concerns\EnforcesGradeScope;
 use App\Filament\Concerns\HasTimeNavigator;
+use App\Filament\Resources\Grades\GradeResource;
+use App\Filament\Resources\Grades\Tables\GradesTable;
 use App\Models\Absence;
 use App\Models\Enrollment;
 use App\Models\Grade;
+use App\Models\GradeCorrection;
+use App\Models\Lesson;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
@@ -21,6 +27,9 @@ use App\Models\TermAverage;
 use App\Models\User;
 use App\Support\SchoolCalendar;
 use BackedEnum;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -467,6 +476,16 @@ class ClassRegister extends Page
         return true;
     }
 
+    /**
+     * FĂRĂ pastila „Toate" în bara de timp (decizia beneficiarului, 05.08.2026): tot istoricul
+     * aducea aici mai multă confuzie decât folos — borderoul e unealta perioadei de LUCRU, iar
+     * pentru arhivă există Note/Absențe. Un `?mod=toate` din URL cade pe luna implicită.
+     */
+    protected function timeIncludesAll(): bool
+    {
+        return false;
+    }
+
     /** Bara temporală filtrează pe DATA notei — aceeași coloană ca în lista Note. */
     protected function timeDateExpression(): string|Expression
     {
@@ -491,10 +510,15 @@ class ClassRegister extends Page
      * lista se restrânge la elevii grupei lui (realitatea predării pe grupe); privitorii fără
      * alocare proprie (diriginte, administrație) văd clasa întreagă.
      *
+     * ZIUA e unitatea de lucru (cerința beneficiarului, 05.08.2026): fiecare notă și fiecare
+     * absență își păstrează identitatea (id) și pârghiile privitorului, iar absențele intră pe
+     * zile lângă note — două ore consecutive ale aceleiași discipline = două intrări distincte.
+     *
      * @return list<array{
      *     student: Student,
-     *     grades: list<array{value: string, weighted: bool, tooltip: string, iso: string}>,
-     *     gradesByDate: array<string, list<array{value: string, weighted: bool, tooltip: string, iso: string}>>,
+     *     grades: list<array{id: int, value: string, weighted: bool, pending: bool, can_request: bool, edit_url: string|null, tooltip: string, iso: string}>,
+     *     gradesByDate: array<string, list<array{id: int, value: string, weighted: bool, pending: bool, can_request: bool, edit_url: string|null, tooltip: string, iso: string}>>,
+     *     absencesByDate: array<string, list<array{id: int, status: string, color: string, status_label: string, lesson: int|null}>>,
      *     average: string|null,
      *     absences: array{total: int, unmotivated: int, pending: int, dates: string}
      * }>
@@ -554,6 +578,7 @@ class ClassRegister extends Page
             ->where('evaluation_type', $this->gradeTypeFilter);
 
         $grades = $this->applyTimeRange($gradeQuery)
+            ->withCount(['corrections as pending_corrections_count' => fn ($q) => $q->where('status', CorrectionStatus::Pending)])
             ->orderBy('graded_on')
             ->orderBy('id')
             ->get()
@@ -566,18 +591,28 @@ class ClassRegister extends Page
             ->get()
             ->keyBy('student_id');
 
-        $absences = Absence::query()
-            ->where('school_class_id', $class->getKey())
-            ->where('subject_id', $subject->getKey())
-            ->where('term_id', $term->getKey())
-            ->whereIn('student_id', $studentIds)
+        // Absențele trec prin ACEEAȘI perioadă ca notele (bara temporală, pe occurred_on):
+        // zilele-uniune ale borderoului trebuie să vorbească despre aceeași fereastră de timp.
+        $absences = $this->applyTimeRange(
+            Absence::query()
+                ->where('school_class_id', $class->getKey())
+                ->where('subject_id', $subject->getKey())
+                ->where('term_id', $term->getKey())
+                ->whereIn('student_id', $studentIds),
+            'occurred_on',
+        )
             ->orderBy('occurred_on')
+            ->orderBy('id')
             ->get()
             ->groupBy('student_id');
 
         // Eticheta sumativei diferă pe ciclu (ESS la gimnaziu, teză la liceu) — un singur cod,
         // două nume; borderoul trebuie să-l spună pe cel din clasa deschisă.
         $cycle = SchoolCycle::fromGradeLevel((int) $class->grade_level);
+
+        // Pârghiile pe (clasă, disciplină) sunt ACELEAȘI pentru toate pastilele contextului —
+        // se calculează o dată, cu gărzile partajate cu tabelul/hărțile.
+        $rights = $this->dayRights();
 
         $rows = [];
 
@@ -586,9 +621,9 @@ class ClassRegister extends Page
             $studentAbsences = $absences->get($student->getKey(), new Collection);
             $average = $averages->get($student->getKey());
 
-            /** @var list<array{value: string, weighted: bool, tooltip: string, iso: string}> $gradeChips */
+            /** @var list<array{id: int, value: string, weighted: bool, pending: bool, can_request: bool, edit_url: string|null, tooltip: string, iso: string}> $gradeChips */
             $gradeChips = [];
-            /** @var array<string, list<array{value: string, weighted: bool, tooltip: string, iso: string}>> $byDate */
+            /** @var array<string, list<array{id: int, value: string, weighted: bool, pending: bool, can_request: bool, edit_url: string|null, tooltip: string, iso: string}>> $byDate */
             $byDate = [];
 
             foreach ($studentGrades as $grade) {
@@ -597,12 +632,17 @@ class ClassRegister extends Page
                     : (string) ($grade->calificativ ?? '—');
 
                 $chip = [
+                    'id' => (int) $grade->getKey(),
+                    'pending' => $grade->hasPendingCorrection(),
+                    // Cererea de corecție dispare cât timp există una în așteptare.
+                    'can_request' => $rights['can_request'] && ! $grade->hasPendingCorrection(),
+                    'edit_url' => $rights['is_admin'] ? GradeResource::getUrl('edit', ['record' => $grade]) : null,
                     'value' => $displayValue,
                     // Teza/ESI se disting prin culoare; tipul și DATA notei se citesc la survol.
                     // Formulare explicită („Nota 8 · Curentă · 20.07.2026”): prima variantă arăta
                     // doar „Curentă 20.07" și părea o a doua valoare, nu o descriere a notei.
                     'weighted' => $grade->evaluation_type !== EvaluationType::Curenta,
-                    'tooltip' => trans('panel.class_register.grade_tooltip', [
+                    'tooltip' => (string) trans('panel.class_register.grade_tooltip', [
                         'value' => $displayValue,
                         'type' => $grade->evaluation_type->labelForCycle($cycle),
                         'date' => $grade->graded_on->format('d.m.Y'),
@@ -616,10 +656,28 @@ class ClassRegister extends Page
                 $byDate[$chip['iso']][] = $chip;
             }
 
+            /** @var array<string, list<array{id: int, status: string, color: string, status_label: string, lesson: int|null}>> $absByDate */
+            $absByDate = [];
+
+            foreach ($studentAbsences as $absence) {
+                $status = $absence->status();
+
+                $absByDate[$absence->occurred_on->toDateString()][] = [
+                    'id' => (int) $absence->getKey(),
+                    'status' => $status->value,
+                    'color' => $status->color(),
+                    'status_label' => $status->label(),
+                    // ORA lecției — identitatea care desparte două absențe ale aceleiași zile
+                    // (ore consecutive); null = „ziua, fără oră precizată".
+                    'lesson' => $absence->lesson_number,
+                ];
+            }
+
             $rows[] = [
                 'student' => $student,
                 'grades' => $gradeChips,
                 'gradesByDate' => $byDate,
+                'absencesByDate' => $absByDate,
                 'average' => $average?->value !== null
                     ? number_format((float) $average->value, 2, ',', '')
                     : null,
@@ -671,8 +729,10 @@ class ClassRegister extends Page
     }
 
     /**
-     * Coloanele de dată ale borderoului: zilele distincte din mulțimea FILTRATĂ, cronologic.
-     * Antetul și celulele folosesc aceeași listă → nota fiecărui elev cade fix sub ziua ei.
+     * Coloanele de dată ale borderoului: zilele distincte din mulțimea FILTRATĂ, cronologic —
+     * UNIUNEA notelor și absențelor (05.08.2026): o zi în care un elev doar a lipsit are coloană,
+     * altfel scenariul „a lipsit la ambele ore" nu s-ar vedea deloc în borderou.
+     * Antetul și celulele folosesc aceeași listă → totul cade fix sub ziua lui.
      *
      * @return list<array{iso: string, label: string, weekday: string}>
      */
@@ -683,6 +743,10 @@ class ClassRegister extends Page
 
         foreach ($this->rows() as $row) {
             foreach (array_keys($row['gradesByDate']) as $iso) {
+                $dates[(string) $iso] = true;
+            }
+
+            foreach (array_keys($row['absencesByDate']) as $iso) {
                 $dates[(string) $iso] = true;
             }
         }
@@ -721,6 +785,436 @@ class ClassRegister extends Page
     public function clearGradeFilters(): void
     {
         $this->gradeTypeFilter = self::DEFAULT_GRADE_TYPE;
+    }
+
+    // ── Acțiunile ZILEI (popover-ul celulei — cerința beneficiarului, 05.08.2026) ───────────
+
+    /**
+     * Pârghiile privitorului pe contextul (clasă, disciplină) activ — ACELEAȘI gărzi ca tabelul
+     * Note și hărțile ({@see GradesTable}); calculate o dată, nu per pastilă.
+     *
+     * @return array{is_admin: bool, can_annul: bool, can_request: bool, can_status: bool}
+     */
+    public function dayRights(): array
+    {
+        $user = $this->viewer();
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+
+        if ($user === null || $class === null || $subject === null) {
+            return ['is_admin' => false, 'can_annul' => false, 'can_request' => false, 'can_status' => false];
+        }
+
+        $isAdmin = $user->canAdministerCatalog();
+        $teaches = $user->teacher?->canGradeClassSubject((int) $class->getKey(), (int) $subject->getKey()) ?? false;
+        $isHomeroom = in_array((int) $class->getKey(), $user->contextHomeroomClassIds(), true); // contextul pedagogic activ (F3)
+
+        return [
+            'is_admin' => $isAdmin,
+            // Anularea = operație asupra notei: administrația sau titularul perechii (M-1/#07).
+            'can_annul' => $isAdmin || $teaches,
+            // Cererea de corecție (§3.1): titularul SAU dirigintele clasei; administrația editează direct.
+            'can_request' => ! $isAdmin && ($teaches || $isHomeroom),
+            // Statutul absenței: dirigintele clasei sau administrația — profesorul doar consemnează.
+            'can_status' => $user->canMotivateAbsencesFor((int) $class->getKey()),
+        ];
+    }
+
+    /**
+     * PANOUL ZILEI — inima interacțiunii (cerința beneficiarului, 05.08.2026): click pe celula
+     * (elev × zi) deschide un modal cu TOT ce s-a întâmplat în ziua aceea la disciplina
+     * contextului — notele cu pârghiile lor, absențele pe ore cu statutul lor — plus consemnarea
+     * unei absențe NOI pe ora aleasă. Modal, nu popover ancorat: celula stă într-un container cu
+     * overflow ascuns (zona derulabilă), unde orice popover ar fi retezat la margine.
+     */
+    public function dayPanelAction(): Action
+    {
+        return Action::make('dayPanel')
+            ->modalHeading(function (array $arguments): string {
+                $student = Student::query()->find((int) ($arguments['student'] ?? 0));
+                $iso = (string) ($arguments['iso'] ?? '');
+                $name = $student instanceof Student ? $student->full_name : '';
+
+                return trim($name.' · '.(preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) === 1
+                    ? Carbon::parse($iso)->translatedFormat('j F Y')
+                    : ''), ' ·');
+            })
+            ->modalContent(fn (array $arguments) => view('filament.catalog.partials.day-panel', [
+                'panel' => $this->dayPanel((int) ($arguments['student'] ?? 0), (string) ($arguments['iso'] ?? '')),
+            ]))
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel(__('panel.class_register.day_panel.close'))
+            ->modalWidth('lg');
+    }
+
+    /**
+     * Datele panoului: notele și absențele elevului în ziua aleasă, STRICT în contextul activ,
+     * cu pârghiile deja judecate pe server — blade-ul doar le arată, nu decide nimic.
+     *
+     * @return array{
+     *     student: Student|null,
+     *     iso: string,
+     *     grades: list<array{id: int, value: string, type_label: string, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>,
+     *     absences: list<array{id: int, status: string, color: string, status_label: string, lesson: int|null}>,
+     *     hours: array{taken: list<int>, timetable: list<int>},
+     *     rights: array{is_admin: bool, can_annul: bool, can_request: bool, can_status: bool},
+     *     can_absent: bool,
+     * }
+     */
+    public function dayPanel(int $studentId, string $iso): array
+    {
+        $empty = [
+            'student' => null, 'iso' => $iso, 'grades' => [], 'absences' => [],
+            'hours' => ['taken' => [], 'timetable' => []],
+            'rights' => $this->dayRights(), 'can_absent' => false,
+        ];
+
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+
+        if ($class === null || $subject === null || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
+            return $empty;
+        }
+
+        // Elevul trebuie să fie AL CLASEI din context — un id străin nu deschide nimic.
+        $student = Student::query()
+            ->whereKey($studentId)
+            ->whereHas('enrollments', fn ($q) => $q->where('school_class_id', $class->getKey())->whereNull('left_on'))
+            ->first();
+
+        if ($student === null) {
+            return $empty;
+        }
+
+        $rights = $this->dayRights();
+        $cycle = SchoolCycle::fromGradeLevel((int) $class->grade_level);
+
+        $grades = [];
+
+        // TOATE notele zilei, inclusiv cele anulate (gri, cu semn): panoul e locul unde ziua se
+        // citește întreagă — filtrul de TIP al borderoului nu se aplică aici, tot ce poartă ziua
+        // se vede. Anulata nu mai are pârghii.
+        $gradeRecords = Grade::query()
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->where('student_id', $student->getKey())
+            ->whereDate('graded_on', $iso)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($gradeRecords as $grade) {
+            $numeric = $this->gradingType() === GradingType::Numeric;
+            $annulled = $grade->isAnnulled();
+            $pending = $grade->hasPendingCorrection();
+
+            $grades[] = [
+                'id' => (int) $grade->getKey(),
+                'value' => $numeric
+                    ? ($grade->value !== null ? (string) (int) $grade->value : '—')
+                    : (string) ($grade->calificativ ?? '—'),
+                'type_label' => $grade->evaluation_type->labelForCycle($cycle),
+                'weighted' => $grade->evaluation_type !== EvaluationType::Curenta,
+                'pending' => $pending,
+                'annulled' => $annulled,
+                'edit_url' => $rights['is_admin'] && ! $annulled ? GradeResource::getUrl('edit', ['record' => $grade]) : null,
+                'can_annul' => ! $annulled && ($rights['is_admin'] || GradesTable::teacherTeachesGrade($grade)),
+                'can_request' => ! $annulled && ! $pending && ! $rights['is_admin'] && GradesTable::canRequestCorrectionFor($grade),
+            ];
+        }
+
+        $absences = [];
+        $taken = [];
+
+        $absenceRecords = Absence::query()
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->where('student_id', $student->getKey())
+            ->whereDate('occurred_on', $iso)
+            ->orderByRaw('lesson_number IS NULL, lesson_number')
+            ->get();
+
+        foreach ($absenceRecords as $absence) {
+            $status = $absence->status();
+
+            $absences[] = [
+                'id' => (int) $absence->getKey(),
+                'status' => $status->value,
+                'color' => $status->color(),
+                'status_label' => (string) $status->getLabel(),
+                'lesson' => $absence->lesson_number,
+            ];
+
+            if ($absence->lesson_number !== null) {
+                $taken[] = (int) $absence->lesson_number;
+            }
+        }
+
+        return [
+            'student' => $student,
+            'iso' => $iso,
+            'grades' => $grades,
+            'absences' => $absences,
+            'hours' => ['taken' => $taken, 'timetable' => $this->timetableHours($iso)],
+            'rights' => $rights,
+            'can_absent' => $this->canRecordAbsences() && ! Carbon::parse($iso)->startOfDay()->isAfter(Carbon::today()),
+        ];
+    }
+
+    /**
+     * Orele din ORAR ale disciplinei contextului în ziua dată — sugestiile „reale" ale panoului
+     * (două ore consecutive de Biologie → aici apar amândouă). Orarul poate lipsi sau fi
+     * incomplet, deci sunt sugestii, nu gard: consemnarea acceptă orice oră 1–8.
+     *
+     * @return list<int>
+     */
+    public function timetableHours(string $iso): array
+    {
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+
+        if ($class === null || $subject === null || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
+            return [];
+        }
+
+        /** @var list<int> */
+        return Lesson::query()
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->where('day_of_week', Carbon::parse($iso)->isoWeekday())
+            ->orderBy('lesson_number')
+            ->pluck('lesson_number')
+            ->map(fn ($n): int => (int) $n)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Consemnează o absență NOUĂ din panoul zilei, pe ORA aleasă — calea prin care ziua primește
+     * a doua absență la aceeași disciplină (ore consecutive). Trece prin ACEEAȘI gardă ca
+     * borderoul și formularul clasic ({@see EnforcesAbsenceScope}): fără viitor, semestru derivat
+     * din dată, anti-duplicat pe slot (elev + zi + disciplină + oră).
+     */
+    public function addDayAbsence(int $studentId, string $iso, ?int $lesson = null): void
+    {
+        $user = $this->viewer();
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+
+        if ($user === null || $class === null || $subject === null
+            || ! $this->canRecordAbsences()
+            || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1
+            || ($lesson !== null && ($lesson < 1 || $lesson > 8))) {
+            $this->denyDayAction();
+
+            return;
+        }
+
+        try {
+            $data = $this->enforceAbsenceScope([
+                'student_id' => $studentId,
+                'subject_id' => (int) $subject->getKey(),
+                'school_class_id' => (int) $class->getKey(),
+                'occurred_on' => $iso,
+                'lesson_number' => $lesson,
+                // Fără statut — profesorul consemnează, dirigintele decide (regula 04.08.2026).
+                'is_motivated' => null,
+                'teacher_id' => $user->teacher?->getKey(),
+            ]);
+
+            Absence::query()->create($data);
+        } catch (ValidationException $exception) {
+            Notification::make()
+                ->danger()
+                ->title(collect($exception->errors())->flatten()->first() ?? $exception->getMessage())
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->success()
+            ->title(__('panel.class_register.day_panel.absence_added'))
+            ->send();
+    }
+
+    /**
+     * Anulează o notă din popover-ul zilei — semantica și gărzile acțiunii din tabelul Note.
+     * Nota rămâne în istoric, iese din medii (observerul recalculează singur).
+     */
+    public function annulGradeAction(): Action
+    {
+        return Action::make('annulGrade')
+            ->label(__('panel.actions.annul.label'))
+            ->icon('heroicon-o-no-symbol')
+            ->color('danger')
+            ->requiresConfirmation()
+            ->modalHeading(__('panel.actions.annul.heading'))
+            ->modalDescription(__('panel.actions.annul.description'))
+            ->schema([
+                Textarea::make('annulment_reason')
+                    ->label(__('panel.actions.annul.reason'))
+                    ->required()
+                    ->maxLength(255),
+            ])
+            ->action(function (array $arguments, array $data): void {
+                $grade = $this->dayActionGrade($arguments);
+
+                if ($grade === null || $grade->isAnnulled()
+                    || ! ($this->dayRights()['is_admin'] || GradesTable::teacherTeachesGrade($grade))) {
+                    $this->denyDayAction();
+
+                    return;
+                }
+
+                $grade->update([
+                    'annulled_at' => now(),
+                    'annulled_by_user_id' => auth()->id(),
+                    'annulment_reason' => $data['annulment_reason'],
+                ]);
+
+                Notification::make()
+                    ->success()
+                    ->title(__('panel.actions.annul.success'))
+                    ->send();
+            });
+    }
+
+    /** Solicită corecția unei note din popover — fluxul §3.1 (cerere → aprobarea administrației). */
+    public function requestGradeCorrectionAction(): Action
+    {
+        return Action::make('requestGradeCorrection')
+            ->label(__('panel.actions.request_correction.label'))
+            ->icon('heroicon-o-pencil-square')
+            ->color('warning')
+            ->modalHeading(__('panel.actions.request_correction.heading'))
+            ->modalDescription(__('panel.actions.request_correction.description'))
+            ->modalSubmitActionLabel(__('panel.actions.request_correction.submit'))
+            ->schema([
+                TextInput::make('new_value')
+                    ->label(__('panel.actions.request_correction.new_value'))
+                    ->validationAttribute(__('panel.actions.request_correction.new_value'))
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(10)
+                    ->visible(fn (Action $action): bool => $this->dayActionGrade($action->getArguments())?->subject?->grading_type === GradingType::Numeric)
+                    ->requiredWithout('new_calificativ'),
+                TextInput::make('new_calificativ')
+                    ->label(__('panel.actions.request_correction.new_calificativ'))
+                    ->validationAttribute(__('panel.actions.request_correction.new_calificativ'))
+                    ->maxLength(10)
+                    ->visible(fn (Action $action): bool => $this->dayActionGrade($action->getArguments())?->subject?->grading_type !== GradingType::Numeric)
+                    ->requiredWithout('new_value'),
+                Textarea::make('reason')
+                    ->label(__('panel.actions.request_correction.reason'))
+                    ->required()
+                    ->maxLength(255),
+            ])
+            ->action(function (array $arguments, array $data): void {
+                $grade = $this->dayActionGrade($arguments);
+
+                if ($grade === null || $grade->isAnnulled() || $grade->hasPendingCorrection()
+                    || ! GradesTable::canRequestCorrectionFor($grade)) {
+                    $this->denyDayAction();
+
+                    return;
+                }
+
+                GradeCorrection::create([
+                    'grade_id' => $grade->id,
+                    'requested_by_user_id' => auth()->id(),
+                    'old_value' => $grade->value,
+                    'new_value' => $data['new_value'] ?? null,
+                    'old_calificativ' => $grade->calificativ,
+                    'new_calificativ' => $data['new_calificativ'] ?? null,
+                    'reason' => $data['reason'],
+                ]);
+
+                Notification::make()
+                    ->success()
+                    ->title(__('panel.actions.request_correction.success_title'))
+                    ->body(__('panel.actions.request_correction.success_body'))
+                    ->send();
+            });
+    }
+
+    /**
+     * Fixează statutul unei absențe din popover-ul zilei — aceeași semantică precum harta
+     * absențelor: dirigintele clasei sau administrația; profesorul consemnează, nu decide.
+     */
+    public function setDayAbsenceStatus(int $absenceId, string $status): void
+    {
+        $target = AbsenceStatus::tryFrom($status);
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+        $user = $this->viewer();
+
+        // Ținta se rezolvă STRICT în contextul activ — un id străin nu se găsește deloc.
+        $absence = ($target === null || $class === null || $subject === null) ? null : Absence::query()
+            ->whereKey($absenceId)
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->first();
+
+        if ($absence === null || ! $user instanceof User || ! $user->canMotivateAbsencesFor((int) $absence->school_class_id)) {
+            $this->denyDayAction();
+
+            return;
+        }
+
+        $absence->update(['is_motivated' => $target->motivatedValue()]);
+
+        Notification::make()
+            ->success()
+            ->title(__('absence_map.status_saved'))
+            ->send();
+    }
+
+    /**
+     * Antetul unei zile mută DATA de introducere pe ziua aceea („selectarea directă a zilei",
+     * cerința 05.08.2026): coloana de introducere rapidă scrie de-acum acolo. Intrările începute
+     * se golesc — alt semestru posibil, alt batch.
+     */
+    public function setEntryDay(string $iso): void
+    {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
+            return;
+        }
+
+        $this->entryDate = $iso;
+        $this->resetEntries();
+    }
+
+    /**
+     * Nota țintei unei acțiuni de zi, STRICT în contextul activ (clasă + disciplină): argumentele
+     * din browser sunt dorințe, nu adevăr.
+     *
+     * @param  array<string, mixed>  $arguments
+     */
+    private function dayActionGrade(array $arguments): ?Grade
+    {
+        $id = $arguments['id'] ?? null;
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+
+        if (! is_numeric($id) || $class === null || $subject === null) {
+            return null;
+        }
+
+        /** @var Grade|null */
+        return Grade::query()
+            ->whereKey((int) $id)
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->first();
+    }
+
+    private function denyDayAction(): void
+    {
+        Notification::make()
+            ->danger()
+            ->title(__('grade_map.action_denied'))
+            ->send();
     }
 
     /** Grupa de engleză a alocării PROPRII pe (clasă, disciplină) — null fără alocare sau grupă. */

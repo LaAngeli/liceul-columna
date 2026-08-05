@@ -102,9 +102,14 @@ class AbsencesTable
                     ->color('primary')
                     ->description(fn (Absence $record): ?string => $record->schoolClass?->name),
                 // DISCIPLINA — pe telefon rămân elevul, data și statutul (esența absenței).
+                // Ora lecției dedesubt, când e precizată: două absențe la aceeași disciplină în
+                // aceeași zi (ore consecutive) altfel ar arăta ca un dublet de nedescâlcit.
                 TextColumn::make('subject.name')
                     ->label(__('panel.fields.subject'))
                     ->formatStateUsing(fn (?string $state): string => $state === null ? (string) __('panel.common.dash') : ContentTranslator::subject($state))
+                    ->description(fn (Absence $record): ?string => $record->lesson_number === null
+                        ? null
+                        : (string) __('panel.forms.absence.lesson_option', ['number' => $record->lesson_number]))
                     ->searchable()
                     ->sortable()
                     ->visibleFrom('sm'),

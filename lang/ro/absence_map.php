@@ -34,5 +34,6 @@ return [
     'scroll_right' => 'Derulează zilele spre dreapta',
 
     'status_reset' => 'Absența a revenit la „fără statut".',
+    'status_saved' => 'Statutul absenței a fost salvat.',
     'status_denied' => 'Statutul acestei absențe nu poate fi schimbat de contul tău.',
 ];

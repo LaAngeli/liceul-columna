@@ -14,6 +14,26 @@
         $canGrade = $this->canEnterGrades();
         $canAbsent = $this->canRecordAbsences();
         $numeric = $this->gradingType() === \App\Enums\GradingType::Numeric;
+        // Pârghiile popover-ului de ZI (aceleași gărzi ca tabelul Note / hărțile) + paleta
+        // statutului de absență — limbajul vizual din harta absențelor, neschimbat.
+        $rights = $this->dayRights();
+        $absStatusChoices = [
+            \App\Enums\AbsenceStatus::Motivated,
+            \App\Enums\AbsenceStatus::Unmotivated,
+            \App\Enums\AbsenceStatus::Pending,
+        ];
+        $absPalette = [
+            'warning' => 'bg-amber-100 text-amber-800 ring-amber-600/30 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/30',
+            'success' => 'bg-green-100 text-green-800 ring-green-600/30 dark:bg-green-400/10 dark:text-green-300 dark:ring-green-400/30',
+            'danger' => 'bg-red-100 text-red-800 ring-red-600/30 dark:bg-red-400/10 dark:text-red-300 dark:ring-red-400/30',
+        ];
+        // Ancorele din DREAPTA: lățimi fixe → offseturi sticky cumulative (dependente de rol).
+        $wMedia = 80; $wAbs = 128; $wGrade = 96; $wAbsent = 144;
+        $offAbsent = 0;
+        $offGrade = $canAbsent ? $wAbsent : 0;
+        $offAbsCol = $offGrade + ($canGrade ? $wGrade : 0);
+        $offMedia = $offAbsCol + $wAbs;
+        $rightAnchorsWidth = $offMedia + $wMedia;
     @endphp
 
     <div class="space-y-4">
@@ -273,49 +293,111 @@
                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('panel.class_register.no_students') }}</p>
                     </div>
                 @else
-                    <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
-                        <div class="overflow-x-auto">
+                    {{-- ZONA ZILELOR derulează între ancorele din stânga (elevul) și dreapta
+                         (media / absențe / introducerea). Săgeți în rândul antetului, pași pe
+                         PASUL FIX al grilei de zile (36px), scrollbar ascuns — aceeași mecanică
+                         validată în hărți; capcanele ei sunt documentate acolo. --}}
+                    <div
+                        x-data="{
+                            canLeft: false,
+                            canRight: false,
+                            leftW: 0,
+                            arrowTop: 8,
+                            step: 36,
+                            sync() {
+                                const el = this.$refs.scroller;
+
+                                if (! el) {
+                                    return;
+                                }
+
+                                this.canLeft = el.scrollLeft > 1;
+                                this.canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+                                this.leftW = this.$refs.studentTh?.offsetWidth ?? 0;
+
+                                const zone = el.clientWidth - this.leftW - {{ $rightAnchorsWidth }};
+                                this.step = Math.max(36, Math.floor(zone / 36) * 36);
+
+                                const headH = el.querySelector('thead')?.offsetHeight ?? 0;
+                                this.arrowTop = Math.max(6, Math.round((headH - 28) / 2));
+                            },
+                            nudge(direction) {
+                                const el = this.$refs.scroller;
+                                const target = Math.round((el.scrollLeft + direction * this.step) / 36) * 36;
+
+                                el.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+                            },
+                        }"
+                        x-init="
+                            $nextTick(() => sync());
+                            setTimeout(() => sync(), 300);
+                            new MutationObserver(() => { clearTimeout(window.__borderouSyncT); window.__borderouSyncT = setTimeout(() => sync(), 80); })
+                                .observe($refs.scroller, { childList: true, subtree: true, characterData: true });
+                        "
+                        x-on:resize.window.debounce.150ms="sync()"
+                        class="relative overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10"
+                    >
+                        <div
+                            x-ref="scroller"
+                            x-on:scroll.passive.debounce.50ms="sync()"
+                            class="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        >
                             <table class="w-full min-w-max text-start text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-950/5 dark:border-white/10">
-                                        <th class="sticky left-0 z-[1] bg-white px-4 py-3 text-start font-semibold text-gray-950 dark:bg-gray-900 dark:text-white">
+                                        <th x-ref="studentTh" class="sticky left-0 z-[2] border-e border-gray-200 bg-white px-4 py-3 text-start font-semibold text-gray-950 dark:border-white/10 dark:bg-gray-900 dark:text-white">
                                             {{ __('panel.fields.student') }}
                                         </th>
-                                        {{-- Antetul notelor: când zilele încap, devine RIGLA de date pe
-                                             care se aliniază coloanele. Aceeași grilă ca în celule
-                                             (aceleași N coloane) → nota fiecărui elev cade fix sub ziua ei. --}}
+                                        {{-- RIGLA de zile — uniunea notelor și absențelor. Un click pe o
+                                             zi mută DATA de introducere acolo („selectarea directă a
+                                             zilei", 05.08.2026); ziua activă poartă inelul. --}}
                                         <th class="px-4 py-3 text-start font-semibold text-gray-950 dark:text-white">
                                             @if ($aligned)
                                                 <span class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                                                    {{ __('panel.class_register.grades_column') }}
+                                                    {{ __('panel.class_register.days_column') }}
                                                 </span>
                                                 <span class="grid gap-1" style="grid-template-columns: repeat({{ count($gradeColumns) }}, 2rem);">
                                                     @foreach ($gradeColumns as $column)
-                                                        <span class="flex flex-col items-center leading-tight" title="{{ $column['iso'] }}">
-                                                            <span class="text-[11px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">{{ $column['label'] }}</span>
-                                                            <span class="text-[9px] font-normal uppercase text-gray-400 dark:text-gray-500">{{ $column['weekday'] }}</span>
-                                                        </span>
+                                                        @if ($canGrade || $canAbsent)
+                                                            <button
+                                                                type="button"
+                                                                wire:click="setEntryDay('{{ $column['iso'] }}')"
+                                                                title="{{ __('panel.class_register.day_write_here', ['date' => $column['label']]) }}"
+                                                                @class([
+                                                                    'flex flex-col items-center rounded-md leading-tight transition hover:bg-primary-50 dark:hover:bg-primary-400/10',
+                                                                    'ring-2 ring-primary-500' => $this->entryDate === $column['iso'],
+                                                                ])
+                                                            >
+                                                                <span class="text-[11px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">{{ $column['label'] }}</span>
+                                                                <span class="text-[9px] font-normal uppercase text-gray-400 dark:text-gray-500">{{ $column['weekday'] }}</span>
+                                                            </button>
+                                                        @else
+                                                            <span class="flex flex-col items-center leading-tight" title="{{ $column['iso'] }}">
+                                                                <span class="text-[11px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">{{ $column['label'] }}</span>
+                                                                <span class="text-[9px] font-normal uppercase text-gray-400 dark:text-gray-500">{{ $column['weekday'] }}</span>
+                                                            </span>
+                                                        @endif
                                                     @endforeach
                                                 </span>
                                             @else
-                                                {{ __('panel.class_register.grades_column') }}
+                                                {{ __('panel.class_register.days_column') }}
                                             @endif
                                         </th>
-                                        <th class="px-3 py-3 text-center font-semibold text-gray-950 dark:text-white">
+                                        <th class="sticky z-[2] border-s border-gray-200 bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:border-white/10 dark:bg-gray-900 dark:text-white" style="right: {{ $offMedia }}px; width: {{ $wMedia }}px; min-width: {{ $wMedia }}px">
                                             {{ __('panel.class_register.average_column') }}
                                         </th>
-                                        <th class="px-3 py-3 text-center font-semibold text-gray-950 dark:text-white">
+                                        <th class="sticky z-[2] bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:bg-gray-900 dark:text-white" style="right: {{ $offAbsCol }}px; width: {{ $wAbs }}px; min-width: {{ $wAbs }}px">
                                             {{ __('panel.class_register.absences_column') }}
                                         </th>
 
                                         @if ($canGrade)
-                                            <th class="w-24 px-3 py-3 text-center font-semibold text-primary-600 dark:text-primary-400">
+                                            <th class="sticky z-[2] bg-white px-3 py-3 text-center font-semibold text-primary-600 dark:bg-gray-900 dark:text-primary-400" style="right: {{ $offGrade }}px; width: {{ $wGrade }}px; min-width: {{ $wGrade }}px">
                                                 {{ __('panel.class_register.new_grade_column') }}
                                             </th>
                                         @endif
 
                                         @if ($canAbsent)
-                                            <th class="w-36 px-3 py-3 text-center font-semibold text-primary-600 dark:text-primary-400">
+                                            <th class="sticky z-[2] bg-white px-3 py-3 text-center font-semibold text-primary-600 dark:bg-gray-900 dark:text-primary-400" style="right: {{ $offAbsent }}px; width: {{ $wAbsent }}px; min-width: {{ $wAbsent }}px">
                                                 {{ __('panel.class_register.absent_column') }}
                                             </th>
                                         @endif
@@ -338,18 +420,31 @@
                                                 @enderror
                                             </td>
 
-                                            {{-- Notele semestrului; teza/ESI evidențiate. MEREU pe coloane
-                                                 de dată (o singură formă, indiferent de clasă sau volum —
-                                                 04.08.2026); multe zile = tabel mai LAT, cu derulare
-                                                 orizontală și numele elevului lipit la stânga. --}}
+                                            {{-- ZILELE elevului: note + absențe, pe coloane de dată.
+                                                 Fiecare celulă e un BUTON — click deschide PANOUL ZILEI
+                                                 (modal cu notele, absențele pe ore și acțiunile permise
+                                                 privitorului). Celula goală rămâne clickabilă pentru cine
+                                                 poate scrie: acolo se consemnează absența unei zile fără
+                                                 activitate. --}}
                                             <td class="h-12 px-4 py-2 align-middle">
                                                 @if ($aligned)
                                                     <div class="grid gap-1" style="grid-template-columns: repeat({{ count($gradeColumns) }}, 2rem);">
                                                         @foreach ($gradeColumns as $column)
-                                                            {{-- Celula GOALĂ e informația: se vede pe loc cine
-                                                                 n-a fost notat în ziua aceea. --}}
-                                                            <span class="flex flex-col items-center gap-0.5">
-                                                                @forelse ($row['gradesByDate'][$column['iso']] ?? [] as $grade)
+                                                            @php($dayGrades = $row['gradesByDate'][$column['iso']] ?? [])
+                                                            @php($dayAbsences = $row['absencesByDate'][$column['iso']] ?? [])
+                                                            @php($hasContent = $dayGrades !== [] || $dayAbsences !== [])
+                                                            <button
+                                                                type="button"
+                                                                wire:click="mountAction('dayPanel', { student: {{ $studentId }}, iso: '{{ $column['iso'] }}' })"
+                                                                title="{{ $row['student']->full_name }} · {{ $column['label'] }}"
+                                                                aria-label="{{ __('panel.class_register.day_panel.open_cell', ['student' => $row['student']->full_name, 'date' => $column['label']]) }}"
+                                                                @class([
+                                                                    'flex min-h-9 flex-col items-center justify-center gap-0.5 rounded-md py-0.5 transition',
+                                                                    'hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 dark:hover:bg-primary-400/10' => true,
+                                                                    'cursor-pointer' => true,
+                                                                ])
+                                                            >
+                                                                @foreach ($dayGrades as $grade)
                                                                     <span
                                                                         title="{{ $grade['tooltip'] }}"
                                                                         @class([
@@ -359,15 +454,35 @@
                                                                         ])
                                                                     >
                                                                         {{ $grade['value'] }}
+                                                                        @if ($grade['pending'])
+                                                                            <span class="-me-1 ms-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" title="{{ __('panel.tables.grades.pending_correction_tooltip') }}"></span>
+                                                                        @endif
                                                                     </span>
-                                                                @empty
+                                                                @endforeach
+
+                                                                {{-- Absențele zilei: pastilă îngustă pe culoarea
+                                                                     statutului, cu ORA când e precizată — două ore
+                                                                     consecutive = două pastile. --}}
+                                                                @foreach ($dayAbsences as $absence)
+                                                                    <span
+                                                                        title="{{ $absence['status_label'] }}{{ $absence['lesson'] !== null ? ' · '.__('panel.forms.absence.lesson_option', ['number' => $absence['lesson']]) : '' }}"
+                                                                        @class([
+                                                                            'inline-flex h-3.5 w-8 items-center justify-center rounded-sm text-[9px] font-bold uppercase leading-none ring-1',
+                                                                            'bg-amber-100 text-amber-800 ring-amber-600/30 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/30' => $absence['color'] === 'warning',
+                                                                            'bg-green-100 text-green-800 ring-green-600/30 dark:bg-green-400/10 dark:text-green-300 dark:ring-green-400/30' => $absence['color'] === 'success',
+                                                                            'bg-red-100 text-red-800 ring-red-600/30 dark:bg-red-400/10 dark:text-red-300 dark:ring-red-400/30' => $absence['color'] === 'danger',
+                                                                        ])
+                                                                    >{{ $absence['lesson'] !== null ? 'a'.$absence['lesson'] : 'a' }}</span>
+                                                                @endforeach
+
+                                                                @unless ($hasContent)
                                                                     <span class="inline-flex h-6 w-8 items-center justify-center text-xs text-gray-200 dark:text-gray-700" aria-hidden>·</span>
-                                                                @endforelse
-                                                            </span>
+                                                                @endunless
+                                                            </button>
                                                         @endforeach
                                                     </div>
                                                 @else
-                                                    {{-- Fără nicio notă în perioada+tipul ales (doar atunci
+                                                    {{-- Fără nimic în perioada+tipul ales (doar atunci
                                                          $aligned e fals): liniuță, nu un șir alternativ. --}}
                                                     <span class="text-gray-300 dark:text-gray-600">—</span>
                                                 @endif
@@ -459,6 +574,38 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        {{-- SĂGEȚILE de derulare — aceeași mecanică validată în hărți: la capetele
+                             zonei zilelor (stânga după coloana elevului, dreapta înaintea ancorelor),
+                             vizibile doar când există surplus; scrollbar-ul de jos e ASCUNS, ele sunt
+                             singura afordanță — plus derularea nativă (trackpad, shift+rotiță, touch). --}}
+                        <button
+                            type="button"
+                            style="display: none"
+                            x-on:click="nudge(-1)"
+                            aria-label="{{ __('absence_map.scroll_left') }}"
+                            title="{{ __('absence_map.scroll_left') }}"
+                            class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
+                            x-bind:style="'left: ' + (leftW - 14) + 'px; top: ' + arrowTop + 'px; display: ' + (canLeft ? 'flex' : 'none')"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                            </svg>
+                        </button>
+
+                        <button
+                            type="button"
+                            style="display: none"
+                            x-on:click="nudge(1)"
+                            aria-label="{{ __('absence_map.scroll_right') }}"
+                            title="{{ __('absence_map.scroll_right') }}"
+                            class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
+                            x-bind:style="'right: ' + ({{ $rightAnchorsWidth }} - 14) + 'px; top: ' + arrowTop + 'px; display: ' + (canRight ? 'flex' : 'none')"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                            </svg>
+                        </button>
 
                         <div class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-950/5 px-4 py-2.5 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
                             <span>{{ trans_choice('panel.class_register.students_count', count($rows), ['count' => count($rows)]) }}</span>
