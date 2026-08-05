@@ -49,7 +49,8 @@ class SeedDemoCurriculum extends Command
 {
     protected $signature = 'app:seed-demo-curriculum
         {--first-graders=10 : Câți boboci în fiecare clasă I}
-        {--remove : Șterge tot ce a creat comanda (folosind manifestul)}';
+        {--remove : Șterge tot ce a creat comanda (folosind manifestul)}
+        {--fix-accounts : Doar reparație: leagă conturile demo de clasele și disciplinele lor, fără re-seed}';
 
     protected $description = 'Completează școala demo: clasele I ale anului nou + gama completă de discipline, note, absențe, teme și orar';
 
@@ -118,6 +119,16 @@ class SeedDemoCurriculum extends Command
         ],
     ];
 
+    /**
+     * Contul demo care e ÎNVĂȚĂTOR (diriginte + trunchiul disciplinelor) într-o clasă anume din
+     * anul curent — vezi {@see adoptAccountHomerooms()}.
+     *
+     * @var array<string, string> e-mail cont → numele clasei
+     */
+    private const ACCOUNT_HOMEROOMS = [
+        'director@columna.test' => self::MARK.' 2A',
+    ];
+
     /** Nume pentru boboci — interne, ca în {@see SeedDemoZone} (faker lipsește în producție). */
     private const LAST_NAMES = ['Popescu', 'Rusu', 'Ciobanu', 'Moraru', 'Ungureanu', 'Rotaru', 'Munteanu', 'Cojocaru', 'Bejan', 'Lungu', 'Cebotari', 'Sandu', 'Vieru', 'Cazacu', 'Bivol', 'Botnaru', 'Frunză', 'Zaharia', 'Dragomir', 'Balan', 'Croitoru', 'Guțu', 'Melnic', 'Grosu', 'Damian', 'Racu', 'Ursu'];
 
@@ -140,6 +151,10 @@ class SeedDemoCurriculum extends Command
     {
         if ($this->option('remove')) {
             return $this->remove();
+        }
+
+        if ($this->option('fix-accounts')) {
+            return $this->fixAccounts();
         }
 
         if (File::exists(storage_path('app/'.self::MANIFEST))) {
@@ -191,6 +206,10 @@ class SeedDemoCurriculum extends Command
             $now = Carbon::now();
 
             // ── 1. Clasele demo de lucrat ────────────────────────────────────────────────────
+            // Dirigențiile conturilor demo se așază ÎNAINTE de citirea claselor: la primar trunchiul
+            // se alocă după `homeroom_teacher_id`, deci ordinea inversă l-ar fi dat vechiului învățător.
+            $this->adoptAccountHomerooms($currentYearId, $now);
+
             $currentClasses = DB::table('school_classes')
                 ->where('academic_year_id', $currentYearId)
                 ->where('name', 'like', self::MARK.'%')
@@ -518,18 +537,101 @@ class SeedDemoCurriculum extends Command
         $catedra = [];
 
         foreach (['profesor@columna.test' => 'Matematică', 'diriginte@columna.test' => 'Limba și literatura română'] as $email => $subject) {
-            $teacherId = DB::table('teachers')
-                ->join('users', 'users.id', '=', 'teachers.user_id')
-                ->where('users.email', $email)
-                ->whereNull('teachers.deleted_at')
-                ->value('teachers.id');
+            $teacherId = $this->accountTeacherId($email);
 
             if ($teacherId !== null) {
-                $catedra[$subject] = (int) $teacherId;
+                $catedra[$subject] = $teacherId;
             }
         }
 
         return $catedra;
+    }
+
+    /** Fișa de profesor a unui cont demo, sau null dacă acel cont nu există în baza asta. */
+    private function accountTeacherId(string $email): ?int
+    {
+        $id = DB::table('teachers')
+            ->join('users', 'users.id', '=', 'teachers.user_id')
+            ->where('users.email', $email)
+            ->whereNull('teachers.deleted_at')
+            ->value('teachers.id');
+
+        return $id === null ? null : (int) $id;
+    }
+
+    /**
+     * Dirigenția unui cont demo într-o clasă anume, CU trunchiul ei de discipline.
+     *
+     * Cerința beneficiarului (05.08.2026): contul de director să fie și diriginte la „[DEMO] 2A",
+     * și să aibă acces la clasă și ca profesor. La primar cele două nu sunt lucruri separate —
+     * dirigintele ESTE învățătorul, adică omul care ține trunchiul (română, matematică, științe…),
+     * iar specialiștii (muzică, sport, engleză) intră peste. Deci se mută dirigenția și, odată cu
+     * ea, exact ce preda învățătorul precedent; restul disciplinelor rămân la catedrele lor.
+     *
+     * Notele și orele de orar ale acelor discipline îl urmează: altfel catalogul ar arăta note puse
+     * de cineva care nu mai predă acolo.
+     */
+    private function adoptAccountHomerooms(int $currentYearId, Carbon $now): int
+    {
+        $moved = 0;
+
+        foreach (self::ACCOUNT_HOMEROOMS as $email => $className) {
+            $teacherId = $this->accountTeacherId($email);
+
+            if ($teacherId === null) {
+                continue;
+            }
+
+            $class = DB::table('school_classes')
+                ->where('academic_year_id', $currentYearId)
+                ->where('name', $className)
+                ->whereNull('deleted_at')
+                ->first(['id', 'homeroom_teacher_id']);
+
+            if ($class === null || (int) $class->homeroom_teacher_id === $teacherId) {
+                continue; // clasa lipsește din baza asta, ori contul e deja dirigintele ei
+            }
+
+            $previous = (int) $class->homeroom_teacher_id;
+
+            DB::table('school_classes')
+                ->where('id', $class->id)
+                ->update(['homeroom_teacher_id' => $teacherId, 'updated_at' => $now]);
+
+            $moved++;
+
+            if ($previous === 0) {
+                continue; // clasa n-avea diriginte: nu e nimic de preluat
+            }
+
+            /** @var list<int> $trunk disciplinele ținute chiar de învățătorul precedent */
+            $trunk = DB::table('teaching_assignments')
+                ->where('school_class_id', $class->id)
+                ->where('teacher_id', $previous)
+                ->whereNull('deleted_at')
+                ->pluck('subject_id')
+                ->map(intval(...))
+                ->values()
+                ->all();
+
+            if ($trunk === []) {
+                continue;
+            }
+
+            DB::table('teaching_assignments')
+                ->where('school_class_id', $class->id)
+                ->where('teacher_id', $previous)
+                ->update(['teacher_id' => $teacherId]);
+
+            foreach (['grades', 'lessons'] as $table) {
+                DB::table($table)
+                    ->where('school_class_id', $class->id)
+                    ->whereIn('subject_id', $trunk)
+                    ->update(['teacher_id' => $teacherId]);
+            }
+        }
+
+        return $moved;
     }
 
     /**
@@ -982,6 +1084,39 @@ class SeedDemoCurriculum extends Command
 
         $this->line('  <fg=gray>Manifest: storage/app/'.self::MANIFEST.'</>');
         $this->line('  <fg=gray>Curățare: php artisan app:seed-demo-curriculum --remove</>');
+    }
+
+    /**
+     * Repară DOAR legăturile conturilor demo, pe datele existente.
+     *
+     * Alternativa ar fi fost `--remove` + re-seed, adică ștergerea și refacerea a zeci de mii de
+     * note ca să se schimbe un diriginte — riscant și inutil. Comanda e idempotentă: rulată a doua
+     * oară nu mai are ce muta și o spune.
+     */
+    private function fixAccounts(): int
+    {
+        $currentTerm = SchoolCalendar::currentTerm();
+
+        if ($currentTerm === null) {
+            $this->components->error('Nu există un semestru curent — anul de lucru nu poate fi stabilit.');
+
+            return self::FAILURE;
+        }
+
+        $moved = 0;
+
+        DB::transaction(function () use ($currentTerm, &$moved): void {
+            $moved = $this->adoptAccountHomerooms((int) $currentTerm->academic_year_id, Carbon::now());
+            $this->adoptAccountAssignments($this->accountCatedra());
+        });
+
+        $this->components->info($moved > 0
+            ? "Dirigenții mutate pe conturile demo: {$moved}. Disciplinele conturilor au fost reconfirmate."
+            : 'Nimic de mutat: conturile demo sunt deja legate de clasele și disciplinele lor.');
+
+        $this->call('app:compute-averages');
+
+        return self::SUCCESS;
     }
 
     private function remove(): int

@@ -60,6 +60,11 @@ Toate datele de test sunt marcate `[DEMO]` → NU trebuie să ajungă în produc
   semestrul precedent (trecutul, ca evoluția și media anuală să aibă de unde compara) + note/absențe/teme
   în ultimele trei săptămâni ale semestrului curent, cu absențe „fără statut" garantate pentru elevii
   conturilor demo. Șterge exact rândurile din `storage/app/demo/timeline.json` și recalculează mediile.
+- `php artisan app:seed-demo-curriculum --fix-accounts` — **doar reparație**, pe datele existente: leagă
+  conturile demo de clasele și disciplinele lor (contul `profesor@` = catedra de matematică, `diriginte@` =
+  limba română, `director@` = învățătorul clasei `[DEMO] 2A`, deci diriginte ȘI profesor acolo). Idempotentă,
+  fără re-seed: alternativa ar fi fost `--remove` + repopulare, adică ștergerea a zeci de mii de note ca să se
+  schimbe un diriginte. De rulat după orice `app:seed-demo-zone` sau recreare a conturilor demo.
 - ⚠️ **Manifestul se poate pierde — `--remove` are plasă de siguranță.** Manifestul e un fișier din
   `storage/`, deci dispare la o restaurare parțială, la o copiere de proiect fără `storage` sau dacă cineva
   curăță directorul; rândurile din baza de date rămân, iar curățarea de go-live n-ar mai avea ce șterge.

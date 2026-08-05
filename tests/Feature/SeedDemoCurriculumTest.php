@@ -240,3 +240,56 @@ it('nu atinge o clasă I REALĂ de pe aceeași poziție', function () {
 
     expect($real->fresh()->name)->toBe('I');
 });
+
+it('contul demo de director primește dirigenția clasei a II-a, cu trunchiul ei de discipline', function () {
+    // Cerința beneficiarului (05.08.2026): director@ să fie diriginte la „[DEMO] 2A" ȘI să aibă
+    // acces la clasă și ca profesor. La primar cele două sunt același om — învățătorul.
+    $account = User::factory()->create(['name' => '[DEMO] Director', 'email' => 'director@columna.test']);
+    $teacher = Teacher::factory()->create(['last_name' => '[DEMO] Ursu', 'user_id' => $account->id]);
+
+    $inainte = $this->class->homeroom_teacher_id;
+
+    $this->artisan('app:seed-demo-curriculum', ['--first-graders' => 2])->assertSuccessful();
+
+    expect((int) $this->class->fresh()->homeroom_teacher_id)->toBe($teacher->id)
+        ->and($inainte)->not->toBe($teacher->id);
+
+    // Trunchiul (română, matematică…) e al lui; specialiștii rămân ai catedrei.
+    $mine = DB::table('teaching_assignments')
+        ->join('subjects', 'subjects.id', '=', 'teaching_assignments.subject_id')
+        ->where('teaching_assignments.school_class_id', $this->class->id)
+        ->where('teaching_assignments.teacher_id', $teacher->id)
+        ->pluck('subjects.name')
+        ->all();
+
+    expect($mine)->toContain('Limba și literatura română', 'Matematică')
+        ->and($mine)->not->toContain('Educație muzicală')
+        // Notele trunchiului îl urmează: catalogul nu poate arăta note puse de cine nu predă.
+        ->and(DB::table('grades')
+            ->where('school_class_id', $this->class->id)
+            ->where('subject_id', Subject::query()->where('name', 'Matematică')->where('min_grade', 1)->value('id'))
+            ->where('teacher_id', '!=', $teacher->id)
+            ->count())->toBe(0);
+});
+
+it('„--fix-accounts" leagă conturile fără re-seed și e idempotentă', function () {
+    $this->artisan('app:seed-demo-curriculum', ['--first-graders' => 2])->assertSuccessful();
+
+    $noteInainte = DB::table('grades')->count();
+
+    // Contul apare ABIA acum (așa se întâmplă în practică: zona demo e deja populată).
+    $account = User::factory()->create(['name' => '[DEMO] Director', 'email' => 'director@columna.test']);
+    $teacher = Teacher::factory()->create(['last_name' => '[DEMO] Ursu', 'user_id' => $account->id]);
+
+    $this->artisan('app:seed-demo-curriculum', ['--fix-accounts' => true])->assertSuccessful();
+
+    expect((int) $this->class->fresh()->homeroom_teacher_id)->toBe($teacher->id)
+        // Reparația NU rescrie datele: notele rămân câte erau.
+        ->and(DB::table('grades')->count())->toBe($noteInainte);
+
+    // A doua rulare nu mai are ce muta.
+    $this->artisan('app:seed-demo-curriculum', ['--fix-accounts' => true])->assertSuccessful();
+
+    expect((int) $this->class->fresh()->homeroom_teacher_id)->toBe($teacher->id)
+        ->and(DB::table('grades')->count())->toBe($noteInainte);
+});
