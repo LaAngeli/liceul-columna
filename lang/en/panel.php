@@ -2430,6 +2430,9 @@ return [
         'day_panel' => [
             'close' => 'Close',
             'grades_heading' => 'Grades of the day',
+            'add_grade_heading' => 'Add a grade for this day…',
+            'add_grade_button' => 'Add grade',
+            'grade_added' => 'The grade was saved — the average is recalculated and the family notified.',
             'no_grades' => 'No grades on this day.',
             'annulled_badge' => 'Annulled',
             'edit_grade' => 'Edit',
@@ -2441,6 +2444,7 @@ return [
             'open_cell' => 'Open :date for :student',
         ],
         'days_column' => 'Days',
+        'entry_target' => 'on :date',
         'day_write_here' => 'Pick :date for entry',
         'average_column' => 'Average',
         'absences_column' => 'Absences',

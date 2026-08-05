@@ -390,15 +390,32 @@
                                             {{ __('panel.class_register.absences_column') }}
                                         </th>
 
+                                        {{-- Coloanele de INTRODUCERE își spun ȚINTA: nota tastată și
+                                             marcajul „Absent" se scriu pe DATA din câmpul de sus, la
+                                             „Salvează tot" — fără data sub etichetă, butonul părea că
+                                             „doar își schimbă culoarea" (raportat 05.08.2026). --}}
+                                        @php($entryTarget = preg_match('/^\d{4}-\d{2}-\d{2}$/', $this->entryDate) === 1
+                                            ? \Illuminate\Support\Carbon::parse($this->entryDate)->format('d.m')
+                                            : null)
                                         @if ($canGrade)
                                             <th class="sticky z-[2] bg-white px-3 py-3 text-center font-semibold text-primary-600 dark:bg-gray-900 dark:text-primary-400" style="right: {{ $offGrade }}px; width: {{ $wGrade }}px; min-width: {{ $wGrade }}px">
                                                 {{ __('panel.class_register.new_grade_column') }}
+                                                @if ($entryTarget !== null)
+                                                    <span class="block text-[10px] font-medium normal-case text-gray-400 dark:text-gray-500">
+                                                        {{ __('panel.class_register.entry_target', ['date' => $entryTarget]) }}
+                                                    </span>
+                                                @endif
                                             </th>
                                         @endif
 
                                         @if ($canAbsent)
                                             <th class="sticky z-[2] bg-white px-3 py-3 text-center font-semibold text-primary-600 dark:bg-gray-900 dark:text-primary-400" style="right: {{ $offAbsent }}px; width: {{ $wAbsent }}px; min-width: {{ $wAbsent }}px">
                                                 {{ __('panel.class_register.absent_column') }}
+                                                @if ($entryTarget !== null)
+                                                    <span class="block text-[10px] font-medium normal-case text-gray-400 dark:text-gray-500">
+                                                        {{ __('panel.class_register.entry_target', ['date' => $entryTarget]) }}
+                                                    </span>
+                                                @endif
                                             </th>
                                         @endif
                                     </tr>
@@ -409,7 +426,7 @@
                                         @php($studentId = $row['student']->getKey())
                                         <tr wire:key="borderou-{{ $studentId }}" class="align-middle hover:bg-gray-50 dark:hover:bg-white/5">
                                             {{-- Elevul — lipit la stânga, numerotat (ordinea din catalogul de hârtie). --}}
-                                            <td class="sticky left-0 z-[1] h-12 max-w-56 bg-white px-4 py-2 align-middle dark:bg-gray-900">
+                                            <td class="sticky left-0 z-[1] h-12 max-w-56 border-e border-gray-200 bg-white px-4 py-2 align-middle dark:border-white/10 dark:bg-gray-900">
                                                 <div class="flex items-baseline gap-2">
                                                     <span class="w-5 shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500">{{ $index + 1 }}</span>
                                                     <span class="truncate font-medium text-gray-950 dark:text-white">{{ $row['student']->full_name }}</span>
@@ -488,8 +505,12 @@
                                                 @endif
                                             </td>
 
-                                            {{-- Media semestrială OFICIALĂ (MS) — sub 5 = semnal de corigență. --}}
-                                            <td class="h-12 px-3 py-2 text-center align-middle">
+                                            {{-- Media semestrială OFICIALĂ (MS) — sub 5 = semnal de corigență.
+                                                 ⚠️ Ancorele din dreapta sunt sticky ȘI PE CORP, cu ACELEAȘI
+                                                 offseturi/lățimi ca antetul: fără asta, celulele corpului
+                                                 rămâneau în flux și coloanele „respirau" după conținut
+                                                 (raportat pe rolul profesor, 05.08.2026). --}}
+                                            <td class="sticky z-[1] h-12 border-s border-gray-200 bg-white px-3 py-2 text-center align-middle dark:border-white/10 dark:bg-gray-900" style="right: {{ $offMedia }}px; width: {{ $wMedia }}px; min-width: {{ $wMedia }}px">
                                                 @if ($row['average'] !== null)
                                                     <span @class([
                                                         'font-semibold tabular-nums',
@@ -503,7 +524,7 @@
 
                                             {{-- Absențele la disciplină: total + câte nemotivate + câte încă fără statut;
                                                  datele la survol (✓ motivată, ? fără statut). --}}
-                                            <td class="h-12 px-3 py-2 text-center align-middle" title="{{ $row['absences']['dates'] }}">
+                                            <td class="sticky z-[1] h-12 bg-white px-3 py-2 text-center align-middle dark:bg-gray-900" style="right: {{ $offAbsCol }}px; width: {{ $wAbs }}px; min-width: {{ $wAbs }}px" title="{{ $row['absences']['dates'] }}">
                                                 @if ($row['absences']['total'] === 0)
                                                     <span class="text-gray-300 dark:text-gray-600">—</span>
                                                 @else
@@ -522,7 +543,7 @@
                                             </td>
 
                                             @if ($canGrade)
-                                                <td class="h-12 px-3 py-2 text-center align-middle">
+                                                <td class="sticky z-[1] h-12 bg-white px-3 py-2 text-center align-middle dark:bg-gray-900" style="right: {{ $offGrade }}px; width: {{ $wGrade }}px; min-width: {{ $wGrade }}px">
                                                     <input
                                                         type="text"
                                                         data-quick-input
@@ -546,14 +567,14 @@
                                                      o decide din secțiunea Absențe. Click activează, click anulează. --}}
                                                 @php($absence = $this->entries[$studentId]['absence'] ?? null)
                                                 @php($marked = $absence === \App\Filament\Pages\ClassRegister::ABSENCE_MARKED)
-                                                <td class="h-12 px-3 py-2 align-middle">
+                                                <td class="sticky z-[1] h-12 bg-white px-3 py-2 align-middle dark:bg-gray-900" style="right: {{ $offAbsent }}px; width: {{ $wAbsent }}px; min-width: {{ $wAbsent }}px">
                                                     <div class="flex items-center justify-center">
                                                         <button
                                                             type="button"
                                                             data-quick-absence
                                                             @if ($marked) data-quick-absence-active @endif
                                                             wire:click="toggleAbsence({{ $studentId }})"
-                                                            title="{{ __('panel.class_register.absence_mark_title') }}"
+                                                            title="{{ __('panel.class_register.absence_mark_title') }}{{ $entryTarget !== null ? ' ('.__('panel.class_register.entry_target', ['date' => $entryTarget]).')' : '' }}"
                                                             aria-pressed="{{ $marked ? 'true' : 'false' }}"
                                                             aria-label="{{ __('panel.class_register.absent_column') }} — {{ $row['student']->full_name }}"
                                                             @class([

@@ -974,3 +974,49 @@ it('panoul zilei arată și nota anulată (gri, fără pârghii) — ziua se cit
         ->and($panel['grades'][0]['can_annul'])->toBeFalse()
         ->and($panel['grades'][0]['can_request'])->toBeFalse();
 });
+
+it('nota se adaugă din panoul zilei, pe ZIUA celulei — nu pe data introducerii rapide', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $zi = Carbon::today()->subDays(4)->toDateString();
+
+    Livewire::test(ClassRegister::class)->call('addDayGrade', $a->id, $zi, '8', 'curenta');
+
+    $grade = Grade::query()->where('student_id', $a->id)->first();
+
+    expect($grade)->not->toBeNull()
+        ->and($grade->graded_on->toDateString())->toBe($zi)
+        ->and((int) $grade->value)->toBe(8)
+        ->and((int) $grade->teacher_id)->toBe($this->teacher->id);
+
+    // Valoare imposibilă: refuzată prietenos, nimic scris.
+    Livewire::test(ClassRegister::class)->call('addDayGrade', $a->id, $zi, '11', 'curenta');
+
+    expect(Grade::query()->where('student_id', $a->id)->count())->toBe(1);
+});
+
+it('nota din panou respectă gărzile: dirigintele-fără-alocare NU poate nota', function () {
+    // Diriginte al clasei, dar NU predă disciplina — vede, consemnează absențe, nu notează.
+    $homeroomUser = User::factory()->create();
+    $homeroomUser->assignRole(UserRole::Diriginte->value);
+    $homeroom = Teacher::factory()->create(['user_id' => $homeroomUser->id]);
+    $this->class->update(['homeroom_teacher_id' => $homeroom->id]);
+
+    actingAs($homeroomUser->fresh());
+
+    $a = $this->students->first();
+
+    $panel = Livewire::withQueryParams(['clasa' => (string) $this->class->id])
+        ->test(ClassRegister::class)->instance()
+        ->dayPanel($a->id, Carbon::today()->subDays(4)->toDateString());
+
+    expect($panel['can_grade'])->toBeFalse()
+        ->and($panel['can_absent'])->toBeTrue();
+
+    Livewire::withQueryParams(['clasa' => (string) $this->class->id])
+        ->test(ClassRegister::class)
+        ->call('addDayGrade', $a->id, Carbon::today()->subDays(4)->toDateString(), '9', 'curenta');
+
+    expect(Grade::query()->where('student_id', $a->id)->count())->toBe(0);
+});

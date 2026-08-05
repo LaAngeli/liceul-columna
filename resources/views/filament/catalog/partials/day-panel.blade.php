@@ -84,6 +84,51 @@
                 @endforeach
             </ul>
         @endif
+
+        {{-- Adăugarea unei NOTE pe ziua panoului (cerința 05.08.2026) — pentru cine poate nota
+             perechea (titular/administrație). Tipul (ESI/teza) doar la disciplinele numerice;
+             garda de pe server refuză sumativa nedesemnată, cu mesajul ei. --}}
+        @if ($panel['can_grade'])
+            <div
+                x-data="{ v: '', t: 'curenta' }"
+                class="mt-3 rounded-lg border border-dashed border-gray-300 p-3 dark:border-white/15"
+            >
+                <p class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {{ __('panel.class_register.day_panel.add_grade_heading') }}
+                </p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <input
+                        type="text"
+                        x-model="v"
+                        x-on:keydown.enter.prevent="if (v.trim() !== '') { $wire.addDayGrade({{ $panel['student']?->getKey() ?? 0 }}, '{{ $panel['iso'] }}', v, t); v = ''; }"
+                        @if ($panel['numeric']) inputmode="numeric" maxlength="2" placeholder="1–10" @else maxlength="10" @endif
+                        aria-label="{{ __('panel.class_register.new_grade_column') }}"
+                        class="h-9 w-16 rounded-lg border-0 bg-white text-center text-sm font-semibold tabular-nums text-gray-950 shadow-sm ring-1 ring-gray-950/10 transition focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
+                    />
+
+                    @if ($panel['numeric'])
+                        <select
+                            x-model="t"
+                            aria-label="{{ __('panel.fields.evaluation_type') }}"
+                            class="h-9 rounded-lg border-0 bg-white py-0 pe-8 ps-2 text-xs text-gray-700 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-200 dark:ring-white/20"
+                        >
+                            @foreach ($panel['grade_types'] as $typeValue => $typeLabel)
+                                <option value="{{ $typeValue }}">{{ $typeLabel }}</option>
+                            @endforeach
+                        </select>
+                    @endif
+
+                    <button
+                        type="button"
+                        x-on:click="if (v.trim() !== '') { $wire.addDayGrade({{ $panel['student']?->getKey() ?? 0 }}, '{{ $panel['iso'] }}', v, t); v = ''; }"
+                        x-bind:disabled="v.trim() === ''"
+                        class="inline-flex h-9 items-center rounded-lg bg-primary-600 px-3 text-xs font-semibold text-white transition hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {{ __('panel.class_register.day_panel.add_grade_button') }}
+                    </button>
+                </div>
+            </div>
+        @endif
     </section>
 
     {{-- ── Absențele zilei, pe ore ──────────────────────────────────────────────────────── --}}

@@ -2446,6 +2446,9 @@ return [
         'day_panel' => [
             'close' => 'Închide',
             'grades_heading' => 'Notele zilei',
+            'add_grade_heading' => 'Adaugă notă pe această zi…',
+            'add_grade_button' => 'Adaugă nota',
+            'grade_added' => 'Nota a fost salvată — media se recalculează, familia e anunțată.',
             'no_grades' => 'Nicio notă în această zi.',
             'annulled_badge' => 'Anulată',
             'edit_grade' => 'Editează',
@@ -2457,6 +2460,7 @@ return [
             'open_cell' => 'Deschide ziua :date pentru :student',
         ],
         'days_column' => 'Zile',
+        'entry_target' => 'pe :date',
         'day_write_here' => 'Alege ziua :date pentru introducere',
         'average_column' => 'Media',
         'absences_column' => 'Absențe',

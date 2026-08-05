@@ -2430,6 +2430,9 @@ return [
         'day_panel' => [
             'close' => 'Закрыть',
             'grades_heading' => 'Отметки дня',
+            'add_grade_heading' => 'Добавить отметку на этот день…',
+            'add_grade_button' => 'Добавить',
+            'grade_added' => 'Отметка сохранена — средняя пересчитывается, семья уведомлена.',
             'no_grades' => 'В этот день отметок нет.',
             'annulled_badge' => 'Аннулирована',
             'edit_grade' => 'Изменить',
@@ -2441,6 +2444,7 @@ return [
             'open_cell' => 'Открыть день :date для :student',
         ],
         'days_column' => 'Дни',
+        'entry_target' => 'на :date',
         'day_write_here' => 'Выбрать день :date для ввода',
         'average_column' => 'Средний балл',
         'absences_column' => 'Пропуски',

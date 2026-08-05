@@ -859,6 +859,9 @@ class ClassRegister extends Page
      *     hours: array{taken: list<int>, timetable: list<int>},
      *     rights: array{is_admin: bool, can_annul: bool, can_request: bool, can_status: bool},
      *     can_absent: bool,
+     *     can_grade: bool,
+     *     numeric: bool,
+     *     grade_types: array<string, string>,
      * }
      */
     public function dayPanel(int $studentId, string $iso): array
@@ -867,6 +870,7 @@ class ClassRegister extends Page
             'student' => null, 'iso' => $iso, 'grades' => [], 'absences' => [],
             'hours' => ['taken' => [], 'timetable' => []],
             'rights' => $this->dayRights(), 'can_absent' => false,
+            'can_grade' => false, 'numeric' => true, 'grade_types' => [],
         ];
 
         $class = $this->activeClass();
@@ -949,6 +953,8 @@ class ClassRegister extends Page
             }
         }
 
+        $notFuture = ! Carbon::parse($iso)->startOfDay()->isAfter(Carbon::today());
+
         return [
             'student' => $student,
             'iso' => $iso,
@@ -956,8 +962,79 @@ class ClassRegister extends Page
             'absences' => $absences,
             'hours' => ['taken' => $taken, 'timetable' => $this->timetableHours($iso)],
             'rights' => $rights,
-            'can_absent' => $this->canRecordAbsences() && ! Carbon::parse($iso)->startOfDay()->isAfter(Carbon::today()),
+            'can_absent' => $this->canRecordAbsences() && $notFuture,
+            // Adăugarea unei NOTE pe ziua panoului (cerința 05.08.2026) — aceeași poartă ca
+            // introducerea rapidă; garda de scope face restul la salvare.
+            'can_grade' => $this->canEnterGrades() && $notFuture,
+            'numeric' => $this->gradingType() === GradingType::Numeric,
+            'grade_types' => $this->gradeTypeOptions(),
         ];
+    }
+
+    /**
+     * Adaugă o NOTĂ din panoul zilei — pe ziua celulei, nu pe data introducerii rapide. Trece
+     * prin ACEEAȘI validare prietenoasă și ACEEAȘI gardă ca borderoul ({@see saveEntries},
+     * {@see EnforcesGradeScope}): 1–10 întreg la numerice, calificativ scurt la celelalte;
+     * semestrul derivat din zi, sumativa doar unde e desemnată, scope-ul titularului pe server.
+     */
+    public function addDayGrade(int $studentId, string $iso, string $value, string $type): void
+    {
+        $user = $this->viewer();
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+        $value = trim($value);
+
+        if ($user === null || $class === null || $subject === null
+            || ! $this->canEnterGrades()
+            || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1
+            || $value === '') {
+            $this->denyDayAction();
+
+            return;
+        }
+
+        $numeric = $this->gradingType() === GradingType::Numeric;
+
+        if ($numeric && (! ctype_digit($value) || (int) $value < 1 || (int) $value > 10)) {
+            Notification::make()->danger()->title(__('panel.class_register.invalid_value'))->send();
+
+            return;
+        }
+
+        if (! $numeric && mb_strlen($value) > 10) {
+            Notification::make()->danger()->title(__('panel.class_register.invalid_calificativ'))->send();
+
+            return;
+        }
+
+        try {
+            $data = $this->enforceGradeScope([
+                'student_id' => $studentId,
+                'subject_id' => (int) $subject->getKey(),
+                'school_class_id' => (int) $class->getKey(),
+                'graded_on' => $iso,
+                'evaluation_type' => $numeric && EvaluationType::tryFrom($type) !== null
+                    ? $type
+                    : EvaluationType::Curenta->value,
+                'value' => $numeric ? (int) $value : null,
+                'calificativ' => $numeric ? null : $value,
+                'teacher_id' => $user->teacher?->getKey(),
+            ]);
+
+            Grade::query()->create($data);
+        } catch (ValidationException $exception) {
+            Notification::make()
+                ->danger()
+                ->title(collect($exception->errors())->flatten()->first() ?? $exception->getMessage())
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->success()
+            ->title(__('panel.class_register.day_panel.grade_added'))
+            ->send();
     }
 
     /**
