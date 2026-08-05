@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Enums\AbsenceStatus;
+use App\Enums\Calificativ;
 use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
@@ -25,9 +26,9 @@ use App\Models\Teacher;
 use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
-use App\Support\SchoolCalendar;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -41,21 +42,24 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Url;
 
 /**
- * CATALOGUL CLASEI (borderoul) — cerința beneficiarului (2026-07-30): profesorul nu avea imagine
- * de ansamblu, iar introducerea notelor/absențelor se făcea elev cu elev, prin formular — zeci de
- * minute pentru o clasă. Aici: TOATĂ clasa pe un ecran (alfabetic, note, medii, absențe) și o
- * coloană de INTRODUCERE RAPIDĂ — tastezi nota, Enter/Tab, următorul elev; bifezi absenții; un
- * singur buton salvează tot. Ținta: ~25 de elevi în 2-3 minute, în pauza dintre lecții.
+ * CATALOGUL CLASEI (borderoul): toată clasa pe un ecran — elevi × zile, cu note, medii și
+ * absențe — iar CELULA ZILEI e unitatea de interacțiune (restructurarea beneficiarului,
+ * 05.08.2026): click pe (elev × zi) deschide PANOUL ZILEI, unde se citesc și se scriu notele și
+ * absențele acelei zile, cu pârghiile privitorului. Vechea introducere în masă (coloanele „Notă
+ * nouă"/„Absent", data globală, „Salvează tot") a fost ELIMINATĂ la cererea explicită a
+ * beneficiarului — un singur mecanism de scriere, ancorat vizual în ziua pe care o atinge.
  *
- * SECURITATEA NU E RE-INVENTATĂ: salvarea trece prin ACELEAȘI traituri ca formularele clasice
- * ({@see EnforcesGradeScope}, {@see EnforcesAbsenceScope}) — semestrul derivat din dată, fără
- * viitor, fără an închis, fără duplicate, scope-ul profesorului verificat pe server la FIECARE
- * rând. Vizibilitatea urmează regula resurselor: profesorul își vede (clasa, disciplina) lui,
- * dirigintele toată clasa lui, administrația tot; AT nu are acces la date academice.
+ * SECURITATEA NU E RE-INVENTATĂ: fiecare scriere din panou trece prin ACELEAȘI traituri ca
+ * formularele clasice ({@see EnforcesGradeScope}, {@see EnforcesAbsenceScope}) — semestrul
+ * derivat din ZIUA celulei, fără viitor, fără an închis, anti-duplicat pe slotul de oră,
+ * scope-ul titularului verificat pe server. Vizibilitatea urmează regula resurselor: profesorul
+ * își vede (clasa, disciplina) lui, dirigintele toată clasa lui, administrația tot; AT nu are
+ * acces la date academice. Scrierea trece prin MODELE — observerii recalculează mediile și
+ * notifică familia.
  *
- * SALVAREA E ATOMICĂ: orice rând invalid anulează tot batch-ul, cu eroarea afișată PE RÂND —
- * previzibil („nimic nu s-a salvat, corectează și reia"), nu jumătăți de catalog. Scrierea trece
- * prin MODELE, deci observerii lucrează normal: mediile se recalculează, familia e notificată.
+ * GEOMETRIA E FIXĂ (05.08.2026): coloana elevului și ancorele din dreapta (Media, Absențe) au
+ * lățimi constante, sticky pe antet ȘI pe corp; zona zilelor ia tot restul, cu conținutul aliniat
+ * la stânga — filtrarea nu mișcă nicio margine, doar conținutul dintre ele.
  */
 class ClassRegister extends Page
 {
@@ -79,27 +83,6 @@ class ClassRegister extends Page
     public ?string $subjectParam = null;
 
     /**
-     * Introducerea rapidă, per elev: nota tastată + marcajul de absență.
-     *
-     * `absence` are DOUĂ valori: `null` (elev prezent) sau `absent` — un singur buton, fără
-     * statut (cerința beneficiarului, 04.08.2026). Vechile butoane „Mot./Nem." îi cereau
-     * profesorului o informație pe care de regulă n-o are: DE CE lipsește elevul află doar
-     * dirigintele, pe parcursul zilei. Absența pleacă de aici FĂRĂ statut, iar dirigintele o
-     * statutează din secțiunea Absențe (unde îl așteaptă coada „fără statut" cu badge în meniu).
-     *
-     * @var array<int|string, array{value?: string|null, absence?: string|null}>
-     */
-    public array $entries = [];
-
-    /** Data pentru TOT batch-ul (implicit azi) — semestrul se derivă din ea, pe server. */
-    public string $entryDate = '';
-
-    public string $entryType = EvaluationType::Curenta->value;
-
-    /** Marcajul de absență al unui rând (starea „prezent" = null). */
-    public const ABSENCE_MARKED = 'absent';
-
-    /**
      * FILTRUL DE TIP (cerința beneficiarului, 04.08.2026): notele stăteau una lângă alta, pe rândul
      * elevului, deci „colonița" unei zile — sau a ESS-ului — nu se putea urmări cu ochiul.
      *
@@ -112,13 +95,6 @@ class ClassRegister extends Page
     public string $gradeTypeFilter = self::DEFAULT_GRADE_TYPE;
 
     public const DEFAULT_GRADE_TYPE = 'curenta';
-
-    public function mount(): void
-    {
-        if ($this->entryDate === '') {
-            $this->entryDate = $this->defaultEntryDate();
-        }
-    }
 
     public static function getNavigationGroup(): ?string
     {
@@ -289,130 +265,16 @@ class ClassRegister extends Page
     }
 
     /**
-     * Semestrul afișat = semestrul DATEI alese. O singură sursă de adevăr (cerința beneficiarului,
-     * 2026-07-30): selectorul separat de semestru era redundant lângă o dată care oricum decide
-     * unde se salvează nota — și, mai rău, sugera că se poate salva în alt semestru decât cel al
-     * datei. Acum vezi exact semestrul în care vei scrie; ca să vezi altul, schimbi data.
-     *
-     * Fallback: dacă data cade în afara oricărui interval (vacanță), rămâne semestrul curent al
-     * clasei — borderoul arată ceva util, iar salvarea e oricum arbitrată pe server de trait.
+     * Semestrul VIZUALIZAT: cel curent al clasei (fallback: primul). Scrierea nu mai depinde de
+     * el — fiecare notă/absență din panoul zilei își derivă semestrul din ZIUA celulei, pe server
+     * ({@see EnforcesGradeScope}/{@see EnforcesAbsenceScope}); aparatul de introducere în masă,
+     * cu data lui globală, a fost eliminat (cerința beneficiarului, 05.08.2026).
      */
     public function activeTerm(): ?Term
     {
         $terms = $this->termOptions();
 
-        if ($terms->isEmpty()) {
-            return null;
-        }
-
-        if ($this->entryDate !== '') {
-            $date = Carbon::parse($this->entryDate)->startOfDay();
-
-            $matching = $terms->first(function (Term $term) use ($date): bool {
-                return $term->starts_on !== null
-                    && $term->ends_on !== null
-                    && $date->betweenIncluded($term->starts_on->startOfDay(), $term->ends_on->endOfDay());
-            });
-
-            if ($matching instanceof Term) {
-                return $matching;
-            }
-        }
-
         return $terms->firstWhere('is_current', true) ?? $terms->first();
-    }
-
-    /**
-     * Data implicită: ÎNTOTDEAUNA ziua în care se deschide borderoul (cerința beneficiarului,
-     * 04.08.2026).
-     *
-     * Varianta anterioară muta tăcut data pe ultima zi a semestrului curent când „azi" nu cădea în
-     * niciun semestru (vacanță, an neînchis). Scopul era bun — salvarea trecea — dar mijlocul era
-     * greșit: ecranul arăta o ALTĂ zi decât cea în care lucrezi, iar o notă pusă din reflex se
-     * scria pe 30 iunie fără ca nimeni să o ceară. Substituția tăcută a fost înlocuită cu ADEVĂRUL
-     * spus la vedere: data rămâne azi, iar dacă azi nu aparține niciunui semestru, ecranul o spune
-     * și arată ce e de făcut ({@see entryDateState()}).
-     */
-    private function defaultEntryDate(): string
-    {
-        return Carbon::today()->toDateString();
-    }
-
-    /** Data aleasă cade într-un semestru — cazul normal, nimic de semnalat. */
-    public const DATE_IN_TERM = 'in_term';
-
-    /** Vacanță din INTERIORUL anului: salvarea trece, cu semestrul curent (fallback legitim). */
-    public const DATE_VACATION = 'vacation';
-
-    /** Dată de DUPĂ finalul anului: structura anului nou lipsește → salvarea e refuzată. */
-    public const DATE_AFTER_YEAR = 'after_year';
-
-    /**
-     * VACANȚA DINTRE ANI: anul vechi s-a încheiat, anul nou E DESCHIS dar nu a început încă.
-     * Salvarea pe această dată rămâne refuzată (ziua nu aparține niciunui semestru), dar nu mai
-     * e nimic de reparat — se așteaptă 1 septembrie, iar semestrul curent comută singur
-     * (`app:sync-current-term`). Fără starea asta, banda de rollover ar fi mințit („anul nou nu
-     * are semestre definite") imediat DUPĂ deschiderea anului — prins pe 04.08.2026, la prima
-     * deschidere reală prin „Trecerea în anul nou".
-     */
-    public const DATE_BETWEEN_YEARS = 'between_years';
-
-    /**
-     * Starea datei alese față de structura anului. Oglindește EXACT decizia de pe server
-     * ({@see EnforcesGradeScope}/{@see EnforcesAbsenceScope}): ce anunță ecranul aici e ce se va
-     * întâmpla la salvare — altfel semnalul ar fi doar decor.
-     */
-    public function entryDateState(): string
-    {
-        $date = $this->entryDate !== ''
-            ? Carbon::parse($this->entryDate)->startOfDay()
-            : Carbon::today();
-
-        if (Term::forDate($date) instanceof Term) {
-            return self::DATE_IN_TERM;
-        }
-
-        $yearEndsOn = SchoolCalendar::currentTerm()?->academicYear?->ends_on;
-
-        if ($yearEndsOn === null || ! $date->isAfter($yearEndsOn->startOfDay())) {
-            return self::DATE_VACATION;
-        }
-
-        // După finalul anului curent: dacă există deja un semestru care ÎNCEPE după data aleasă,
-        // anul următor e deschis — suntem doar în golul dintre ani, nu într-un rollover lipsă.
-        return $this->nextTermAfter($date) !== null
-            ? self::DATE_BETWEEN_YEARS
-            : self::DATE_AFTER_YEAR;
-    }
-
-    /** Primul semestru care începe DUPĂ data dată — proba că anul următor există. */
-    public function nextTermAfter(Carbon $date): ?Term
-    {
-        return Term::query()
-            ->whereDate('starts_on', '>', $date->toDateString())
-            ->orderBy('starts_on')
-            ->first();
-    }
-
-    /** Anul care s-a încheiat (pentru mesajul de rollover) — null dacă nu există semestru curent. */
-    public function currentYearLabel(): ?string
-    {
-        return SchoolCalendar::currentTerm()?->academicYear?->name;
-    }
-
-    public function currentYearEndsOn(): ?string
-    {
-        return SchoolCalendar::currentTerm()?->academicYear?->ends_on?->format('d.m.Y');
-    }
-
-    /**
-     * Linkul spre ecranul de deschidere a anului nou — DOAR pentru cine îl poate folosi.
-     * Un buton care duce la 403 ar muta problema, nu ar rezolva-o; profesorul primește doar
-     * explicația (și pe ea o duce mai departe la administrație).
-     */
-    public function yearTransitionUrl(): ?string
-    {
-        return SchoolYearTransition::canAccess() ? SchoolYearTransition::getUrl() : null;
     }
 
     // ── Drepturi pe contextul activ ─────────────────────────────────────────────────────────
@@ -986,6 +848,7 @@ class ClassRegister extends Page
 
         if ($user === null || $class === null || $subject === null
             || ! $this->canEnterGrades()
+            || ! $this->studentInActiveClass($studentId)
             || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1
             || $value === '') {
             $this->denyDayAction();
@@ -1001,7 +864,12 @@ class ClassRegister extends Page
             return;
         }
 
-        if (! $numeric && mb_strlen($value) > 10) {
+        // Calificativul e un SIMBOL dintr-o scală închisă, nu text de lungime oarecare: regula
+        // veche („cel mult 10 caractere") lăsa să intre orice. Aici profesorul TASTEAZĂ direct în
+        // celulă, deci se acceptă și „fb"/„SP" — `normalize()` le duce la forma canonică.
+        $calificativ = $numeric ? null : Calificativ::normalize($value);
+
+        if (! $numeric && $calificativ === null) {
             Notification::make()->danger()->title(__('panel.class_register.invalid_calificativ'))->send();
 
             return;
@@ -1017,7 +885,7 @@ class ClassRegister extends Page
                     ? $type
                     : EvaluationType::Curenta->value,
                 'value' => $numeric ? (int) $value : null,
-                'calificativ' => $numeric ? null : $value,
+                'calificativ' => $calificativ?->value,
                 'teacher_id' => $user->teacher?->getKey(),
             ]);
 
@@ -1067,12 +935,14 @@ class ClassRegister extends Page
     }
 
     /**
-     * Consemnează o absență NOUĂ din panoul zilei, pe ORA aleasă — calea prin care ziua primește
-     * a doua absență la aceeași disciplină (ore consecutive). Trece prin ACEEAȘI gardă ca
-     * borderoul și formularul clasic ({@see EnforcesAbsenceScope}): fără viitor, semestru derivat
-     * din dată, anti-duplicat pe slot (elev + zi + disciplină + oră).
+     * Consemnează o absență NOUĂ din panoul zilei — un click, o oră lipsită. ORA nu se mai alege
+     * (decizia beneficiarului, 05.08.2026: disciplina e deja fixată de context, alegerea orei era
+     * zgomot): se atribuie AUTOMAT — întâi orele disciplinei din orar (în ordine), apoi, fără
+     * orar, ordinalul liber 1–8. Așa „a lipsit la ambele ore" = două apăsări, fiecare pe slotul
+     * ei. Garda rămâne aceeași ({@see EnforcesAbsenceScope}): fără viitor, semestru derivat din
+     * zi, anti-duplicat pe slot.
      */
-    public function addDayAbsence(int $studentId, string $iso, ?int $lesson = null): void
+    public function addDayAbsence(int $studentId, string $iso): void
     {
         $user = $this->viewer();
         $class = $this->activeClass();
@@ -1080,9 +950,22 @@ class ClassRegister extends Page
 
         if ($user === null || $class === null || $subject === null
             || ! $this->canRecordAbsences()
-            || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1
-            || ($lesson !== null && ($lesson < 1 || $lesson > 8))) {
+            || ! $this->studentInActiveClass($studentId)
+            || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
             $this->denyDayAction();
+
+            return;
+        }
+
+        $lesson = $this->nextFreeLessonSlot($studentId, $iso);
+
+        if ($lesson === null) {
+            // Toate orele zilei (din orar, ori 1–8 fără orar) sunt deja consemnate: a N-a apăsare
+            // nu mai are ce oră să umple — refuz prietenos, nu un rând imposibil.
+            Notification::make()
+                ->warning()
+                ->title(__('panel.class_register.day_panel.all_hours_taken'))
+                ->send();
 
             return;
         }
@@ -1113,6 +996,62 @@ class ClassRegister extends Page
             ->success()
             ->title(__('panel.class_register.day_panel.absence_added'))
             ->send();
+    }
+
+    /**
+     * Elevul aparține clasei ACTIVE? Batch-ul vechi filtra prin rândurile vizibile; panoul
+     * primește id-ul din browser, deci înmatricularea se re-verifică explicit — altfel un id
+     * străin ar trece prin ramura de administrație a gărzilor (care nu cere înmatriculare).
+     */
+    private function studentInActiveClass(int $studentId): bool
+    {
+        $class = $this->activeClass();
+
+        return $class !== null && Enrollment::query()
+            ->where('school_class_id', $class->getKey())
+            ->where('student_id', $studentId)
+            ->whereNull('left_on')
+            ->exists();
+    }
+
+    /**
+     * Următorul slot de oră LIBER pentru (elev, zi): întâi orele disciplinei din orar, în ordinea
+     * lor — prima apăsare = prima oră, a doua = a doua (exact scenariul orelor consecutive); fără
+     * orar, cel mai mic ordinal 1–8 neconsumat. Null = totul e consemnat deja.
+     *
+     * O absență istorică „fără oră" (null) nu blochează sloturile numerotate — ocupă doar slotul
+     * propriu, ca până acum.
+     */
+    private function nextFreeLessonSlot(int $studentId, string $iso): ?int
+    {
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+
+        if ($class === null || $subject === null) {
+            return null;
+        }
+
+        $taken = Absence::query()
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->where('student_id', $studentId)
+            ->whereDate('occurred_on', $iso)
+            ->whereNotNull('lesson_number')
+            ->pluck('lesson_number')
+            ->map(fn ($n): int => (int) $n)
+            ->all();
+
+        $timetable = $this->timetableHours($iso);
+
+        // Cu orar: DOAR orele lui — a N+1-a apăsare peste orele zilei nu inventează o oră care
+        // nu există în orar. Fără orar: ordinalele 1–8.
+        foreach (($timetable !== [] ? $timetable : range(1, 8)) as $hour) {
+            if (! in_array($hour, $taken, true)) {
+                return $hour;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -1172,14 +1111,18 @@ class ClassRegister extends Page
                     ->label(__('panel.actions.request_correction.new_value'))
                     ->validationAttribute(__('panel.actions.request_correction.new_value'))
                     ->numeric()
+                    // Aceeași scală ca nota: întreg 1–10 (vezi nota din ListGrades).
+                    ->step(1)
+                    ->rules(['integer'])
                     ->minValue(1)
                     ->maxValue(10)
                     ->visible(fn (Action $action): bool => $this->dayActionGrade($action->getArguments())?->subject?->grading_type === GradingType::Numeric)
                     ->requiredWithout('new_calificativ'),
-                TextInput::make('new_calificativ')
+                Select::make('new_calificativ')
                     ->label(__('panel.actions.request_correction.new_calificativ'))
                     ->validationAttribute(__('panel.actions.request_correction.new_calificativ'))
-                    ->maxLength(10)
+                    ->options(Calificativ::groupedOptions())
+                    ->native(false)
                     ->visible(fn (Action $action): bool => $this->dayActionGrade($action->getArguments())?->subject?->grading_type !== GradingType::Numeric)
                     ->requiredWithout('new_value'),
                 Textarea::make('reason')
@@ -1248,21 +1191,6 @@ class ClassRegister extends Page
     }
 
     /**
-     * Antetul unei zile mută DATA de introducere pe ziua aceea („selectarea directă a zilei",
-     * cerința 05.08.2026): coloana de introducere rapidă scrie de-acum acolo. Intrările începute
-     * se golesc — alt semestru posibil, alt batch.
-     */
-    public function setEntryDay(string $iso): void
-    {
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
-            return;
-        }
-
-        $this->entryDate = $iso;
-        $this->resetEntries();
-    }
-
-    /**
      * Nota țintei unei acțiuni de zi, STRICT în contextul activ (clasă + disciplină): argumentele
      * din browser sunt dorințe, nu adevăr.
      *
@@ -1313,13 +1241,12 @@ class ClassRegister extends Page
         return $group !== null ? (int) $group : null;
     }
 
-    // ── Navigare (resetează introducerea începută — alt context, alt batch) ────────────────
+    // ── Navigare ──────────────────────────────────────────────────────────────────────
 
     public function openClass(int $id): void
     {
         $this->classParam = (string) $id;
         $this->subjectParam = null;
-        $this->resetEntries();
         // Alt context → alte note: un filtru rămas din clasa precedentă ar arăta „gol" fără
         // nicio explicație (data de ieri nu există la clasa nouă).
         $this->clearGradeFilters();
@@ -1328,223 +1255,6 @@ class ClassRegister extends Page
     public function openSubject(int $id): void
     {
         $this->subjectParam = (string) $id;
-        $this->resetEntries();
         $this->clearGradeFilters();
-    }
-
-    /**
-     * Schimbarea datei mută borderoul în semestrul acelei date — deci rândurile afișate nu mai
-     * corespund intrărilor începute. Le golim, ca să nu se salveze note pe alt semestru decât cel
-     * pe care profesorul îl are în față.
-     */
-    public function updatedEntryDate(): void
-    {
-        $this->resetEntries();
-    }
-
-    private function resetEntries(): void
-    {
-        $this->entries = [];
-        $this->resetErrorBag();
-    }
-
-    /**
-     * Comută marcajul de absență pe un rând: un click marchează elevul absent, încă unul îl
-     * readuce prezent. Fără statut aici — profesorul consemnează, dirigintele decide.
-     */
-    public function toggleAbsence(int $studentId): void
-    {
-        $current = $this->entries[$studentId]['absence'] ?? null;
-
-        $this->entries[$studentId]['absence'] = $current === self::ABSENCE_MARKED ? null : self::ABSENCE_MARKED;
-    }
-
-    // ── Salvarea în masă ────────────────────────────────────────────────────────────────────
-
-    /**
-     * TOT batch-ul într-o singură acțiune, ATOMIC: se validează fiecare rând (aceleași gărzi ca
-     * formularul clasic — traiturile), iar ORICE eroare anulează tot și se afișează PE RÂND.
-     * Nimic parțial: profesorul corectează și reia, fără să ghicească ce a intrat și ce nu.
-     */
-    public function saveEntries(): void
-    {
-        $this->resetErrorBag();
-
-        $user = $this->viewer();
-        $class = $this->activeClass();
-        $subject = $this->activeSubject();
-
-        abort_unless($user !== null && $class !== null && $subject !== null, 404);
-
-        $canGrade = $this->canEnterGrades();
-        $canAbsent = $this->canRecordAbsences();
-
-        abort_unless($canGrade || $canAbsent, 403);
-
-        // Dată din afara oricărui semestru al vreunui an (rollover lipsă SAU golul dintre ani):
-        // gărzile de pe server ar refuza oricum fiecare rând, dar mesajul ar veni de 25 de ori,
-        // pe rânduri. Îl spunem o dată, înainte să scriem ceva — pe limba stării reale.
-        $dateState = $this->entryDateState();
-
-        if (in_array($dateState, [self::DATE_AFTER_YEAR, self::DATE_BETWEEN_YEARS], true)) {
-            $blockedDate = Carbon::parse($this->entryDate);
-            $next = $this->nextTermAfter($blockedDate);
-
-            Notification::make()
-                ->title(__('panel.class_register.after_year_blocked', [
-                    'date' => $blockedDate->format('d.m.Y'),
-                ]))
-                ->body($dateState === self::DATE_BETWEEN_YEARS
-                    ? __('panel.class_register.between_years_body', [
-                        'year' => $this->currentYearLabel() ?? '—',
-                        // În starea „între ani", $next există prin definiție (ea A DECIS starea);
-                        // anul lui poate lipsi doar teoretic (withTrashed pe relații).
-                        'next' => $next?->academicYear->name ?? '—',
-                        'start' => $next?->starts_on?->format('d.m.Y') ?? '—',
-                    ])
-                    : __('panel.class_register.after_year_body', [
-                        'year' => $this->currentYearLabel() ?? '—',
-                        'date' => $this->currentYearEndsOn() ?? '—',
-                    ]))
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        $date = $this->entryDate !== '' ? $this->entryDate : Carbon::today()->toDateString();
-        $numeric = $this->gradingType() === GradingType::Numeric;
-
-        // Doar elevii AFIȘAȚI pot primi intrări — cheile străine din payload se ignoră.
-        $visibleIds = array_map(
-            fn (array $row): int => (int) $row['student']->getKey(),
-            $this->rows(),
-        );
-
-        $batch = [];
-
-        foreach ($this->entries as $studentId => $entry) {
-            $studentId = (int) $studentId;
-
-            if (! in_array($studentId, $visibleIds, true)) {
-                continue;
-            }
-
-            $value = isset($entry['value']) ? trim((string) $entry['value']) : '';
-            $absence = $entry['absence'] ?? null;
-
-            // Doar marcajul cunoscut trece; orice altceva din payload = elev prezent.
-            if ($absence !== self::ABSENCE_MARKED) {
-                $absence = null;
-            }
-
-            if ($value === '' && $absence === null) {
-                continue;
-            }
-
-            $batch[$studentId] = ['value' => $value, 'absence' => $absence];
-        }
-
-        if ($batch === []) {
-            Notification::make()
-                ->title(__('panel.class_register.nothing_to_save'))
-                ->warning()
-                ->send();
-
-            return;
-        }
-
-        $rowErrors = [];
-        $createdGrades = 0;
-        $createdAbsences = 0;
-
-        DB::beginTransaction();
-
-        try {
-            foreach ($batch as $studentId => $entry) {
-                if ($entry['value'] !== '' && $canGrade) {
-                    // Validare prietenoasă ÎNAINTE de model: 1–10 întreg pentru discipline
-                    // numerice; calificativ scurt pentru celelalte. Garda de model rămâne în spate.
-                    if ($numeric && (! ctype_digit($entry['value']) || (int) $entry['value'] < 1 || (int) $entry['value'] > 10)) {
-                        $rowErrors[$studentId] = __('panel.class_register.invalid_value');
-                    } elseif (! $numeric && mb_strlen($entry['value']) > 10) {
-                        $rowErrors[$studentId] = __('panel.class_register.invalid_calificativ');
-                    } else {
-                        try {
-                            $data = $this->enforceGradeScope([
-                                'student_id' => $studentId,
-                                'subject_id' => (int) $subject->getKey(),
-                                'school_class_id' => (int) $class->getKey(),
-                                'graded_on' => $date,
-                                'evaluation_type' => $numeric ? $this->entryType : EvaluationType::Curenta->value,
-                                'value' => $numeric ? (int) $entry['value'] : null,
-                                'calificativ' => $numeric ? null : $entry['value'],
-                                'teacher_id' => $user->teacher?->getKey(),
-                            ]);
-
-                            Grade::query()->create($data);
-                            $createdGrades++;
-                        } catch (ValidationException $exception) {
-                            $rowErrors[$studentId] = collect($exception->errors())->flatten()->first() ?? $exception->getMessage();
-                        }
-                    }
-                }
-
-                if ($entry['absence'] !== null && $canAbsent) {
-                    try {
-                        $data = $this->enforceAbsenceScope([
-                            'student_id' => $studentId,
-                            'subject_id' => (int) $subject->getKey(),
-                            'school_class_id' => (int) $class->getKey(),
-                            'occurred_on' => $date,
-                            // FĂRĂ statut: profesorul consemnează, dirigintele decide (motivată/
-                            // nemotivată) din secțiunea Absențe. Observerul motivează automat doar
-                            // dacă ziua e deja acoperită de o motivare aprobată.
-                            'is_motivated' => null,
-                            'teacher_id' => $user->teacher?->getKey(),
-                        ]);
-
-                        Absence::query()->create($data);
-                        $createdAbsences++;
-                    } catch (ValidationException $exception) {
-                        $rowErrors[$studentId] = collect($exception->errors())->flatten()->first() ?? $exception->getMessage();
-                    }
-                }
-            }
-
-            if ($rowErrors !== []) {
-                DB::rollBack();
-            } else {
-                DB::commit();
-            }
-        } catch (\Throwable $exception) {
-            DB::rollBack();
-
-            throw $exception;
-        }
-
-        if ($rowErrors !== []) {
-            foreach ($rowErrors as $studentId => $message) {
-                $this->addError('entries.'.$studentId, $message);
-            }
-
-            Notification::make()
-                ->title(__('panel.class_register.batch_failed'))
-                ->body(__('panel.class_register.batch_failed_hint', ['count' => count($rowErrors)]))
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        Notification::make()
-            ->title(__('panel.class_register.batch_saved'))
-            ->body(trans_choice('panel.class_register.saved_grades', $createdGrades, ['count' => $createdGrades])
-                .' · '
-                .trans_choice('panel.class_register.saved_absences', $createdAbsences, ['count' => $createdAbsences]))
-            ->success()
-            ->send();
-
-        $this->resetEntries();
     }
 }

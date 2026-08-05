@@ -167,17 +167,17 @@ it('borderoul în context Diriginte: doar clasa lui, fără input de note, cu ab
         ->and($page->canEnterGrades())->toBeTrue();
 });
 
-it('salvarea din borderou rămâne permisă pe server în ambele contexte (gărzile = reuniune)', function () {
+it('scrierea din panoul zilei rămâne permisă pe server în ambele contexte (gărzile = reuniune)', function () {
     actingAs($this->user);
+
+    $azi = Carbon::today()->toDateString();
 
     // Context Profesor: nota intră la clasa de dirigenție (predă acolo) — drepturi de profesor.
     activateContext($this->user, UserRole::Profesor);
 
     Livewire::withQueryParams(['clasa' => (string) $this->classA->id, 'disciplina' => (string) $this->subject->id])
         ->test(ClassRegister::class)
-        ->set('entries', [(string) $this->studentA->id => ['value' => '9']])
-        ->call('saveEntries')
-        ->assertHasNoErrors();
+        ->call('addDayGrade', $this->studentA->id, $azi, '9', 'curenta');
 
     expect(Grade::query()->where('student_id', $this->studentA->id)->where('subject_id', $this->subject->id)->count())->toBe(1);
 
@@ -186,9 +186,7 @@ it('salvarea din borderou rămâne permisă pe server în ambele contexte (gărz
 
     Livewire::withQueryParams(['clasa' => (string) $this->classA->id, 'disciplina' => (string) $this->otherSubject->id])
         ->test(ClassRegister::class)
-        ->set('entries', [(string) $this->studentA->id => ['absence' => ClassRegister::ABSENCE_MARKED]])
-        ->call('saveEntries')
-        ->assertHasNoErrors();
+        ->call('addDayAbsence', $this->studentA->id, $azi);
 
     expect(Absence::query()->where('student_id', $this->studentA->id)->count())->toBe(1);
 });

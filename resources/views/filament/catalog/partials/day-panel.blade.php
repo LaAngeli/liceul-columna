@@ -184,48 +184,23 @@
             </ul>
         @endif
 
-        {{-- Consemnarea unei absențe NOI pe ora aleasă — calea spre „a lipsit la AMBELE ore".
-             Orele din orar vin ca sugestii-pastilă; „fără oră" rămâne pentru consemnarea rapidă.
-             O oră deja consemnată se arată dezactivată, nu ascunsă: se vede că e luată. --}}
+        {{-- Consemnarea unei absențe NOI — UN buton, fără alegerea orei (decizia beneficiarului,
+             05.08.2026: disciplina e deja a contextului, alegerea orei era zgomot). O apăsare = o
+             oră lipsită; ora se atribuie automat (întâi din orar, apoi ordinal), deci „a lipsit
+             la ambele ore" = două apăsări. --}}
         @if ($panel['can_absent'])
-            <div class="mt-3 rounded-lg border border-dashed border-gray-300 p-3 dark:border-white/15">
-                <p class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ __('panel.class_register.day_panel.add_absence_heading') }}
+            <div class="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-gray-300 p-3 dark:border-white/15">
+                <button
+                    type="button"
+                    wire:click="addDayAbsence({{ $panel['student']?->getKey() ?? 0 }}, '{{ $panel['iso'] }}')"
+                    class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-warning-500 px-3 text-xs font-semibold text-white transition hover:bg-warning-400 dark:bg-warning-400 dark:text-warning-950 dark:hover:bg-warning-300"
+                >
+                    <x-filament::icon icon="heroicon-o-user-minus" class="h-4 w-4" />
+                    {{ __('panel.class_register.day_panel.add_absence_button') }}
+                </button>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ __('panel.class_register.day_panel.add_absence_hint') }}
                 </p>
-                <div class="flex flex-wrap items-center gap-1.5">
-                    @foreach ($panel['hours']['timetable'] as $hour)
-                        @php($taken = in_array($hour, $panel['hours']['taken'], true))
-                        <button
-                            type="button"
-                            @disabled($taken)
-                            wire:click="addDayAbsence({{ $panel['student']?->getKey() ?? 0 }}, '{{ $panel['iso'] }}', {{ $hour }})"
-                            @class([
-                                'inline-flex h-8 items-center rounded-md px-2.5 text-xs font-semibold ring-1 transition',
-                                'cursor-not-allowed bg-gray-100 text-gray-400 ring-gray-950/5 dark:bg-white/5 dark:text-gray-600 dark:ring-white/10' => $taken,
-                                'bg-white text-gray-700 ring-gray-950/10 hover:bg-warning-50 hover:text-warning-700 hover:ring-warning-600/30 dark:bg-white/5 dark:text-gray-200 dark:ring-white/15 dark:hover:bg-warning-400/10' => ! $taken,
-                            ])
-                        >
-                            {{ __('panel.forms.absence.lesson_option', ['number' => $hour]) }}
-                        </button>
-                    @endforeach
-
-                    {{-- Orele din afara orarului (orar absent sau incomplet) — un select discret. --}}
-                    <select
-                        x-data
-                        x-on:change="if ($el.value !== '') { $wire.addDayAbsence({{ $panel['student']?->getKey() ?? 0 }}, '{{ $panel['iso'] }}', $el.value === 'null' ? null : parseInt($el.value)); $el.value = ''; }"
-                        class="h-8 rounded-md border-0 bg-white py-0 pe-8 ps-2 text-xs text-gray-600 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-300 dark:ring-white/15"
-                    >
-                        <option value="">{{ __('panel.class_register.day_panel.other_hour') }}</option>
-                        <option value="null">{{ __('panel.forms.absence.lesson_unspecified') }}</option>
-                        @foreach (range(1, 8) as $hour)
-                            @unless (in_array($hour, $panel['hours']['timetable'], true))
-                                <option value="{{ $hour }}" @disabled(in_array($hour, $panel['hours']['taken'], true))>
-                                    {{ __('panel.forms.absence.lesson_option', ['number' => $hour]) }}
-                                </option>
-                            @endunless
-                        @endforeach
-                    </select>
-                </div>
             </div>
         @endif
     </section>

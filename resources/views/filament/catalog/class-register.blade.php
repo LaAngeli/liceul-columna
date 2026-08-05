@@ -11,29 +11,13 @@
         $activeSubject = $this->activeSubject();
         $activeTerm = $this->activeTerm();
         $rows = $this->rows();
-        $canGrade = $this->canEnterGrades();
-        $canAbsent = $this->canRecordAbsences();
-        $numeric = $this->gradingType() === \App\Enums\GradingType::Numeric;
-        // Pârghiile popover-ului de ZI (aceleași gărzi ca tabelul Note / hărțile) + paleta
-        // statutului de absență — limbajul vizual din harta absențelor, neschimbat.
-        $rights = $this->dayRights();
-        $absStatusChoices = [
-            \App\Enums\AbsenceStatus::Motivated,
-            \App\Enums\AbsenceStatus::Unmotivated,
-            \App\Enums\AbsenceStatus::Pending,
-        ];
-        $absPalette = [
-            'warning' => 'bg-amber-100 text-amber-800 ring-amber-600/30 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/30',
-            'success' => 'bg-green-100 text-green-800 ring-green-600/30 dark:bg-green-400/10 dark:text-green-300 dark:ring-green-400/30',
-            'danger' => 'bg-red-100 text-red-800 ring-red-600/30 dark:bg-red-400/10 dark:text-red-300 dark:ring-red-400/30',
-        ];
-        // Ancorele din DREAPTA: lățimi fixe → offseturi sticky cumulative (dependente de rol).
-        $wMedia = 80; $wAbs = 128; $wGrade = 96; $wAbsent = 144;
-        $offAbsent = 0;
-        $offGrade = $canAbsent ? $wAbsent : 0;
-        $offAbsCol = $offGrade + ($canGrade ? $wGrade : 0);
-        $offMedia = $offAbsCol + $wAbs;
+        // Ancorele din DREAPTA (Media + Absente) si coloana elevului: latimi FIXE —
+        // geometria tabelului nu depinde de continut (cerinta beneficiarului, 05.08.2026).
+        $wMedia = 80; $wAbs = 128;
+        $offAbsCol = 0;
+        $offMedia = $wAbs;
         $rightAnchorsWidth = $offMedia + $wMedia;
+        $studentColWidth = 240;
     @endphp
 
     <div class="space-y-4">
@@ -94,166 +78,7 @@
                 <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('panel.class_register.empty_description') }}</p>
             </div>
         @else
-            <div
-                x-data="{
-                    filled: 0,
-                    recount() {
-                        const inputs = Array.from($el.querySelectorAll('[data-quick-input]')).filter((i) => i.value.trim() !== '').length;
-                        const absences = $el.querySelectorAll('[data-quick-absence-active]').length;
-                        this.filled = inputs + absences;
-                    },
-                    focusNext(current) {
-                        const inputs = Array.from($el.querySelectorAll('[data-quick-input]'));
-                        const next = inputs[inputs.indexOf(current) + 1];
-                        if (next) { next.focus(); next.select(); }
-                    },
-                }"
-                x-on:input.debounce.150ms="recount()"
-                x-on:change="recount()"
-                {{-- Primul input primește focus la deschidere: profesorul tastează direct, fără click.
-                     Contorul se recalculează și după re-randările Livewire — statutul absenței vine
-                     de la server, deci un simplu `input`/`change` nu l-ar prinde niciodată. --}}
-                x-init="
-                    $nextTick(() => $el.querySelector('[data-quick-input]')?.focus());
-                    Livewire.hook('morph.updated', () => recount());
-                "
-                class="space-y-4"
-            >
-                {{-- ── Bara de introducere rapidă (o singură dată pentru tot batch-ul) ──── --}}
-                @if ($canGrade || $canAbsent)
-                    {{-- Bara de control: fiecare câmp e o coloană cu etichetă sus, control de 2.25rem
-                         și subtitlu dedesubt — toate pe aceeași grilă, deci capetele se aliniază
-                         indiferent ce câmpuri sunt vizibile (raportat ca „unele mai sus, altele mai jos”). --}}
-                    <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
-                        <div class="flex flex-wrap items-start gap-x-4 gap-y-3">
-                            {{-- DATA e sursa UNICĂ: decide și semestrul în care intră totul, și pe
-                                 cel afișat în borderou. Semestrul rezultat stă în linia de subtitlu,
-                                 aceeași pentru toate coloanele — nu împinge nimic mai jos. --}}
-                            <div class="w-40">
-                                <label for="borderou-date" class="mb-1 flex h-4 items-center text-xs font-medium text-gray-500 dark:text-gray-400">
-                                    {{ __('panel.fields.date') }}
-                                </label>
-                                <x-filament::input.wrapper>
-                                    <x-filament::input
-                                        id="borderou-date"
-                                        type="date"
-                                        wire:model.live="entryDate"
-                                        max="{{ \Illuminate\Support\Carbon::today()->toDateString() }}"
-                                    />
-                                </x-filament::input.wrapper>
-                                {{-- Subtitlul spune ADEVĂRUL despre data aleasă: semestrul în care
-                                     intră, „vacanță" când se salvează prin fallback, sau anul
-                                     încheiat când salvarea va fi refuzată. Un nume de semestru
-                                     afișat sub o dată în care nu se poate scrie ar fi o minciună. --}}
-                                @php($dateState = $this->entryDateState())
-                                <p @class([
-                                    'mt-1 flex h-4 items-center text-xs',
-                                    'text-gray-400 dark:text-gray-500' => $dateState === \App\Filament\Pages\ClassRegister::DATE_IN_TERM,
-                                    'text-warning-600 dark:text-warning-400' => in_array($dateState, [\App\Filament\Pages\ClassRegister::DATE_VACATION, \App\Filament\Pages\ClassRegister::DATE_BETWEEN_YEARS], true),
-                                    'font-medium text-danger-600 dark:text-danger-400' => $dateState === \App\Filament\Pages\ClassRegister::DATE_AFTER_YEAR,
-                                ])>
-                                    @switch($dateState)
-                                        @case(\App\Filament\Pages\ClassRegister::DATE_VACATION)
-                                            {{ __('panel.class_register.date_vacation', ['term' => $activeTerm?->name ?? '—']) }}
-                                            @break
-                                        @case(\App\Filament\Pages\ClassRegister::DATE_BETWEEN_YEARS)
-                                            {{ __('panel.class_register.date_between_years') }}
-                                            @break
-                                        @case(\App\Filament\Pages\ClassRegister::DATE_AFTER_YEAR)
-                                            {{ __('panel.class_register.date_after_year', ['year' => $this->currentYearLabel() ?? '—']) }}
-                                            @break
-                                        @default
-                                            {{ $activeTerm?->name }}
-                                    @endswitch
-                                </p>
-                            </div>
-
-                            @if ($canGrade && $numeric)
-                                <div class="w-44">
-                                    <label for="borderou-type" class="mb-1 flex h-4 items-center text-xs font-medium text-gray-500 dark:text-gray-400">
-                                        {{ __('panel.fields.evaluation_type') }}
-                                    </label>
-                                    <x-filament::input.wrapper>
-                                        <x-filament::input.select id="borderou-type" wire:model="entryType">
-                                            @foreach (\App\Enums\EvaluationType::cases() as $type)
-                                                <option value="{{ $type->value }}">{{ $type->label() }}</option>
-                                            @endforeach
-                                        </x-filament::input.select>
-                                    </x-filament::input.wrapper>
-                                    <p class="mt-1 h-4"></p>
-                                </div>
-                            @endif
-
-                            {{-- Salvarea se aliniază la aceeași bandă ca celelalte controale. --}}
-                            <div class="ms-auto flex flex-col">
-                                <span class="mb-1 flex h-4 items-center justify-end text-xs text-gray-400 dark:text-gray-500">
-                                    <span x-show="filled > 0" x-cloak>
-                                        <span x-text="filled"></span> {{ __('panel.class_register.pending_count') }}
-                                    </span>
-                                </span>
-
-                                <x-filament::button
-                                    wire:click="saveEntries"
-                                    wire:loading.attr="disabled"
-                                    icon="heroicon-m-check"
-                                >
-                                    {{ __('panel.class_register.save_all') }}
-                                </x-filament::button>
-                                <p class="mt-1 h-4"></p>
-                            </div>
-                        </div>
-
-                        {{-- Data de azi nu aparține niciunui semestru: spunem DE CE și CE e de făcut,
-                             în locul vechii mutări tăcute a datei. Butonul apare doar cui poate
-                             deschide anul; profesorul primește explicația (și o duce mai departe). --}}
-                        @if ($dateState === \App\Filament\Pages\ClassRegister::DATE_AFTER_YEAR)
-                            <div class="mt-3 flex flex-wrap items-start justify-between gap-3 rounded-lg bg-danger-50 p-3 ring-1 ring-danger-600/20 dark:bg-danger-400/10 dark:ring-danger-400/30">
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-danger-800 dark:text-danger-300">
-                                        {{ __('panel.class_register.after_year_title') }}
-                                    </p>
-                                    <p class="mt-0.5 text-sm text-danger-800/90 dark:text-danger-300/90">
-                                        {{ __('panel.class_register.after_year_body', [
-                                            'year' => $this->currentYearLabel() ?? '—',
-                                            'date' => $this->currentYearEndsOn() ?? '—',
-                                        ]) }}
-                                    </p>
-                                </div>
-
-                                @if ($transitionUrl = $this->yearTransitionUrl())
-                                    <x-filament::button :href="$transitionUrl" tag="a" color="danger" size="sm" icon="heroicon-m-arrow-right-circle">
-                                        {{ __('panel.class_register.after_year_action') }}
-                                    </x-filament::button>
-                                @endif
-                            </div>
-                        @elseif ($dateState === \App\Filament\Pages\ClassRegister::DATE_BETWEEN_YEARS)
-                            {{-- Anul nou EXISTĂ, doar că n-a început: chihlimbar, fără buton — nimic
-                                 de reparat, se așteaptă startul (semestrul comută singur la 1 sept). --}}
-                            @php($nextTerm = $this->nextTermAfter(\Illuminate\Support\Carbon::parse($this->entryDate)))
-                            <div class="mt-3 rounded-lg bg-warning-50 p-3 ring-1 ring-warning-600/20 dark:bg-warning-400/10 dark:ring-warning-400/30">
-                                <p class="text-sm font-semibold text-warning-800 dark:text-warning-300">
-                                    {{ __('panel.class_register.between_years_title') }}
-                                </p>
-                                <p class="mt-0.5 text-sm text-warning-800/90 dark:text-warning-300/90">
-                                    {{ __('panel.class_register.between_years_body', [
-                                        'year' => $this->currentYearLabel() ?? '—',
-                                        'next' => $nextTerm?->academicYear?->name ?? '—',
-                                        'start' => $nextTerm?->starts_on?->format('d.m.Y') ?? '—',
-                                    ]) }}
-                                </p>
-                            </div>
-                        @endif
-
-                        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                            {{ __('panel.class_register.entry_hint') }}
-                        </p>
-                    </div>
-                @else
-                    <div class="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600 ring-1 ring-gray-950/5 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10">
-                        {{ __('panel.class_register.read_only_hint') }}
-                    </div>
-                @endif
-
+            <div class="space-y-4">
                 {{-- ── Filtrele de CITIRE ────────────────────────────────────────────────────
                      Separate deliberat de controalele de INTRODUCERE de mai sus: acolo alegi unde
                      SCRII, aici alegi ce CITEȘTI. Confuzia dintre ele ar fi cea mai scumpă din
@@ -342,41 +167,26 @@
                             x-on:scroll.passive.debounce.50ms="sync()"
                             class="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                         >
-                            <table class="w-full min-w-max text-start text-sm">
+                            <table class="w-full text-start text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-950/5 dark:border-white/10">
-                                        <th x-ref="studentTh" class="sticky left-0 z-[2] border-e border-gray-200 bg-white px-4 py-3 text-start font-semibold text-gray-950 dark:border-white/10 dark:bg-gray-900 dark:text-white">
+                                        <th x-ref="studentTh" class="sticky left-0 z-[2] border-e border-gray-200 bg-white px-4 py-3 text-start font-semibold text-gray-950 dark:border-white/10 dark:bg-gray-900 dark:text-white" style="width: {{ $studentColWidth }}px; min-width: {{ $studentColWidth }}px; max-width: {{ $studentColWidth }}px">
                                             {{ __('panel.fields.student') }}
                                         </th>
                                         {{-- RIGLA de zile — uniunea notelor și absențelor. Un click pe o
                                              zi mută DATA de introducere acolo („selectarea directă a
                                              zilei", 05.08.2026); ziua activă poartă inelul. --}}
-                                        <th class="px-4 py-3 text-start font-semibold text-gray-950 dark:text-white">
+                                        <th class="px-4 py-3 text-start font-semibold text-gray-950 dark:text-white" style="width: 99%">
                                             @if ($aligned)
                                                 <span class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
                                                     {{ __('panel.class_register.days_column') }}
                                                 </span>
                                                 <span class="grid gap-1" style="grid-template-columns: repeat({{ count($gradeColumns) }}, 2rem);">
                                                     @foreach ($gradeColumns as $column)
-                                                        @if ($canGrade || $canAbsent)
-                                                            <button
-                                                                type="button"
-                                                                wire:click="setEntryDay('{{ $column['iso'] }}')"
-                                                                title="{{ __('panel.class_register.day_write_here', ['date' => $column['label']]) }}"
-                                                                @class([
-                                                                    'flex flex-col items-center rounded-md leading-tight transition hover:bg-primary-50 dark:hover:bg-primary-400/10',
-                                                                    'ring-2 ring-primary-500' => $this->entryDate === $column['iso'],
-                                                                ])
-                                                            >
-                                                                <span class="text-[11px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">{{ $column['label'] }}</span>
-                                                                <span class="text-[9px] font-normal uppercase text-gray-400 dark:text-gray-500">{{ $column['weekday'] }}</span>
-                                                            </button>
-                                                        @else
-                                                            <span class="flex flex-col items-center leading-tight" title="{{ $column['iso'] }}">
-                                                                <span class="text-[11px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">{{ $column['label'] }}</span>
-                                                                <span class="text-[9px] font-normal uppercase text-gray-400 dark:text-gray-500">{{ $column['weekday'] }}</span>
-                                                            </span>
-                                                        @endif
+                                                        <span class="flex flex-col items-center leading-tight" title="{{ $column['iso'] }}">
+                                                            <span class="text-[11px] font-semibold tabular-nums text-gray-600 dark:text-gray-300">{{ $column['label'] }}</span>
+                                                            <span class="text-[9px] font-normal uppercase text-gray-400 dark:text-gray-500">{{ $column['weekday'] }}</span>
+                                                        </span>
                                                     @endforeach
                                                 </span>
                                             @else
@@ -390,34 +200,6 @@
                                             {{ __('panel.class_register.absences_column') }}
                                         </th>
 
-                                        {{-- Coloanele de INTRODUCERE își spun ȚINTA: nota tastată și
-                                             marcajul „Absent" se scriu pe DATA din câmpul de sus, la
-                                             „Salvează tot" — fără data sub etichetă, butonul părea că
-                                             „doar își schimbă culoarea" (raportat 05.08.2026). --}}
-                                        @php($entryTarget = preg_match('/^\d{4}-\d{2}-\d{2}$/', $this->entryDate) === 1
-                                            ? \Illuminate\Support\Carbon::parse($this->entryDate)->format('d.m')
-                                            : null)
-                                        @if ($canGrade)
-                                            <th class="sticky z-[2] bg-white px-3 py-3 text-center font-semibold text-primary-600 dark:bg-gray-900 dark:text-primary-400" style="right: {{ $offGrade }}px; width: {{ $wGrade }}px; min-width: {{ $wGrade }}px">
-                                                {{ __('panel.class_register.new_grade_column') }}
-                                                @if ($entryTarget !== null)
-                                                    <span class="block text-[10px] font-medium normal-case text-gray-400 dark:text-gray-500">
-                                                        {{ __('panel.class_register.entry_target', ['date' => $entryTarget]) }}
-                                                    </span>
-                                                @endif
-                                            </th>
-                                        @endif
-
-                                        @if ($canAbsent)
-                                            <th class="sticky z-[2] bg-white px-3 py-3 text-center font-semibold text-primary-600 dark:bg-gray-900 dark:text-primary-400" style="right: {{ $offAbsent }}px; width: {{ $wAbsent }}px; min-width: {{ $wAbsent }}px">
-                                                {{ __('panel.class_register.absent_column') }}
-                                                @if ($entryTarget !== null)
-                                                    <span class="block text-[10px] font-medium normal-case text-gray-400 dark:text-gray-500">
-                                                        {{ __('panel.class_register.entry_target', ['date' => $entryTarget]) }}
-                                                    </span>
-                                                @endif
-                                            </th>
-                                        @endif
                                     </tr>
                                 </thead>
 
@@ -426,15 +208,12 @@
                                         @php($studentId = $row['student']->getKey())
                                         <tr wire:key="borderou-{{ $studentId }}" class="align-middle hover:bg-gray-50 dark:hover:bg-white/5">
                                             {{-- Elevul — lipit la stânga, numerotat (ordinea din catalogul de hârtie). --}}
-                                            <td class="sticky left-0 z-[1] h-12 max-w-56 border-e border-gray-200 bg-white px-4 py-2 align-middle dark:border-white/10 dark:bg-gray-900">
+                                            <td class="sticky left-0 z-[1] h-12 border-e border-gray-200 bg-white px-4 py-2 align-middle dark:border-white/10 dark:bg-gray-900" style="width: {{ $studentColWidth }}px; min-width: {{ $studentColWidth }}px; max-width: {{ $studentColWidth }}px">
                                                 <div class="flex items-baseline gap-2">
                                                     <span class="w-5 shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500">{{ $index + 1 }}</span>
                                                     <span class="truncate font-medium text-gray-950 dark:text-white">{{ $row['student']->full_name }}</span>
                                                 </div>
 
-                                                @error('entries.'.$studentId)
-                                                    <p class="mt-0.5 ps-7 text-xs text-danger-600 dark:text-danger-400">{{ $message }}</p>
-                                                @enderror
                                             </td>
 
                                             {{-- ZILELE elevului: note + absențe, pe coloane de dată.
@@ -443,7 +222,7 @@
                                                  privitorului). Celula goală rămâne clickabilă pentru cine
                                                  poate scrie: acolo se consemnează absența unei zile fără
                                                  activitate. --}}
-                                            <td class="h-12 px-4 py-2 align-middle">
+                                            <td class="h-12 px-4 py-2 align-middle" style="width: 99%">
                                                 @if ($aligned)
                                                     <div class="grid gap-1" style="grid-template-columns: repeat({{ count($gradeColumns) }}, 2rem);">
                                                         @foreach ($gradeColumns as $column)
@@ -542,54 +321,6 @@
                                                 @endif
                                             </td>
 
-                                            @if ($canGrade)
-                                                <td class="sticky z-[1] h-12 bg-white px-3 py-2 text-center align-middle dark:bg-gray-900" style="right: {{ $offGrade }}px; width: {{ $wGrade }}px; min-width: {{ $wGrade }}px">
-                                                    <input
-                                                        type="text"
-                                                        data-quick-input
-                                                        wire:model="entries.{{ $studentId }}.value"
-                                                        x-on:keydown.enter.prevent="focusNext($event.target)"
-                                                        @if ($numeric) inputmode="numeric" maxlength="2" @else maxlength="10" @endif
-                                                        aria-label="{{ __('panel.class_register.new_grade_column') }} — {{ $row['student']->full_name }}"
-                                                        @class([
-                                                            'h-9 w-14 rounded-lg border-0 bg-white text-center text-sm font-semibold tabular-nums text-gray-950 shadow-sm ring-1 transition focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white',
-                                                            'ring-danger-400 dark:ring-danger-500' => $errors->has('entries.'.$studentId),
-                                                            'ring-gray-950/10 dark:ring-white/20' => ! $errors->has('entries.'.$studentId),
-                                                        ])
-                                                    />
-                                                </td>
-                                            @endif
-
-                                            @if ($canAbsent)
-                                                {{-- UN singur buton: „Absent" (cerința beneficiarului, 04.08.2026).
-                                                     Profesorul rareori știe DE CE lipsește elevul, deci nu i se mai
-                                                     cere statutul aici — absența pleacă fără statut, iar dirigintele
-                                                     o decide din secțiunea Absențe. Click activează, click anulează. --}}
-                                                @php($absence = $this->entries[$studentId]['absence'] ?? null)
-                                                @php($marked = $absence === \App\Filament\Pages\ClassRegister::ABSENCE_MARKED)
-                                                <td class="sticky z-[1] h-12 bg-white px-3 py-2 align-middle dark:bg-gray-900" style="right: {{ $offAbsent }}px; width: {{ $wAbsent }}px; min-width: {{ $wAbsent }}px">
-                                                    <div class="flex items-center justify-center">
-                                                        <button
-                                                            type="button"
-                                                            data-quick-absence
-                                                            @if ($marked) data-quick-absence-active @endif
-                                                            wire:click="toggleAbsence({{ $studentId }})"
-                                                            title="{{ __('panel.class_register.absence_mark_title') }}{{ $entryTarget !== null ? ' ('.__('panel.class_register.entry_target', ['date' => $entryTarget]).')' : '' }}"
-                                                            aria-pressed="{{ $marked ? 'true' : 'false' }}"
-                                                            aria-label="{{ __('panel.class_register.absent_column') }} — {{ $row['student']->full_name }}"
-                                                            @class([
-                                                                'h-8 w-24 rounded-lg text-xs font-semibold ring-1 transition duration-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
-                                                                // Activ = chihlimbar, culoarea „fără statut" din secțiunea Absențe:
-                                                                // același semn pentru aceeași stare, de la consemnare la triaj.
-                                                                'bg-warning-500 text-white ring-warning-500 dark:bg-warning-400 dark:text-warning-950 dark:ring-warning-400' => $marked,
-                                                                'bg-white text-gray-600 ring-gray-950/10 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10 dark:hover:bg-white/10' => ! $marked,
-                                                            ])
-                                                        >
-                                                            {{ __('panel.class_register.absence_mark') }}
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            @endif
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -630,7 +361,7 @@
 
                         <div class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-950/5 px-4 py-2.5 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
                             <span>{{ trans_choice('panel.class_register.students_count', count($rows), ['count' => count($rows)]) }}</span>
-                            <span>{{ __('panel.class_register.term_note') }}</span>
+                            <span>{{ __('panel.class_register.cell_hint') }}</span>
                         </div>
                     </div>
                 @endif
