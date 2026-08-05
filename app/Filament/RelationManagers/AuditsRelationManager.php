@@ -2,7 +2,11 @@
 
 namespace App\Filament\RelationManagers;
 
+use App\Models\Absence;
 use App\Models\Audit;
+use App\Models\Grade;
+use App\Models\Student;
+use App\Support\PanelGuide;
 use BackedEnum;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\KeyValueEntry;
@@ -12,7 +16,9 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\HtmlString;
 
 /**
  * Jurnal de audit CONTEXTUAL pentru o înregistrare auditabilă (notă/absență/elev).
@@ -44,6 +50,33 @@ class AuditsRelationManager extends RelationManager
     public function isReadOnly(): bool
     {
         return true;
+    }
+
+    /**
+     * Titlul jurnalului, cu ghidul „i" — explicat PE CAZUL înregistrării deschise.
+     *
+     * Un text unic („se păstrează cine și când a modificat") ar fi fost adevărat peste tot și util
+     * nicăieri: la o notă întrebarea e de ce arată nota așa acum, la o absență cine i-a pus statutul,
+     * iar la un elev — cine i-a citit datele, fiindcă acolo se jurnalizează și simpla consultare.
+     * Deci textul se alege după modelul auditat, nu după secțiune.
+     *
+     * Titlul e HTML, nu text simplu: iconița trebuie să stea în același rând cu el, iar
+     * `Table::heading()` acceptă `Htmlable` (Blade nu-l re-escapează).
+     */
+    protected function getTableHeading(): string|Htmlable|null
+    {
+        $title = static::getTitle($this->getOwnerRecord(), $this->getPageClass());
+
+        $hint = match (true) {
+            $this->getOwnerRecord() instanceof Grade => PanelGuide::hint('audit_trail_grade'),
+            $this->getOwnerRecord() instanceof Absence => PanelGuide::hint('audit_trail_absence'),
+            $this->getOwnerRecord() instanceof Student => PanelGuide::hint('audit_trail_student'),
+            default => PanelGuide::hint('audit_trail'),
+        };
+
+        return $hint === null
+            ? $title
+            : new HtmlString(e($title).'&nbsp;'.$hint->toHtml());
     }
 
     public function infolist(Schema $schema): Schema

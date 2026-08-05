@@ -102,6 +102,14 @@ return [
 
     // ── Câmpuri: doar acolo unde regula nu se ghicește din ecran ───────────────────────────
     'fields' => [
+        'audit_trail' => 'Fiecare modificare a acestei înregistrări rămâne aici: cine, când și ce a schimbat. Rândurile nu se pot modifica și nu se pot șterge.',
+
+        'audit_trail_grade' => 'Aici se vede de ce nota arată așa acum: cine a pus-o, cine i-a cerut corectarea, cine a aprobat-o și ce valoare a avut înainte. Anularea, cu motivul ei, apare tot aici — nota rămâne în istoric chiar dacă nu mai intră în medii. Rândurile nu se pot modifica și nu se pot șterge.',
+
+        'audit_trail_absence' => 'Aici se vede cine a consemnat absența și cine i-a fixat statutul, cu ora exactă. Apare și statutul pus de la sine, la expirarea celor 5 zile lucrătoare de motivare — deci se poate răspunde unui părinte care întreabă de ce absența a rămas nemotivată. Rândurile nu se pot modifica și nu se pot șterge.',
+
+        'audit_trail_student' => 'Datele unui elev sunt date personale ale unui minor, așa că aici rămâne nu doar cine le-a schimbat, ci și cine le-a consultat sau le-a scos într-un raport. Din jurnalul acesta se răspunde, la nevoie, cine a avut acces la dosarul copilului. Rândurile nu se pot modifica și nu se pot șterge.',
+
         'grade_evaluation_type' => 'Teza sau evaluarea sumativă se poate pune doar la disciplinele alese pentru clasă în secțiunea „Discipline cu sumativă". Nota sumativă cântărește jumătate din media semestrului.',
 
         'grade_graded_on' => 'Semestrul în care intră nota este dat de această dată, nu de ziua în care o introduci. O notă cu dată de după încheierea anului școlar nu se acceptă.',

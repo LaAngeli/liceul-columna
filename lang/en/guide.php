@@ -102,6 +102,14 @@ return [
 
     // ── Fields: only where the rule cannot be guessed from the screen ──────────────────────
     'fields' => [
+        'audit_trail' => 'Every change to this record stays here: who, when and what was changed. The rows cannot be edited or deleted.',
+
+        'audit_trail_grade' => 'This shows why the grade looks the way it does now: who entered it, who asked for a correction, who approved it and what the earlier value was. An annulment and its reason appear here too — the grade stays in the history even when it no longer counts towards averages. The rows cannot be edited or deleted.',
+
+        'audit_trail_absence' => 'This shows who recorded the absence and who set its status, with the exact time. It also shows a status set on its own once the 5 working days for justification ran out — so you can answer a parent asking why the absence stayed unjustified. The rows cannot be edited or deleted.',
+
+        'audit_trail_student' => 'A pupil\'s data is the personal data of a minor, so this keeps not only who changed it but also who merely looked at it or exported it into a report. This log is how you answer, if asked, who had access to the child\'s file. The rows cannot be edited or deleted.',
+
         'grade_evaluation_type' => 'A summative assessment can only be entered for subjects chosen for the class under "Subjects with a summative". A summative grade is worth half of the term average.',
 
         'grade_graded_on' => 'This date decides which term the grade falls into, not the day you enter it. A grade dated after the school year has ended is not accepted.',

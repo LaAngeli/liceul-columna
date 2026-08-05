@@ -4,15 +4,19 @@ use App\Enums\UserRole;
 use App\Filament\RelationManagers\AuditsRelationManager;
 use App\Filament\Resources\Audits\AuditResource;
 use App\Filament\Resources\Students\Pages\ViewStudent;
+use App\Models\Absence;
 use App\Models\AcademicYear;
 use App\Models\Audit;
 use App\Models\Enrollment;
+use App\Models\Grade;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
+use App\Models\Term;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -126,4 +130,49 @@ it('administratorul tehnic NU vede auditul datelor academice (scoping ◐); dire
 
     $this->actingAs($at);
     expect(AuditResource::getEloquentQuery()->where('auditable_type', Student::class)->exists())->toBeFalse();
+});
+
+it('jurnalul își explică rostul PE CAZ: nota, absența și elevul primesc texte diferite', function () {
+    // Un singur text („se păstrează cine și când a modificat") ar fi adevărat peste tot și util
+    // nicăieri. La elev, de pildă, se jurnalizează și simpla consultare — asta trebuie spus acolo.
+    $director = User::factory()->create();
+    $director->assignRole(UserRole::Director->value);
+    Livewire::actingAs($director);
+
+    $student = Student::factory()->create();
+    $year = AcademicYear::factory()->create();
+    $term = Term::factory()->for($year)->create();
+    $class = SchoolClass::factory()->for($year)->create();
+    $subject = Subject::factory()->create();
+    $teacher = Teacher::factory()->create();
+
+    $grade = Grade::factory()->create([
+        'student_id' => $student->id, 'school_class_id' => $class->id,
+        'subject_id' => $subject->id, 'teacher_id' => $teacher->id, 'term_id' => $term->id,
+    ]);
+    $absence = Absence::factory()->create([
+        'student_id' => $student->id, 'school_class_id' => $class->id,
+        'subject_id' => $subject->id, 'teacher_id' => $teacher->id, 'term_id' => $term->id,
+    ]);
+
+    $headingFor = function (Model $record) use ($director): string {
+        $component = Livewire::actingAs($director)
+            ->test(AuditsRelationManager::class, ['ownerRecord' => $record, 'pageClass' => ViewStudent::class])
+            ->instance();
+
+        return (string) (new ReflectionMethod($component, 'getTableHeading'))->invoke($component);
+    };
+
+    $note = $headingFor($grade);
+    $abs = $headingFor($absence);
+    $elev = $headingFor($student);
+
+    // Iconița e acolo, cu titlul lângă ea…
+    expect($note)->toContain('fi-guide-hint')
+        ->and($note)->toContain(__('panel.resources.audits.label'))
+        // …iar textul e cel al cazului, nu unul general.
+        ->and($note)->toContain(__('guide.fields.audit_trail_grade'))
+        ->and($abs)->toContain(__('guide.fields.audit_trail_absence'))
+        ->and($elev)->toContain(__('guide.fields.audit_trail_student'))
+        ->and($note)->not->toContain(__('guide.fields.audit_trail_student'));
 });
