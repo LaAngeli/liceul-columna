@@ -152,15 +152,14 @@ it('valoarea e eticheta (întreagă), pragul și sumativa dau culorile, totaluri
     // Toată clasa pe rânduri, alfabetic — inclusiv elevul fără note.
     expect(array_map(fn (array $r): string => (string) $r['student']->last_name, $map['rows']))
         ->toBe(['Barbu', 'Neagu', 'Vulpe'])
-        // Trei pastile la Vulpe: duplicatele aceleiași discipline rămân separate.
-        ->and($vulpeCell)->toHaveCount(3)
+        // Două pastile la Vulpe: duplicatele aceleiași discipline rămân separate, iar sumativa
+        // stă în filtrul ei (implicit se văd notele CURENTE — vezi testul filtrului de tip).
+        ->and($vulpeCell)->toHaveCount(2)
         // Eticheta e ÎNTREAGĂ — nu zecimalele castului (9.00).
-        ->and(array_column($vulpeCell, 'label'))->toBe(['9', '4', '8'])
-        ->and(array_column($vulpeCell, 'below'))->toBe([false, true, false])
-        ->and(array_column($vulpeCell, 'summative'))->toBe([false, false, true])
-        // Eticheta tipului urmează CICLUL (gimnaziu → ESS).
-        ->and(collect($vulpeCell)->firstWhere('summative', true)['type_label'])->toContain('ESS')
-        ->and($rows[$vulpe->id]['totals']['total'])->toBe(3)
+        ->and(array_column($vulpeCell, 'label'))->toBe(['9', '4'])
+        ->and(array_column($vulpeCell, 'below'))->toBe([false, true])
+        ->and(array_column($vulpeCell, 'summative'))->toBe([false, false])
+        ->and($rows[$vulpe->id]['totals']['total'])->toBe(2)
         ->and($rows[$vulpe->id]['totals']['below'])->toBe(1)
         // MEDIA din Total = cea OFICIALĂ din term_averages (motorul cu ponderare), nu un calcul
         // propriu al hărții — egalitate pe sursă.
@@ -171,6 +170,71 @@ it('valoarea e eticheta (întreagă), pragul și sumativa dau culorile, totaluri
         ->and($rows[$barbu->id]['totals']['total'])->toBe(0)
         ->and($rows[$barbu->id]['totals']['average'])->toBeNull()
         ->and($rows[$barbu->id]['cells'])->toBe([]);
+});
+
+it('filtrul de tip arată UN singur fel de notă odată, ca în Catalogul Electronic', function () {
+    // Cerința beneficiarului (05.08.2026): pe hartă, ca în borderou, se alege tipul — altfel
+    // „colonița" unei evaluări nu se poate urmări printre curente.
+    [$vulpe] = $this->students->all();
+    $zi = Carbon::today()->subDays(3)->toDateString();
+    $ziSumativa = Carbon::today()->subDays(2)->toDateString();
+
+    gradeMapRecord($this, $vulpe, $zi, 9);
+    gradeMapRecord($this, $vulpe, $ziSumativa, 8, 'teza');
+
+    actingAs($this->director);
+
+    $harta = fn (array $params): array => Livewire::withQueryParams(
+        ['clasa' => (string) $this->class->id, 'mod' => 'toate'] + $params,
+    )->test(ListGrades::class)->instance()->gradeMap();
+
+    // IMPLICIT: doar curentele — ziua sumativei nici nu apare ca DE COLOANĂ.
+    $curente = $harta([]);
+
+    expect(array_column($curente['days'], 'iso'))->toBe([$zi])
+        ->and($curente['rows'][2]['cells'][$zi])->toHaveCount(1)
+        ->and($curente['rows'][2]['totals']['total'])->toBe(1);
+
+    // Pe „teză": rămâne DOAR sumativa, cu eticheta ciclului (gimnaziu → ESS).
+    $sumative = $harta(['tip_note' => 'teza']);
+
+    expect(array_column($sumative['days'], 'iso'))->toBe([$ziSumativa])
+        ->and($sumative['rows'][2]['cells'][$ziSumativa][0]['summative'])->toBeTrue()
+        ->and($sumative['rows'][2]['cells'][$ziSumativa][0]['type_label'])->toContain('ESS')
+        // Media din Total rămâne cea OFICIALĂ (toate tipurile, cu ponderare): filtrul taie ce se
+        // VEDE, nu cum se calculează media.
+        ->and($sumative['rows'][2]['totals']['average'])->toBe($curente['rows'][2]['totals']['average']);
+
+    // Un tip inventat din URL cade pe implicit, nu produce o hartă goală fără explicație.
+    $component = Livewire::withQueryParams([
+        'clasa' => (string) $this->class->id, 'mod' => 'toate', 'tip_note' => 'teza-de-anul-trecut',
+    ])->test(ListGrades::class);
+
+    expect($component->instance()->activeGradeType()->value)->toBe(ListGrades::DEFAULT_GRADE_TYPE)
+        ->and(array_column($component->instance()->gradeMap()['days'], 'iso'))->toBe([$zi])
+        // Opțiunile sunt exact cele trei tipuri, fără „toate" — ca în borderou.
+        ->and(array_keys($component->instance()->gradeTypeOptions()))->toBe(['curenta', 'esi', 'teza']);
+});
+
+it('schimbarea tipului reîmprospătează harta, nu servește setul memoizat', function () {
+    // Harta se memoizează per-request (blade-ul o citește de mai multe ori); fără invalidare la
+    // schimbarea filtrului, prima alegere ar fi rămas pe ecran.
+    [$vulpe] = $this->students->all();
+    gradeMapRecord($this, $vulpe, Carbon::today()->subDays(3)->toDateString(), 9);
+    gradeMapRecord($this, $vulpe, Carbon::today()->subDays(2)->toDateString(), 7, 'esi');
+
+    actingAs($this->director);
+
+    $component = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListGrades::class);
+
+    expect($component->instance()->gradeMap()['rows'][2]['totals']['total'])->toBe(1);
+
+    $component->set('gradeTypeFilter', 'esi');
+
+    expect($component->instance()->activeGradeType()->value)->toBe('esi')
+        ->and($component->instance()->gradeMap()['rows'][2]['cells'])->toHaveCount(1)
+        ->and($component->instance()->gradeMap()['rows'][2]['totals']['total'])->toBe(1);
 });
 
 it('pastila poartă DOAR pârghiile privitorului — nimic spre 403', function () {

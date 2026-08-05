@@ -27,6 +27,25 @@
             </p>
         </div>
 
+        {{-- Tipul evaluării: ACELAȘI mecanism ca în Catalogul Electronic (mereu UN tip, fără
+             „toate") — coloana unei zile arată atunci „colonița" acelei evaluări, nu un amestec
+             de curente, ESI și teze. Media din Total rămâne cea oficială, pe toate tipurile. --}}
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                {{ __('grade_map.filter_type_label') }}
+            </span>
+            <div class="w-48">
+                <label for="harta-note-tip" class="sr-only">{{ __('panel.fields.evaluation_type') }}</label>
+                <x-filament::input.wrapper>
+                    <x-filament::input.select id="harta-note-tip" wire:model.live="gradeTypeFilter">
+                        @foreach ($this->gradeTypeOptions() as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </x-filament::input.select>
+                </x-filament::input.wrapper>
+            </div>
+        </div>
+
         <div class="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
             <span class="inline-flex items-center gap-1.5">
                 <span class="h-2.5 w-2.5 rounded-full bg-red-500"></span>
@@ -53,8 +72,10 @@
     </div>
 
     @if ($map['days'] === [])
+        {{-- Golul își spune AMBELE cauze: tipul ales și perioada. Fără tip în mesaj, o hartă
+             goală pe „Teză" în octombrie s-ar fi citit ca „lipsesc datele". --}}
         <div class="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
-            {{ __('grade_map.empty_period') }}
+            {{ __('grade_map.empty_period', ['type' => $this->gradeTypeOptions()[$this->activeGradeType()->value] ?? '']) }}
         </div>
     @else
         {{-- ZONA ZILELOR derulează orizontal între coloanele ANCORATE (numele — stânga,

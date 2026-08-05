@@ -26,6 +26,10 @@ return [
     'totals_grades' => 'Note',
     'totals_average' => 'Media',
 
+    // Eticheta filtrului de tip — ACELEAȘI cuvinte ca în borderou (panel.class_register.filters_label):
+    // același gest, același nume, pe ambele ecrane.
+    'filter_type_label' => 'Vezi notele',
+
     'switch_to_list' => 'Vezi lista',
     'switch_to_map' => 'Vezi harta',
 
@@ -35,5 +39,5 @@ return [
     'scroll_left' => 'Derulează zilele spre stânga',
     'scroll_right' => 'Derulează zilele spre dreapta',
 
-    'empty_period' => 'Nicio notă în perioada aleasă. Alege altă perioadă din bara de mai sus.',
+    'empty_period' => 'Nicio notă de tipul „:type” în perioada aleasă. Schimbă tipul sau perioada din bara de mai sus.',
 ];

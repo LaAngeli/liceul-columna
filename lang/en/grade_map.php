@@ -24,6 +24,8 @@ return [
     'totals_grades' => 'Grades',
     'totals_average' => 'Average',
 
+    'filter_type_label' => 'Show grades',
+
     'switch_to_list' => 'Show list',
     'switch_to_map' => 'Show map',
 
@@ -33,5 +35,5 @@ return [
     'scroll_left' => 'Scroll the days left',
     'scroll_right' => 'Scroll the days right',
 
-    'empty_period' => 'No grades in the chosen period. Pick another period from the bar above.',
+    'empty_period' => 'No “:type” grades in the chosen period. Change the type or the period in the bar above.',
 ];

@@ -59,6 +59,19 @@ class ListGrades extends ListRecords implements CatalogNavigator
     #[Url(as: 'forma', except: null)]
     public ?string $gradeView = null;
 
+    /**
+     * FILTRUL DE TIP al hărții (cerința beneficiarului, 05.08.2026) — același mecanism ca în
+     * Catalogul Electronic: se vede UN tip odată, deci coloana unei zile înseamnă ceva.
+     *
+     * Fără „toate", ca în borderou: amestecul de curente, ESI și teze pe același rând e chiar
+     * starea din care nu se poate urmări „colonița" unei evaluări. Media din coloana Total rămâne
+     * cea OFICIALĂ (toate tipurile, cu ponderare) — filtrul taie ce se VEDE, nu cum se calculează.
+     */
+    #[Url(as: 'tip_note', except: self::DEFAULT_GRADE_TYPE)]
+    public string $gradeTypeFilter = self::DEFAULT_GRADE_TYPE;
+
+    public const DEFAULT_GRADE_TYPE = 'curenta';
+
     /** @var array<string, mixed> memoizare per-request a hărții (blade-ul o citește de mai multe ori) */
     private array $gradeMapMemo = [];
 
@@ -160,6 +173,47 @@ class ListGrades extends ListRecords implements CatalogNavigator
     }
 
     /**
+     * Tipul ACTIV, validat: valoarea din URL e o dorință, nu un adevăr — un `?tip_note=teza1`
+     * ar fi produs o hartă goală fără explicație, în loc să cadă pe implicit.
+     */
+    public function activeGradeType(): EvaluationType
+    {
+        return EvaluationType::tryFrom($this->gradeTypeFilter) ?? EvaluationType::from(self::DEFAULT_GRADE_TYPE);
+    }
+
+    /**
+     * Tipurile de evaluare, cu eticheta CICLULUI clasei deschise (ESS în gimnaziu, teză în liceu)
+     * — aceeași sursă ca în borderou, deci aceleași cuvinte pe ambele ecrane.
+     *
+     * @return array<string, string>
+     */
+    public function gradeTypeOptions(): array
+    {
+        $cycle = $this->gradeMapCycle();
+        $options = [];
+
+        foreach (EvaluationType::cases() as $type) {
+            $options[$type->value] = $type->labelForCycle($cycle);
+        }
+
+        return $options;
+    }
+
+    /** Schimbarea tipului invalidează memoizarea hărții (altfel s-ar reafișa setul vechi). */
+    public function updatedGradeTypeFilter(): void
+    {
+        $this->gradeMapMemo = [];
+    }
+
+    /** Ciclul clasei din context — decide eticheta sumativei (ESS vs teză). */
+    private function gradeMapCycle(): ?SchoolCycle
+    {
+        $class = $this->resolvedClass();
+
+        return $class !== null ? SchoolCycle::fromGradeLevel((int) $class->grade_level) : null;
+    }
+
+    /**
      * Datele hărții, gata de randat.
      *
      * Interogarea e EXACT cea a tabelului ({@see catalogBaseQuery} + {@see applyCatalogContext}),
@@ -192,11 +246,13 @@ class ListGrades extends ListRecords implements CatalogNavigator
 
         // Ciclul clasei decide eticheta sumativei (ESS în gimnaziu, teză în liceu) — o singură
         // dată, nu per notă.
-        $class = $this->resolvedClass();
-        $cycle = $class !== null ? SchoolCycle::fromGradeLevel((int) $class->grade_level) : null;
+        $cycle = $this->gradeMapCycle();
 
         $records = $this->applyCatalogContext($this->catalogBaseQuery())
             ->whereNull('annulled_at')
+            // Filtrul de tip lovește INTEROGAREA, nu doar afișarea: zilele fără nota tipului ales
+            // dispar din antet, deci coloana rămasă chiar e „colonița" acelei evaluări.
+            ->where('evaluation_type', $this->activeGradeType()->value)
             ->with(['subject:id,name,abbreviation,grading_type', 'student:id,first_name,last_name'])
             ->withCount(['corrections as pending_corrections_count' => fn ($q) => $q->where('status', CorrectionStatus::Pending)])
             ->orderBy('graded_on')
