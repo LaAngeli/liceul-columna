@@ -915,6 +915,8 @@ return [
             'open_link' => 'Deschide linkul',
             'printed_resources' => 'Documentație',
             'printed_resources_hint' => 'Opțional — manuale, culegeri, pagini',
+            'attachments' => 'Fișiere atașate',
+            'attachments_hint' => 'Opțional — fișe de lucru, prezentări, imagini; elevii le descarcă din cabinet',
             'printed_resources_placeholder' => 'Ex.: Manualul Istoria Românilor, pag. 20, cap. 4',
             'add_printed_resource' => 'Adaugă resursă',
             'topic_column' => 'Subiectul',

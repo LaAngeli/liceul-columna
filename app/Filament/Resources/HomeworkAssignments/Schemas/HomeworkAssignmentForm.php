@@ -12,6 +12,7 @@ use App\Models\Term;
 use App\Support\ContentTranslator;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -135,6 +136,40 @@ class HomeworkAssignmentForm
                             ->placeholder(__('panel.forms.homework.printed_resources_placeholder'))
                     )
                     ->addActionLabel(fn (): string => __('panel.forms.homework.add_printed_resource'))
+                    ->columnSpanFull(),
+                // Fișiere ATAȘATE (fișe de lucru, prezentări, imagini) — al treilea fel de resursă,
+                // lângă linkuri și resursele tipărite. Stocare pe discul PRIVAT, cu nume generate
+                // aleator; numele original se păstrează separat (`storeFileNamesIn`) și e cel sub
+                // care elevul vede și descarcă fișierul din cabinet, printr-o rută autentificată.
+                FileUpload::make('attachments')
+                    ->label(__('panel.forms.homework.attachments'))
+                    ->hint(__('panel.forms.homework.attachments_hint'))
+                    ->multiple()
+                    ->disk('local')
+                    ->directory('homework-attachments')
+                    ->storeFileNamesIn('attachment_names')
+                    ->maxFiles(5)
+                    // 10 MB / fișier — sub plafonul Livewire de 12 MB, ca refuzul să fie mesajul
+                    // nostru de validare, nu un 422 criptic din upload-ul temporar.
+                    ->maxSize(10240)
+                    ->acceptedFileTypes([
+                        'application/pdf',
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/vnd.ms-excel',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'application/vnd.ms-powerpoint',
+                        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                        'image/png',
+                        'image/jpeg',
+                        'image/webp',
+                        'text/plain',
+                    ])
+                    ->downloadable()
+                    // Fără previzualizare: la imagini/PDF FilePond ar ascunde NUMELE fișierului
+                    // (limitare documentată a plugin-ului) — iar aici numele e informația.
+                    ->previewable(false)
+                    ->appendFiles()
                     ->columnSpanFull(),
                 // Autorul (teacher_id + author_name) NU mai trece prin formular: se forțează pe
                 // server la creare și nu se atinge la editare (EnforcesHomeworkScope).

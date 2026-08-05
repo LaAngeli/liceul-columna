@@ -190,6 +190,10 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     // Document GENERAT per-elev (foaie matricolă, situația școlară) — produs la cerere, gardat în
     // controller (familie / administrație / diriginte). Accesibil ȘI personalului → fără gardul „doar familie".
     Route::get('cabinet/elev/{student}/document/{type}', [CabinetController::class, 'downloadGeneratedDocument'])->name('cabinet.document.generate');
+    // Fișier atașat unei teme (fișă de lucru, prezentare) — disc privat, acces re-verificat în
+    // controller (personal didactic / familia unui elev din clasa vizată). Indexul, nu calea.
+    Route::get('cabinet/tema/{homework}/fisier/{index}', [CabinetController::class, 'downloadHomeworkAttachment'])
+        ->whereNumber('index')->name('cabinet.homework.attachment');
 
     // Comunicare (spec §4): poștă internă cu foldere (Primite/Trimise/Preferate/Șterse) + trimitere
     // filtrată ierarhic + răspuns în fir + stare per-utilizator (stea/coș).

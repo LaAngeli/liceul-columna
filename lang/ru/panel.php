@@ -901,6 +901,8 @@ return [
             'open_link' => 'Открыть ссылку',
             'printed_resources' => 'Документация',
             'printed_resources_hint' => 'Необязательно — учебники, сборники, страницы',
+            'attachments' => 'Прикреплённые файлы',
+            'attachments_hint' => 'Необязательно — рабочие листы, презентации, изображения; ученики скачивают их из кабинета',
             'printed_resources_placeholder' => 'Напр.: Учебник «История румын», стр. 20, гл. 4',
             'add_printed_resource' => 'Добавить ресурс',
             'topic_column' => 'Тема',

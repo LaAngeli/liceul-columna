@@ -22,6 +22,7 @@ use App\Models\AcademicYear;
 use App\Models\CorigentaExam;
 use App\Models\DocumentRequest;
 use App\Models\Grade;
+use App\Models\HomeworkAssignment;
 use App\Models\Message;
 use App\Models\SemesterValidation;
 use App\Models\StatusAcknowledgement;
@@ -863,6 +864,56 @@ class CabinetController extends Controller
         return $inline
             ? Storage::disk('local')->response($absenceMotivation->document_path)
             : Storage::disk('local')->download($absenceMotivation->document_path);
+    }
+
+    /**
+     * Descarcă un fișier atașat unei TEME (fișă de lucru, prezentare) — sub numele lui ORIGINAL.
+     *
+     * Identitatea fișierului în URL e INDEXUL, nu calea de storage: calea nu se expune niciodată,
+     * deci nu există ce manipula. Accesul reface exact vizibilitatea temei din cabinet: personalul
+     * didactic (aceeași poartă ca policy-ul temelor), respectiv familia al cărei elev e în clasa
+     * vizată — treaptă + literă, cu litera goală însemnând „toată treapta", ca în
+     * {@see BuildsStudentCatalogData::classHomework()}. Fișier pe discul privat, fără URL public.
+     */
+    public function downloadHomeworkAttachment(Request $request, HomeworkAssignment $homework, int $index): StreamedResponse
+    {
+        $user = $request->user('web');
+        abort_unless($user instanceof User, 403);
+        abort_unless(
+            $user->canSeeAcademicData() || $this->familyReachesHomework($user, $homework),
+            403,
+        );
+
+        $path = $homework->attachmentPath($index);
+        abort_unless($path !== null && Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->download($path, $homework->attachmentName($index));
+    }
+
+    /**
+     * Are familia acestui utilizator un elev în clasa vizată de temă? Elevul propriu (contul lui)
+     * sau copiii aflați în tutelă — pe CLASA CURENTĂ, exact criteriul listării temelor în cabinet.
+     */
+    private function familyReachesHomework(User $user, HomeworkAssignment $homework): bool
+    {
+        $students = Student::query()
+            ->where('user_id', $user->id)
+            ->get()
+            ->concat($user->students()->get());
+
+        foreach ($students as $student) {
+            $class = $student->currentSchoolClass();
+
+            if ($class === null || (int) $class->grade_level !== (int) $homework->grade_level) {
+                continue;
+            }
+
+            if ($homework->section === null || $class->section === $homework->section) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

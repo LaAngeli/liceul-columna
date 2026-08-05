@@ -1102,6 +1102,15 @@ trait BuildsStudentCatalogData
             'links' => $homework->links ?? [],
             // Resurse tipărite/fizice — chip-uri gri lângă linkuri, aceeași linie.
             'resources' => $homework->printed_resources ?? [],
+            // Fișiere atașate de profesor: numele ORIGINAL + ruta autentificată de descărcare
+            // (identitatea în URL = indexul; calea de storage nu se expune niciodată).
+            'files' => array_map(
+                fn (array $entry): array => [
+                    'name' => $entry['name'],
+                    'url' => route('cabinet.homework.attachment', ['homework' => $homework->id, 'index' => $entry['index']]),
+                ],
+                $homework->attachmentEntries(),
+            ),
         ];
     }
 }

@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Paperclip, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { FilterPills } from '@/components/cabinet/catalog/filter-pills';
 import { EmptyState } from '@/components/cabinet/empty-state';
@@ -29,6 +29,8 @@ export interface HomeworkItem {
     links: string[];
     /** Resurse tipărite/fizice (manuale, pagini) — chip-uri gri lângă linkuri. */
     resources: string[];
+    /** Fișiere atașate de profesor — nume original + rută autentificată de descărcare. */
+    files?: { name: string; url: string }[];
 }
 
 /** Data locală ca Y-m-d (NU toISOString — UTC-ul ar aluneca o zi noaptea). */
@@ -497,7 +499,7 @@ export function HomeworkCard({ h, muted = false }: { h: HomeworkItem; muted?: bo
                     {h.optional}
                 </p>
             )}
-            {(h.links.filter(Boolean).length > 0 || h.resources.filter(Boolean).length > 0) && (
+            {(h.links.filter(Boolean).length > 0 || h.resources.filter(Boolean).length > 0 || (h.files ?? []).length > 0) && (
                 <div className="mt-2 flex flex-wrap gap-2">
                     {/* Linkuri deschizabile (URL) — restul intrărilor rămase în `links` (legacy)
                         se afișează tot ca chip gri, la fel ca resursele tipărite. */}
@@ -523,6 +525,18 @@ export function HomeworkCard({ h, muted = false }: { h: HomeworkItem; muted?: bo
                         <span key={`r${i}`} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                             {res}
                         </span>
+                    ))}
+                    {/* Fișiere atașate de profesor — chip cu agrafă + numele ORIGINAL; descărcarea
+                        trece prin ruta autentificată (disc privat, fără URL public). */}
+                    {(h.files ?? []).map((f, i) => (
+                        <a
+                            key={`f${i}`}
+                            href={f.url}
+                            className="inline-flex min-h-11 items-center gap-1 rounded-md bg-muted px-3 text-xs text-primary underline-offset-2 hover:underline md:min-h-0 md:px-2 md:py-0.5"
+                        >
+                            <Paperclip aria-hidden className="h-3 w-3 shrink-0" />
+                            {f.name}
+                        </a>
                     ))}
                 </div>
             )}

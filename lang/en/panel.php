@@ -901,6 +901,8 @@ return [
             'open_link' => 'Open link',
             'printed_resources' => 'Documentation',
             'printed_resources_hint' => 'Optional — textbooks, workbooks, pages',
+            'attachments' => 'Attached files',
+            'attachments_hint' => 'Optional — worksheets, presentations, images; pupils download them from their cabinet',
             'printed_resources_placeholder' => 'E.g.: Romanians\' History textbook, p. 20, ch. 4',
             'add_printed_resource' => 'Add resource',
             'topic_column' => 'Topic',

@@ -36,6 +36,8 @@ use OwenIt\Auditing\Contracts\Auditable;
  * @property Carbon $assigned_on
  * @property array<int, string>|null $links
  * @property array<int, string>|null $printed_resources
+ * @property array<int, string>|null $attachments
+ * @property array<string, string>|null $attachment_names
  */
 #[ObservedBy(HomeworkAssignmentObserver::class)]
 class HomeworkAssignment extends Model implements Auditable
@@ -59,6 +61,8 @@ class HomeworkAssignment extends Model implements Auditable
         'optional_task',
         'links',
         'printed_resources',
+        'attachments',
+        'attachment_names',
     ];
 
     protected function casts(): array
@@ -68,7 +72,46 @@ class HomeworkAssignment extends Model implements Auditable
             'assigned_on' => 'date',
             'links' => 'array',
             'printed_resources' => 'array',
+            'attachments' => 'array',
+            'attachment_names' => 'array',
         ];
+    }
+
+    /**
+     * Fișierele atașate, pentru afișare: indexul (identitatea din URL-ul de descărcare — calea de
+     * storage nu se expune niciodată) + numele ORIGINAL, sub care profesorul l-a încărcat.
+     *
+     * @return list<array{index: int, name: string}>
+     */
+    public function attachmentEntries(): array
+    {
+        $entries = [];
+
+        foreach (array_values($this->attachments ?? []) as $index => $path) {
+            $entries[] = ['index' => $index, 'name' => $this->attachmentName($index)];
+        }
+
+        return $entries;
+    }
+
+    /** Calea de storage a fișierului cu indexul dat, sau null dacă indexul nu există. */
+    public function attachmentPath(int $index): ?string
+    {
+        return array_values($this->attachments ?? [])[$index] ?? null;
+    }
+
+    /** Numele original al fișierului (harta `storeFileNamesIn`), cu numele de pe disc ca rezervă. */
+    public function attachmentName(int $index): string
+    {
+        $path = $this->attachmentPath($index);
+
+        if ($path === null) {
+            return '';
+        }
+
+        $name = ($this->attachment_names ?? [])[$path] ?? null;
+
+        return is_string($name) && $name !== '' ? $name : basename($path);
     }
 
     // Relații cu `withTrashed()`: tema e ISTORIC — arhivarea disciplinei/profesorului nu lasă
