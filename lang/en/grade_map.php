@@ -37,4 +37,5 @@ return [
 
     'no_students' => 'The class has no pupils enrolled this year — there is nobody to grade here.',
     'empty_period' => 'No “:type” grades in the chosen period. Change the type or the period in the bar above.',
+    'empty_period_writable' => 'No “:type” grades in the chosen period — click a pupil’s day to add the first one.',
 ];

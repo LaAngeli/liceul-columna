@@ -77,6 +77,11 @@
     // ZILELE DE LECȚIE goale (ca să se poată scrie în ele), `days` nu mai e gol când nu există
     // note — deci golul nu se mai poate deduce din el.
     $gradeCount = array_sum(array_column($map['days'], 'count'));
+    // Rigla goală are rost DOAR pentru cine poate scrie în ea. Pentru un cititor (administrație
+    // fără drept de notare pe pereche, diriginte în contextul lui) era exact ce s-a raportat pe
+    // 06.08.2026: un tabel gol sub un mesaj care spune că nu există note — două înfățișări pentru
+    // aceeași stare. Cititorul primește acum, ca pe „Toate", DOAR mesajul.
+    $emptyButWritable = $gradeCount === 0 && $map['days'] !== [] && $this->canEnterGrades();
 @endphp
 
     @if ($map['rows'] === [])
@@ -85,19 +90,21 @@
         <div class="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
             {{ __('grade_map.no_students') }}
         </div>
-    @elseif ($map['days'] === [])
+    @elseif ($gradeCount === 0 && ! $emptyButWritable)
         {{-- Golul își spune AMBELE cauze: tipul ales și perioada. Fără tip în mesaj, o hartă
-             goală pe „Teză" în octombrie s-ar fi citit ca „lipsesc datele". --}}
+             goală pe „Teză" în octombrie s-ar fi citit ca „lipsesc datele". Aceeași înfățișare pe
+             orice filtru — inclusiv „Toate" (unde perioada e nemărginită, deci nu există zile de
+             lecție de oferit). --}}
         <div class="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
             {{ __('grade_map.empty_period', ['type' => $typeLabel]) }}
         </div>
     @else
-        {{-- Zile de lecție, dar NICIO notă: explicația vine ca BANNER, nu în locul tabelului —
-             rigla trebuie să rămână, altfel prima notă a perioadei n-ar avea unde să fie scrisă
-             (harta e și suprafață de scriere din 05.08.2026). --}}
-        @if ($gradeCount === 0)
+        {{-- Zile de lecție, nicio notă, dar privitorul POATE nota: rigla rămâne — altfel prima
+             notă a perioadei n-ar avea unde să fie scrisă — iar mesajul o explică drept invitație,
+             nu drept contradicție („nu există note" deasupra unui tabel). --}}
+        @if ($emptyButWritable)
             <div class="border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-                {{ __('grade_map.empty_period', ['type' => $typeLabel]) }}
+                {{ __('grade_map.empty_period_writable', ['type' => $typeLabel]) }}
             </div>
         @endif
 

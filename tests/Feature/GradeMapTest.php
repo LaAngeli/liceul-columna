@@ -455,12 +455,9 @@ it('zilele de LECȚIE fără note au coloană pe hartă — ușa spre scriere ex
         ->and(collect($map['days'])->firstWhere('iso', $luni->copy()->addDay()->toDateString()))->toBeNull();
 });
 
-it('perioadă cu zile de lecție dar FĂRĂ note: rigla rămâne, explicația vine ca banner', function () {
-    // Raportat 06.08.2026: de când zilele de lecție populează rigla, `days` nu mai e gol când nu
-    // există note — iar mesajul „Nicio notă de tipul…" se stinsese pe orice filtru în afară de
-    // „Toate". Rigla TREBUIE să rămână (harta e și suprafață de scriere), explicația vine peste ea.
-    actingAs($this->teacherUser);
-
+it('fără note, cine POATE nota vede rigla cu invitația; cine doar citește vede doar mesajul', function () {
+    // Raportat 06.08.2026: „de ce pe Toate primesc doar mesajul, iar pe Zi/Săptămână mesajul CU un
+    // tabel gol?" — rigla goală are rost doar ca suprafață de scriere. Pentru un cititor e zgomot.
     Lesson::query()->create([
         'academic_year_id' => $this->year->id,
         'school_class_id' => $this->class->id,
@@ -471,25 +468,35 @@ it('perioadă cu zile de lecție dar FĂRĂ note: rigla rămâne, explicația vi
         'lesson_number' => 1,
     ]);
 
-    $map = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'saptamana'])
-        ->test(ListGrades::class)->instance()->gradeMap();
+    // TITULARUL: zile de lecție + invitație, rigla rămâne (poate scrie prima notă).
+    actingAs($this->teacherUser);
 
-    // Zile există (ziua de lecție), rânduri există (clasa are elevi), note — niciuna.
-    expect($map['days'])->not->toBe([])
-        ->and($map['rows'])->not->toBe([])
-        ->and(array_sum(array_column($map['days'], 'count')))->toBe(0);
-
-    // Blade-ul deduce golul din contoare, nu din `days`: banner + tabel, nu unul în locul altuia.
     $html = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'saptamana'])
-        ->test(ListGrades::class)
-        ->assertOk()
-        ->html();
+        ->test(ListGrades::class)->assertOk()->html();
 
-    expect($html)->toContain(trans('grade_map.empty_period', [
-        'type' => trans('enums.evaluation_type.curenta'),
-    ]))
-        // Rigla a rămas: celula zilei de lecție e tot acolo, gata de scriere.
+    expect($html)->toContain(trans('grade_map.empty_period_writable', ['type' => trans('enums.evaluation_type.curenta')]))
         ->and($html)->toContain('gradeDayPanel');
+
+    // DIRIGINTELE (nu predă disciplina, deci nu notează — F3): DOAR mesajul, ca pe „Toate".
+    actingAs($this->homeroomUser);
+
+    $html = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'saptamana'])
+        ->test(ListGrades::class)->assertOk()->html();
+
+    expect($html)->toContain(trans('grade_map.empty_period', ['type' => trans('enums.evaluation_type.curenta')]))
+        ->and($html)->not->toContain('gradeDayPanel');
+});
+
+it('pe „Toate" fără note mesajul e SINGUR, oricine ar privi — nu există perioadă de scris în ea', function () {
+    foreach ([$this->teacherUser, $this->homeroomUser] as $viewer) {
+        actingAs($viewer);
+
+        $html = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+            ->test(ListGrades::class)->assertOk()->html();
+
+        expect($html)->toContain(trans('grade_map.empty_period', ['type' => trans('enums.evaluation_type.curenta')]))
+            ->and($html)->not->toContain('gradeDayPanel');
+    }
 });
 
 it('clasă fără elevi înmatriculați: mesaj propriu, nu un tabel cu antet și zero rânduri', function () {

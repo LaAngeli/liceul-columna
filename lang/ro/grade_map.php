@@ -41,4 +41,5 @@ return [
 
     'no_students' => 'Clasa nu are elevi înmatriculați în acest an — nu e nimic de notat aici.',
     'empty_period' => 'Nicio notă de tipul „:type” în perioada aleasă. Schimbă tipul sau perioada din bara de mai sus.',
+    'empty_period_writable' => 'Nicio notă de tipul „:type” în perioada aleasă — apasă pe ziua unui elev ca să adaugi prima.',
 ];
