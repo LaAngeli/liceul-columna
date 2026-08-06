@@ -279,6 +279,7 @@ trait WritesGradesFromDay
         }
 
         foreach (Absence::query()
+            ->active()
             ->where('school_class_id', $class->getKey())
             ->where('subject_id', $subject->getKey())
             ->where('student_id', $studentId)

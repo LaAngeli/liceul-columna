@@ -83,6 +83,7 @@ class ComputeDeferralRisk
             }
 
             $absences = $student->absences()
+                ->active()
                 ->where('subject_id', $subjectId)
                 ->where('term_id', $term->id)
                 ->count();
@@ -116,6 +117,7 @@ class ComputeDeferralRisk
     private function subjectsWithoutSchedule(Student $student, Term $term, array $scheduledSubjectIds): array
     {
         $missing = $student->absences()
+            ->active()
             ->where('term_id', $term->id)
             ->whereNotNull('subject_id')
             ->whereNotIn('subject_id', $scheduledSubjectIds)

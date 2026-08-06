@@ -62,6 +62,7 @@ trait BuildsActivityTimeline
             ->get();
 
         $absences = Absence::query()
+            ->active()
             ->where('student_id', $student->id)
             ->whereIn('term_id', $termIds)
             ->with(['subject', 'teacher'])

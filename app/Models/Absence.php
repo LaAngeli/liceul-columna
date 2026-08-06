@@ -43,6 +43,9 @@ class Absence extends Model implements Auditable
         'is_motivated',
         'motivation_deadline',
         'motivation_locked_at',
+        'annulled_at',
+        'annulled_by_user_id',
+        'annulment_reason',
     ];
 
     protected function casts(): array
@@ -53,6 +56,7 @@ class Absence extends Model implements Auditable
             'is_motivated' => 'boolean',
             'motivation_deadline' => 'date',
             'motivation_locked_at' => 'datetime',
+            'annulled_at' => 'datetime',
         ];
     }
 
@@ -63,6 +67,36 @@ class Absence extends Model implements Auditable
     }
 
     /**
+     * Absența a fost ANULATĂ — consemnată din greșeală (cerința beneficiarului, 07.08.2026).
+     *
+     * NU e un al patrulea statut: statutul răspunde la „a fost motivată?", anularea la „s-a
+     * întâmplat?". De-aceea trăiește pe o axă separată, ca la note — rândul își păstrează statutul
+     * și autorul, dar nu mai contează nicăieri.
+     */
+    public function isAnnulled(): bool
+    {
+        return $this->annulled_at !== null;
+    }
+
+    /**
+     * Absențele care CONTEAZĂ. Peste tot unde se numără, se listează sau se decide ceva pe baza
+     * absențelor, interogarea trece pe aici — o absență anulată care ar rămâne într-o numărătoare
+     * e exact incertitudinea pe care mecanismul o repară.
+     *
+     * Deliberat NU e scope GLOBAL: proiectul n-are niciunul, iar unul aici ar ascunde rândurile
+     * anulate și din ecranele care TREBUIE să le vadă (jurnalul de audit, lista cu filtrul de
+     * anulate). Riscul asumat — un consumator uitat — e acoperit de `AbsenceAnnulmentTest`, care
+     * enumeră suprafețele una câte una.
+     *
+     * @param  Builder<Absence>  $query
+     * @return Builder<Absence>
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('annulled_at');
+    }
+
+    /**
      * Absențele consemnate de profesor, încă fără statut — coada de lucru a dirigintelui.
      *
      * @param  Builder<Absence>  $query
@@ -70,7 +104,7 @@ class Absence extends Model implements Auditable
      */
     public function scopePending(Builder $query): Builder
     {
-        return $query->whereNull('is_motivated');
+        return $query->active()->whereNull('is_motivated');
     }
 
     /**
@@ -84,7 +118,7 @@ class Absence extends Model implements Auditable
      */
     public function scopeNotMotivated(Builder $query): Builder
     {
-        return $query->where(fn (Builder $q): Builder => $q->where('is_motivated', false)->orWhereNull('is_motivated'));
+        return $query->active()->where(fn (Builder $q): Builder => $q->where('is_motivated', false)->orWhereNull('is_motivated'));
     }
 
     /**

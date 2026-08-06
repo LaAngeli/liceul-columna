@@ -87,8 +87,12 @@ class ListAbsences extends ListRecords implements CatalogNavigator
 
     protected function catalogCountableQuery(): Builder
     {
-        // Absențele nu au anulare (ca notele); cele șterse „moale" ies automat prin global scope.
-        return AbsenceResource::getEloquentQuery();
+        // Numărătorile cardurilor reflectă doar absențele ACTIVE (07.08.2026 — absențele au acum
+        // anulare, ca notele). Anulatele rămân în TABEL, cu filtru; aici ar umfla cifra pe care
+        // cineva o citește ca „atâtea lipsuri are clasa".
+        // `whereNull` explicit: `getEloquentQuery()` întoarce un Builder generic, iar analiza
+        // statică nu poate ști că e al Absenței (aceeași limită ca în NeedsAttention).
+        return AbsenceResource::getEloquentQuery()->whereNull('annulled_at');
     }
 
     protected function catalogDateColumn(): string
@@ -151,6 +155,9 @@ class ListAbsences extends ListRecords implements CatalogNavigator
         // {@see \App\Models\Concerns\ScopedToTeachingCapacity}. Numărătorile pe zi se fac pe chei
         // de STRING, niciodată prin comparația lejeră Carbon ↔ string (capcană deja plătită).
         $records = $this->applyCatalogContext($this->catalogBaseQuery())
+            // Harta e o NUMĂRĂTOARE vizuală: o absență anulată care ar rămâne pe pastilă e exact
+            // incertitudinea pe care anularea o repară. Tabelul le păstrează, cu filtru.
+            ->whereNull('annulled_at')
             ->with(['subject:id,name,abbreviation', 'student:id,first_name,last_name'])
             ->orderBy('occurred_on')
             ->get();

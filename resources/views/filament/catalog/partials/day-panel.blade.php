@@ -274,6 +274,49 @@
                                 @endforeach
                             </span>
                         @endif
+
+                        {{-- ANULAREA (07.08.2026): absența consemnată din greșeală se desface AICI,
+                             unde a fost pusă. Formular inline, nu acțiune montată — `mountAction`
+                             peste un modal deja montat nu funcționează (lecția rundei 7).
+                             Motivul e obligatoriu: o absență care iese din totaluri fără explicație
+                             ar fi chiar incertitudinea pe care o reparăm. --}}
+                        @if ($absence['can_annul'] ?? false)
+                            <div class="w-full" x-data="{ deschis: false, motiv: '' }">
+                                <button
+                                    type="button"
+                                    x-show="! deschis"
+                                    x-on:click="deschis = true"
+                                    class="text-xs font-medium text-danger-600 hover:underline dark:text-danger-400"
+                                >
+                                    {{ __('panel.actions.annul.label') }}
+                                </button>
+
+                                <div x-show="deschis" x-cloak class="mt-1 flex flex-wrap items-center gap-2">
+                                    <input
+                                        type="text"
+                                        x-model="motiv"
+                                        maxlength="255"
+                                        placeholder="{{ __('panel.actions.annul.reason') }}"
+                                        class="min-w-0 flex-1 rounded-lg border-gray-300 text-xs shadow-sm dark:border-white/20 dark:bg-white/5"
+                                    />
+                                    <button
+                                        type="button"
+                                        x-bind:disabled="motiv.trim() === ''"
+                                        x-on:click="$wire.annulDayAbsence({{ $absence['id'] }}, motiv); deschis = false; motiv = ''"
+                                        class="rounded-lg bg-danger-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-danger-500 disabled:pointer-events-none disabled:opacity-40"
+                                    >
+                                        {{ __('panel.actions.annul.label') }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        x-on:click="deschis = false; motiv = ''"
+                                        class="text-xs text-gray-500 hover:underline dark:text-gray-400"
+                                    >
+                                        {{ __('panel.common.cancel') }}
+                                    </button>
+                                </div>
+                            </div>
+                        @endif
                     </li>
                 @endforeach
             </ul>

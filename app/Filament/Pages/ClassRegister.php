@@ -467,6 +467,7 @@ class ClassRegister extends Page
         // zilele-uniune ale borderoului trebuie să vorbească despre aceeași fereastră de timp.
         $absences = $this->applyTimeRange(
             Absence::query()
+                ->active()
                 ->where('school_class_id', $class->getKey())
                 ->where('subject_id', $subject->getKey())
                 ->where('term_id', $term->getKey())
@@ -802,6 +803,7 @@ class ClassRegister extends Page
         $absences = [];
 
         $absenceRecords = Absence::query()
+            ->active()
             ->where('school_class_id', $class->getKey())
             ->where('subject_id', $subject->getKey())
             ->where('student_id', $student->getKey())
@@ -819,6 +821,7 @@ class ClassRegister extends Page
                 'status_label' => (string) $status->getLabel(),
                 'lesson' => $absence->lesson_number,
                 'can_move_hour' => $this->canRecordAbsences(),
+                'can_annul' => $this->canAnnulAbsence($absence),
             ];
         }
 
@@ -939,6 +942,74 @@ class ClassRegister extends Page
             ->success()
             ->title(__('absence_map.status_saved'))
             ->send();
+    }
+
+    /**
+     * ANULAREA unei absențe direct din panoul zilei (cerința beneficiarului, 07.08.2026) — aici
+     * se consemnează, deci aici se și desface greșeala, fără drum până în secțiunea Absențe.
+     *
+     * Motivul e OBLIGATORIU, ca la note: o absență care dispare din totaluri fără explicație e
+     * exact incertitudinea pe care mecanismul o repară. Rândul rămâne în istoric.
+     */
+    public function annulDayAbsence(int $absenceId, string $reason): void
+    {
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+        $user = $this->viewer();
+        $reason = trim($reason);
+
+        // Ținta se rezolvă STRICT în contextul activ — un id străin nu se găsește deloc.
+        $absence = ($class === null || $subject === null) ? null : Absence::query()
+            ->active()
+            ->whereKey($absenceId)
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->first();
+
+        if ($absence === null || ! $user instanceof User || ! $this->canAnnulAbsence($absence)) {
+            $this->denyDayAction();
+
+            return;
+        }
+
+        if ($reason === '') {
+            Notification::make()->danger()->title(__('panel.actions.annul.reason_required'))->send();
+
+            return;
+        }
+
+        $absence->update([
+            'annulled_at' => now(),
+            'annulled_by_user_id' => $user->getKey(),
+            'annulment_reason' => mb_substr($reason, 0, 255),
+        ]);
+
+        Notification::make()
+            ->success()
+            ->title(__('panel.actions.annul.absence_success'))
+            ->send();
+    }
+
+    /**
+     * Poți desface ce puteai face: profesorul pe (clasa, disciplina) lui, dirigintele pe clasa
+     * lui, administrația oriunde — aceeași regulă ca în secțiunea Absențe.
+     */
+    private function canAnnulAbsence(Absence $absence): bool
+    {
+        $user = $this->viewer();
+
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        if ($user->canMotivateAbsencesFor((int) $absence->school_class_id)) {
+            return true;
+        }
+
+        return $user->teacher?->canRecordAbsence(
+            (int) $absence->school_class_id,
+            $absence->subject_id !== null ? (int) $absence->subject_id : null,
+        ) ?? false;
     }
 
     /**

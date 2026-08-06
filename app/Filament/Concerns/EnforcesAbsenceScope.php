@@ -81,6 +81,10 @@ trait EnforcesAbsenceScope
                 : null;
 
             $duplicate = Absence::query()
+                // Absența ANULATĂ nu mai ocupă slotul: după ce ai desfăcut o consemnare greșită
+                // trebuie să poți pune imediat cea corectă, pe aceeași oră. Altfel anularea ar
+                // lăsa ora blocată de propria ei greșeală.
+                ->active()
                 ->where('student_id', (int) $data['student_id'])
                 ->whereDate('occurred_on', $occurredOn->toDateString())
                 ->when(

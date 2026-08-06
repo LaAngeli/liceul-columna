@@ -111,6 +111,7 @@ class CabinetController extends Controller
         /** @var Collection<int|string, int> $recentAbsenceCounts */
         $recentAbsenceCounts = count($studentIds) > 0
             ? Absence::query()
+                ->active()
                 ->whereIn('student_id', $studentIds)
                 ->where('occurred_on', '>=', now()->subDays(7)->toDateString())
                 ->where('is_motivated', false)
@@ -363,7 +364,14 @@ class CabinetController extends Controller
     {
         Gate::authorize('view', $student);
 
-        $student->load(['grades.subject', 'grades.term', 'grades.schoolClass', 'absences.subject', 'academicRecords.subject']);
+        // Absențele ANULATE nu se încarcă deloc (07.08.2026): tot ce urmează numără colecția
+        // asta — totalul, cele trei statute, gruparea pe discipline. Filtrarea la sursă e
+        // singura care nu poate uita un consumator.
+        $student->load([
+            'grades.subject', 'grades.term', 'grades.schoolClass',
+            'absences' => fn ($query) => $query->active()->with('subject'),
+            'academicRecords.subject',
+        ]);
 
         $viewer = auth('web')->user();
 
@@ -515,6 +523,7 @@ class CabinetController extends Controller
         // FĂRĂ STATUT — proaspăt consemnate de profesor, neajunse la diriginte. Aprobarea lor
         // le motivează direct; a-i cere familiei să aștepte întâi statutul ar fi absurd.
         $hasUnmotivated = Absence::query()
+            ->active()
             ->where('student_id', $student->id)
             ->whereDate('occurred_on', '>=', $data['period_start'])
             ->whereDate('occurred_on', '<=', $data['period_end'])
@@ -561,6 +570,7 @@ class CabinetController extends Controller
         // Excepție = cererea acoperă absențe deja consolidate sau cu termenul de depunere (5 zile
         // lucrătoare) depășit. O astfel de cerere se aprobă de vicedirectorul pe educație, nu de diriginte.
         $isException = Absence::query()
+            ->active()
             ->where('student_id', $student->id)
             ->whereDate('occurred_on', '>=', $data['period_start'])
             ->whereDate('occurred_on', '<=', $data['period_end'])
@@ -1047,6 +1057,7 @@ class CabinetController extends Controller
         $absences = $terms->isEmpty()
             ? collect()
             : $student->absences()
+                ->active()
                 ->whereIn('term_id', $terms->pluck('id'))
                 ->with('subject')
                 ->orderBy('occurred_on')
@@ -1110,7 +1121,7 @@ class CabinetController extends Controller
             'grades.subject',
             'grades.term',
             'grades.schoolClass',
-            'absences' => fn ($query) => $query->where('term_id', $currentTermId),
+            'absences' => fn ($query) => $query->active()->where('term_id', $currentTermId),
             'absences.subject',
         ]);
         $status = $this->currentStatus($student);

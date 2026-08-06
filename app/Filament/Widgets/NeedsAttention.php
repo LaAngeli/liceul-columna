@@ -116,7 +116,9 @@ class NeedsAttention extends Widget
                 'panel.widgets.director_overview.students_to_watch',
                 'heroicon-o-calendar-date-range',
                 $termId === null ? 0 : Student::query()
-                    ->whereHas('absences', fn (Builder $q) => $q->where('is_motivated', false)->where('term_id', $termId), '>=', 30)
+                    // `whereNull` explicit, nu scope-ul: în `whereHas` closure-ul primește un
+                    // Builder generic, iar analiza statică nu poate ști că e al Absenței.
+                    ->whereHas('absences', fn (Builder $q) => $q->whereNull('annulled_at')->where('is_motivated', false)->where('term_id', $termId), '>=', 30)
                     ->count(),
                 StudentResource::getUrl('index'),
             );

@@ -28,6 +28,7 @@ class DeadlineProjector implements CalendarProjector
         // `notMotivated`: termenul familiei curge și pentru absențele încă fără statut —
         // fereastra de motivare nu așteaptă decizia dirigintelui.
         $absences = Absence::query()
+            ->active()
             ->whereIn('student_id', $studentIds)
             ->whereNotNull('motivation_deadline')
             ->notMotivated()

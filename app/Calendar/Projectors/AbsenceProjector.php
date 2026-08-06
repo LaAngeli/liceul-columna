@@ -26,6 +26,7 @@ class AbsenceProjector implements CalendarProjector
         $items = [];
 
         $absences = Absence::query()
+            ->active()
             ->whereIn('student_id', $studentIds)
             ->whereBetween('occurred_on', [$from->toDateString(), $to->toDateString()])
             ->get();

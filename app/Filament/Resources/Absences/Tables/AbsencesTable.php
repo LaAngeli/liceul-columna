@@ -29,6 +29,7 @@ use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
@@ -121,10 +122,20 @@ class AbsencesTable
                     ->visibleFrom('md'),
                 // STATUT în trei stări — vechea bifă DA/NU nu putea spune „încă nedecis", deși
                 // exact starea aceea e coada de lucru a dirigintelui.
+                //
+                // ANULATA se citește ÎN LOCUL statutului, nu lângă el: „motivată" pe un rând care
+                // nu mai contează ar fi cea mai directă incertitudine. Motivul stă dedesubt, ca la
+                // note — cine vede rândul află și de ce a fost desfăcut.
                 TextColumn::make('is_motivated')
                     ->label(__('panel.fields.absence_status'))
                     ->badge()
-                    ->getStateUsing(fn (Absence $record): AbsenceStatus => $record->status())
+                    ->getStateUsing(fn (Absence $record): string|AbsenceStatus => $record->isAnnulled()
+                        ? (string) __('panel.actions.annul.annulled_badge')
+                        : $record->status())
+                    ->color(fn (Absence $record): ?string => $record->isAnnulled() ? 'gray' : null)
+                    ->description(fn (Absence $record): ?string => $record->isAnnulled() && $record->annulment_reason !== null
+                        ? (string) __('panel.tables.grades.annulled_prefix', ['reason' => $record->annulment_reason])
+                        : null)
                     ->sortable(),
                 // SEM. — pe mobil semestrul e de regulă deja în contextul navigatorului.
                 TextColumn::make('term.number')
@@ -173,6 +184,14 @@ class AbsencesTable
                         AbsenceStatus::Unmotivated->value => $query->where('is_motivated', false),
                         default => $query,
                     }),
+                // Anulatele NU dispar din tabel (aici e locul unde se vede istoricul complet), dar
+                // se pot izola — același filtru ca la note.
+                TernaryFilter::make('annulled_at')
+                    ->label(__('panel.tables.grades.annulment_filter'))
+                    ->placeholder(__('panel.common.all'))
+                    ->trueLabel(__('panel.tables.grades.annulment_only'))
+                    ->falseLabel(__('panel.tables.grades.active_only'))
+                    ->nullable(),
                 TrashedFilter::make(),
             ])
             ->recordActions([
@@ -257,6 +276,37 @@ class AbsencesTable
                             Notification::make()
                                 ->success()
                                 ->title(__('panel.tables.absences.motivate.success'))
+                                ->send();
+                        }),
+                    // ANULAREA — absența consemnată din GREȘEALĂ (cerința beneficiarului,
+                    // 07.08.2026). Până acum cele trei statute nu aveau cum să spună „nu s-a
+                    // întâmplat": motivată/nemotivată/fără statut presupun toate că elevul a
+                    // lipsit. Rândul rămâne în istoric cu motivul îndreptării, dar iese din toate
+                    // numărătorile ({@see Absence::scopeActive}) — ca la note.
+                    Action::make('annul')
+                        ->label(__('panel.actions.annul.label'))
+                        ->icon(Heroicon::OutlinedNoSymbol)
+                        ->color('danger')
+                        ->modalHeading(__('panel.actions.annul.absence_heading'))
+                        ->modalDescription(__('panel.actions.annul.absence_description'))
+                        ->visible(fn (Absence $record): bool => ! $record->isAnnulled() && self::canAnnul($record))
+                        ->schema([
+                            Textarea::make('annulment_reason')
+                                ->label(__('panel.actions.annul.reason'))
+                                ->required()
+                                ->maxLength(255)
+                                ->rows(2),
+                        ])
+                        ->action(function (Absence $record, array $data): void {
+                            $record->update([
+                                'annulled_at' => now(),
+                                'annulled_by_user_id' => auth()->id(),
+                                'annulment_reason' => $data['annulment_reason'],
+                            ]);
+
+                            Notification::make()
+                                ->success()
+                                ->title(__('panel.actions.annul.absence_success'))
                                 ->send();
                         }),
                     // Editarea/ștergerea = POLITICA (dirigintele clasei absenței sau autoritatea
@@ -344,6 +394,33 @@ class AbsencesTable
     private static function canSetStatus(Absence $record): bool
     {
         return auth('web')->user()?->canMotivateAbsencesFor((int) $record->school_class_id) ?? false;
+    }
+
+    /**
+     * Cine poate ANULA o absență: cine o putea CONSEMNA acolo — profesorul pe (clasa, disciplina)
+     * lui, dirigintele pe clasa lui, administrația oriunde.
+     *
+     * Regula „poți desface ce puteai face" e deliberată: greșeala e aproape întotdeauna a celui
+     * care a consemnat, iar a-l trimite la altcineva pentru o absență pusă din greșeală ar fi
+     * transformat o corectură de-o secundă într-o procedură. Anularea nu schimbă o judecată
+     * (ca statutul), ci constată că evenimentul n-a existat.
+     */
+    private static function canAnnul(Absence $record): bool
+    {
+        $user = auth('web')->user();
+
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        if ($user->canMotivateAbsencesFor((int) $record->school_class_id)) {
+            return true;
+        }
+
+        return $user->teacher?->canRecordAbsence(
+            (int) $record->school_class_id,
+            $record->subject_id !== null ? (int) $record->subject_id : null,
+        ) ?? false;
     }
 
     /** Bifele de selecție + acțiunile în masă au sens doar pentru cine poate decide MĂCAR undeva. */

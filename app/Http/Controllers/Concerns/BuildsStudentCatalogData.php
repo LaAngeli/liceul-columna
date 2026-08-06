@@ -600,6 +600,7 @@ trait BuildsStudentCatalogData
         $termNumberById = $terms->pluck('number', 'id')->map(fn ($n): int => (int) $n)->all();
 
         $absences = Absence::query()
+            ->active() // §1: absența anulată rămâne în istoric, dar nu în cabinet
             ->where('student_id', $student->id)
             ->whereIn('term_id', $terms->pluck('id'))
             ->with(['subject', 'teacher'])
