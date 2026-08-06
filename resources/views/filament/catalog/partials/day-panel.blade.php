@@ -17,17 +17,10 @@
     ];
     // Panoul doar-note (harta Note) nu trimite drepturile de absență — secțiunea lor lipsește.
     $rights = $panel['rights'] ?? ['can_status' => false];
-    $timetable = $panel['hours']['timetable'] ?? [];
-    $hourSlots = $panel['hour_slots'] ?? [];
     $defaultHour = $panel['default_hour'] ?? null;
+    $busyCount = $panel['busy_count'] ?? 0;
     $canGrade = $panel['can_grade'] ?? false;
     $canAbsent = $panel['can_absent'] ?? false;
-    // Semnătura sloturilor intră în wire:key: după fiecare scriere, Alpine se reinițializează și
-    // ora preselectată sare pe următoarea liberă (morph-ul altfel păstrează starea veche).
-    $busySignature = implode('.', array_map(
-        fn (array $slot): string => $slot['hour'].substr((string) $slot['busy'], 0, 1),
-        array_filter($hourSlots, fn (array $slot): bool => $slot['busy'] !== null),
-    ));
 @endphp
 
 <div class="space-y-5 text-sm">
@@ -57,18 +50,13 @@
 
                         <span class="text-xs text-gray-600 dark:text-gray-300">{{ $grade['type_label'] }}</span>
 
-                        {{-- ORA notei (06.08.2026) — aceeași identitate ca la absențe. Notele
-                             istorice fără oră nu afișează nimic (tot rândul lor e „ziua"). --}}
+                        {{-- ORA notei — ORDINALĂ (06.08.2026 v2): a câta consemnare a disciplinei
+                             e în ziua dată, nu poziția din orar. Notele istorice fără oră nu
+                             afișează nimic (tot rândul lor e „ziua"). --}}
                         @if ($grade['lesson'] !== null)
                             <span class="text-xs text-gray-500 dark:text-gray-400">
                                 {{ __('panel.forms.absence.lesson_option', ['number' => $grade['lesson']]) }}
                             </span>
-
-                            @if ($timetable !== [] && ! in_array((int) $grade['lesson'], $timetable, true))
-                                <span class="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-white/10 dark:text-gray-300">
-                                    {{ __('panel.class_register.day_panel.lesson_off_timetable') }}
-                                </span>
-                            @endif
                         @endif
 
                         @if ($grade['annulled'])
@@ -205,15 +193,6 @@
                                 : __('panel.forms.absence.lesson_unspecified') }}
                         </span>
 
-                        {{-- O oră care nu e în orarul zilei (oră ținută în plus, orar incomplet)
-                             se spune ca atare — altfel „Ora 5" lângă un orar care are doar ora 4
-                             pare o greșeală a aplicației. --}}
-                        @if ($absence['lesson'] !== null && $timetable !== [] && ! in_array((int) $absence['lesson'], $timetable, true))
-                            <span class="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-white/10 dark:text-gray-300">
-                                {{ __('panel.class_register.day_panel.lesson_off_timetable') }}
-                            </span>
-                        @endif
-
                         {{-- Statutul îl fixează DOAR cine are dreptul (diriginte/administrație) —
                              aceleași trei stări, aceleași culori ca în harta absențelor. --}}
                         @if ($rights['can_status'])
@@ -245,122 +224,102 @@
     </section>
     @endif
 
-    {{-- ── Înregistrare nouă: SELECTORUL COMUN DE ORĂ (06.08.2026) ─────────────────────────────
-         Nota și absența se scriu pe ACEEAȘI axă a orelor: alegi ora o singură dată, apoi decizi
-         ce a fost la ea (notă sau absență). O oră deja ocupată — de oricare din ele — nu se mai
-         oferă deloc: excluderea „notă + absență pe aceeași oră, din neatenție" se vede aici, iar
-         garda de pe server o impune și celor care ocolesc panoul. --}}
+    {{-- ── Înregistrare nouă — ora ORDINALĂ (06.08.2026 v2) ────────────────────────────────────
+         Ora nu vine din orar: e „a câta consemnare a disciplinei în ziua dată" (Ora 1 = prima
+         pereche, Ora 2 = a doua). Prima consemnare se face DIRECT — formularul e deschis pe Ora 1;
+         pentru încă una, utilizatorul DESCHIDE ora următoare (butonul de mai jos) și abia acolo
+         poate adăuga nota sau absența. O oră poartă o singură consemnare (notă SAU absență) —
+         excluderea o impune serverul, indiferent pe unde vine scrierea. --}}
     @if ($canGrade || $canAbsent)
         <section
-            wire:key="day-write-{{ $panel['iso'] }}-{{ $busySignature }}"
+            wire:key="day-write-{{ $panel['iso'] }}-{{ $busyCount }}-{{ $defaultHour ?? 'plin' }}"
             class="rounded-lg border border-dashed border-gray-300 p-3 dark:border-white/15"
-            x-data="{ hour: {{ $defaultHour ?? 'null' }}, v: '', t: 'curenta' }"
+            x-data="{ open: {{ $busyCount === 0 ? 'true' : 'false' }}, v: '', t: 'curenta' }"
         >
             <h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
                 {{ __('panel.class_register.day_panel.write_heading') }}
             </h4>
-
-            <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                @if ($timetable !== [])
-                    {{ trans_choice('panel.class_register.day_panel.hour_from_timetable', count($timetable), ['hours' => implode(', ', $timetable)]) }}
-                @else
-                    {{ __('panel.class_register.day_panel.hour_without_timetable') }}
-                @endif
-            </p>
 
             @if ($defaultHour === null)
                 <p class="text-sm text-gray-500 dark:text-gray-400">
                     {{ __('panel.class_register.day_panel.all_hours_taken') }}
                 </p>
             @else
-                <div class="mb-3 flex flex-wrap items-center gap-1.5">
-                    <span class="me-1 text-xs font-medium text-gray-500 dark:text-gray-400">
-                        {{ __('panel.class_register.day_panel.hour_label') }}
-                    </span>
+                {{-- Ziua are deja consemnări: ora următoare stă ÎNCHISĂ până o deschide
+                     utilizatorul — a doua înregistrare e un act deliberat, nu o alunecare. --}}
+                <button
+                    type="button"
+                    x-show="!open"
+                    x-cloak
+                    x-on:click="open = true"
+                    class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-white px-3 text-xs font-semibold text-primary-700 ring-1 ring-primary-600/40 transition hover:bg-primary-50 dark:bg-white/5 dark:text-primary-300 dark:ring-primary-400/40 dark:hover:bg-primary-400/10"
+                >
+                    <x-filament::icon icon="heroicon-o-plus" class="h-4 w-4" />
+                    {{ __('panel.class_register.day_panel.open_next_hour', ['number' => $defaultHour]) }}
+                </button>
 
-                    @foreach ($hourSlots as $slot)
-                        @if ($slot['busy'] !== null)
-                            {{-- Oră OCUPATĂ: nu se poate alege; culoarea spune de cine (notă =
-                                 primary, absență = chihlimbar), titlul spune în cuvinte. --}}
-                            <span
-                                title="{{ $slot['busy'] === 'grade'
-                                    ? __('panel.class_register.day_panel.hour_busy_grade', ['number' => $slot['hour']])
-                                    : __('panel.class_register.day_panel.hour_busy_absence', ['number' => $slot['hour']]) }}"
-                                @class([
-                                    'inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md text-sm font-semibold tabular-nums line-through ring-1',
-                                    'bg-primary-50 text-primary-400 ring-primary-600/20 dark:bg-primary-400/10 dark:text-primary-500/70 dark:ring-primary-400/20' => $slot['busy'] === 'grade',
-                                    'bg-amber-50 text-amber-500/80 ring-amber-600/20 dark:bg-amber-400/10 dark:text-amber-500/70 dark:ring-amber-400/20' => $slot['busy'] === 'absence',
-                                ])
-                            >{{ $slot['hour'] }}</span>
-                        @else
+                <div x-show="open" x-cloak class="space-y-2">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ __('panel.class_register.day_panel.hour_target', ['number' => $defaultHour]) }}
+                    </p>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex h-9 items-center rounded-lg bg-gray-100 px-2.5 text-xs font-semibold text-gray-700 ring-1 ring-gray-950/10 dark:bg-white/10 dark:text-gray-200 dark:ring-white/15">
+                            {{ __('panel.forms.absence.lesson_option', ['number' => $defaultHour]) }}
+                        </span>
+
+                        @if ($canGrade)
+                            <input
+                                type="text"
+                                x-model="v"
+                                x-on:keydown.enter.prevent="if (v.trim() !== '') { $wire.addDayGrade({{ $panel['student']?->getKey() ?? 0 }}, '{{ $panel['iso'] }}', v, t); v = ''; }"
+                                @if ($panel['numeric']) inputmode="numeric" maxlength="2" placeholder="1–10" @else maxlength="10" @endif
+                                aria-label="{{ __('panel.class_register.new_grade_column') }}"
+                                class="h-9 w-16 rounded-lg border-0 bg-white text-center text-sm font-semibold tabular-nums text-gray-950 shadow-sm ring-1 ring-gray-950/10 transition focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
+                            />
+
+                            @if ($panel['numeric'])
+                                <select
+                                    x-model="t"
+                                    aria-label="{{ __('panel.fields.evaluation_type') }}"
+                                    class="h-9 rounded-lg border-0 bg-white py-0 pe-8 ps-2 text-xs text-gray-700 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-200 dark:ring-white/20"
+                                >
+                                    @foreach ($panel['grade_types'] as $typeValue => $typeLabel)
+                                        <option value="{{ $typeValue }}">{{ $typeLabel }}</option>
+                                    @endforeach
+                                </select>
+                            @endif
+
                             <button
                                 type="button"
-                                x-on:click="hour = {{ $slot['hour'] }}"
-                                title="{{ __('panel.forms.absence.lesson_option', ['number' => $slot['hour']]) }}"
-                                x-bind:class="hour === {{ $slot['hour'] }}
-                                    ? 'bg-primary-600 text-white ring-primary-600'
-                                    : '{{ $slot['timetable']
-                                        ? 'bg-white text-primary-700 ring-primary-600/40 hover:bg-primary-50 dark:bg-white/5 dark:text-primary-300 dark:ring-primary-400/40 dark:hover:bg-primary-400/10'
-                                        : 'bg-white text-gray-600 ring-gray-950/10 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-300 dark:ring-white/15 dark:hover:bg-white/10' }}'"
-                                class="inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold tabular-nums ring-1 transition"
-                            >{{ $slot['hour'] }}</button>
-                        @endif
-                    @endforeach
-                </div>
-
-                <div class="flex flex-wrap items-center gap-2">
-                    @if ($canGrade)
-                        <input
-                            type="text"
-                            x-model="v"
-                            x-on:keydown.enter.prevent="if (v.trim() !== '' && hour !== null) { $wire.addDayGrade({{ $panel['student']?->getKey() ?? 0 }}, '{{ $panel['iso'] }}', v, t, hour); v = ''; }"
-                            @if ($panel['numeric']) inputmode="numeric" maxlength="2" placeholder="1–10" @else maxlength="10" @endif
-                            aria-label="{{ __('panel.class_register.new_grade_column') }}"
-                            class="h-9 w-16 rounded-lg border-0 bg-white text-center text-sm font-semibold tabular-nums text-gray-950 shadow-sm ring-1 ring-gray-950/10 transition focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
-                        />
-
-                        @if ($panel['numeric'])
-                            <select
-                                x-model="t"
-                                aria-label="{{ __('panel.fields.evaluation_type') }}"
-                                class="h-9 rounded-lg border-0 bg-white py-0 pe-8 ps-2 text-xs text-gray-700 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-200 dark:ring-white/20"
+                                x-on:click="if (v.trim() !== '') { $wire.addDayGrade({{ $panel['student']?->getKey() ?? 0 }}, '{{ $panel['iso'] }}', v, t); v = ''; }"
+                                x-bind:disabled="v.trim() === ''"
+                                class="inline-flex h-9 items-center rounded-lg bg-primary-600 px-3 text-xs font-semibold text-white transition hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                @foreach ($panel['grade_types'] as $typeValue => $typeLabel)
-                                    <option value="{{ $typeValue }}">{{ $typeLabel }}</option>
-                                @endforeach
-                            </select>
+                                {{ __('panel.class_register.day_panel.add_grade_button') }}
+                            </button>
                         @endif
 
-                        <button
-                            type="button"
-                            x-on:click="if (v.trim() !== '' && hour !== null) { $wire.addDayGrade({{ $panel['student']?->getKey() ?? 0 }}, '{{ $panel['iso'] }}', v, t, hour); v = ''; }"
-                            x-bind:disabled="v.trim() === '' || hour === null"
-                            class="inline-flex h-9 items-center rounded-lg bg-primary-600 px-3 text-xs font-semibold text-white transition hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {{ __('panel.class_register.day_panel.add_grade_button') }}
-                        </button>
-                    @endif
+                        @if ($canGrade && $canAbsent)
+                            <span class="text-xs text-gray-400 dark:text-gray-500">{{ __('panel.class_register.day_panel.write_or') }}</span>
+                        @endif
 
-                    @if ($canGrade && $canAbsent)
-                        <span class="text-xs text-gray-400 dark:text-gray-500">{{ __('panel.class_register.day_panel.write_or') }}</span>
-                    @endif
+                        @if ($canAbsent)
+                            <button
+                                type="button"
+                                wire:click="addDayAbsence({{ $panel['student']?->getKey() ?? 0 }}, '{{ $panel['iso'] }}')"
+                                class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-warning-500 px-3 text-xs font-semibold text-white transition hover:bg-warning-400 dark:bg-warning-400 dark:text-warning-950 dark:hover:bg-warning-300"
+                            >
+                                <x-filament::icon icon="heroicon-o-user-minus" class="h-4 w-4" />
+                                {{ __('panel.class_register.day_panel.add_absence_button') }}
+                            </button>
+                        @endif
+                    </div>
 
-                    @if ($canAbsent)
-                        <button
-                            type="button"
-                            x-on:click="if (hour !== null) { $wire.addDayAbsence({{ $panel['student']?->getKey() ?? 0 }}, '{{ $panel['iso'] }}', hour); }"
-                            x-bind:disabled="hour === null"
-                            class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-warning-500 px-3 text-xs font-semibold text-white transition hover:bg-warning-400 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-warning-400 dark:text-warning-950 dark:hover:bg-warning-300"
-                        >
-                            <x-filament::icon icon="heroicon-o-user-minus" class="h-4 w-4" />
-                            {{ __('panel.class_register.day_panel.add_absence_button') }}
-                        </button>
-                    @endif
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ __('panel.class_register.day_panel.write_hint') }}
+                    </p>
                 </div>
-
-                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    {{ __('panel.class_register.day_panel.write_hint') }}
-                </p>
             @endif
         </section>
     @endif

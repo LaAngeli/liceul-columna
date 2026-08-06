@@ -55,11 +55,12 @@ trait WritesGradesFromDay
     protected function afterDayGradeWrite(): void {}
 
     /**
-     * Adaugă o NOTĂ pe ziua celulei — pe ORA aleasă în selectorul comun al panoului (06.08.2026;
-     * fără oră explicită, prima liberă a zilei, în ordinea orarului). Trece prin ACEEAȘI validare
-     * prietenoasă și ACEEAȘI gardă ca formularul clasic ({@see EnforcesGradeScope}): 1–10 întreg
-     * la numerice, simbol din scala închisă la calificative; semestrul derivat din zi, scope-ul
-     * titularului și EXCLUSIVITATEA slotului (nota↔absența nu împart ora) pe server.
+     * Adaugă o NOTĂ pe ziua celulei — pe primul ORDINAL liber al zilei (Ora 1 = prima consemnare
+     * a disciplinei, Ora 2 = a doua; decizia 06.08.2026 v2 — ora nu vine din orar). Trece prin
+     * ACEEAȘI validare prietenoasă și ACEEAȘI gardă ca formularul clasic
+     * ({@see EnforcesGradeScope}): 1–10 întreg la numerice, simbol din scala închisă la
+     * calificative; semestrul derivat din zi, scope-ul titularului și EXCLUSIVITATEA slotului
+     * (nota↔absența nu împart ora) pe server. `$lesson` explicit rămâne pentru formulare/API.
      */
     public function addDayGrade(int $studentId, string $iso, string $value, string $type, ?int $lesson = null): void
     {
@@ -243,55 +244,24 @@ trait WritesGradesFromDay
     }
 
     /**
-     * Orele din ORAR ale disciplinei contextului în ziua dată. Orarul poate lipsi sau fi
-     * incomplet, deci sunt repere, nu gard: consemnarea acceptă orice oră liberă 1–8.
+     * OCUPAREA orelor zilei pentru (elev, zi, disciplina contextului) — decizia beneficiarului
+     * (06.08.2026, v2, ÎNLOCUIEȘTE ordonarea pe orar): ora e ORDINALĂ, „a câta consemnare a
+     * disciplinei în ziua dată" — Ora 1 = prima pereche/oră, Ora 2 = a doua. Nu se mai consultă
+     * orarul: prima consemnare a zilei primește mereu Ora 1, următoarea deschide Ora 2 ș.a.m.d.
      *
-     * @return list<int>
+     * Nota și absența CONCUREAZĂ pe aceleași sloturi (o oră poartă o singură consemnare), deci
+     * `default` = primul ordinal liber de AMBELE; anulatele nu ocupă (anularea eliberează ora).
+     *
+     * @return array{default: int|null, busy_count: int}
      */
-    public function dayTimetableHours(string $iso): array
+    public function dayHourUsage(int $studentId, string $iso): array
     {
         $class = $this->dayGradeClass();
         $subject = $this->dayGradeSubject();
 
         if ($class === null || $subject === null || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
-            return [];
+            return ['default' => null, 'busy_count' => 0];
         }
-
-        /** @var list<int> */
-        return Lesson::query()
-            ->where('school_class_id', $class->getKey())
-            ->where('subject_id', $subject->getKey())
-            ->where('day_of_week', Carbon::parse($iso)->isoWeekday())
-            ->orderBy('lesson_number')
-            ->pluck('lesson_number')
-            ->map(fn ($n): int => (int) $n)
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    /**
-     * STĂRILE celor 8 ore ale zilei pentru (elev, zi) — combustibilul selectorului comun de oră
-     * din panou (06.08.2026): cine ocupă fiecare slot (notă activă / absență / liber), care ore
-     * sunt în orarul disciplinei și care e ora IMPLICITĂ a următoarei consemnări.
-     *
-     * Ordinea implicitului = ordinea „zilei reale": orele din orar, apoi ordinalele de DUPĂ ele
-     * (o oră ținută peste orar urmează celor programate), la coadă cele dinaintea lor — ultima
-     * portiță, ca ziua să nu devină imposibil de completat. Nota și absența CONCUREAZĂ pe
-     * aceleași sloturi: o oră cu notă nu se mai oferă absenței, și invers.
-     *
-     * @return array{slots: list<array{hour: int, timetable: bool, busy: string|null}>, default: int|null, timetable: list<int>}
-     */
-    public function dayHourStates(int $studentId, string $iso): array
-    {
-        $class = $this->dayGradeClass();
-        $subject = $this->dayGradeSubject();
-
-        if ($class === null || $subject === null || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
-            return ['slots' => [], 'default' => null, 'timetable' => []];
-        }
-
-        $timetable = $this->dayTimetableHours($iso);
 
         $busy = [];
 
@@ -303,7 +273,7 @@ trait WritesGradesFromDay
             ->whereNull('annulled_at')
             ->whereNotNull('lesson_number')
             ->pluck('lesson_number') as $hour) {
-            $busy[(int) $hour] = 'grade';
+            $busy[(int) $hour] = true;
         }
 
         foreach (Absence::query()
@@ -313,19 +283,12 @@ trait WritesGradesFromDay
             ->whereDate('occurred_on', $iso)
             ->whereNotNull('lesson_number')
             ->pluck('lesson_number') as $hour) {
-            $busy[(int) $hour] = 'absence';
+            $busy[(int) $hour] = true;
         }
-
-        $anchor = $timetable === [] ? 0 : max($timetable);
-        $order = [
-            ...$timetable,
-            ...array_filter(range(1, 8), fn (int $hour): bool => $hour > $anchor),
-            ...array_filter(range(1, 8), fn (int $hour): bool => $hour <= $anchor && ! in_array($hour, $timetable, true)),
-        ];
 
         $default = null;
 
-        foreach ($order as $hour) {
+        foreach (range(1, 8) as $hour) {
             if (! isset($busy[$hour])) {
                 $default = $hour;
 
@@ -333,22 +296,13 @@ trait WritesGradesFromDay
             }
         }
 
-        return [
-            // Afișarea rămâne în ordinea NUMERICĂ (1..8) — cea în care se citește o zi.
-            'slots' => array_map(fn (int $hour): array => [
-                'hour' => $hour,
-                'timetable' => in_array($hour, $timetable, true),
-                'busy' => $busy[$hour] ?? null,
-            ], range(1, 8)),
-            'default' => $default,
-            'timetable' => $timetable,
-        ];
+        return ['default' => $default, 'busy_count' => count($busy)];
     }
 
-    /** Prima oră LIBERĂ a zilei pentru (elev, zi), în ordinea orarului — null = totul e consemnat. */
+    /** Primul ordinal LIBER al zilei pentru (elev, zi) — null = toate cele 8 sunt consemnate. */
     protected function firstFreeDayHour(int $studentId, string $iso): ?int
     {
-        return $this->dayHourStates($studentId, $iso)['default'];
+        return $this->dayHourUsage($studentId, $iso)['default'];
     }
 
     /**

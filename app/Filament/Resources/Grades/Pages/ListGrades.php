@@ -526,9 +526,8 @@ class ListGrades extends ListRecords implements CatalogNavigator
      *     student: Student|null,
      *     iso: string,
      *     grades: list<array{id: int, value: string, type_label: string, lesson: int|null, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>,
-     *     hours: array{timetable: list<int>},
-     *     hour_slots: list<array{hour: int, timetable: bool, busy: string|null}>,
      *     default_hour: int|null,
+     *     busy_count: int,
      *     can_grade: bool,
      *     numeric: bool,
      *     grade_types: array<string, string>,
@@ -538,7 +537,7 @@ class ListGrades extends ListRecords implements CatalogNavigator
     {
         $empty = [
             'student' => null, 'iso' => $iso, 'grades' => [],
-            'hours' => ['timetable' => []], 'hour_slots' => [], 'default_hour' => null,
+            'default_hour' => null, 'busy_count' => 0,
             'can_grade' => false, 'numeric' => true, 'grade_types' => [],
         ];
 
@@ -559,18 +558,17 @@ class ListGrades extends ListRecords implements CatalogNavigator
             return $empty;
         }
 
-        // Stările orelor pentru selectorul de oră: și în panoul doar-note, orele cu ABSENȚE apar
-        // ocupate — elevul absent la ora 4 nu poate primi notă pe ea (excluderea reciprocă e a
-        // catalogului întreg, nu doar a borderoului).
-        $hourStates = $this->dayHourStates((int) $student->getKey(), $iso);
+        // Ocuparea ordinalelor: și în panoul doar-note, orele cu ABSENȚE sunt consumate — ora cu
+        // absență nu poate primi notă (excluderea reciprocă e a catalogului întreg, nu doar a
+        // borderoului), iar următoarea consemnare deschide ordinalul următor.
+        $usage = $this->dayHourUsage((int) $student->getKey(), $iso);
 
         return [
             'student' => $student,
             'iso' => $iso,
             'grades' => $this->dayGradeEntriesFor((int) $student->getKey(), $iso, $this->gradeMapCycle()),
-            'hours' => ['timetable' => $hourStates['timetable']],
-            'hour_slots' => $hourStates['slots'],
-            'default_hour' => $hourStates['default'],
+            'default_hour' => $usage['default'],
+            'busy_count' => $usage['busy_count'],
             'can_grade' => $this->canEnterGrades()
                 && ! Carbon::parse($iso)->startOfDay()->isAfter(Carbon::today()),
             'numeric' => $this->gradingType() === GradingType::Numeric,

@@ -731,9 +731,10 @@ class ClassRegister extends Page
      * @return array{
      *     student: Student|null,
      *     iso: string,
-     *     grades: list<array{id: int, value: string, type_label: string, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>,
+     *     grades: list<array{id: int, value: string, type_label: string, lesson: int|null, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>,
      *     absences: list<array{id: int, status: string, color: string, status_label: string, lesson: int|null}>,
-     *     hours: array{taken: list<int>, timetable: list<int>},
+     *     default_hour: int|null,
+     *     busy_count: int,
      *     rights: array{is_admin: bool, can_annul: bool, can_request: bool, can_status: bool},
      *     can_absent: bool,
      *     can_grade: bool,
@@ -745,8 +746,7 @@ class ClassRegister extends Page
     {
         $empty = [
             'student' => null, 'iso' => $iso, 'grades' => [], 'absences' => [],
-            'hours' => ['taken' => [], 'timetable' => []],
-            'hour_slots' => [], 'default_hour' => null,
+            'default_hour' => null, 'busy_count' => 0,
             'rights' => $this->dayRights(), 'can_absent' => false,
             'can_grade' => false, 'numeric' => true, 'grade_types' => [],
         ];
@@ -776,7 +776,6 @@ class ClassRegister extends Page
         $grades = $this->dayGradeEntriesFor((int) $student->getKey(), $iso, $cycle);
 
         $absences = [];
-        $taken = [];
 
         $absenceRecords = Absence::query()
             ->where('school_class_id', $class->getKey())
@@ -796,26 +795,21 @@ class ClassRegister extends Page
                 'status_label' => (string) $status->getLabel(),
                 'lesson' => $absence->lesson_number,
             ];
-
-            if ($absence->lesson_number !== null) {
-                $taken[] = (int) $absence->lesson_number;
-            }
         }
 
         $notFuture = ! Carbon::parse($iso)->startOfDay()->isAfter(Carbon::today());
 
-        // Stările orelor pentru selectorul comun: ce slot e liber, ce ocupă fiecare, care ar fi
-        // ora implicită a următoarei consemnări — aceeași sursă ca scrierea (concernul partajat).
-        $hourStates = $this->dayHourStates((int) $student->getKey(), $iso);
+        // Ocuparea ordinalelor zilei: ce oră urmează (Ora 1 la zi „curată") și câte consemnări
+        // există deja — aceeași sursă ca scrierea (concernul partajat).
+        $usage = $this->dayHourUsage((int) $student->getKey(), $iso);
 
         return [
             'student' => $student,
             'iso' => $iso,
             'grades' => $grades,
             'absences' => $absences,
-            'hours' => ['taken' => $taken, 'timetable' => $hourStates['timetable']],
-            'hour_slots' => $hourStates['slots'],
-            'default_hour' => $hourStates['default'],
+            'default_hour' => $usage['default'],
+            'busy_count' => $usage['busy_count'],
             'rights' => $rights,
             'can_absent' => $this->canRecordAbsences() && $notFuture,
             // Adăugarea unei NOTE pe ziua panoului (cerința 05.08.2026) — aceeași poartă ca
@@ -827,22 +821,11 @@ class ClassRegister extends Page
     }
 
     /**
-     * Orele din ORAR ale disciplinei contextului în ziua dată — reperele selectorului de oră.
-     * Deleagă aparatului partajat din {@see WritesGradesFromDay} (același pentru harta Note).
-     *
-     * @return list<int>
-     */
-    public function timetableHours(string $iso): array
-    {
-        return $this->dayTimetableHours($iso);
-    }
-
-    /**
-     * Consemnează o absență NOUĂ din panoul zilei — pe ORA aleasă în selectorul comun (06.08.2026:
-     * ora e împărțită cu formularul de notă, ca aceeași oră să nu poată purta amândouă). Fără oră
-     * explicită, prima liberă a zilei — întâi orele disciplinei din orar, apoi ordinalele de după
-     * ele. Garda rămâne aceeași ({@see EnforcesAbsenceScope}): fără viitor, semestru derivat din
-     * zi, anti-duplicat pe slot, ora cu notă refuzată.
+     * Consemnează o absență NOUĂ din panoul zilei — pe primul ORDINAL liber al zilei (Ora 1 =
+     * prima consemnare a disciplinei, Ora 2 = a doua; 06.08.2026 v2 — ora nu vine din orar).
+     * Ordinalele sunt împărțite cu notele, ca aceeași oră să nu poată purta amândouă. Garda
+     * rămâne aceeași ({@see EnforcesAbsenceScope}): fără viitor, semestru derivat din zi,
+     * anti-duplicat pe slot, ora cu notă refuzată. `$lesson` explicit rămâne pentru formulare/API.
      */
     public function addDayAbsence(int $studentId, string $iso, ?int $lesson = null): void
     {
