@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Enums\AudienceDomain;
 use App\Enums\MessageType;
+use App\Filament\Pages\AudienceDomainOwners;
 use App\Models\Message;
 use App\Models\User;
 use Filament\Support\Icons\Heroicon;
@@ -50,7 +51,11 @@ class AudiencesPendingAssignment extends StatsOverviewWidget
             Stat::make(__('panel.widgets.audiences_pending.title'), (string) self::pendingCount())
                 ->description(__('panel.widgets.audiences_pending.description'))
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
-                ->color('warning'),
+                ->color('warning')
+                // Semnalul duce ACUM unde se rezolvă: desemnarea a ieșit de pe fișa persoanei
+                // ({@see AudienceDomainOwners}). Un avertisment fără drum spre remediu cere
+                // omului să ghicească unde se apasă.
+                ->url(AudienceDomainOwners::getUrl()),
         ];
     }
 

@@ -331,7 +331,7 @@ it('familia nu se cumulează — nici cu staff, nici între ele (gardă pe serve
     expect(User::query()->where('username', 'amestec.interzis')->exists())->toBeFalse();
 });
 
-it('domeniile de audiență NU se atribuie la creare (nici trimise pe furiș), ci doar la editare', function () {
+it('domeniile de audiență nu se atribuie din fișa persoanei — nici la creare, nici la editare', function () {
     // Câmpul e ascuns pe formularul de CREARE (desemnarea responsabilului de domeniu e o
     // decizie deliberată, nu o bifă implicită a rolului) → starea trimisă nu se dehidratează.
     Livewire::test(CreateUser::class)
@@ -348,14 +348,15 @@ it('domeniile de audiență NU se atribuie la creare (nici trimise pe furiș), c
     $user = User::query()->where('username', 'vice.nou')->sole();
     expect($user->audienceDomains())->toBe([]);
 
-    // Desemnarea = pas explicit, din editarea contului; de-abia atunci contul preia domeniul
-    // (rutarea audiențelor + aprobarea motivărilor tardive pe „Educație").
+    // …și nici din EDITARE nu se mai poate bifa (06.08.2026): desemnarea a ieșit de pe fișa
+    // persoanei, fiindcă întrebarea e a ȘCOLII — vezi App\Filament\Pages\AudienceDomainOwners.
+    // Fișa doar AFIȘEAZĂ domeniile, read-only; o valoare strecurată în payload nu se dehidratează.
     Livewire::test(EditUser::class, ['record' => $user->getRouteKey()])
         ->fillForm(['audience_domains' => [AudienceDomain::Educatie->value]])
         ->call('save')
         ->assertHasNoFormErrors();
 
-    expect($user->fresh()->handlesAudienceDomain(AudienceDomain::Educatie))->toBeTrue();
+    expect($user->fresh()->handlesAudienceDomain(AudienceDomain::Educatie))->toBeFalse();
 });
 
 it('părintele primește copiii selectați (pivotul guardian_student)', function () {

@@ -123,16 +123,19 @@ it('ieșirea din context curăță și flag-ul de arhivă', function () {
 it('CĂUTARE: elevul se găsește după nume direct din meniu, cu salt în fișa lui', function () {
     actingAs(studentsNavDirector());
 
-    $this->ownStudent->update(['last_name' => 'Zaharescu', 'first_name' => 'Mihai']);
+    // Nume DELIBERAT imposibil de generat: faker-ul ro_MD scoate „Zaharia" în 0,35% din cazuri,
+    // iar cu mai mulți elevi în fixture căutarea „zahar" prindea ocazional doi — testul pica pe
+    // zaruri, nu pe cod.
+    $this->ownStudent->update(['last_name' => 'Qwertescu', 'first_name' => 'Mihai']);
 
-    $hits = Livewire::withQueryParams(['cauta' => 'zahar'])
+    $hits = Livewire::withQueryParams(['cauta' => 'qwertes'])
         ->test(ListStudents::class)
         ->instance()
         ->catalogSearchHits();
 
     expect($hits)->toHaveCount(1)
         ->and($hits[0]['id'])->toBe($this->ownStudent->id)
-        ->and($hits[0]['title'])->toContain('Zaharescu')
+        ->and($hits[0]['title'])->toContain('Qwertescu')
         ->and($hits[0]['meta'])->toContain('ST-A')
         ->and($hits[0]['url'])->toContain((string) $this->ownStudent->id);
 });

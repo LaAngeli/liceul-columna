@@ -7,6 +7,7 @@ use App\Enums\AudienceDomain;
 use App\Enums\SecondLanguage;
 use App\Enums\Sex;
 use App\Enums\UserRole;
+use App\Filament\Pages\AudienceDomainOwners;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\SchoolClass;
@@ -21,6 +22,7 @@ use App\Support\TemporaryPassword;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -87,17 +89,19 @@ class UserForm
                                 $value,
                                 self::selectedRoles($get),
                             )),
-                        // Domeniile de audiență NU apar la CREARE (feedback beneficiar): ele nu
-                        // sunt un drept implicit al rolului, ci o DESEMNARE per persoană —
-                        // responsabilul de Instruire/Educație primește rutarea audiențelor,
-                        // notificările și dreptul de aprobare a motivărilor tardive (Educație).
-                        // Desemnarea se face deliberat, DUPĂ creare, din editarea contului;
-                        // widget-ul „Audiențe fără responsabil" semnalează domeniile neacoperite.
-                        CheckboxList::make('audience_domains')
-                            ->label(__('panel.forms.user.audience_domains'))
-                            ->helperText(__('panel.forms.user.audience_domains_hint'))
-                            ->options(AudienceDomain::options())
-                            ->columns(2)
+                        // Domeniul de audiență se VEDE aici, dar NU se mai bifează (cerința
+                        // beneficiarului, 06.08.2026: „nu înțeleg necesitatea acestei ferestre").
+                        //
+                        // Era o bifă pe OM, dar întrebarea e a ȘCOLII — „cine răspunde de Instruire"
+                        // și „cine răspunde de Educație", câte unul. De pe fișa unei persoane nu poți
+                        // răspunde: nu vezi dacă domeniul mai are un responsabil, dacă a rămas
+                        // descoperit sau dacă tocmai ai creat al treilea. Măsurat înainte de mutare:
+                        // 1 desemnare din 5 conturi eligibile. Desemnarea trăiește acum în
+                        // {@see \App\Filament\Pages\AudienceDomainOwners}, unde se vede toată școala.
+                        Placeholder::make('audience_domains_display')
+                            ->label(__('panel.audience_domains.on_user_fiche'))
+                            ->content(fn (?User $record): string => self::audienceDomainsSummary($record))
+                            ->hint(__('panel.audience_domains.on_user_fiche_hint'))
                             ->visible(fn (Get $get, string $operation): bool => $operation !== 'create'
                                 && array_intersect(self::selectedRoles($get), UserRole::audienceDomainHolderValues()) !== []),
                         // ── Onboarding PROFESOR/DIRIGINTE: fișa (nouă sau existentă) + integrarea ──
@@ -990,6 +994,27 @@ class UserForm
         }
 
         return $options;
+    }
+
+    /**
+     * Domeniile pe care le ține contul, ca TEXT — fișa doar informează; desemnarea se face din
+     * {@see AudienceDomainOwners}, unde se vede toată școala.
+     */
+    private static function audienceDomainsSummary(?User $record): string
+    {
+        $domains = $record === null ? [] : ($record->audience_domains ?? []);
+
+        if ($domains === []) {
+            return (string) __('panel.audience_domains.on_user_fiche_none');
+        }
+
+        $labels = [];
+
+        foreach ($domains as $value) {
+            $labels[] = AudienceDomain::tryFrom((string) $value)?->label() ?? (string) $value;
+        }
+
+        return implode(', ', $labels);
     }
 
     /**
