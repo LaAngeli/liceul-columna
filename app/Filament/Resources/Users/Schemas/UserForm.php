@@ -76,16 +76,17 @@ class UserForm
                             ->columns(2)
                             ->live()
                             ->required()
-                            // Exclusivitatea familiei, aplicată și în UI: un amestec familie+staff
-                            // păstrează staff-ul (conturile de familie se creează separat, câte unul).
-                            ->afterStateUpdated(function (Set $set, ?array $state): void {
-                                $roles = array_values(array_unique(array_map(strval(...), $state ?? [])));
-                                $family = [UserRole::Elev->value, UserRole::Parinte->value];
-
-                                if (array_intersect($roles, $family) !== [] && count($roles) > 1) {
-                                    $set('roles', array_values(array_diff($roles, $family)));
-                                }
-                            }),
+                            // Combinațiile interzise se OPRESC din start, nu se corectează după
+                            // (cerința beneficiarului, 06.08.2026): varianta veche lăsa să bifezi
+                            // „Elev" peste „Director", apoi îl debifa singură — un câmp care se
+                            // răzgândește singur pare defect, iar utilizatorul nu află DE CE.
+                            // Acum opțiunea e inertă și vizibil indisponibilă înainte de click.
+                            // Predicatul e cel al serverului ({@see UserRole::blocksCombination}),
+                            // nu o a doua regulă scrisă aici.
+                            ->disableOptionWhen(fn (string $value, Get $get): bool => UserRole::blocksCombination(
+                                $value,
+                                self::selectedRoles($get),
+                            )),
                         // Domeniile de audiență NU apar la CREARE (feedback beneficiar): ele nu
                         // sunt un drept implicit al rolului, ci o DESEMNARE per persoană —
                         // responsabilul de Instruire/Educație primește rutarea audiențelor,

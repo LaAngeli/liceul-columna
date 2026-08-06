@@ -102,4 +102,53 @@ enum UserRole: string
     {
         return array_map(static fn (self $role): string => $role->value, self::cases());
     }
+
+    /**
+     * Rolurile de FAMILIE: se acordă câte UNUL singur, fără cumul — nici cu personalul, nici între
+     * ele. Un cont de elev și unul de părinte sunt persoane diferite, iar cabinetul lor e altul
+     * decât panoul; un cont care ar fi „și elev, și profesor" n-ar avea un perimetru definibil.
+     *
+     * @return list<string>
+     */
+    public static function familyValues(): array
+    {
+        return array_map(static fn (self $role): string => $role->value, [self::Elev, self::Parinte]);
+    }
+
+    /**
+     * Setul de roluri e o combinație PERMISĂ? Singura regulă de combinație din sistem: exclusivitatea
+     * familiei. Funcțiile de personal se cumulă liber între ele (Director + Profesor + Diriginte).
+     *
+     * Sursă UNICĂ: o folosesc și garda de server ({@see EnforcesManageableRole}), și dezactivarea
+     * opțiunilor din formular. Două copii ar diverge tăcut, iar UI-ul ar promite altceva decât acceptă
+     * serverul.
+     *
+     * @param  list<string>  $values
+     */
+    public static function isAllowedCombination(array $values): bool
+    {
+        return count(array_unique($values)) <= 1
+            || array_intersect($values, self::familyValues()) === [];
+    }
+
+    /**
+     * Bifarea lui `$value` peste selecția curentă ar produce o combinație interzisă?
+     *
+     * Predicat pentru dezactivarea opțiunilor în formular (cerința beneficiarului, 06.08.2026):
+     * interfața trebuie să OPREASCĂ din start selecțiile invalide, nu să le corecteze după aceea
+     * prin debifare automată — un câmp care se răzgândește singur pare defect.
+     *
+     * Un rol DEJA bifat nu se dezactivează niciodată: altfel o combinație invalidă venită din date
+     * vechi ar rămâne blocată, fără cale de îndreptare din interfață.
+     *
+     * @param  list<string>  $selected
+     */
+    public static function blocksCombination(string $value, array $selected): bool
+    {
+        if (in_array($value, $selected, true)) {
+            return false;
+        }
+
+        return ! self::isAllowedCombination([...$selected, $value]);
+    }
 }

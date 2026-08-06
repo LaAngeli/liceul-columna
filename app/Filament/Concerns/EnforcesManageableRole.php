@@ -47,9 +47,10 @@ trait EnforcesManageableRole
             ]);
         }
 
-        $familyValues = [UserRole::Elev->value, UserRole::Parinte->value];
-
-        if (array_intersect($roles, $familyValues) !== [] && count($roles) > 1) {
+        // Aceeași regulă pe care formularul o folosește ca să DEZACTIVEZE opțiunile incompatibile
+        // ({@see UserRole::isAllowedCombination}). Garda rămâne aici fiindcă interfața e o singură
+        // cale de intrare: comenzi, seedere și un viitor API trec tot pe aici.
+        if (! UserRole::isAllowedCombination($roles)) {
             throw ValidationException::withMessages([
                 'roles' => __('panel.forms.user.roles_family_exclusive'),
             ]);
