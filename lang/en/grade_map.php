@@ -35,5 +35,6 @@ return [
     'scroll_left' => 'Scroll the days left',
     'scroll_right' => 'Scroll the days right',
 
+    'no_students' => 'The class has no pupils enrolled this year — there is nobody to grade here.',
     'empty_period' => 'No “:type” grades in the chosen period. Change the type or the period in the bar above.',
 ];

@@ -39,5 +39,6 @@ return [
     'scroll_left' => 'Derulează zilele spre stânga',
     'scroll_right' => 'Derulează zilele spre dreapta',
 
+    'no_students' => 'Clasa nu are elevi înmatriculați în acest an — nu e nimic de notat aici.',
     'empty_period' => 'Nicio notă de tipul „:type” în perioada aleasă. Schimbă tipul sau perioada din bara de mai sus.',
 ];

@@ -71,13 +71,36 @@
         </button>
     </div>
 
-    @if ($map['days'] === [])
+@php
+    $typeLabel = $this->gradeTypeOptions()[$this->activeGradeType()->value] ?? '';
+    // Câte note poartă perioada, pe tipul ales: suma contoarelor zilelor. De când rigla arată și
+    // ZILELE DE LECȚIE goale (ca să se poată scrie în ele), `days` nu mai e gol când nu există
+    // note — deci golul nu se mai poate deduce din el.
+    $gradeCount = array_sum(array_column($map['days'], 'count'));
+@endphp
+
+    @if ($map['rows'] === [])
+        {{-- CLASĂ FĂRĂ ELEVI activi (ex. o clasă a XII-a după absolvire): tabelul ar fi rămas cu
+             antet și zero rânduri — o formă ruptă, fără explicație. Raportat 06.08.2026. --}}
+        <div class="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
+            {{ __('grade_map.no_students') }}
+        </div>
+    @elseif ($map['days'] === [])
         {{-- Golul își spune AMBELE cauze: tipul ales și perioada. Fără tip în mesaj, o hartă
              goală pe „Teză" în octombrie s-ar fi citit ca „lipsesc datele". --}}
         <div class="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
-            {{ __('grade_map.empty_period', ['type' => $this->gradeTypeOptions()[$this->activeGradeType()->value] ?? '']) }}
+            {{ __('grade_map.empty_period', ['type' => $typeLabel]) }}
         </div>
     @else
+        {{-- Zile de lecție, dar NICIO notă: explicația vine ca BANNER, nu în locul tabelului —
+             rigla trebuie să rămână, altfel prima notă a perioadei n-ar avea unde să fie scrisă
+             (harta e și suprafață de scriere din 05.08.2026). --}}
+        @if ($gradeCount === 0)
+            <div class="border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
+                {{ __('grade_map.empty_period', ['type' => $typeLabel]) }}
+            </div>
+        @endif
+
         {{-- ZONA ZILELOR derulează orizontal între coloanele ANCORATE (numele — stânga,
              totalurile — dreapta); săgețile de carusel stau în rândul antetului, în culoarele
              coloanelor ancorate, și apar doar la surplus. --}}

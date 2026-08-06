@@ -454,3 +454,56 @@ it('zilele de LECȚIE fără note au coloană pe hartă — ușa spre scriere ex
         // Doar zilele de lecție: marțea nu se predă → fără coloană (nicio notă în test).
         ->and(collect($map['days'])->firstWhere('iso', $luni->copy()->addDay()->toDateString()))->toBeNull();
 });
+
+it('perioadă cu zile de lecție dar FĂRĂ note: rigla rămâne, explicația vine ca banner', function () {
+    // Raportat 06.08.2026: de când zilele de lecție populează rigla, `days` nu mai e gol când nu
+    // există note — iar mesajul „Nicio notă de tipul…" se stinsese pe orice filtru în afară de
+    // „Toate". Rigla TREBUIE să rămână (harta e și suprafață de scriere), explicația vine peste ea.
+    actingAs($this->teacherUser);
+
+    Lesson::query()->create([
+        'academic_year_id' => $this->year->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $this->subject->id,
+        'title' => 'x',
+        'teacher_name' => 'x',
+        'day_of_week' => 1,
+        'lesson_number' => 1,
+    ]);
+
+    $map = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'saptamana'])
+        ->test(ListGrades::class)->instance()->gradeMap();
+
+    // Zile există (ziua de lecție), rânduri există (clasa are elevi), note — niciuna.
+    expect($map['days'])->not->toBe([])
+        ->and($map['rows'])->not->toBe([])
+        ->and(array_sum(array_column($map['days'], 'count')))->toBe(0);
+
+    // Blade-ul deduce golul din contoare, nu din `days`: banner + tabel, nu unul în locul altuia.
+    $html = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'saptamana'])
+        ->test(ListGrades::class)
+        ->assertOk()
+        ->html();
+
+    expect($html)->toContain(trans('grade_map.empty_period', [
+        'type' => trans('enums.evaluation_type.curenta'),
+    ]))
+        // Rigla a rămas: celula zilei de lecție e tot acolo, gata de scriere.
+        ->and($html)->toContain('gradeDayPanel');
+});
+
+it('clasă fără elevi înmatriculați: mesaj propriu, nu un tabel cu antet și zero rânduri', function () {
+    // Cazul real din raport: clasa a XII-a după absolvire — toate înmatriculările au `left_on`.
+    actingAs($this->director);
+
+    Enrollment::query()
+        ->where('school_class_id', $this->class->id)
+        ->update(['left_on' => Carbon::today()->subMonth()->toDateString()]);
+
+    $component = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'saptamana'])
+        ->test(ListGrades::class);
+
+    expect($component->instance()->gradeMap()['rows'])->toBe([]);
+
+    $component->assertOk()->assertSee(trans('grade_map.no_students'));
+});
