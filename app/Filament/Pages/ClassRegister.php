@@ -390,7 +390,7 @@ class ClassRegister extends Page
      *     student: Student,
      *     grades: list<array{id: int, value: string, weighted: bool, pending: bool, can_request: bool, edit_url: string|null, tooltip: string, iso: string}>,
      *     gradesByDate: array<string, list<array{id: int, value: string, weighted: bool, pending: bool, can_request: bool, edit_url: string|null, tooltip: string, iso: string}>>,
-     *     absencesByDate: array<string, list<array{id: int, status: string, color: string, status_label: string, lesson: int|null}>>,
+     *     absencesByDate: array<string, list<array{id: int, status: string, color: string, status_label: string, lesson: int|null, solo: bool, label: string}>>,
      *     average: string|null,
      *     absences: array{total: int, unmotivated: int, pending: int, dates: string}
      * }>
@@ -528,21 +528,40 @@ class ClassRegister extends Page
                 $byDate[$chip['iso']][] = $chip;
             }
 
-            /** @var array<string, list<array{id: int, status: string, color: string, status_label: string, lesson: int|null}>> $absByDate */
-            $absByDate = [];
+            /** @var array<string, list<Absence>> $absencesPerDay */
+            $absencesPerDay = [];
 
             foreach ($studentAbsences as $absence) {
-                $status = $absence->status();
+                $absencesPerDay[$absence->occurred_on->toDateString()][] = $absence;
+            }
 
-                $absByDate[$absence->occurred_on->toDateString()][] = [
-                    'id' => (int) $absence->getKey(),
-                    'status' => $status->value,
-                    'color' => $status->color(),
-                    'status_label' => $status->label(),
+            /** @var array<string, list<array{id: int, status: string, color: string, status_label: string, lesson: int|null, solo: bool, label: string}>> $absByDate */
+            $absByDate = [];
+
+            foreach ($absencesPerDay as $iso => $dayAbsences) {
+                // CUM SE CITEȘTE absența în celulă (cerința beneficiarului, 07.08.2026): ziua cu o
+                // SINGURĂ consemnare — o absență și nicio notă — poartă doar „A", la dimensiunea
+                // unei note. Așa arată ~90% din zile, iar acolo ordinalul n-are ce dezambiguiza:
+                // „A1" citit zilnic sugera fals că ar mai fi existat o oră. Ordinalul revine exact
+                // unde chiar spune ceva: două absențe, ori notă și absență în aceeași zi.
+                $solo = count($dayAbsences) === 1 && ($byDate[$iso] ?? []) === [];
+
+                foreach ($dayAbsences as $absence) {
+                    $status = $absence->status();
                     // ORA lecției — identitatea care desparte două absențe ale aceleiași zile
-                    // (ore consecutive); null = „ziua, fără oră precizată".
-                    'lesson' => $absence->lesson_number,
-                ];
+                    // (ore consecutive); null = „ziua, fără oră precizată" (rânduri istorice).
+                    $lesson = $absence->lesson_number !== null ? (int) $absence->lesson_number : null;
+
+                    $absByDate[$iso][] = [
+                        'id' => (int) $absence->getKey(),
+                        'status' => $status->value,
+                        'color' => $status->color(),
+                        'status_label' => $status->label(),
+                        'lesson' => $lesson,
+                        'solo' => $solo,
+                        'label' => ($solo || $lesson === null) ? 'A' : 'A'.$lesson,
+                    ];
+                }
             }
 
             $rows[] = [

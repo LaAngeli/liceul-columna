@@ -1334,6 +1334,68 @@ it('batch-ul continuă ordinalele zilei: peste o absență existentă la Ora 1, 
     expect(Grade::query()->where('student_id', $a->id)->sole()->lesson_number)->toBe(2);
 });
 
+// ── Cum se CITEȘTE absența în celulă (07.08.2026) ──────────────────────────────────────────
+
+it('ziua cu o singură absență poartă doar „A", cât o notă; ordinalul apare doar unde desparte', function () {
+    actingAs($this->profUser);
+
+    [$a, $b, $c] = $this->students->all();
+    $azi = Carbon::today()->toDateString();
+    $page = Livewire::test(ClassRegister::class);
+
+    // (a) O singură absență, nicio notă — cazul obișnuit.
+    $page->call('addDayAbsence', $a->id, $azi);
+
+    // (b) Două absențe în aceeași zi — ordinalul le desparte.
+    $page->call('addDayAbsence', $b->id, $azi);
+    $page->call('addDayAbsence', $b->id, $azi);
+
+    // (c) Notă + absență — ordinalul spune la care lecție s-a întâmplat fiecare.
+    $page->call('addDayGrade', $c->id, $azi, '9', 'curenta');
+    $page->call('addDayAbsence', $c->id, $azi);
+
+    $rows = collect(Livewire::test(ClassRegister::class)->instance()->rows())
+        ->keyBy(fn (array $row): int => (int) $row['student']->id);
+
+    expect($rows[$a->id]['absencesByDate'][$azi][0])
+        ->toMatchArray(['solo' => true, 'label' => 'A', 'lesson' => 1])
+        ->and(array_column($rows[$b->id]['absencesByDate'][$azi], 'label'))->toBe(['A1', 'A2'])
+        ->and(array_column($rows[$b->id]['absencesByDate'][$azi], 'solo'))->toBe([false, false])
+        // Absența care împarte ziua cu o notă își păstrează ordinalul.
+        ->and($rows[$c->id]['absencesByDate'][$azi][0])
+        ->toMatchArray(['solo' => false, 'label' => 'A2', 'lesson' => 2]);
+});
+
+it('absența istorică fără oră arată tot „A", nu un ordinal inventat', function () {
+    actingAs($this->profUser);
+
+    [$a, $b] = $this->students->all();
+    $azi = Carbon::today()->toDateString();
+
+    // Rând istoric „ziua, fără oră precizată" — plus o a doua absență, ca să nu fie solo.
+    foreach ([$a, $b] as $student) {
+        Absence::query()->create([
+            'student_id' => $student->id,
+            'subject_id' => $this->subject->id,
+            'school_class_id' => $this->class->id,
+            'term_id' => $this->term->id,
+            'occurred_on' => $azi,
+            'is_motivated' => null,
+        ]);
+    }
+
+    Livewire::test(ClassRegister::class)->call('addDayAbsence', $b->id, $azi);
+
+    $rows = collect(Livewire::test(ClassRegister::class)->instance()->rows())
+        ->keyBy(fn (array $row): int => (int) $row['student']->id);
+
+    $faraOra = collect($rows[$b->id]['absencesByDate'][$azi])->firstWhere('lesson', null);
+
+    expect($rows[$a->id]['absencesByDate'][$azi][0]['label'])->toBe('A')
+        ->and($faraOra['label'])->toBe('A')
+        ->and($faraOra['solo'])->toBeFalse();
+});
+
 // ── Corectarea OREI unei consemnări (07.08.2026) ───────────────────────────────────────────
 
 it('nota și absența își SCHIMBĂ locurile când ora aleasă e ocupată de cealaltă', function () {

@@ -364,19 +364,26 @@
                                                                     </span>
                                                                 @endforeach
 
-                                                                {{-- Absențele zilei: pastilă îngustă pe culoarea
-                                                                     statutului, cu ORA când e precizată — două ore
-                                                                     consecutive = două pastile. --}}
+                                                                {{-- Absențele zilei, pe culoarea statutului.
+                                                                     SINGURA consemnare a zilei (o absență, nicio
+                                                                     notă — cazul obișnuit): o casetă „A" cât o notă,
+                                                                     fără ordinal, fiindcă n-are ce dezambiguiza.
+                                                                     Mai multe consemnări: pastile înguste cu ORA
+                                                                     („A1", „A2"), care acolo chiar spune care lecție.
+                                                                     Decizia se ia pe SERVER (`solo`/`label` din
+                                                                     rows()) — blade-ul doar o îmbracă. --}}
                                                                 @foreach ($dayAbsences as $absence)
                                                                     <span
                                                                         title="{{ $absence['status_label'] }}{{ $absence['lesson'] !== null ? ' · '.__('panel.forms.absence.lesson_option', ['number' => $absence['lesson']]) : '' }}"
                                                                         @class([
-                                                                            'inline-flex h-3.5 w-8 items-center justify-center rounded-sm text-[9px] font-bold uppercase leading-none ring-1',
+                                                                            'inline-flex w-8 items-center justify-center ring-1',
+                                                                            'h-6 rounded text-xs font-semibold' => $absence['solo'],
+                                                                            'h-3.5 rounded-sm text-[9px] font-bold uppercase leading-none' => ! $absence['solo'],
                                                                             'bg-amber-100 text-amber-800 ring-amber-600/30 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/30' => $absence['color'] === 'warning',
                                                                             'bg-green-100 text-green-800 ring-green-600/30 dark:bg-green-400/10 dark:text-green-300 dark:ring-green-400/30' => $absence['color'] === 'success',
                                                                             'bg-red-100 text-red-800 ring-red-600/30 dark:bg-red-400/10 dark:text-red-300 dark:ring-red-400/30' => $absence['color'] === 'danger',
                                                                         ])
-                                                                    >{{ $absence['lesson'] !== null ? 'a'.$absence['lesson'] : 'a' }}</span>
+                                                                    >{{ $absence['label'] }}</span>
                                                                 @endforeach
 
                                                                 @unless ($hasContent)
