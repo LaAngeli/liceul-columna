@@ -19,6 +19,7 @@ use App\Support\Holidays;
 use App\Support\SchoolCalendar;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -251,8 +252,9 @@ trait WritesGradesFromDay
      *
      * Nota și absența CONCUREAZĂ pe aceleași sloturi (o oră poartă o singură consemnare), deci
      * `default` = primul ordinal liber de AMBELE; anulatele nu ocupă (anularea eliberează ora).
+     * `busy` spune CINE ocupă fiecare oră — combustibilul corectării de oră ({@see moveDayGradeHour}).
      *
-     * @return array{default: int|null, busy_count: int}
+     * @return array{busy: array<int, array{kind: string, id: int}>, default: int|null, busy_count: int}
      */
     public function dayHourUsage(int $studentId, string $iso): array
     {
@@ -260,7 +262,7 @@ trait WritesGradesFromDay
         $subject = $this->dayGradeSubject();
 
         if ($class === null || $subject === null || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
-            return ['default' => null, 'busy_count' => 0];
+            return ['busy' => [], 'default' => null, 'busy_count' => 0];
         }
 
         $busy = [];
@@ -272,8 +274,8 @@ trait WritesGradesFromDay
             ->whereDate('graded_on', $iso)
             ->whereNull('annulled_at')
             ->whereNotNull('lesson_number')
-            ->pluck('lesson_number') as $hour) {
-            $busy[(int) $hour] = true;
+            ->get(['id', 'lesson_number']) as $grade) {
+            $busy[(int) $grade->lesson_number] = ['kind' => 'grade', 'id' => (int) $grade->getKey()];
         }
 
         foreach (Absence::query()
@@ -282,8 +284,8 @@ trait WritesGradesFromDay
             ->where('student_id', $studentId)
             ->whereDate('occurred_on', $iso)
             ->whereNotNull('lesson_number')
-            ->pluck('lesson_number') as $hour) {
-            $busy[(int) $hour] = true;
+            ->get(['id', 'lesson_number']) as $absence) {
+            $busy[(int) $absence->lesson_number] = ['kind' => 'absence', 'id' => (int) $absence->getKey()];
         }
 
         $default = null;
@@ -296,7 +298,107 @@ trait WritesGradesFromDay
             }
         }
 
-        return ['default' => $default, 'busy_count' => count($busy)];
+        return ['busy' => $busy, 'default' => $default, 'busy_count' => count($busy)];
+    }
+
+    /**
+     * Meniul de ore al unei înregistrări: toate cele 8 ordinale, cu ocupantul fiecăruia — blade-ul
+     * arată din el un selector, iar ora ocupată devine „schimbă locul cu …", nu opțiune interzisă.
+     *
+     * @return list<array{hour: int, busy: string|null}>
+     */
+    protected function dayHourMenu(int $studentId, string $iso): array
+    {
+        $busy = $this->dayHourUsage($studentId, $iso)['busy'];
+
+        return array_map(fn (int $hour): array => [
+            'hour' => $hour,
+            'busy' => $busy[$hour]['kind'] ?? null,
+        ], range(1, 8));
+    }
+
+    /**
+     * Poate muta și ABSENȚE? Borderoul da (ambele specii trăiesc acolo); harta Note — nu, e
+     * ecranul notelor. Contează la SCHIMBUL de locuri: mutarea unei note peste ora unei absențe
+     * o mișcă și pe aceea.
+     */
+    protected function canMoveAbsences(): bool
+    {
+        return false;
+    }
+
+    /**
+     * CORECTAREA orei unei note (cerința beneficiarului, 07.08.2026): ora atribuită automat —
+     * la introducerea în masă nota ia Ora 1 și absența Ora 2, prin convenția ordinii de procesare
+     * — poate să nu corespundă realității (elevul a lipsit la prima oră și a fost notat la a doua).
+     *
+     * Ora liberă = mutare simplă. Ora OCUPATĂ = SCHIMB de locuri, într-o tranzacție: altfel
+     * inversarea a două consemnări ar cere trei mutări printr-un ordinal liber, iar invariantul
+     * „o oră, o consemnare" s-ar rupe temporar. O notă istorică FĂRĂ oră se poate doar așeza pe un
+     * ordinal liber (nu are ce ceda la schimb).
+     */
+    public function moveDayGradeHour(int $gradeId, mixed $hour): void
+    {
+        $grade = $this->dayActionGrade(['id' => $gradeId]);
+        $user = auth('web')->user();
+        $isAdmin = $user?->canAdministerCatalog() ?? false;
+        $target = is_numeric($hour) ? (int) $hour : 0;
+
+        if ($grade === null || $grade->isAnnulled() || $target < 1 || $target > 8
+            || ! ($isAdmin || GradesTable::teacherTeachesGrade($grade))) {
+            $this->denyDayAction();
+
+            return;
+        }
+
+        $current = $grade->lesson_number !== null ? (int) $grade->lesson_number : null;
+
+        if ($current === $target) {
+            return;
+        }
+
+        $iso = $grade->graded_on->toDateString();
+        $occupant = $this->dayHourUsage((int) $grade->student_id, $iso)['busy'][$target] ?? null;
+
+        if ($occupant !== null && ($current === null
+            || ($occupant['kind'] === 'absence' && ! $this->canMoveAbsences()))) {
+            Notification::make()
+                ->warning()
+                ->title(__('panel.class_register.day_panel.hour_taken', ['number' => $target]))
+                ->send();
+
+            return;
+        }
+
+        DB::transaction(function () use ($grade, $occupant, $current, $target): void {
+            if ($occupant !== null) {
+                $this->parkDayOccupant($occupant, $current);
+            }
+
+            $grade->update(['lesson_number' => $target]);
+        });
+
+        $this->afterDayGradeWrite();
+
+        Notification::make()
+            ->success()
+            ->title(__('panel.class_register.day_panel.hour_moved', ['number' => $target]))
+            ->send();
+    }
+
+    /**
+     * Mută ocupantul unei ore pe ora eliberată de cel care i-a luat locul (jumătatea a doua a
+     * schimbului). Prin MODELE — observerii și jurnalul de audit trebuie să vadă mișcarea.
+     *
+     * @param  array{kind: string, id: int}  $occupant
+     */
+    protected function parkDayOccupant(array $occupant, ?int $hour): void
+    {
+        $record = $occupant['kind'] === 'grade'
+            ? Grade::query()->whereKey($occupant['id'])->first()
+            : Absence::query()->whereKey($occupant['id'])->first();
+
+        $record?->update(['lesson_number' => $hour]);
     }
 
     /** Primul ordinal LIBER al zilei pentru (elev, zi) — null = toate cele 8 sunt consemnate. */
@@ -311,7 +413,7 @@ trait WritesGradesFromDay
      * pe server. Ambele panouri (borderou + harta Note) citesc de aici: aceleași chei, aceleași
      * reguli.
      *
-     * @return list<array{id: int, value: string, type_label: string, lesson: int|null, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>
+     * @return list<array{id: int, value: string, type_label: string, lesson: int|null, can_move_hour: bool, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>
      */
     protected function dayGradeEntriesFor(int $studentId, string $iso, ?SchoolCycle $cycle): array
     {
@@ -348,6 +450,9 @@ trait WritesGradesFromDay
                     : (string) ($grade->calificativ ?? '—'),
                 'type_label' => $grade->evaluation_type->labelForCycle($cycle),
                 'lesson' => $grade->lesson_number,
+                // Ora se corectează de cine poate anula nota (proprietarul ei / administrația):
+                // e metadata slotului, nu VALOAREA — aceea trece prin fluxul de corecție (§3.1).
+                'can_move_hour' => ! $annulled && ($isAdmin || GradesTable::teacherTeachesGrade($grade)),
                 'weighted' => $grade->evaluation_type !== EvaluationType::Curenta,
                 'pending' => $pending,
                 'annulled' => $annulled,

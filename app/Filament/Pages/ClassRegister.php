@@ -735,10 +735,11 @@ class ClassRegister extends Page
      * @return array{
      *     student: Student|null,
      *     iso: string,
-     *     grades: list<array{id: int, value: string, type_label: string, lesson: int|null, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>,
-     *     absences: list<array{id: int, status: string, color: string, status_label: string, lesson: int|null}>,
+     *     grades: list<array{id: int, value: string, type_label: string, lesson: int|null, can_move_hour: bool, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>,
+     *     absences: list<array{id: int, status: string, color: string, status_label: string, lesson: int|null, can_move_hour: bool}>,
      *     default_hour: int|null,
      *     busy_count: int,
+     *     hour_menu: list<array{hour: int, busy: string|null}>,
      *     rights: array{is_admin: bool, can_annul: bool, can_request: bool, can_status: bool},
      *     can_absent: bool,
      *     can_grade: bool,
@@ -750,7 +751,7 @@ class ClassRegister extends Page
     {
         $empty = [
             'student' => null, 'iso' => $iso, 'grades' => [], 'absences' => [],
-            'default_hour' => null, 'busy_count' => 0,
+            'default_hour' => null, 'busy_count' => 0, 'hour_menu' => [],
             'rights' => $this->dayRights(), 'can_absent' => false,
             'can_grade' => false, 'numeric' => true, 'grade_types' => [],
         ];
@@ -798,6 +799,7 @@ class ClassRegister extends Page
                 'color' => $status->color(),
                 'status_label' => (string) $status->getLabel(),
                 'lesson' => $absence->lesson_number,
+                'can_move_hour' => $this->canRecordAbsences(),
             ];
         }
 
@@ -814,6 +816,7 @@ class ClassRegister extends Page
             'absences' => $absences,
             'default_hour' => $usage['default'],
             'busy_count' => $usage['busy_count'],
+            'hour_menu' => $this->dayHourMenu((int) $student->getKey(), $iso),
             'rights' => $rights,
             'can_absent' => $this->canRecordAbsences() && $notFuture,
             // Adăugarea unei NOTE pe ziua panoului (cerința 05.08.2026) — aceeași poartă ca
@@ -916,6 +919,75 @@ class ClassRegister extends Page
         Notification::make()
             ->success()
             ->title(__('absence_map.status_saved'))
+            ->send();
+    }
+
+    /**
+     * În borderou trăiesc AMBELE specii, deci schimbul de locuri poate mișca și o absență —
+     * dacă privitorul are dreptul să consemneze absențe. (Harta Note lasă implicitul `false`.)
+     */
+    protected function canMoveAbsences(): bool
+    {
+        return $this->canRecordAbsences();
+    }
+
+    /**
+     * CORECTAREA orei unei ABSENȚE — perechea lui {@see WritesGradesFromDay::moveDayGradeHour}.
+     * Cerința (07.08.2026) vine din introducerea în masă: acolo nota ia Ora 1 și absența Ora 2
+     * prin convenția ordinii de procesare, dar în clasă putea fi invers (a lipsit la prima oră,
+     * a răspuns la a doua). Ora ocupată = SCHIMB de locuri; o absență istorică fără oră se poate
+     * doar așeza pe un ordinal liber.
+     */
+    public function moveDayAbsenceHour(int $absenceId, mixed $hour): void
+    {
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+        $target = is_numeric($hour) ? (int) $hour : 0;
+
+        $absence = ($class === null || $subject === null) ? null : Absence::query()
+            ->whereKey($absenceId)
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->first();
+
+        if ($absence === null || $target < 1 || $target > 8 || ! $this->canRecordAbsences()) {
+            $this->denyDayAction();
+
+            return;
+        }
+
+        $current = $absence->lesson_number !== null ? (int) $absence->lesson_number : null;
+
+        if ($current === $target) {
+            return;
+        }
+
+        $iso = $absence->occurred_on->toDateString();
+        $occupant = $this->dayHourUsage((int) $absence->student_id, $iso)['busy'][$target] ?? null;
+
+        // Nota altcuiva nu se mișcă de mâna cuiva care nu poate nota perechea; iar o absență
+        // fără oră nu are ce ceda la schimb.
+        if ($occupant !== null && ($current === null
+            || ($occupant['kind'] === 'grade' && ! $this->canEnterGrades()))) {
+            Notification::make()
+                ->warning()
+                ->title(__('panel.class_register.day_panel.hour_taken', ['number' => $target]))
+                ->send();
+
+            return;
+        }
+
+        DB::transaction(function () use ($absence, $occupant, $current, $target): void {
+            if ($occupant !== null) {
+                $this->parkDayOccupant($occupant, $current);
+            }
+
+            $absence->update(['lesson_number' => $target]);
+        });
+
+        Notification::make()
+            ->success()
+            ->title(__('panel.class_register.day_panel.hour_moved', ['number' => $target]))
             ->send();
     }
 

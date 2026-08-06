@@ -21,6 +21,22 @@
     $busyCount = $panel['busy_count'] ?? 0;
     $canGrade = $panel['can_grade'] ?? false;
     $canAbsent = $panel['can_absent'] ?? false;
+    $hourMenu = $panel['hour_menu'] ?? [];
+
+    // Eticheta unei opțiuni de oră: liberă = „Ora N"; ocupată = „Ora N · schimbă cu nota/absența"
+    // — ora ocupată RĂMÂNE selectabilă, fiindcă acțiunea firească acolo e schimbul de locuri
+    // (altfel inversarea a două consemnări ar cere trei mutări printr-un ordinal liber).
+    $hourOptionLabel = function (array $slot, ?int $own): string {
+        $label = (string) __('panel.forms.absence.lesson_option', ['number' => $slot['hour']]);
+
+        if ($slot['hour'] === $own || $slot['busy'] === null) {
+            return $label;
+        }
+
+        return $label.' · '.__($slot['busy'] === 'grade'
+            ? 'panel.class_register.day_panel.hour_swap_grade'
+            : 'panel.class_register.day_panel.hour_swap_absence');
+    };
 @endphp
 
 <div class="space-y-5 text-sm">
@@ -51,9 +67,28 @@
                         <span class="text-xs text-gray-600 dark:text-gray-300">{{ $grade['type_label'] }}</span>
 
                         {{-- ORA notei — ORDINALĂ (06.08.2026 v2): a câta consemnare a disciplinei
-                             e în ziua dată, nu poziția din orar. Notele istorice fără oră nu
-                             afișează nimic (tot rândul lor e „ziua"). --}}
-                        @if ($grade['lesson'] !== null)
+                             e în ziua dată, nu poziția din orar. CORECTABILĂ (07.08.2026): ora
+                             atribuită automat (nota pe Ora 1, absența pe Ora 2 la introducerea în
+                             masă) putea să nu corespundă realității; aici se schimbă, iar dacă ora
+                             aleasă e ocupată, cele două consemnări fac SCHIMB de locuri. --}}
+                        @if ($grade['can_move_hour'] && $hourMenu !== [])
+                            <select
+                                x-on:change="$wire.moveDayGradeHour({{ $grade['id'] }}, $event.target.value)"
+                                aria-label="{{ __('panel.class_register.day_panel.hour_select_label') }}"
+                                title="{{ __('panel.class_register.day_panel.hour_select_label') }}"
+                                class="h-7 rounded-md border-0 bg-white py-0 pe-7 ps-2 text-xs text-gray-600 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-300 dark:ring-white/15"
+                            >
+                                @if ($grade['lesson'] === null)
+                                    <option value="" selected>{{ __('panel.forms.absence.lesson_unspecified') }}</option>
+                                @endif
+
+                                @foreach ($hourMenu as $slot)
+                                    <option value="{{ $slot['hour'] }}" @selected($grade['lesson'] === $slot['hour'])>
+                                        {{ $hourOptionLabel($slot, $grade['lesson']) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        @elseif ($grade['lesson'] !== null)
                             <span class="text-xs text-gray-500 dark:text-gray-400">
                                 {{ __('panel.forms.absence.lesson_option', ['number' => $grade['lesson']]) }}
                             </span>
@@ -190,11 +225,31 @@
                             {{ $absence['status_label'] }}
                         </span>
 
-                        <span class="text-xs text-gray-600 dark:text-gray-300">
-                            {{ $absence['lesson'] !== null
-                                ? __('panel.forms.absence.lesson_option', ['number' => $absence['lesson']])
-                                : __('panel.forms.absence.lesson_unspecified') }}
-                        </span>
+                        {{-- Ora absenței, corectabilă la fel ca a notei (07.08.2026). --}}
+                        @if (($absence['can_move_hour'] ?? false) && $hourMenu !== [])
+                            <select
+                                x-on:change="$wire.moveDayAbsenceHour({{ $absence['id'] }}, $event.target.value)"
+                                aria-label="{{ __('panel.class_register.day_panel.hour_select_label') }}"
+                                title="{{ __('panel.class_register.day_panel.hour_select_label') }}"
+                                class="h-7 rounded-md border-0 bg-white py-0 pe-7 ps-2 text-xs text-gray-600 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-300 dark:ring-white/15"
+                            >
+                                @if ($absence['lesson'] === null)
+                                    <option value="" selected>{{ __('panel.forms.absence.lesson_unspecified') }}</option>
+                                @endif
+
+                                @foreach ($hourMenu as $slot)
+                                    <option value="{{ $slot['hour'] }}" @selected($absence['lesson'] === $slot['hour'])>
+                                        {{ $hourOptionLabel($slot, $absence['lesson']) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        @else
+                            <span class="text-xs text-gray-600 dark:text-gray-300">
+                                {{ $absence['lesson'] !== null
+                                    ? __('panel.forms.absence.lesson_option', ['number' => $absence['lesson']])
+                                    : __('panel.forms.absence.lesson_unspecified') }}
+                            </span>
+                        @endif
 
                         {{-- Statutul îl fixează DOAR cine are dreptul (diriginte/administrație) —
                              aceleași trei stări, aceleași culori ca în harta absențelor. --}}

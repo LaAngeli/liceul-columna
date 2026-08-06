@@ -1334,6 +1334,121 @@ it('batch-ul continuă ordinalele zilei: peste o absență existentă la Ora 1, 
     expect(Grade::query()->where('student_id', $a->id)->sole()->lesson_number)->toBe(2);
 });
 
+// ── Corectarea OREI unei consemnări (07.08.2026) ───────────────────────────────────────────
+
+it('nota și absența își SCHIMBĂ locurile când ora aleasă e ocupată de cealaltă', function () {
+    // Scenariul raportat: batch-ul pune nota pe Ora 1 și absența pe Ora 2 (convenția ordinii de
+    // procesare), dar în clasă a fost invers — a lipsit la prima oră, a răspuns la a doua.
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    $page = Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class);
+    $page->set('entries.'.$a->id.'.value', '9')
+        ->set('entries.'.$a->id.'.absent', true)
+        ->call('saveDayBatch');
+
+    $grade = Grade::query()->where('student_id', $a->id)->sole();
+    $absence = Absence::query()->where('student_id', $a->id)->sole();
+
+    expect($grade->lesson_number)->toBe(1)->and($absence->lesson_number)->toBe(2);
+
+    // O singură acțiune: nota trece pe Ora 2, iar absența primește ora eliberată — nu rămâne
+    // niciun moment în care două consemnări împart aceeași oră.
+    $page->call('moveDayGradeHour', $grade->id, 2);
+
+    expect($grade->fresh()->lesson_number)->toBe(2)
+        ->and($absence->fresh()->lesson_number)->toBe(1);
+
+    // Și invers, pornind de la absență.
+    $page->call('moveDayAbsenceHour', $absence->id, 2);
+
+    expect($absence->fresh()->lesson_number)->toBe(2)
+        ->and($grade->fresh()->lesson_number)->toBe(1);
+});
+
+it('mutarea pe o oră LIBERĂ e simplă, iar ora eliberată redevine disponibilă', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    $page = Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class);
+    $page->call('addDayGrade', $a->id, $azi, '8', 'curenta');
+
+    $grade = Grade::query()->where('student_id', $a->id)->sole();
+
+    $page->call('moveDayGradeHour', $grade->id, 5);
+
+    expect($grade->fresh()->lesson_number)->toBe(5)
+        // Ora 1 s-a eliberat: următoarea consemnare o ia pe ea.
+        ->and($page->instance()->dayPanel($a->id, $azi)['default_hour'])->toBe(1);
+});
+
+it('ora se corectează doar de cine are dreptul, și doar între 1 și 8', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    Livewire::test(ClassRegister::class)->call('addDayGrade', $a->id, $azi, '8', 'curenta');
+    $grade = Grade::query()->sole();
+
+    // Ordinal în afara scalei — refuzat.
+    Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class)
+        ->call('moveDayGradeHour', $grade->id, 9);
+
+    expect($grade->fresh()->lesson_number)->toBe(1);
+
+    // Profesor STRĂIN de pereche — refuzat chiar cu apel forțat.
+    $strainUser = User::factory()->create();
+    $strainUser->assignRole(UserRole::Profesor->value);
+    Teacher::factory()->create(['user_id' => $strainUser->id]);
+
+    actingAs($strainUser->fresh());
+
+    Livewire::withQueryParams(['clasa' => (string) $this->class->id])->test(ClassRegister::class)
+        ->call('moveDayGradeHour', $grade->id, 3);
+
+    expect($grade->fresh()->lesson_number)->toBe(1);
+});
+
+it('dirigintele fără alocare mută absențele, dar nu ia locul unei note', function () {
+    $homeroomUser = User::factory()->create();
+    $homeroomUser->assignRole(UserRole::Profesor->value);
+    $homeroom = Teacher::factory()->create(['user_id' => $homeroomUser->id]);
+    $this->class->update(['homeroom_teacher_id' => $homeroom->id]);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    // Nota o pune titularul disciplinei, pe Ora 1.
+    actingAs($this->profUser);
+    Livewire::test(ClassRegister::class)->call('addDayGrade', $a->id, $azi, '9', 'curenta');
+
+    // Dirigintele consemnează absența (Ora 2) și o poate muta pe o oră liberă...
+    actingAs($homeroomUser->fresh());
+
+    $params = ['mod' => 'zi', 'ref' => $azi, 'disciplina' => (string) $this->subject->id];
+    $page = Livewire::withQueryParams($params)->test(ClassRegister::class);
+    $page->call('addDayAbsence', $a->id, $azi);
+
+    $absence = Absence::query()->where('student_id', $a->id)->sole();
+
+    expect($absence->lesson_number)->toBe(2);
+
+    $page->call('moveDayAbsenceHour', $absence->id, 4);
+
+    expect($absence->fresh()->lesson_number)->toBe(4);
+
+    // ...dar NU peste ora notei: schimbul ar muta nota, la care nu are drept.
+    $page->call('moveDayAbsenceHour', $absence->id, 1);
+
+    expect($absence->fresh()->lesson_number)->toBe(4)
+        ->and(Grade::query()->sole()->lesson_number)->toBe(1);
+});
+
 it('pe o zi din VIITOR introducerea în masă nu există și nu scrie', function () {
     actingAs($this->profUser);
 
