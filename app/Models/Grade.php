@@ -22,6 +22,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * @property Carbon $graded_on
+ * @property int|null $lesson_number
  * @property EvaluationType $evaluation_type
  * @property numeric-string|null $value
  * @property string|null $calificativ
@@ -43,6 +44,7 @@ class Grade extends Model implements Auditable
         'term_id',
         'teacher_id',
         'graded_on',
+        'lesson_number',
         'type',
         'evaluation_type',
         'value',
@@ -56,6 +58,7 @@ class Grade extends Model implements Auditable
     {
         return [
             'graded_on' => 'date',
+            'lesson_number' => 'integer',
             'type' => 'integer',
             'evaluation_type' => EvaluationType::class,
             'value' => 'decimal:2',

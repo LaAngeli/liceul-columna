@@ -8,6 +8,7 @@ use App\Enums\GradingType;
 use App\Enums\SchoolCycle;
 use App\Filament\Resources\Grades\GradeResource;
 use App\Filament\Resources\Grades\Tables\GradesTable;
+use App\Models\Absence;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
@@ -54,11 +55,13 @@ trait WritesGradesFromDay
     protected function afterDayGradeWrite(): void {}
 
     /**
-     * Adaugă o NOTĂ pe ziua celulei. Trece prin ACEEAȘI validare prietenoasă și ACEEAȘI gardă ca
-     * formularul clasic ({@see EnforcesGradeScope}): 1–10 întreg la numerice, simbol din scala
-     * închisă la calificative; semestrul derivat din zi, scope-ul titularului pe server.
+     * Adaugă o NOTĂ pe ziua celulei — pe ORA aleasă în selectorul comun al panoului (06.08.2026;
+     * fără oră explicită, prima liberă a zilei, în ordinea orarului). Trece prin ACEEAȘI validare
+     * prietenoasă și ACEEAȘI gardă ca formularul clasic ({@see EnforcesGradeScope}): 1–10 întreg
+     * la numerice, simbol din scala închisă la calificative; semestrul derivat din zi, scope-ul
+     * titularului și EXCLUSIVITATEA slotului (nota↔absența nu împart ora) pe server.
      */
-    public function addDayGrade(int $studentId, string $iso, string $value, string $type): void
+    public function addDayGrade(int $studentId, string $iso, string $value, string $type, ?int $lesson = null): void
     {
         $user = auth('web')->user();
         $class = $this->dayGradeClass();
@@ -93,12 +96,26 @@ trait WritesGradesFromDay
             return;
         }
 
+        $lesson ??= $this->firstFreeDayHour($studentId, $iso);
+
+        if ($lesson === null) {
+            // Toate cele 8 sloturi ale zilei sunt consemnate (note + absențe) — n-a mai rămas
+            // nicio oră pe care nota să poată sta.
+            Notification::make()
+                ->warning()
+                ->title(__('panel.class_register.day_panel.all_hours_taken'))
+                ->send();
+
+            return;
+        }
+
         try {
             $data = $this->enforceGradeScope([
                 'student_id' => $studentId,
                 'subject_id' => (int) $subject->getKey(),
                 'school_class_id' => (int) $class->getKey(),
                 'graded_on' => $iso,
+                'lesson_number' => $lesson,
                 'evaluation_type' => $numeric && EvaluationType::tryFrom($type) !== null
                     ? $type
                     : EvaluationType::Curenta->value,
@@ -226,12 +243,121 @@ trait WritesGradesFromDay
     }
 
     /**
+     * Orele din ORAR ale disciplinei contextului în ziua dată. Orarul poate lipsi sau fi
+     * incomplet, deci sunt repere, nu gard: consemnarea acceptă orice oră liberă 1–8.
+     *
+     * @return list<int>
+     */
+    public function dayTimetableHours(string $iso): array
+    {
+        $class = $this->dayGradeClass();
+        $subject = $this->dayGradeSubject();
+
+        if ($class === null || $subject === null || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
+            return [];
+        }
+
+        /** @var list<int> */
+        return Lesson::query()
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->where('day_of_week', Carbon::parse($iso)->isoWeekday())
+            ->orderBy('lesson_number')
+            ->pluck('lesson_number')
+            ->map(fn ($n): int => (int) $n)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * STĂRILE celor 8 ore ale zilei pentru (elev, zi) — combustibilul selectorului comun de oră
+     * din panou (06.08.2026): cine ocupă fiecare slot (notă activă / absență / liber), care ore
+     * sunt în orarul disciplinei și care e ora IMPLICITĂ a următoarei consemnări.
+     *
+     * Ordinea implicitului = ordinea „zilei reale": orele din orar, apoi ordinalele de DUPĂ ele
+     * (o oră ținută peste orar urmează celor programate), la coadă cele dinaintea lor — ultima
+     * portiță, ca ziua să nu devină imposibil de completat. Nota și absența CONCUREAZĂ pe
+     * aceleași sloturi: o oră cu notă nu se mai oferă absenței, și invers.
+     *
+     * @return array{slots: list<array{hour: int, timetable: bool, busy: string|null}>, default: int|null, timetable: list<int>}
+     */
+    public function dayHourStates(int $studentId, string $iso): array
+    {
+        $class = $this->dayGradeClass();
+        $subject = $this->dayGradeSubject();
+
+        if ($class === null || $subject === null || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
+            return ['slots' => [], 'default' => null, 'timetable' => []];
+        }
+
+        $timetable = $this->dayTimetableHours($iso);
+
+        $busy = [];
+
+        foreach (Grade::query()
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->where('student_id', $studentId)
+            ->whereDate('graded_on', $iso)
+            ->whereNull('annulled_at')
+            ->whereNotNull('lesson_number')
+            ->pluck('lesson_number') as $hour) {
+            $busy[(int) $hour] = 'grade';
+        }
+
+        foreach (Absence::query()
+            ->where('school_class_id', $class->getKey())
+            ->where('subject_id', $subject->getKey())
+            ->where('student_id', $studentId)
+            ->whereDate('occurred_on', $iso)
+            ->whereNotNull('lesson_number')
+            ->pluck('lesson_number') as $hour) {
+            $busy[(int) $hour] = 'absence';
+        }
+
+        $anchor = $timetable === [] ? 0 : max($timetable);
+        $order = [
+            ...$timetable,
+            ...array_filter(range(1, 8), fn (int $hour): bool => $hour > $anchor),
+            ...array_filter(range(1, 8), fn (int $hour): bool => $hour <= $anchor && ! in_array($hour, $timetable, true)),
+        ];
+
+        $default = null;
+
+        foreach ($order as $hour) {
+            if (! isset($busy[$hour])) {
+                $default = $hour;
+
+                break;
+            }
+        }
+
+        return [
+            // Afișarea rămâne în ordinea NUMERICĂ (1..8) — cea în care se citește o zi.
+            'slots' => array_map(fn (int $hour): array => [
+                'hour' => $hour,
+                'timetable' => in_array($hour, $timetable, true),
+                'busy' => $busy[$hour] ?? null,
+            ], range(1, 8)),
+            'default' => $default,
+            'timetable' => $timetable,
+        ];
+    }
+
+    /** Prima oră LIBERĂ a zilei pentru (elev, zi), în ordinea orarului — null = totul e consemnat. */
+    protected function firstFreeDayHour(int $studentId, string $iso): ?int
+    {
+        return $this->dayHourStates($studentId, $iso)['default'];
+    }
+
+    /**
      * Intrările de NOTĂ ale unei zile, gata de panou: TOATE notele zilei la disciplina
      * contextului — inclusiv anulatele (gri, fără pârghii) — cu pârghiile privitorului judecate
      * pe server. Ambele panouri (borderou + harta Note) citesc de aici: aceleași chei, aceleași
      * reguli.
      *
-     * @return list<array{id: int, value: string, type_label: string, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>
+     * @return list<array{id: int, value: string, type_label: string, lesson: int|null, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>
      */
     protected function dayGradeEntriesFor(int $studentId, string $iso, ?SchoolCycle $cycle): array
     {
@@ -253,6 +379,7 @@ trait WritesGradesFromDay
             ->where('subject_id', $subject->getKey())
             ->where('student_id', $studentId)
             ->whereDate('graded_on', $iso)
+            ->orderByRaw('lesson_number IS NULL, lesson_number')
             ->orderBy('id')
             ->get();
 
@@ -266,6 +393,7 @@ trait WritesGradesFromDay
                     ? ($grade->value !== null ? (string) (int) $grade->value : '—')
                     : (string) ($grade->calificativ ?? '—'),
                 'type_label' => $grade->evaluation_type->labelForCycle($cycle),
+                'lesson' => $grade->lesson_number,
                 'weighted' => $grade->evaluation_type !== EvaluationType::Curenta,
                 'pending' => $pending,
                 'annulled' => $annulled,

@@ -73,6 +73,19 @@ class GradeForm
                     ->default(now())
                     ->maxDate(now())
                     ->validationMessages(['before_or_equal' => __('validation.not_future_date')]),
+                // ORA lecției (opțional) — aceeași identitate ca la absențe (06.08.2026): la două
+                // ore ale disciplinei în aceeași zi, fiecare oră își poartă nota ei. Slotul
+                // (elev, zi, disciplină, oră) e EXCLUSIV — o oră cu absență nu primește notă și
+                // invers; garda reală e pe server (EnforcesGradeScope). Necompletat = „ziua, fără
+                // oră precizată" (rândurile istorice), în afara regulii.
+                Select::make('lesson_number')
+                    ->label(__('panel.forms.grade.lesson_number'))
+                    ->helperText(__('panel.forms.grade.lesson_number_hint'))
+                    ->options(array_combine(
+                        range(1, 8),
+                        array_map(fn (int $n): string => (string) __('panel.forms.absence.lesson_option', ['number' => $n]), range(1, 8)),
+                    ))
+                    ->placeholder(__('panel.forms.absence.lesson_unspecified')),
                 // Câmpul de NOTĂ NUMERICĂ: vizibil + obligatoriu DOAR pentru disciplinele numerice
                 // (sau cât timp disciplina nu e aleasă). Intervalul e FIX 1–10 (scala oficială, §3) —
                 // Subject::min_grade/max_grade NU sunt limitele notei: sunt „De la clasă / Până la

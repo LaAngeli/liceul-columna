@@ -13,6 +13,7 @@
 
 use App\Enums\EvaluationType;
 use App\Enums\UserRole;
+use App\Filament\Concerns\EnforcesGradeScope;
 use App\Filament\Pages\ClassRegister;
 use App\Filament\Resources\Grades\Pages\ListGrades;
 use App\Filament\Resources\Students\Pages\ListStudents;
@@ -32,6 +33,7 @@ use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -768,13 +770,14 @@ it('când toate cele opt ore ale zilei sunt consemnate, apăsarea e refuzată', 
     expect(Absence::query()->where('student_id', $a->id)->count())->toBe(8);
 });
 
-it('absent la o oră, notă la cealaltă — ziua le poartă pe amândouă, distinct', function () {
+it('absent la o oră, notă la cealaltă — ziua le poartă pe amândouă, pe ore DIFERITE', function () {
     actingAs($this->profUser);
 
     $a = $this->students->first();
     $azi = Carbon::today()->toDateString();
 
     // Nota orei la care a fost prezent + absența orei la care a lipsit — ambele din panoul zilei.
+    // Nota ia automat prima oră liberă (1); absența nu mai încape pe ea → continuă pe 2.
     $page = Livewire::test(ClassRegister::class);
     $page->call('addDayGrade', $a->id, $azi, '9', 'curenta');
     $page->call('addDayAbsence', $a->id, $azi);
@@ -782,17 +785,129 @@ it('absent la o oră, notă la cealaltă — ziua le poartă pe amândouă, dist
     $rows = collect(Livewire::test(ClassRegister::class)->instance()->rows())
         ->keyBy(fn (array $row): int => (int) $row['student']->id);
 
-    // Rândul elevului poartă ambele fapte pe aceeași zi — nota ȘI absența orei atribuite automat.
     expect($rows[$a->id]['gradesByDate'][$azi][0]['value'])->toBe('9')
+        ->and(Grade::query()->where('student_id', $a->id)->value('lesson_number'))->toBe(1)
         ->and($rows[$a->id]['absencesByDate'][$azi])->toHaveCount(1)
-        ->and($rows[$a->id]['absencesByDate'][$azi][0]['lesson'])->toBe(1);
+        ->and($rows[$a->id]['absencesByDate'][$azi][0]['lesson'])->toBe(2);
 
-    // Panoul zilei le arată împreună, cu pârghiile privitorului.
+    // Panoul zilei le arată împreună, iar sloturile spun cine ocupă fiecare oră.
     $panel = Livewire::test(ClassRegister::class)->instance()->dayPanel($a->id, $azi);
 
     expect($panel['grades'])->toHaveCount(1)
         ->and($panel['absences'])->toHaveCount(1)
-        ->and($panel['hours']['taken'])->toBe([1]);
+        ->and($panel['hour_slots'][0])->toBe(['hour' => 1, 'timetable' => false, 'busy' => 'grade'])
+        ->and($panel['hour_slots'][1])->toBe(['hour' => 2, 'timetable' => false, 'busy' => 'absence'])
+        ->and($panel['default_hour'])->toBe(3);
+});
+
+it('excluderea reciprocă pe ORĂ: peste notă nu intră absență, peste absență nu intră notă', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+    $page = Livewire::test(ClassRegister::class);
+
+    // Ora 3 primește o notă → absența pe ACEEAȘI oră e refuzată de gardă.
+    $page->call('addDayGrade', $a->id, $azi, '9', 'curenta', 3);
+    $page->call('addDayAbsence', $a->id, $azi, 3);
+
+    expect(Absence::query()->where('student_id', $a->id)->count())->toBe(0);
+
+    // Ora 5 primește o absență → nota pe ACEEAȘI oră e refuzată; pe altă oră trece.
+    $page->call('addDayAbsence', $a->id, $azi, 5);
+    $page->call('addDayGrade', $a->id, $azi, '7', 'curenta', 5);
+
+    expect(Grade::query()->where('student_id', $a->id)->count())->toBe(1);
+
+    $page->call('addDayGrade', $a->id, $azi, '7', 'curenta', 6);
+
+    expect(Grade::query()->where('student_id', $a->id)->orderBy('lesson_number')->pluck('lesson_number')->all())
+        ->toBe([3, 6]);
+});
+
+it('o oră poartă O SINGURĂ notă activă; anularea eliberează slotul', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+    $page = Livewire::test(ClassRegister::class);
+
+    $page->call('addDayGrade', $a->id, $azi, '9', 'curenta', 2);
+    // A doua notă pe aceeași oră explicită — refuzată: alegi altă oră.
+    $page->call('addDayGrade', $a->id, $azi, '8', 'curenta', 2);
+
+    expect(Grade::query()->where('student_id', $a->id)->count())->toBe(1);
+
+    // Anularea notei eliberează ora: absența (sau altă notă) poate intra pe ea.
+    $grade = Grade::query()->where('student_id', $a->id)->firstOrFail();
+    $page->call('annulDayGrade', $grade->id, 'greșeală de consemnare');
+    $page->call('addDayAbsence', $a->id, $azi, 2);
+
+    expect(Absence::query()->where('student_id', $a->id)->value('lesson_number'))->toBe(2);
+});
+
+it('nota fără oră explicită își ia ora din ORAR, în ordinea zilei', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    foreach ([2, 3] as $hour) {
+        Lesson::query()->create([
+            'academic_year_id' => $this->year->id,
+            'school_class_id' => $this->class->id,
+            'subject_id' => $this->subject->id,
+            'title' => 'x',
+            'teacher_name' => 'x',
+            'day_of_week' => Carbon::today()->isoWeekday(),
+            'lesson_number' => $hour,
+        ]);
+    }
+
+    $page = Livewire::test(ClassRegister::class);
+    $page->call('addDayGrade', $a->id, $azi, '9', 'curenta');
+    $page->call('addDayGrade', $a->id, $azi, '8', 'curenta');
+    // Orele orarului s-au terminat — a treia continuă ÎNAINTE (4), nu înapoi la 1.
+    $page->call('addDayGrade', $a->id, $azi, '7', 'curenta');
+
+    expect(Grade::query()->where('student_id', $a->id)->orderBy('lesson_number')->pluck('lesson_number')->all())
+        ->toBe([2, 3, 4]);
+});
+
+it('formularul clasic de notă respectă și el slotul: editarea își ignoră propriul rând', function () {
+    // Garda e pe server (EnforcesGradeScope), deci acoperă și resursa Note, nu doar panoul.
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    $guard = new class
+    {
+        use EnforcesGradeScope;
+
+        /**
+         * @param  array<string, mixed>  $data
+         * @return array<string, mixed>
+         */
+        public function check(array $data, ?int $ignoreId = null): array
+        {
+            return $this->enforceGradeScope($data, $ignoreId);
+        }
+    };
+
+    $base = [
+        'student_id' => $a->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $this->subject->id,
+        'graded_on' => $azi,
+        'lesson_number' => 4,
+    ];
+
+    $grade = Grade::query()->create([...$guard->check($base), 'type' => 1, 'evaluation_type' => 'curenta', 'value' => 9]);
+
+    // Aceeași oră, alt rând → refuz; propriul rând (ignoreId, cazul editării) → trece.
+    expect(fn () => $guard->check($base))->toThrow(ValidationException::class)
+        ->and($guard->check($base, (int) $grade->getKey())['lesson_number'])->toBe(4);
 });
 
 it('statutul absenței din panoul zilei: dirigintele decide, profesorul de disciplină NU', function () {

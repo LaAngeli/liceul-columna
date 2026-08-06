@@ -15,6 +15,7 @@
 
 use App\Enums\UserRole;
 use App\Filament\Resources\Grades\Pages\ListGrades;
+use App\Models\Absence;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\Grade;
@@ -380,6 +381,43 @@ it('nota se adaugă din harta Note, pe ziua celulei — și harta se redeseneaz�
         // Memoizarea s-a invalidat: aceeași instanță arată acum nota.
         ->and(collect($component->instance()->gradeMap()['rows'])
             ->firstWhere(fn (array $r): bool => $r['student']->id === $student->id)['totals']['total'])->toBe(1);
+});
+
+it('și în panoul doar-note ora cu ABSENȚĂ e ocupată: slotul o arată, iar nota pe ea e refuzată', function () {
+    // Excluderea notă↔absență pe oră e a catalogului ÎNTREG: harta Note nu afișează absențele,
+    // dar sloturile ei le văd — altfel „secțiunea de note" ar fi portița prin care nota și
+    // absența ajung totuși pe aceeași oră.
+    actingAs($this->teacherUser);
+
+    $student = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    Absence::query()->create([
+        'student_id' => $student->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $this->subject->id,
+        'term_id' => $this->term->id,
+        'occurred_on' => $azi,
+        'lesson_number' => 2,
+        'is_motivated' => null,
+    ]);
+
+    $component = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListGrades::class);
+
+    $panel = $component->instance()->gradeDayPanel($student->id, $azi);
+
+    expect($panel['hour_slots'][1])->toBe(['hour' => 2, 'timetable' => false, 'busy' => 'absence'])
+        ->and($panel['default_hour'])->toBe(1);
+
+    // Nota forțată pe ora absenței — refuzată de gardă; pe ora liberă trece.
+    $component->call('addDayGrade', $student->id, $azi, '9', 'curenta', 2);
+
+    expect(Grade::query()->where('student_id', $student->id)->count())->toBe(0);
+
+    $component->call('addDayGrade', $student->id, $azi, '9', 'curenta', 1);
+
+    expect(Grade::query()->where('student_id', $student->id)->sole()->lesson_number)->toBe(1);
 });
 
 it('panoul zilei din Note e DOAR al notelor și validează elevul pe clasa contextului', function () {

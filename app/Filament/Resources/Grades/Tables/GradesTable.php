@@ -94,15 +94,21 @@ class GradesTable
                 TextColumn::make('term.number')
                     ->label(__('panel.fields.term_short'))
                     ->visibleFrom('md'),
-                // DATA + motivul anulării ca sub-text (fost coloană „Anulare" separată).
+                // DATA + ora lecției / motivul anulării ca sub-text (fost coloană „Anulare" separată).
                 TextColumn::make('graded_on')
                     ->label(__('panel.fields.date'))
                     ->date()
                     ->sortable()
                     ->visibleFrom('sm')
-                    ->description(fn (Grade $record): ?string => $record->annulment_reason !== null
-                        ? (string) __('panel.tables.grades.annulled_prefix', ['reason' => $record->annulment_reason])
-                        : null)
+                    ->description(function (Grade $record): ?string {
+                        if ($record->annulment_reason !== null) {
+                            return (string) __('panel.tables.grades.annulled_prefix', ['reason' => $record->annulment_reason]);
+                        }
+
+                        return $record->lesson_number !== null
+                            ? (string) __('panel.forms.absence.lesson_option', ['number' => $record->lesson_number])
+                            : null;
+                    })
                     ->color(fn (Grade $record): ?string => $record->isAnnulled() ? 'danger' : null),
                 // AUTOR — ascuns default.
                 TextColumn::make('teacher.full_name')

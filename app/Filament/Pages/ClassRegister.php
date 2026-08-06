@@ -17,7 +17,6 @@ use App\Filament\Resources\Grades\Tables\GradesTable;
 use App\Models\Absence;
 use App\Models\Enrollment;
 use App\Models\Grade;
-use App\Models\Lesson;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
@@ -747,6 +746,7 @@ class ClassRegister extends Page
         $empty = [
             'student' => null, 'iso' => $iso, 'grades' => [], 'absences' => [],
             'hours' => ['taken' => [], 'timetable' => []],
+            'hour_slots' => [], 'default_hour' => null,
             'rights' => $this->dayRights(), 'can_absent' => false,
             'can_grade' => false, 'numeric' => true, 'grade_types' => [],
         ];
@@ -804,12 +804,18 @@ class ClassRegister extends Page
 
         $notFuture = ! Carbon::parse($iso)->startOfDay()->isAfter(Carbon::today());
 
+        // Stările orelor pentru selectorul comun: ce slot e liber, ce ocupă fiecare, care ar fi
+        // ora implicită a următoarei consemnări — aceeași sursă ca scrierea (concernul partajat).
+        $hourStates = $this->dayHourStates((int) $student->getKey(), $iso);
+
         return [
             'student' => $student,
             'iso' => $iso,
             'grades' => $grades,
             'absences' => $absences,
-            'hours' => ['taken' => $taken, 'timetable' => $this->timetableHours($iso)],
+            'hours' => ['taken' => $taken, 'timetable' => $hourStates['timetable']],
+            'hour_slots' => $hourStates['slots'],
+            'default_hour' => $hourStates['default'],
             'rights' => $rights,
             'can_absent' => $this->canRecordAbsences() && $notFuture,
             // Adăugarea unei NOTE pe ziua panoului (cerința 05.08.2026) — aceeași poartă ca
@@ -821,43 +827,24 @@ class ClassRegister extends Page
     }
 
     /**
-     * Orele din ORAR ale disciplinei contextului în ziua dată — sugestiile „reale" ale panoului
-     * (două ore consecutive de Biologie → aici apar amândouă). Orarul poate lipsi sau fi
-     * incomplet, deci sunt sugestii, nu gard: consemnarea acceptă orice oră 1–8.
+     * Orele din ORAR ale disciplinei contextului în ziua dată — reperele selectorului de oră.
+     * Deleagă aparatului partajat din {@see WritesGradesFromDay} (același pentru harta Note).
      *
      * @return list<int>
      */
     public function timetableHours(string $iso): array
     {
-        $class = $this->activeClass();
-        $subject = $this->activeSubject();
-
-        if ($class === null || $subject === null || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
-            return [];
-        }
-
-        /** @var list<int> */
-        return Lesson::query()
-            ->where('school_class_id', $class->getKey())
-            ->where('subject_id', $subject->getKey())
-            ->where('day_of_week', Carbon::parse($iso)->isoWeekday())
-            ->orderBy('lesson_number')
-            ->pluck('lesson_number')
-            ->map(fn ($n): int => (int) $n)
-            ->unique()
-            ->values()
-            ->all();
+        return $this->dayTimetableHours($iso);
     }
 
     /**
-     * Consemnează o absență NOUĂ din panoul zilei — un click, o oră lipsită. ORA nu se mai alege
-     * (decizia beneficiarului, 05.08.2026: disciplina e deja fixată de context, alegerea orei era
-     * zgomot): se atribuie AUTOMAT — întâi orele disciplinei din orar (în ordine), apoi, fără
-     * orar, ordinalul liber 1–8. Așa „a lipsit la ambele ore" = două apăsări, fiecare pe slotul
-     * ei. Garda rămâne aceeași ({@see EnforcesAbsenceScope}): fără viitor, semestru derivat din
-     * zi, anti-duplicat pe slot.
+     * Consemnează o absență NOUĂ din panoul zilei — pe ORA aleasă în selectorul comun (06.08.2026:
+     * ora e împărțită cu formularul de notă, ca aceeași oră să nu poată purta amândouă). Fără oră
+     * explicită, prima liberă a zilei — întâi orele disciplinei din orar, apoi ordinalele de după
+     * ele. Garda rămâne aceeași ({@see EnforcesAbsenceScope}): fără viitor, semestru derivat din
+     * zi, anti-duplicat pe slot, ora cu notă refuzată.
      */
-    public function addDayAbsence(int $studentId, string $iso): void
+    public function addDayAbsence(int $studentId, string $iso, ?int $lesson = null): void
     {
         $user = $this->viewer();
         $class = $this->activeClass();
@@ -872,10 +859,10 @@ class ClassRegister extends Page
             return;
         }
 
-        $lesson = $this->nextFreeLessonSlot($studentId, $iso);
+        $lesson ??= $this->firstFreeDayHour($studentId, $iso);
 
         if ($lesson === null) {
-            // Toate orele zilei (din orar, ori 1–8 fără orar) sunt deja consemnate: a N-a apăsare
+            // Toate cele 8 sloturi ale zilei (note + absențe) sunt deja consemnate: a N-a apăsare
             // nu mai are ce oră să umple — refuz prietenos, nu un rând imposibil.
             Notification::make()
                 ->warning()
@@ -911,58 +898,6 @@ class ClassRegister extends Page
             ->success()
             ->title(__('panel.class_register.day_panel.absence_added'))
             ->send();
-    }
-
-    /**
-     * Următorul slot de oră LIBER pentru (elev, zi): întâi orele disciplinei din orar, în ordinea
-     * lor — prima apăsare = prima oră, a doua = a doua (exact scenariul orelor consecutive); fără
-     * orar, cel mai mic ordinal 1–8 neconsumat. Null = totul e consemnat deja.
-     *
-     * O absență istorică „fără oră" (null) nu blochează sloturile numerotate — ocupă doar slotul
-     * propriu, ca până acum.
-     */
-    private function nextFreeLessonSlot(int $studentId, string $iso): ?int
-    {
-        $class = $this->activeClass();
-        $subject = $this->activeSubject();
-
-        if ($class === null || $subject === null) {
-            return null;
-        }
-
-        $taken = Absence::query()
-            ->where('school_class_id', $class->getKey())
-            ->where('subject_id', $subject->getKey())
-            ->where('student_id', $studentId)
-            ->whereDate('occurred_on', $iso)
-            ->whereNotNull('lesson_number')
-            ->pluck('lesson_number')
-            ->map(fn ($n): int => (int) $n)
-            ->all();
-
-        // Orarul e SUGESTIE, nu adevăr absolut: întâi orele lui (prima apăsare = prima oră reală
-        // a zilei), apoi ordinalele rămase. Varianta strictă — doar orele din orar — bloca exact
-        // scenariul cerut când orarul e incomplet: o oră dublă neînregistrată în el făcea a doua
-        // absență imposibilă, deși profesorul știe că elevul a lipsit la ambele. Ceea ce s-a
-        // întâmplat în clasă bate ce scrie în orar.
-        //
-        // ⚠️ Rezerva merge ÎNAINTE, nu înapoi (06.08.2026): cu orarul la ora 4, a doua apăsare
-        // dădea ora 1 — o oră dinaintea celei dintâi, dintr-o lecție a altei discipline. O oră
-        // ținută peste orar se ține DUPĂ cele din orar; ordinalele dinaintea lor rămân ultima
-        // rezervă, ca ziua să nu devină imposibil de completat.
-        $timetable = $this->timetableHours($iso);
-        $anchor = $timetable === [] ? 0 : max($timetable);
-
-        $after = array_filter(range(1, 8), fn (int $hour): bool => $hour > $anchor);
-        $before = array_filter(range(1, 8), fn (int $hour): bool => $hour <= $anchor);
-
-        foreach ([...$timetable, ...$after, ...$before] as $hour) {
-            if (! in_array($hour, $taken, true)) {
-                return $hour;
-            }
-        }
-
-        return null;
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Filament\Concerns;
 
 use App\Models\Absence;
 use App\Models\Enrollment;
+use App\Models\Grade;
 use App\Models\Term;
 use App\Support\SchoolCalendar;
 use Illuminate\Database\Eloquent\Builder;
@@ -99,6 +100,30 @@ trait EnforcesAbsenceScope
                 throw ValidationException::withMessages([
                     'data.student_id' => __('panel.validation.absence.duplicate'),
                 ]);
+            }
+
+            // EXCLUDEREA RECIPROCĂ notă↔absență pe aceeași oră (06.08.2026), oglinda gărzii din
+            // {@see EnforcesGradeScope}: o oră cu notă activă nu poate primi absență — elevul a
+            // fost în bancă și a răspuns. Anulatele nu blochează; rândurile „fără oră" (istorice)
+            // rămân în afara regulii — nu li se poate ști ora.
+            if ($lessonNumber !== null) {
+                $graded = Grade::query()
+                    ->where('student_id', (int) $data['student_id'])
+                    ->where('lesson_number', $lessonNumber)
+                    ->whereNull('annulled_at')
+                    ->whereDate('graded_on', $occurredOn->toDateString())
+                    ->when(
+                        $subjectId !== null,
+                        fn (Builder $q): Builder => $q->where('subject_id', $subjectId),
+                        fn (Builder $q): Builder => $q->whereNull('subject_id'),
+                    )
+                    ->exists();
+
+                if ($graded) {
+                    throw ValidationException::withMessages([
+                        'data.lesson_number' => __('panel.validation.absence.hour_has_grade', ['number' => $lessonNumber]),
+                    ]);
+                }
             }
         }
 

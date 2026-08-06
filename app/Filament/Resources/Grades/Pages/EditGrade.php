@@ -34,7 +34,8 @@ class EditGrade extends EditRecord
             $this->previousTermId = (int) $record->term_id;
         }
 
-        return $this->enforceGradeScope($data);
+        // Propriul rând nu-și blochează ora la editare (ignoreId), ca la absențe.
+        return $this->enforceGradeScope($data, (int) $this->getRecord()->getKey());
     }
 
     /**

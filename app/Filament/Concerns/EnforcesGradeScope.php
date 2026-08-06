@@ -2,9 +2,12 @@
 
 namespace App\Filament\Concerns;
 
+use App\Models\Absence;
 use App\Models\Enrollment;
+use App\Models\Grade;
 use App\Models\Term;
 use App\Support\SchoolCalendar;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -21,11 +24,13 @@ trait EnforcesGradeScope
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    protected function enforceGradeScope(array $data): array
+    protected function enforceGradeScope(array $data, ?int $ignoreId = null): array
     {
-        if (isset($data['graded_on']) && $data['graded_on'] !== '') {
-            $gradedOn = Carbon::parse((string) $data['graded_on']);
+        $gradedOn = isset($data['graded_on']) && $data['graded_on'] !== ''
+            ? Carbon::parse((string) $data['graded_on'])
+            : null;
 
+        if ($gradedOn !== null) {
             // O notă nu poate fi în viitor — elevul nu a fost încă evaluat în acea zi (audit Î-3).
             // Serverul e protecția reală (POST manipulat); maxDate din formular e doar UX. Aceeași
             // gardă ca la absențe (EnforcesAbsenceScope).
@@ -63,6 +68,57 @@ trait EnforcesGradeScope
         }
 
         $this->rejectClosedYear($data['term_id'] ?? null, 'data.graded_on');
+
+        // ORA lecției (opțională; '' din formular = null). Când e precizată, slotul
+        // (elev, zi, disciplină, oră) devine EXCLUSIV — regulă de consistență, nu de scope, deci
+        // se aplică ORICUI scrie, inclusiv administrației (care sare peste secțiunea de mai jos).
+        $lessonNumber = isset($data['lesson_number']) && $data['lesson_number'] !== ''
+            ? (int) $data['lesson_number']
+            : null;
+        $data['lesson_number'] = $lessonNumber;
+
+        if ($gradedOn !== null && $lessonNumber !== null && isset($data['student_id'])) {
+            $studentId = (int) $data['student_id'];
+            $subjectId = isset($data['subject_id']) && $data['subject_id'] !== '' ? (int) $data['subject_id'] : null;
+
+            $slot = fn (Builder $q): Builder => $q
+                ->where('student_id', $studentId)
+                ->where('lesson_number', $lessonNumber)
+                ->when(
+                    $subjectId !== null,
+                    fn (Builder $q): Builder => $q->where('subject_id', $subjectId),
+                    fn (Builder $q): Builder => $q->whereNull('subject_id'),
+                );
+
+            // O oră poartă O SINGURĂ notă activă: a doua evaluare a zilei se pune pe altă oră
+            // (cerința 06.08.2026 — „selectează explicit o altă oră disponibilă"). Anulatele NU
+            // blochează: anularea eliberează slotul.
+            $gradeTaken = Grade::query()
+                ->tap($slot)
+                ->whereNull('annulled_at')
+                ->whereDate('graded_on', $gradedOn->toDateString())
+                ->when($ignoreId !== null, fn (Builder $q): Builder => $q->whereKeyNot($ignoreId))
+                ->exists();
+
+            if ($gradeTaken) {
+                throw ValidationException::withMessages([
+                    'data.lesson_number' => __('panel.validation.grade.hour_has_grade', ['number' => $lessonNumber]),
+                ]);
+            }
+
+            // EXCLUDEREA RECIPROCĂ notă↔absență pe aceeași oră: elevul ori a fost în bancă și a
+            // răspuns, ori a lipsit — amândouă deodată e o neatenție de consemnare, nu o realitate.
+            $absent = Absence::query()
+                ->tap($slot)
+                ->whereDate('occurred_on', $gradedOn->toDateString())
+                ->exists();
+
+            if ($absent) {
+                throw ValidationException::withMessages([
+                    'data.lesson_number' => __('panel.validation.grade.hour_has_absence', ['number' => $lessonNumber]),
+                ]);
+            }
+        }
 
         $user = auth('web')->user();
 
