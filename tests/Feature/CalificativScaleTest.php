@@ -168,22 +168,17 @@ it('cererea de corecție respinge simbolul inventat și acceptă unul din scală
 
     actingAs($this->teacherUser);
 
+    // Corecția se cere din PANOUL ZILEI al hărții (formular inline, 05.08.2026) — aceeași
+    // metodă ca în Catalogul Electronic (concern comun), aceeași scală închisă.
     Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
         ->test(ListGrades::class)
-        ->callAction('requestGradeCorrection', [
-            'new_calificativ' => 'test Calif',
-            'reason' => 'simbol inventat',
-        ], arguments: ['id' => $nota->id])
-        ->assertHasActionErrors(['new_calificativ']);
+        ->call('requestDayCorrection', $nota->id, 'test Calif', 'simbol inventat');
 
     expect(GradeCorrection::query()->count())->toBe(0);
 
     Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
         ->test(ListGrades::class)
-        ->callAction('requestGradeCorrection', [
-            'new_calificativ' => 'FB',
-            'reason' => 'lucrarea susține un calificativ mai mare',
-        ], arguments: ['id' => $nota->id]);
+        ->call('requestDayCorrection', $nota->id, 'fb', 'lucrarea susține un calificativ mai mare');
 
     expect(GradeCorrection::query()->where('grade_id', $nota->id)->value('new_calificativ'))->toBe('FB');
 });

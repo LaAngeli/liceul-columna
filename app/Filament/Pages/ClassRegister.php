@@ -3,7 +3,6 @@
 namespace App\Filament\Pages;
 
 use App\Enums\AbsenceStatus;
-use App\Enums\Calificativ;
 use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
@@ -12,12 +11,12 @@ use App\Enums\UserRole;
 use App\Filament\Concerns\EnforcesAbsenceScope;
 use App\Filament\Concerns\EnforcesGradeScope;
 use App\Filament\Concerns\HasTimeNavigator;
+use App\Filament\Concerns\WritesGradesFromDay;
 use App\Filament\Resources\Grades\GradeResource;
 use App\Filament\Resources\Grades\Tables\GradesTable;
 use App\Models\Absence;
 use App\Models\Enrollment;
 use App\Models\Grade;
-use App\Models\GradeCorrection;
 use App\Models\Lesson;
 use App\Models\SchoolClass;
 use App\Models\Student;
@@ -26,8 +25,6 @@ use App\Models\Teacher;
 use App\Models\Term;
 use App\Models\TermAverage;
 use App\Models\User;
-use App\Support\Holidays;
-use App\Support\SchoolCalendar;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -63,8 +60,8 @@ use Livewire\Attributes\Url;
 class ClassRegister extends Page
 {
     use EnforcesAbsenceScope;
-    use EnforcesGradeScope;
     use HasTimeNavigator;
+    use WritesGradesFromDay;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
 
@@ -353,6 +350,17 @@ class ClassRegister extends Page
         return 'graded_on';
     }
 
+    /** Contextul de scriere al panoului zilei ({@see WritesGradesFromDay}). */
+    protected function dayGradeClass(): ?SchoolClass
+    {
+        return $this->activeClass();
+    }
+
+    protected function dayGradeSubject(): ?Subject
+    {
+        return $this->activeSubject();
+    }
+
     public function gradingType(): GradingType
     {
         $subject = $this->activeSubject();
@@ -617,7 +625,7 @@ class ClassRegister extends Page
         // are nici celulă de deschis, iar panoul (singura cale de scriere) devine inaccesibil fix
         // când e nevoie de el. Catalogul de hârtie are coloană pentru fiecare lecție, goală până
         // se scrie în ea; aici la fel.
-        foreach ($this->lessonDaysInRange() as $iso) {
+        foreach ($this->lessonDayIsosInRange() as $iso) {
             $dates[$iso] = true;
         }
 
@@ -629,71 +637,6 @@ class ClassRegister extends Page
             'label' => Carbon::parse($iso)->format('d.m'),
             'weekday' => Carbon::parse($iso)->translatedFormat('D'),
         ], $isoList);
-    }
-
-    /**
-     * Zilele din perioadă în care clasa ARE lecția disciplinei — din orar; fără orar (sau fără
-     * lecțiile disciplinei în el), toate zilele lucrătoare, ca registrul să rămână utilizabil.
-     *
-     * Mărginite la ZIUA DE AZI: o coloană în viitor ar fi o fundătură (gărzile refuză scrierea
-     * înainte), iar sărbătorile legale ies — școala e închisă, nu se consemnează nimic.
-     *
-     * @return list<string>
-     */
-    private function lessonDaysInRange(): array
-    {
-        $range = $this->timeRange();
-        $class = $this->activeClass();
-        $subject = $this->activeSubject();
-
-        if ($range === null || $class === null || $subject === null) {
-            return [];
-        }
-
-        [$start, $end] = $range;
-
-        if ($start === null || $end === null) {
-            return [];
-        }
-
-        $today = SchoolCalendar::localNow()->startOfDay();
-        $cursor = Carbon::parse($start->toDateString())->startOfDay();
-        $last = Carbon::parse($end->toDateString())->startOfDay();
-
-        if ($last->greaterThan($today)) {
-            $last = $today->copy();
-        }
-
-        // Plasă de siguranță: o perioadă absurd de lungă (interval liber pe ani) n-are voie să
-        // producă mii de coloane — ziua cu date rămâne oricum vizibilă din ramura de mai sus.
-        if ($cursor->greaterThan($last) || $cursor->diffInDays($last) > 400) {
-            return [];
-        }
-
-        // `day_of_week` e cast la enumul Weekday (Luni = 1, ca `isoWeekday()`).
-        $lessonDays = Lesson::query()
-            ->where('school_class_id', $class->getKey())
-            ->where('subject_id', $subject->getKey())
-            ->get(['day_of_week'])
-            ->map(fn (Lesson $lesson): int => $lesson->day_of_week->value)
-            ->unique()
-            ->all();
-
-        $days = [];
-
-        while ($cursor->lessThanOrEqualTo($last)) {
-            $isLessonDay = $lessonDays === []
-                ? $cursor->isWeekday()
-                : in_array($cursor->isoWeekday(), $lessonDays, true);
-
-            if ($isLessonDay && ! Holidays::isHoliday($cursor)) {
-                $days[] = $cursor->toDateString();
-            }
-
-            $cursor->addDay();
-        }
-
-        return $days;
     }
 
     /**
@@ -828,38 +771,9 @@ class ClassRegister extends Page
         $rights = $this->dayRights();
         $cycle = SchoolCycle::fromGradeLevel((int) $class->grade_level);
 
-        $grades = [];
-
-        // TOATE notele zilei, inclusiv cele anulate (gri, cu semn): panoul e locul unde ziua se
-        // citește întreagă — filtrul de TIP al borderoului nu se aplică aici, tot ce poartă ziua
-        // se vede. Anulata nu mai are pârghii.
-        $gradeRecords = Grade::query()
-            ->where('school_class_id', $class->getKey())
-            ->where('subject_id', $subject->getKey())
-            ->where('student_id', $student->getKey())
-            ->whereDate('graded_on', $iso)
-            ->orderBy('id')
-            ->get();
-
-        foreach ($gradeRecords as $grade) {
-            $numeric = $this->gradingType() === GradingType::Numeric;
-            $annulled = $grade->isAnnulled();
-            $pending = $grade->hasPendingCorrection();
-
-            $grades[] = [
-                'id' => (int) $grade->getKey(),
-                'value' => $numeric
-                    ? ($grade->value !== null ? (string) (int) $grade->value : '—')
-                    : (string) ($grade->calificativ ?? '—'),
-                'type_label' => $grade->evaluation_type->labelForCycle($cycle),
-                'weighted' => $grade->evaluation_type !== EvaluationType::Curenta,
-                'pending' => $pending,
-                'annulled' => $annulled,
-                'edit_url' => $rights['is_admin'] && ! $annulled ? GradeResource::getUrl('edit', ['record' => $grade]) : null,
-                'can_annul' => ! $annulled && ($rights['is_admin'] || GradesTable::teacherTeachesGrade($grade)),
-                'can_request' => ! $annulled && ! $pending && ! $rights['is_admin'] && GradesTable::canRequestCorrectionFor($grade),
-            ];
-        }
+        // Intrările de notă vin din concernul partajat cu harta Note — aceleași chei, aceleași
+        // pârghii, pe ambele ecrane.
+        $grades = $this->dayGradeEntriesFor((int) $student->getKey(), $iso, $cycle);
 
         $absences = [];
         $taken = [];
@@ -904,78 +818,6 @@ class ClassRegister extends Page
             'numeric' => $this->gradingType() === GradingType::Numeric,
             'grade_types' => $this->gradeTypeOptions(),
         ];
-    }
-
-    /**
-     * Adaugă o NOTĂ din panoul zilei — pe ziua celulei, nu pe data introducerii rapide. Trece
-     * prin ACEEAȘI validare prietenoasă și ACEEAȘI gardă ca borderoul ({@see saveEntries},
-     * {@see EnforcesGradeScope}): 1–10 întreg la numerice, calificativ scurt la celelalte;
-     * semestrul derivat din zi, sumativa doar unde e desemnată, scope-ul titularului pe server.
-     */
-    public function addDayGrade(int $studentId, string $iso, string $value, string $type): void
-    {
-        $user = $this->viewer();
-        $class = $this->activeClass();
-        $subject = $this->activeSubject();
-        $value = trim($value);
-
-        if ($user === null || $class === null || $subject === null
-            || ! $this->canEnterGrades()
-            || ! $this->studentInActiveClass($studentId)
-            || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1
-            || $value === '') {
-            $this->denyDayAction();
-
-            return;
-        }
-
-        $numeric = $this->gradingType() === GradingType::Numeric;
-
-        if ($numeric && (! ctype_digit($value) || (int) $value < 1 || (int) $value > 10)) {
-            Notification::make()->danger()->title(__('panel.class_register.invalid_value'))->send();
-
-            return;
-        }
-
-        // Calificativul e un SIMBOL dintr-o scală închisă, nu text de lungime oarecare: regula
-        // veche („cel mult 10 caractere") lăsa să intre orice. Aici profesorul TASTEAZĂ direct în
-        // celulă, deci se acceptă și „fb"/„SP" — `normalize()` le duce la forma canonică.
-        $calificativ = $numeric ? null : Calificativ::normalize($value);
-
-        if (! $numeric && $calificativ === null) {
-            Notification::make()->danger()->title(__('panel.class_register.invalid_calificativ'))->send();
-
-            return;
-        }
-
-        try {
-            $data = $this->enforceGradeScope([
-                'student_id' => $studentId,
-                'subject_id' => (int) $subject->getKey(),
-                'school_class_id' => (int) $class->getKey(),
-                'graded_on' => $iso,
-                'evaluation_type' => $numeric && EvaluationType::tryFrom($type) !== null
-                    ? $type
-                    : EvaluationType::Curenta->value,
-                'value' => $numeric ? (int) $value : null,
-                'calificativ' => $calificativ?->value,
-                'teacher_id' => $user->teacher?->getKey(),
-            ]);
-
-            Grade::query()->create($data);
-        } catch (ValidationException $exception) {
-            Notification::make()
-                ->danger()
-                ->title(collect($exception->errors())->flatten()->first() ?? $exception->getMessage())
-                ->send();
-
-            return;
-        }
-
-        Notification::make()
-            ->success()
-            ->title(__('panel.class_register.day_panel.grade_added'))
-            ->send();
     }
 
     /**
@@ -1072,22 +914,6 @@ class ClassRegister extends Page
     }
 
     /**
-     * Elevul aparține clasei ACTIVE? Batch-ul vechi filtra prin rândurile vizibile; panoul
-     * primește id-ul din browser, deci înmatricularea se re-verifică explicit — altfel un id
-     * străin ar trece prin ramura de administrație a gărzilor (care nu cere înmatriculare).
-     */
-    private function studentInActiveClass(int $studentId): bool
-    {
-        $class = $this->activeClass();
-
-        return $class !== null && Enrollment::query()
-            ->where('school_class_id', $class->getKey())
-            ->where('student_id', $studentId)
-            ->whereNull('left_on')
-            ->exists();
-    }
-
-    /**
      * Următorul slot de oră LIBER pentru (elev, zi): întâi orele disciplinei din orar, în ordinea
      * lor — prima apăsare = prima oră, a doua = a doua (exact scenariul orelor consecutive); fără
      * orar, cel mai mic ordinal 1–8 neconsumat. Null = totul e consemnat deja.
@@ -1129,102 +955,6 @@ class ClassRegister extends Page
     }
 
     /**
-     * Anulează o notă DIN PANOU — metodă Livewire, nu acțiune Filament.
-     *
-     * ⚠️ De ce nu acțiune: butonul stă în `modalContent`-ul panoului, iar Filament NU montează o
-     * acțiune peste una montată din conținutul modalului (acțiunile imbricate se declară prin
-     * `extraModalFooterActions`, care sunt globale pe modal — aici trebuie una PER NOTĂ). Prins
-     * live pe rolul profesor: butoanele existau, clickul nu deschidea nimic. Formularul e acum
-     * inline, în panou — aceleași gărzi, un singur modal, mai puține clicuri.
-     *
-     * Semantica rămâne a acțiunii din tabelul Note: nota rămâne în istoric, iese din medii
-     * (observerul recalculează), motivul e obligatoriu.
-     */
-    public function annulDayGrade(int $gradeId, string $reason): void
-    {
-        $grade = $this->dayActionGrade(['id' => $gradeId]);
-        $reason = trim($reason);
-
-        if ($grade === null || $grade->isAnnulled()
-            || ! ($this->dayRights()['is_admin'] || GradesTable::teacherTeachesGrade($grade))) {
-            $this->denyDayAction();
-
-            return;
-        }
-
-        if ($reason === '') {
-            Notification::make()->danger()->title(__('panel.actions.annul.reason_required'))->send();
-
-            return;
-        }
-
-        $grade->update([
-            'annulled_at' => now(),
-            'annulled_by_user_id' => auth()->id(),
-            'annulment_reason' => mb_substr($reason, 0, 255),
-        ]);
-
-        Notification::make()->success()->title(__('panel.actions.annul.success'))->send();
-    }
-
-    /**
-     * Solicită corecția unei note DIN PANOU — fluxul §3.1 (cerere → aprobarea administrației).
-     * Valoarea propusă urmează disciplina: întreg 1–10 la numerice, simbol din scală la
-     * calificative; invariantele finale stau oricum pe {@see GradeCorrection}.
-     */
-    public function requestDayCorrection(int $gradeId, string $value, string $reason): void
-    {
-        $grade = $this->dayActionGrade(['id' => $gradeId]);
-        $value = trim($value);
-        $reason = trim($reason);
-
-        if ($grade === null || $grade->isAnnulled() || $grade->hasPendingCorrection()
-            || ! GradesTable::canRequestCorrectionFor($grade)) {
-            $this->denyDayAction();
-
-            return;
-        }
-
-        if ($reason === '' || $value === '') {
-            Notification::make()->danger()->title(__('panel.actions.request_correction.fields_required'))->send();
-
-            return;
-        }
-
-        $numeric = $grade->subject?->grading_type === GradingType::Numeric;
-
-        if ($numeric && (! ctype_digit($value) || (int) $value < 1 || (int) $value > 10)) {
-            Notification::make()->danger()->title(__('panel.class_register.invalid_value'))->send();
-
-            return;
-        }
-
-        $calificativ = $numeric ? null : Calificativ::normalize($value);
-
-        if (! $numeric && $calificativ === null) {
-            Notification::make()->danger()->title(__('panel.class_register.invalid_calificativ'))->send();
-
-            return;
-        }
-
-        GradeCorrection::create([
-            'grade_id' => $grade->id,
-            'requested_by_user_id' => auth()->id(),
-            'old_value' => $grade->value,
-            'new_value' => $numeric ? (int) $value : null,
-            'old_calificativ' => $grade->calificativ,
-            'new_calificativ' => $calificativ?->value,
-            'reason' => mb_substr($reason, 0, 255),
-        ]);
-
-        Notification::make()
-            ->success()
-            ->title(__('panel.actions.request_correction.success_title'))
-            ->body(__('panel.actions.request_correction.success_body'))
-            ->send();
-    }
-
-    /**
      * Fixează statutul unei absențe din popover-ul zilei — aceeași semantică precum harta
      * absențelor: dirigintele clasei sau administrația; profesorul consemnează, nu decide.
      */
@@ -1253,38 +983,6 @@ class ClassRegister extends Page
         Notification::make()
             ->success()
             ->title(__('absence_map.status_saved'))
-            ->send();
-    }
-
-    /**
-     * Nota țintei unei acțiuni de zi, STRICT în contextul activ (clasă + disciplină): argumentele
-     * din browser sunt dorințe, nu adevăr.
-     *
-     * @param  array<string, mixed>  $arguments
-     */
-    private function dayActionGrade(array $arguments): ?Grade
-    {
-        $id = $arguments['id'] ?? null;
-        $class = $this->activeClass();
-        $subject = $this->activeSubject();
-
-        if (! is_numeric($id) || $class === null || $subject === null) {
-            return null;
-        }
-
-        /** @var Grade|null */
-        return Grade::query()
-            ->whereKey((int) $id)
-            ->where('school_class_id', $class->getKey())
-            ->where('subject_id', $subject->getKey())
-            ->first();
-    }
-
-    private function denyDayAction(): void
-    {
-        Notification::make()
-            ->danger()
-            ->title(__('grade_map.action_denied'))
             ->send();
     }
 

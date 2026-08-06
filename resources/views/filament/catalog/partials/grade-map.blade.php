@@ -198,87 +198,42 @@
                             </td>
 
                             @foreach ($map['days'] as $day)
-                                <td class="border-b border-gray-100 px-1.5 py-1.5 text-center align-middle dark:border-white/5">
-                                    @foreach ($row['cells'][$day['iso']] ?? [] as $chip)
-                                        @php
-                                            $palette = $chip['below'] ? 'below' : ($chip['summative'] ? 'summative' : 'normal');
-                                            // Sumativă SUB prag: fondul roșu spune urgența, inelul
-                                            // chihlimbar păstrează natura evaluării.
-                                            $ring = $chip['below'] && $chip['summative'] ? ' ring-2 ring-amber-500/70' : '';
-                                        @endphp
+                                {{-- CELULA ZILEI = buton spre PANOUL doar-note (scrierea din
+                                     hartă, 05.08.2026): pastilele rămân vizuale (title/aria), iar
+                                     pârghiile fiecărei note trăiesc în panou, cu formulare inline
+                                     — ACELEAȘI ca în Catalogul Electronic (concern comun).
+                                     Meniul-hover per pastilă a fost retras: două interacțiuni pe
+                                     același pixel se călcau pe picioare. --}}
+                                <td class="border-b border-gray-100 p-0 text-center align-middle dark:border-white/5">
+                                    <button
+                                        type="button"
+                                        wire:click="mountAction('gradeDayPanel', { student: {{ $row['student']->getKey() }}, iso: '{{ $day['iso'] }}' })"
+                                        aria-label="{{ __('panel.class_register.day_panel.open_cell', ['student' => $row['student']->full_name, 'date' => $day['day']]) }}"
+                                        class="flex min-h-10 w-full flex-wrap items-center justify-center px-1.5 py-1.5 transition hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 dark:hover:bg-primary-400/10"
+                                    >
+                                        @forelse ($row['cells'][$day['iso']] ?? [] as $chip)
+                                            @php
+                                                $palette = $chip['below'] ? 'below' : ($chip['summative'] ? 'summative' : 'normal');
+                                                // Sumativă SUB prag: fondul roșu spune urgența, inelul
+                                                // chihlimbar păstrează natura evaluării.
+                                                $ring = $chip['below'] && $chip['summative'] ? ' ring-2 ring-amber-500/70' : '';
+                                            @endphp
 
-                                        {{-- Pastila deschide meniul NOTEI: disciplina + tipul + doar
-                                             pârghiile privitorului (edit/anulare/corecție). Pentru
-                                             cititori e pur informativă — nicio cale spre 403. --}}
-                                        <div
-                                            x-data="{ open: false }"
-                                            x-on:mouseenter="open = true"
-                                            x-on:mouseleave="open = false"
-                                            class="relative inline-block"
-                                        >
-                                            <button
-                                                type="button"
-                                                x-on:click="open = ! open"
-                                                x-on:click.outside="open = false"
-                                                x-on:keydown.escape.window="open = false"
-                                                aria-label="{{ $chip['label'] }} — {{ $chip['title'] }}"
-                                                class="m-0.5 inline-flex min-h-7 min-w-7 items-center justify-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1 transition hover:brightness-95 {{ $chipPalette[$palette] }}{{ $ring }}"
+                                            <span
+                                                title="{{ $chip['title'] }}"
+                                                class="m-0.5 inline-flex min-h-7 min-w-7 items-center justify-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1 {{ $chipPalette[$palette] }}{{ $ring }}"
                                             >
                                                 {{ $chip['label'] }}
                                                 @if ($chip['pending'])
                                                     <x-filament::icon icon="heroicon-o-clock" class="h-3.5 w-3.5 text-amber-500" />
                                                 @endif
-                                            </button>
-
-                                            <div
-                                                x-cloak
-                                                x-show="open"
-                                                x-transition.opacity.duration.100ms
-                                                class="absolute start-1/2 z-20 mt-1 w-56 -translate-x-1/2 rounded-lg bg-white p-1 text-start shadow-lg ring-1 ring-gray-950/10 dark:bg-gray-800 dark:ring-white/20"
-                                            >
-                                                <div class="px-2.5 py-1.5 text-xs text-gray-700 dark:text-gray-200">
-                                                    <span class="font-medium">{{ $chip['subject_label'] }}</span>
-                                                    <span class="block text-[0.6875rem] text-gray-500 dark:text-gray-400">
-                                                        {{ $chip['type_label'] }}@if ($chip['pending']) · {{ __('panel.tables.grades.pending_correction_tooltip') }}@endif
-                                                    </span>
-                                                </div>
-
-                                                @if ($chip['edit_url'] !== null)
-                                                    <a
-                                                        href="{{ $chip['edit_url'] }}"
-                                                        class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10"
-                                                    >
-                                                        <x-filament::icon icon="heroicon-o-pencil-square" class="h-4 w-4" />
-                                                        {{ __('grade_map.open_record') }}
-                                                    </a>
-                                                @endif
-
-                                                @if ($chip['can_request'])
-                                                    <button
-                                                        type="button"
-                                                        x-on:click="open = false"
-                                                        wire:click="mountAction('requestGradeCorrection', { id: {{ $chip['id'] }} })"
-                                                        class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10"
-                                                    >
-                                                        <x-filament::icon icon="heroicon-o-pencil-square" class="h-4 w-4 text-amber-500" />
-                                                        {{ __('panel.actions.request_correction.label') }}
-                                                    </button>
-                                                @endif
-
-                                                @if ($chip['can_annul'])
-                                                    <button
-                                                        type="button"
-                                                        x-on:click="open = false"
-                                                        wire:click="mountAction('annulGrade', { id: {{ $chip['id'] }} })"
-                                                        class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-400/10"
-                                                    >
-                                                        <x-filament::icon icon="heroicon-o-no-symbol" class="h-4 w-4" />
-                                                        {{ __('panel.actions.annul.label') }}
-                                                    </button>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    @endforeach
+                                            </span>
+                                        @empty
+                                            {{-- Zi de lecție fără nicio notă: celula goală e
+                                                 informația — și ușa spre scriere. --}}
+                                            <span class="text-xs text-gray-200 dark:text-gray-700" aria-hidden>·</span>
+                                        @endforelse
+                                    </button>
                                 </td>
                             @endforeach
 

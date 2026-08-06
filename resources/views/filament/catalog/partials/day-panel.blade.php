@@ -15,7 +15,8 @@
         \App\Enums\AbsenceStatus::Unmotivated,
         \App\Enums\AbsenceStatus::Pending,
     ];
-    $rights = $panel['rights'];
+    // Panoul doar-note (harta Note) nu trimite drepturile de absență — secțiunea lor lipsește.
+    $rights = $panel['rights'] ?? ['can_status' => false];
 @endphp
 
 <div class="space-y-5 text-sm">
@@ -194,7 +195,11 @@
         @endif
     </section>
 
-    {{-- ── Absențele zilei, pe ore ──────────────────────────────────────────────────────── --}}
+    {{-- ── Absențele zilei, pe ore ──────────────────────────────────────────────────────────
+         DOAR când payload-ul le aduce: panoul hărții din secțiunea Note e al notelor (fără
+         absențe — acelea au harta și borderoul lor), deci nu trimite cheile de absențe și
+         secțiunea întreagă dispare. Un partial, două alcătuiri — aceeași înfățișare. --}}
+    @if (array_key_exists('absences', $panel))
     <section>
         <h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
             {{ __('panel.class_register.day_panel.absences_heading') }}
@@ -267,4 +272,5 @@
             </div>
         @endif
     </section>
+    @endif
 </div>

@@ -19,6 +19,7 @@ use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeCorrection;
+use App\Models\Lesson;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
@@ -306,7 +307,7 @@ it('anularea din hartă scoate nota din medii — observerul recalculează', fun
 
     Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
         ->test(ListGrades::class)
-        ->callAction('annulGrade', ['annulment_reason' => 'greșeală de introducere'], arguments: ['id' => $slaba->id]);
+        ->call('annulDayGrade', $slaba->id, 'greșeală de introducere');
 
     $dupa = TermAverage::query()
         ->where('student_id', $student->id)
@@ -325,7 +326,7 @@ it('corecția din hartă intră în coada de aprobare, iar a doua cerere e refuz
 
     Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
         ->test(ListGrades::class)
-        ->callAction('requestGradeCorrection', ['new_value' => 6, 'reason' => 'media reală e alta'], arguments: ['id' => $grade->id]);
+        ->call('requestDayCorrection', $grade->id, '6', 'media reală e alta');
 
     expect(GradeCorrection::query()->where('grade_id', $grade->id)->count())->toBe(1)
         ->and($grade->fresh()->hasPendingCorrection())->toBeTrue()
@@ -335,7 +336,7 @@ it('corecția din hartă intră în coada de aprobare, iar a doua cerere e refuz
     // A doua cerere, cât prima așteaptă: refuzată pe server (gardă + invariant în observer).
     Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
         ->test(ListGrades::class)
-        ->callAction('requestGradeCorrection', ['new_value' => 7, 'reason' => 'a doua'], arguments: ['id' => $grade->id]);
+        ->call('requestDayCorrection', $grade->id, '7', 'a doua');
 
     expect(GradeCorrection::query()->where('grade_id', $grade->id)->count())->toBe(1);
 });
@@ -349,7 +350,107 @@ it('un profesor STRĂIN de pereche nu poate anula nici cu apel forțat', functio
 
     Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
         ->test(ListGrades::class)
-        ->callAction('annulGrade', ['annulment_reason' => 'încercare'], arguments: ['id' => $grade->id]);
+        ->call('annulDayGrade', $grade->id, 'încercare');
 
     expect($grade->fresh()->isAnnulled())->toBeFalse();
+});
+
+// ── Scrierea din hartă (05.08.2026): panoul doar-note, sincron cu Catalogul Electronic ────────
+
+it('nota se adaugă din harta Note, pe ziua celulei — și harta se redesenează cu ea', function () {
+    actingAs($this->teacherUser);
+
+    $student = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    $component = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListGrades::class);
+
+    // Harta e citită (memoizată), APOI se scrie: fără invalidare, nota n-ar apărea.
+    expect(collect($component->instance()->gradeMap()['rows'])
+        ->firstWhere(fn (array $r): bool => $r['student']->id === $student->id)['totals']['total'])->toBe(0);
+
+    $component->call('addDayGrade', $student->id, $azi, '9', 'curenta');
+
+    $grade = Grade::query()->where('student_id', $student->id)->sole();
+
+    expect((int) $grade->value)->toBe(9)
+        ->and((int) $grade->teacher_id)->toBe($this->subjectTeacher->id)
+        ->and($grade->graded_on->toDateString())->toBe($azi)
+        // Memoizarea s-a invalidat: aceeași instanță arată acum nota.
+        ->and(collect($component->instance()->gradeMap()['rows'])
+            ->firstWhere(fn (array $r): bool => $r['student']->id === $student->id)['totals']['total'])->toBe(1);
+});
+
+it('panoul zilei din Note e DOAR al notelor și validează elevul pe clasa contextului', function () {
+    actingAs($this->teacherUser);
+
+    $student = $this->students->first();
+    gradeMapRecord($this, $student, Carbon::today()->subDays(3)->toDateString(), 7);
+
+    $page = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListGrades::class)->instance();
+
+    $panel = $page->gradeDayPanel($student->id, Carbon::today()->subDays(3)->toDateString());
+
+    // Fără chei de absențe: partial-ul comun își stinge singur secțiunea de absențe.
+    expect($panel['grades'])->toHaveCount(1)
+        ->and(array_key_exists('absences', $panel))->toBeFalse()
+        ->and($panel['can_grade'])->toBeTrue();
+
+    // Elev străin de clasă: panou gol, nimic scurs; nici scrierea nu trece.
+    $foreignClass = SchoolClass::factory()->for($this->year)->create(['name' => 'IX', 'section' => 'Z', 'grade_level' => 9]);
+    $foreign = Student::factory()->create();
+    Enrollment::factory()->for($foreign)->for($foreignClass)->for($this->year)->create(['left_on' => null]);
+
+    expect($page->gradeDayPanel($foreign->id, Carbon::today()->toDateString())['student'])->toBeNull();
+
+    Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListGrades::class)
+        ->call('addDayGrade', $foreign->id, Carbon::today()->toDateString(), '10', 'curenta');
+
+    expect(Grade::query()->where('student_id', $foreign->id)->count())->toBe(0);
+});
+
+it('în context Diriginte harta nu notează — notarea rămâne act de profesor (F3)', function () {
+    actingAs($this->homeroomUser);
+
+    $student = $this->students->first();
+
+    // Dirigintele (fără alocare pe disciplină) nu poate scrie note nici din hartă.
+    Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'toate'])
+        ->test(ListGrades::class)
+        ->call('addDayGrade', $student->id, Carbon::today()->toDateString(), '9', 'curenta');
+
+    expect(Grade::query()->where('student_id', $student->id)->count())->toBe(0)
+        ->and(Livewire::withQueryParams(['clasa' => (string) $this->class->id])
+            ->test(ListGrades::class)->instance()
+            ->gradeDayPanel($student->id, Carbon::today()->toDateString())['can_grade'])->toBeFalse();
+});
+
+it('zilele de LECȚIE fără note au coloană pe hartă — ușa spre scriere există mereu', function () {
+    actingAs($this->teacherUser);
+
+    // Orar: disciplina se predă lunea; nicio notă nicăieri.
+    $luni = Carbon::today()->startOfWeek();
+
+    Lesson::query()->create([
+        'academic_year_id' => $this->year->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $this->subject->id,
+        'title' => 'x',
+        'teacher_name' => 'x',
+        'day_of_week' => 1,
+        'lesson_number' => 1,
+    ]);
+
+    $map = Livewire::withQueryParams(['clasa' => (string) $this->class->id, 'mod' => 'saptamana'])
+        ->test(ListGrades::class)->instance()->gradeMap();
+
+    $day = collect($map['days'])->firstWhere('iso', $luni->toDateString());
+
+    expect($day)->not->toBeNull()
+        ->and($day['count'])->toBe(0)
+        // Doar zilele de lecție: marțea nu se predă → fără coloană (nicio notă în test).
+        ->and(collect($map['days'])->firstWhere('iso', $luni->copy()->addDay()->toDateString()))->toBeNull();
 });

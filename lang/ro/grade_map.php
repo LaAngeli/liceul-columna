@@ -10,12 +10,12 @@
 
 return [
     'title' => 'Harta notelor',
-    'hint_act' => 'Apasă pe o notă pentru detalii și acțiunile permise — anularea și corecția trec prin fluxurile obișnuite.',
+    'hint_act' => 'Apasă pe ziua unui elev: vezi notele ei și adaugi, anulezi sau ceri corecție direct de acolo.',
     'hint_read' => 'Vezi notele clasei pe zile; valoarea e pastila, disciplina apare la apăsare.',
 
     'student' => 'Elev',
     'totals' => 'Total',
-    'day_count' => '{1} :count notă în această zi|[2,19] :count note în această zi|[20,*] :count de note în această zi',
+    'day_count' => '{0} Zi de lecție, încă fără note|{1} :count notă în această zi|[2,19] :count note în această zi|[20,*] :count de note în această zi',
 
     'legend_below' => 'Sub 5',
     'legend_summative' => 'Sumativă',

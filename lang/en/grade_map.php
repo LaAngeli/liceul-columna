@@ -10,12 +10,12 @@
 
 return [
     'title' => 'Grade map',
-    'hint_act' => 'Click a grade for details and the actions you are allowed — annulment and correction follow the usual flows.',
+    'hint_act' => 'Click a pupil’s day: see its grades and add, annul or request a correction right there.',
     'hint_read' => 'The class grades, day by day; the value is on the chip, the subject shows on click.',
 
     'student' => 'Student',
     'totals' => 'Total',
-    'day_count' => '{1} :count grade on this day|[2,*] :count grades on this day',
+    'day_count' => '{0} Lesson day, no grades yet|{1} :count grade on this day|[2,*] :count grades on this day',
 
     'legend_below' => 'Below 5',
     'legend_summative' => 'Summative',

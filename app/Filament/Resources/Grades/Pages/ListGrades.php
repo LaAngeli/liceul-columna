@@ -7,24 +7,23 @@ use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
 use App\Enums\SchoolCycle;
+use App\Enums\UserRole;
 use App\Filament\Concerns\HasCatalogNavigator;
 use App\Filament\Concerns\HasTimeNavigator;
+use App\Filament\Concerns\WritesGradesFromDay;
 use App\Filament\Contracts\CatalogNavigator;
 use App\Filament\Resources\Grades\GradeResource;
 use App\Filament\Resources\Grades\Tables\GradesTable;
 use App\Models\Enrollment;
 use App\Models\Grade;
-use App\Models\GradeCorrection;
+use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\TermAverage;
 use App\Models\User;
 use App\Support\ContentTranslator;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Builder;
@@ -52,6 +51,7 @@ class ListGrades extends ListRecords implements CatalogNavigator
 {
     use HasCatalogNavigator;
     use HasTimeNavigator;
+    use WritesGradesFromDay;
 
     protected static string $resource = GradeResource::class;
 
@@ -276,6 +276,15 @@ class ListGrades extends ListRecords implements CatalogNavigator
             $countsByDay[$iso] = ($countsByDay[$iso] ?? 0) + 1;
         }
 
+        // ZILELE DE LECȚIE ale perioadei intră pe hartă și GOALE (05.08.2026): harta e acum și
+        // suprafață de scriere — lecția de azi, care abia își așteaptă notele, trebuie să aibă
+        // coloană și celule de deschis. Ziua fără nicio notă rămâne, în plus, o informație.
+        foreach ($this->lessonDayIsosInRange() as $iso) {
+            $countsByDay[$iso] ??= 0;
+        }
+
+        ksort($countsByDay);
+
         $days = [];
 
         foreach ($countsByDay as $iso => $count) {
@@ -428,152 +437,132 @@ class ListGrades extends ListRecords implements CatalogNavigator
             ->all());
     }
 
-    // ── Acțiunile pastilei (modalele paginii — tabelul nu e randat când harta e pe ecran) ───
+    // ── Panoul ZILEI, doar-NOTE (scrierea din hartă — cerința beneficiarului, 05.08.2026) ──
 
-    /**
-     * Anulează o notă DIN hartă — aceeași semantică și aceleași gărzi ca acțiunea din tabel
-     * ({@see GradesTable}): autoritatea academică sau titularul perechii; nota rămâne în istoric,
-     * dar iese din medii (observerul recalculează singur).
-     */
-    public function annulGradeAction(): Action
+    /** Contextul de scriere al concernului ({@see WritesGradesFromDay}) = contextul navigatorului. */
+    protected function dayGradeClass(): ?SchoolClass
     {
-        return Action::make('annulGrade')
-            ->label(__('panel.actions.annul.label'))
-            ->icon('heroicon-o-no-symbol')
-            ->color('danger')
-            ->requiresConfirmation()
-            ->modalHeading(__('panel.actions.annul.heading'))
-            ->modalDescription(__('panel.actions.annul.description'))
-            ->schema([
-                Textarea::make('annulment_reason')
-                    ->label(__('panel.actions.annul.reason'))
-                    ->required()
-                    ->maxLength(255),
-            ])
-            ->action(function (array $arguments, array $data): void {
-                $grade = $this->mapActionGrade($arguments);
+        return $this->resolvedClass();
+    }
 
-                if ($grade === null || $grade->isAnnulled()
-                    || ! ((auth('web')->user()?->canAdministerCatalog() ?? false) || GradesTable::teacherTeachesGrade($grade))) {
-                    $this->denyMapAction();
-
-                    return;
-                }
-
-                $grade->update([
-                    'annulled_at' => now(),
-                    'annulled_by_user_id' => auth()->id(),
-                    'annulment_reason' => $data['annulment_reason'],
-                ]);
-
-                unset($this->gradeMapMemo);
-                $this->gradeMapMemo = [];
-
-                Notification::make()
-                    ->success()
-                    ->title(__('panel.actions.annul.success'))
-                    ->send();
-            });
+    protected function dayGradeSubject(): ?Subject
+    {
+        return $this->resolvedSubject();
     }
 
     /**
-     * Solicită corecția unei note DIN hartă — fluxul §3.1 (cerere → aprobare de administrație),
-     * deschis titularului perechii și dirigintelui clasei. Câmpul (notă vs calificativ) urmează
-     * disciplina notei, ca în tabel.
+     * Poate INTRODUCE note la (clasa, disciplina) contextului — aceeași regulă ca borderoul:
+     * autoritatea academică sau titularul perechii; în context Diriginte (F3) notarea rămâne act
+     * de PROFESOR, deci comuti ca să notezi.
      */
-    public function requestGradeCorrectionAction(): Action
+    public function canEnterGrades(): bool
     {
-        return Action::make('requestGradeCorrection')
-            ->label(__('panel.actions.request_correction.label'))
-            ->icon('heroicon-o-pencil-square')
-            ->color('warning')
-            ->modalHeading(__('panel.actions.request_correction.heading'))
-            ->modalDescription(__('panel.actions.request_correction.description'))
-            ->modalSubmitActionLabel(__('panel.actions.request_correction.submit'))
-            ->schema([
-                TextInput::make('new_value')
-                    ->label(__('panel.actions.request_correction.new_value'))
-                    ->validationAttribute(__('panel.actions.request_correction.new_value'))
-                    ->numeric()
-                    // Propunerea respectă ACEEAȘI scală ca nota însăși: întreg 1–10. Fără `integer`
-                    // se putea cere „6,5", iar aprobarea o scria în notă — unde garda de model o
-                    // respingea abia atunci, după ce cererea trecuse deja de aprobator.
-                    ->step(1)
-                    ->rules(['integer'])
-                    ->minValue(1)
-                    ->maxValue(10)
-                    ->visible(fn (Action $action): bool => $this->mapActionGrade($action->getArguments())?->subject?->grading_type === GradingType::Numeric)
-                    ->requiredWithout('new_calificativ'),
-                // Scală ÎNCHISĂ, nu text liber: `Select` aplică singur regula `in:` din opțiuni,
-                // deci alegerea e limitată și în browser, și pe server.
-                Select::make('new_calificativ')
-                    ->label(__('panel.actions.request_correction.new_calificativ'))
-                    ->validationAttribute(__('panel.actions.request_correction.new_calificativ'))
-                    ->options(Calificativ::groupedOptions())
-                    ->native(false)
-                    ->visible(fn (Action $action): bool => $this->mapActionGrade($action->getArguments())?->subject?->grading_type !== GradingType::Numeric)
-                    ->requiredWithout('new_value'),
-                Textarea::make('reason')
-                    ->label(__('panel.actions.request_correction.reason'))
-                    ->required()
-                    ->maxLength(255),
-            ])
-            ->action(function (array $arguments, array $data): void {
-                $grade = $this->mapActionGrade($arguments);
+        $user = auth('web')->user();
+        $class = $this->dayGradeClass();
+        $subject = $this->dayGradeSubject();
 
-                if ($grade === null || $grade->isAnnulled() || $grade->hasPendingCorrection()
-                    || ! GradesTable::canRequestCorrectionFor($grade)) {
-                    $this->denyMapAction();
-
-                    return;
-                }
-
-                GradeCorrection::create([
-                    'grade_id' => $grade->id,
-                    'requested_by_user_id' => auth()->id(),
-                    'old_value' => $grade->value,
-                    'new_value' => $data['new_value'] ?? null,
-                    'old_calificativ' => $grade->calificativ,
-                    'new_calificativ' => $data['new_calificativ'] ?? null,
-                    'reason' => $data['reason'],
-                ]);
-
-                $this->gradeMapMemo = [];
-
-                Notification::make()
-                    ->success()
-                    ->title(__('panel.actions.request_correction.success_title'))
-                    ->body(__('panel.actions.request_correction.success_body'))
-                    ->send();
-            });
-    }
-
-    /**
-     * Nota țintei unei acțiuni de hartă, rezolvată prin interogarea SCOPED a paginii: un id
-     * străin de context sau de drepturi nu se găsește deloc — argumentele din browser sunt
-     * dorințe, nu adevăr.
-     *
-     * @param  array<string, mixed>  $arguments
-     */
-    private function mapActionGrade(array $arguments): ?Grade
-    {
-        $id = $arguments['id'] ?? null;
-
-        if (! is_numeric($id)) {
-            return null;
+        if (! $user instanceof User || $class === null || $subject === null) {
+            return false;
         }
 
-        /** @var Grade|null */
-        return $this->applyCatalogContext($this->catalogBaseQuery())
-            ->whereKey((int) $id)
-            ->first();
+        if ($user->canAdministerCatalog()) {
+            return true;
+        }
+
+        if ($user->teachingContext() === UserRole::Diriginte) {
+            return false;
+        }
+
+        return $user->teacher?->canGradeClassSubject((int) $class->getKey(), (int) $subject->getKey()) ?? false;
     }
 
-    private function denyMapAction(): void
+    /** Tipul de notare al disciplinei contextului (numeric vs calificativ). */
+    public function gradingType(): GradingType
     {
-        Notification::make()
-            ->danger()
-            ->title(__('grade_map.action_denied'))
-            ->send();
+        $subject = $this->dayGradeSubject();
+
+        return $subject === null ? GradingType::Numeric : $subject->grading_type;
+    }
+
+    /** Orice scriere reușită invalidează memoizarea — harta se redesenează cu realitatea. */
+    protected function afterDayGradeWrite(): void
+    {
+        $this->gradeMapMemo = [];
+    }
+
+    /**
+     * Panoul zilei al hărții: click pe celula (elev × zi) → modal cu NOTELE zilei și adăugarea
+     * uneia noi. DOAR note — secțiunea e a notelor; absențele au harta și borderoul lor.
+     * Modal, nu popover: celula trăiește în zona derulabilă cu overflow ascuns.
+     */
+    public function gradeDayPanelAction(): Action
+    {
+        return Action::make('gradeDayPanel')
+            ->modalHeading(function (array $arguments): string {
+                $student = Student::query()->find((int) ($arguments['student'] ?? 0));
+                $iso = (string) ($arguments['iso'] ?? '');
+                $name = $student instanceof Student ? $student->full_name : '';
+
+                return trim($name.' · '.(preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) === 1
+                    ? Carbon::parse($iso)->translatedFormat('j F Y')
+                    : ''), ' ·');
+            })
+            ->modalContent(fn (array $arguments) => view('filament.catalog.partials.day-panel', [
+                'panel' => $this->gradeDayPanel((int) ($arguments['student'] ?? 0), (string) ($arguments['iso'] ?? '')),
+            ]))
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel(__('panel.class_register.day_panel.close'))
+            ->modalWidth('lg');
+    }
+
+    /**
+     * Datele panoului doar-note. FĂRĂ cheile de absențe: partial-ul comun `day-panel` își randează
+     * secțiunea de absențe numai când ele există în payload — aceeași vedere, două alcătuiri.
+     *
+     * Panoul NU aplică filtrul de tip al hărții: ziua se citește întreagă (toate tipurile,
+     * inclusiv anulatele — gri), altfel „de ce nu-mi văd teza pusă adineauri" ar fi întrebarea zilei.
+     *
+     * @return array{
+     *     student: Student|null,
+     *     iso: string,
+     *     grades: list<array{id: int, value: string, type_label: string, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>,
+     *     can_grade: bool,
+     *     numeric: bool,
+     *     grade_types: array<string, string>,
+     * }
+     */
+    public function gradeDayPanel(int $studentId, string $iso): array
+    {
+        $empty = [
+            'student' => null, 'iso' => $iso, 'grades' => [],
+            'can_grade' => false, 'numeric' => true, 'grade_types' => [],
+        ];
+
+        $class = $this->dayGradeClass();
+
+        if ($class === null || $this->dayGradeSubject() === null
+            || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
+            return $empty;
+        }
+
+        // Elevul trebuie să fie AL CLASEI din context — un id străin nu deschide nimic.
+        $student = Student::query()
+            ->whereKey($studentId)
+            ->whereHas('enrollments', fn ($q) => $q->where('school_class_id', $class->getKey())->whereNull('left_on'))
+            ->first();
+
+        if ($student === null) {
+            return $empty;
+        }
+
+        return [
+            'student' => $student,
+            'iso' => $iso,
+            'grades' => $this->dayGradeEntriesFor((int) $student->getKey(), $iso, $this->gradeMapCycle()),
+            'can_grade' => $this->canEnterGrades()
+                && ! Carbon::parse($iso)->startOfDay()->isAfter(Carbon::today()),
+            'numeric' => $this->gradingType() === GradingType::Numeric,
+            'grade_types' => $this->gradeTypeOptions(),
+        ];
     }
 }
