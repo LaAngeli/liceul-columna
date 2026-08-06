@@ -39,6 +39,13 @@ class SwitchActiveRoleController extends Controller
                 ->with('error', __('panel.role_switch.invalid'));
         }
 
-        return redirect()->back(fallback: '/admin');
+        // Markerul „aterizare după comutare" (flash — trăiește EXACT cererea de întoarcere):
+        // dacă pagina de unde s-a comutat nu există în NOUL context (ex. Editare utilizator în
+        // context Profesor), redirectul back ar da un 403 sec — prins la 06.08.2026 drept „prima
+        // tentativă după schimbare dă 403". Handler-ul de excepții îl transformă în aterizare pe
+        // Panoul de control (bootstrap/app.php).
+        return redirect()
+            ->back(fallback: '/admin')
+            ->with('role_switch_landing', $role->value);
     }
 }

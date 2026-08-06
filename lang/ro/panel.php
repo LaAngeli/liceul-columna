@@ -2439,6 +2439,8 @@ return [
     'role_switch' => [
         'label' => 'Rol activ',
         'invalid' => 'Rolul ales nu aparține contului sau nu e un rol de panou.',
+        'landed_title' => 'Pagina anterioară aparține altui rol',
+        'landed_body' => 'Contextul a fost schimbat în „:role", iar pagina de unde ai comutat nu există în acest rol — te-am adus la Panoul de control.',
         'scope_school' => 'Toată școala',
         'scope_infra' => 'Sistem și infrastructură',
         'scope_taught' => 'Clasele și disciplinele predate',

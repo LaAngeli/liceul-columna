@@ -104,12 +104,15 @@
                              istoric cu explicația ei. --}}
                         <div x-show="mode === 'anulare'" x-cloak class="w-full space-y-2 border-t border-gray-200 pt-2 dark:border-white/10">
                             <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('panel.actions.annul.description') }}</p>
+                            {{-- ⚠️ px/py EXPLICITE: preflight-ul Tailwind taie padding-ul nativ al
+                                 lui <textarea>, iar fără utilitare textul se lipea de chenar
+                                 (raportat 06.08.2026). --}}
                             <textarea
                                 x-model="reason"
                                 rows="2"
                                 maxlength="255"
                                 placeholder="{{ __('panel.actions.annul.reason') }}"
-                                class="w-full rounded-lg border-0 bg-white text-sm text-gray-950 shadow-sm ring-1 ring-gray-950/10 focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
+                                class="w-full rounded-lg border-0 bg-white px-3 py-2 text-sm leading-5 text-gray-950 shadow-sm ring-1 ring-gray-950/10 focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
                             ></textarea>
                             <div class="flex items-center gap-2">
                                 <button

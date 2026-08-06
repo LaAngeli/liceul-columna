@@ -2423,6 +2423,8 @@ return [
     'role_switch' => [
         'label' => 'Active role',
         'invalid' => 'The chosen role does not belong to the account or is not a panel role.',
+        'landed_title' => 'The previous page belongs to another role',
+        'landed_body' => 'The context was switched to “:role”, and the page you switched from does not exist in this role — we brought you to the Dashboard.',
         'scope_school' => 'Whole school',
         'scope_infra' => 'System & infrastructure',
         'scope_taught' => 'Classes and subjects taught',

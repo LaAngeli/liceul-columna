@@ -195,3 +195,47 @@ it('jurnalul consemnează rolul ACTIV al actorului multi-rol', function () {
 
     expect($entry->actor_role)->toBe(UserRole::Profesor->value);
 });
+
+// ── Aterizarea după comutare (06.08.2026): „prima tentativă după schimbare dă 403" ─────────
+
+it('comutarea de pe o pagină care nu există în noul rol aterizează pe Panoul de control', function () {
+    $user = multiRoleUser(UserRole::Director->value, UserRole::Profesor->value);
+    Teacher::factory()->create(['user_id' => $user->id]);
+    $user = $user->fresh();
+
+    actingAs($user);
+
+    // Pagina de administrație (Editare utilizator) răspunde în context Director...
+    $target = '/admin/users/'.$user->getKey().'/edit';
+
+    $this->get($target)->assertOk();
+
+    // ...comutatorul trimite ÎNAPOI pe ea, cu markerul flash al aterizării...
+    $this->from($target)
+        ->post('/admin/rol-activ', ['role' => UserRole::Profesor->value])
+        ->assertRedirect($target);
+
+    // ...iar întoarcerea — pagina nu există în context Profesor — aterizează pe dashboard,
+    // nu într-un 403 sec (exact reclamația: „prima tentativă după schimbare dă eroare").
+    $this->get($target)->assertRedirect('/admin');
+
+    // Fereastra markerului s-a închis: accesul direct ulterior rămâne 403 CURAT — gărzile nu
+    // s-au mișcat un milimetru, doar aterizarea de după comutare e prietenoasă.
+    $this->get($target)->assertForbidden();
+});
+
+it('comutarea de pe o pagină valabilă în ambele contexte se întoarce pe ea, fără aterizare', function () {
+    $user = multiRoleUser(UserRole::Director->value, UserRole::Profesor->value);
+    Teacher::factory()->create(['user_id' => $user->id]);
+
+    actingAs($user->fresh());
+
+    // Borderoul e accesibil și directorului, și profesorului — întoarcerea rămâne pe loc.
+    $this->get('/admin/catalog-clasa')->assertOk();
+
+    $this->from('/admin/catalog-clasa')
+        ->post('/admin/rol-activ', ['role' => UserRole::Profesor->value])
+        ->assertRedirect('/admin/catalog-clasa');
+
+    $this->get('/admin/catalog-clasa')->assertOk();
+});
