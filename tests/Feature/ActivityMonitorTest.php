@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * „PULSUL ACTIVITĂȚII" (redesenat 07.08.2026) — calendarul de intensitate al muncii personale.
+ *
+ * Testele fixează contractul lui pulse(): scoping-ul pe utilizator (acțiunile LUI, nu ale
+ * colegilor), bucketarea pe ZIUA din fusul ȘCOLII (stocarea e UTC), chips-urile doar pentru
+ * categoriile cu activitate, toggle-ul care stinge o categorie din totaluri și ferestrele de
+ * perioadă cu whitelist.
+ */
+
 use App\Enums\UserRole;
 use App\Filament\Widgets\ActivityMonitor;
 use App\Models\Absence;
@@ -22,9 +31,8 @@ beforeEach(function () {
         Role::findOrCreate($role->value, 'web');
     }
 
-    // ANCORĂ temporală: rândurile se creează la now(), iar ferestrele monitorului depind de
-    // ziua/luna curentă — fără ancoră, numărătorile derivau la granițele de lună (prins la
-    // trecerea 31.07 → 01.08, când 6 teste au picat fără nicio schimbare de cod).
+    // ANCORĂ temporală (miercuri): ferestrele pulsului depind de ziua curentă — fără ancoră,
+    // numărătorile ar deriva la granițele de săptămână/lună.
     Carbon::setTestNow(
         Carbon::parse('2026-04-22 12:00', SchoolCalendar::TIMEZONE),
     );
@@ -40,7 +48,7 @@ function activityStaffUser(UserRole $role): User
     return $user;
 }
 
-/** Profesor legat de o fișă, repartizat la clasele date (visibleSchoolClassIds = acele clase). */
+/** Profesor legat de o fișă, repartizat la clasele date. */
 function activityTeacherUser(SchoolClass ...$classes): User
 {
     $user = User::factory()->create();
@@ -60,39 +68,30 @@ function activityTeacherUser(SchoolClass ...$classes): User
 }
 
 /**
- * Invocă getData() protejat cu un set de filtre dat, ca să inspectăm datasets/labels.
+ * Pulsul unui widget proaspăt, cu perioada / categoriile stinse date.
  *
- * @param  array<string, mixed>  $filters
- * @return array{datasets: array<int, array<string, mixed>>, labels: array<int, string>}
+ * @param  list<string>  $off
+ * @return array<string, mixed>
  */
-function activityData(array $filters): array
+function activityPulse(string $period = '12w', array $off = []): array
 {
     $widget = new ActivityMonitor;
-    $widget->filters = $filters;
+    $widget->period = $period;
+    $widget->off = $off;
 
-    $method = new ReflectionMethod(ActivityMonitor::class, 'getData');
-    $method->setAccessible(true);
-
-    /** @var array{datasets: array<int, array<string, mixed>>, labels: array<int, string>} $data */
-    $data = $method->invoke($widget);
-
-    return $data;
+    return $widget->pulse();
 }
 
-/**
- * Suma unei serii după etichetă (peste toate bucket-urile).
- *
- * @param  array{datasets: array<int, array<string, mixed>>, labels: array<int, string>}  $data
- */
-function activitySeriesSum(array $data, string $label): int
+/** Numărătoarea unui chip de categorie (după cheie); -1 = chip-ul lipsește. */
+function activityCatCount(array $pulse, string $key): int
 {
-    foreach ($data['datasets'] as $dataset) {
-        if ($dataset['label'] === $label) {
-            return (int) array_sum($dataset['data']);
+    foreach ($pulse['cats'] as $cat) {
+        if ($cat['key'] === $key) {
+            return (int) $cat['count'];
         }
     }
 
-    return -1; // seria lipsește
+    return -1;
 }
 
 it('e o secțiune standard: vizibil oricărui staff logat, ascuns musafirului', function () {
@@ -109,37 +108,6 @@ it('e o secțiune standard: vizibil oricărui staff logat, ascuns musafirului', 
     expect(ActivityMonitor::canView())->toBeFalse();
 });
 
-it('implicit desenează 3 serii: total + note + absențe, pe 6 luni', function () {
-    $this->actingAs(activityTeacherUser());
-
-    $data = activityData([]); // fără filtre → default period=6, series=[grades,absences]
-
-    expect($data['datasets'])->toHaveCount(3)
-        ->and($data['datasets'][0]['label'])->toBe('Activitate totală')
-        ->and($data['datasets'][1]['label'])->toBe('Note')
-        ->and($data['datasets'][2]['label'])->toBe('Absențe')
-        ->and($data['labels'])->toHaveCount(6);
-});
-
-it('bifarea unei serii o adaugă (corecții) — 4 serii', function () {
-    $this->actingAs(activityTeacherUser());
-
-    $data = activityData(['series' => ['grades', 'absences', 'corrections']]);
-
-    expect($data['datasets'])->toHaveCount(4)
-        ->and(collect($data['datasets'])->pluck('label'))->toContain('Corecții note');
-});
-
-it('debifarea tuturor lasă doar linia Total (gol ≠ toate)', function () {
-    $this->actingAs(activityTeacherUser());
-
-    $data = activityData(['series' => []]);
-
-    expect($data['datasets'])->toHaveCount(1)
-        ->and($data['datasets'][0]['label'])->toBe('Activitate totală')
-        ->and(array_sum($data['datasets'][0]['data']))->toBe(0);
-});
-
 it('scopează notele pe profesorul curent (exclude ale altuia + anulate)', function () {
     $year = AcademicYear::factory()->create();
     $classA = SchoolClass::factory()->for($year)->create();
@@ -152,58 +120,60 @@ it('scopează notele pe profesorul curent (exclude ale altuia + anulate)', funct
     Grade::factory()->create();                                                     // a altui profesor — NU
 
     $this->actingAs($teacherUser);
-    $data = activityData(['series' => ['grades']]);
+    $pulse = activityPulse();
 
-    expect(activitySeriesSum($data, 'Note'))->toBe(1);
+    expect(activityCatCount($pulse, 'grades'))->toBe(1)
+        ->and($pulse['kpi']['total'])->toBe(1);
 });
 
 it('scopează absențele pe cele CONSEMNATE de profesor (teacher_id, nu toată clasa)', function () {
     $teacherUser = activityTeacherUser();
     $teacherId = $teacherUser->teacher->id;
 
-    // Absența consemnată de el contează; una a altui profesor (chiar și în clasa lui) NU — altfel ar
-    // prinde importul legacy + consemnările altora (spike artificial).
     Absence::factory()->create(['teacher_id' => $teacherId]);
-    Absence::factory()->create();
+    Absence::factory()->create(); // a altui profesor — NU (altfel ar prinde importul + colegii)
 
     $this->actingAs($teacherUser);
-    $data = activityData(['series' => ['absences']]);
 
-    expect(activitySeriesSum($data, 'Absențe'))->toBe(1);
+    expect(activityCatCount(activityPulse(), 'absences'))->toBe(1);
 });
 
-it('scopează corecțiile pe cererile + revizuirile userului', function () {
+it('scopează corecțiile pe cererile + revizuirile userului, mesajele pe expeditor', function () {
     $userA = activityStaffUser(UserRole::Director);
     $userB = activityStaffUser(UserRole::Profesor);
 
     GradeCorrection::factory()->create(['requested_by_user_id' => $userA->id]);
     GradeCorrection::factory()->create(['reviewed_by_user_id' => $userA->id, 'reviewed_at' => now()]);
     GradeCorrection::factory()->create(['requested_by_user_id' => $userB->id]); // al altuia — NU
-
-    $this->actingAs($userA);
-    $data = activityData(['series' => ['corrections']]);
-
-    expect(activitySeriesSum($data, 'Corecții note'))->toBe(2);
-});
-
-it('scopează mesajele pe expeditor', function () {
-    $userA = activityStaffUser(UserRole::Director);
-    $userB = activityStaffUser(UserRole::Profesor);
-
     Message::factory()->create(['sender_user_id' => $userA->id]);
-    Message::factory()->create(['sender_user_id' => $userB->id]); // al altuia — NU
+    Message::factory()->create(['sender_user_id' => $userB->id]);               // al altuia — NU
 
     $this->actingAs($userA);
-    $data = activityData(['series' => ['messages']]);
+    $pulse = activityPulse();
 
-    expect(activitySeriesSum($data, 'Mesaje'))->toBe(1);
+    expect(activityCatCount($pulse, 'corrections'))->toBe(2)
+        ->and(activityCatCount($pulse, 'messages'))->toBe(1);
 });
 
-it('Total = suma seriilor AFIȘATE (ignoră categoriile ascunse)', function () {
-    $year = AcademicYear::factory()->create();
-    $classA = SchoolClass::factory()->for($year)->create();
+it('chip-ul apare DOAR pentru categoriile cu activitate; fără nimic → empty', function () {
+    $teacherUser = activityTeacherUser();
+    Grade::factory()->create(['teacher_id' => $teacherUser->teacher->id]);
 
-    $teacherUser = activityTeacherUser($classA);
+    $this->actingAs($teacherUser);
+    $pulse = activityPulse();
+
+    // Doar „Note" are chip — absențele/corecțiile/mesajele la zero nu fac zgomot.
+    expect(array_column($pulse['cats'], 'key'))->toBe(['grades'])
+        ->and($pulse['empty'])->toBeFalse();
+
+    // Un cont fără nicio acțiune → starea goală, prietenoasă.
+    $this->actingAs(activityStaffUser(UserRole::AdministratorTehnic));
+
+    expect(activityPulse()['empty'])->toBeTrue();
+});
+
+it('stingerea unei categorii o scoate din totaluri și din intensitate, dar chip-ul rămâne', function () {
+    $teacherUser = activityTeacherUser();
     $teacherId = $teacherUser->teacher->id;
 
     Grade::factory()->count(2)->create(['teacher_id' => $teacherId]);
@@ -211,30 +181,92 @@ it('Total = suma seriilor AFIȘATE (ignoră categoriile ascunse)', function () {
 
     $this->actingAs($teacherUser);
 
-    // Ambele vizibile → Total = 2 note + 1 absență = 3.
-    $both = activityData(['series' => ['grades', 'absences']]);
-    expect(activitySeriesSum($both, 'Activitate totală'))->toBe(3);
+    $all = activityPulse();
+    expect($all['kpi']['total'])->toBe(3)->and($all['kpi']['today'])->toBe(3);
 
-    // Doar notele → Total = 2 (absența ascunsă NU intră).
-    $onlyGrades = activityData(['series' => ['grades']]);
-    expect(activitySeriesSum($onlyGrades, 'Activitate totală'))->toBe(2);
+    $absOff = activityPulse('12w', ['absences']);
+
+    expect($absOff['kpi']['total'])->toBe(2)
+        // Chip-ul rămâne vizibil (cu numărătoarea lui), doar marcat stins.
+        ->and(activityCatCount($absOff, 'absences'))->toBe(1)
+        ->and(collect($absOff['cats'])->firstWhere('key', 'absences')['active'])->toBeFalse();
 });
 
-it('whitelist perioadă + bucketing adaptiv', function () {
+it('ziua se judecă în fusul ȘCOLII: o acțiune la 22:30 UTC aparține zilei următoare', function () {
+    $teacherUser = activityTeacherUser();
+
+    // 22:30 UTC pe 21.04 = 01:30 pe 22.04 în fusul școlii (UTC+3 vara).
+    Grade::factory()->create([
+        'teacher_id' => $teacherUser->teacher->id,
+        'created_at' => Carbon::parse('2026-04-21 22:30', 'UTC'),
+    ]);
+
+    $this->actingAs($teacherUser);
+    $pulse = activityPulse();
+
+    // Ancora e 22.04 → acțiunea de la 01:30 local e „azi", nu „ieri".
+    expect($pulse['kpi']['today'])->toBe(1);
+
+    $days = collect($pulse['weeks'])->flatten(1)->keyBy('iso');
+
+    expect($days['2026-04-22']['count'])->toBe(1)
+        ->and($days['2026-04-21']['count'])->toBe(0);
+});
+
+it('ferestrele: 4w/12w pe săptămâni întregi, valoare străină → 12w, azi marcat, viitorul gol', function () {
     $this->actingAs(activityTeacherUser());
 
-    // Valoare arbitrară → revine la 6 (6 bucket-uri lunare).
-    expect(activityData(['period' => '999'])['labels'])->toHaveCount(6);
+    expect(count(activityPulse('4w')['weeks']))->toBe(4)
+        ->and(count(activityPulse('12w')['weeks']))->toBe(12)
+        ->and(count(activityPulse('bogus')['weeks']))->toBe(12);
 
-    // 1 lună → 4 bucket-uri săptămânale (linie citibilă).
-    expect(activityData(['period' => '1'])['labels'])->toHaveCount(4);
+    $days = collect(activityPulse('4w')['weeks'])->flatten(1);
+
+    // Exact o celulă „azi"; joia-duminica săptămânii curente sunt viitor (ancora e miercuri).
+    expect($days->where('today', true))->toHaveCount(1)
+        ->and($days->where('future', true))->toHaveCount(4)
+        // Fereastra începe luni și se termină duminică — săptămâni pline, mereu 7 rânduri.
+        ->and($days)->toHaveCount(28);
 });
 
-it('titlul reflectă perioada, pluralizat (RO)', function () {
-    $this->actingAs(activityStaffUser(UserRole::Director));
+it('nivelul de intensitate e relativ la vârful ferestrei, iar vârful intră în KPI', function () {
+    $teacherUser = activityTeacherUser();
+    $teacherId = $teacherUser->teacher->id;
+
+    // Luni: 8 note (vârf); marți: 2; miercuri (azi): 1.
+    Grade::factory()->count(8)->create(['teacher_id' => $teacherId, 'created_at' => Carbon::parse('2026-04-20 09:00', SchoolCalendar::TIMEZONE)]);
+    Grade::factory()->count(2)->create(['teacher_id' => $teacherId, 'created_at' => Carbon::parse('2026-04-21 09:00', SchoolCalendar::TIMEZONE)]);
+    Grade::factory()->create(['teacher_id' => $teacherId, 'created_at' => Carbon::parse('2026-04-22 09:00', SchoolCalendar::TIMEZONE)]);
+
+    $this->actingAs($teacherUser);
+    $pulse = activityPulse('4w');
+    $days = collect($pulse['weeks'])->flatten(1)->keyBy('iso');
+
+    expect($days['2026-04-20']['level'])->toBe(4)   // vârful = plin
+        ->and($days['2026-04-22']['level'])->toBe(1) // ziua măruntă = abia aprinsă
+        ->and($days['2026-04-19']['level'])->toBe(0) // zi fără nimic
+        ->and($pulse['kpi']['peak'])->toMatchArray(['count' => 8])
+        ->and($pulse['kpi']['week'])->toBe(11);
+});
+
+it('widget-ul se randează cu titlul nou și pastilele de perioadă; toggle-urile au whitelist', function () {
+    $teacherUser = activityTeacherUser();
+    Grade::factory()->create(['teacher_id' => $teacherUser->teacher->id]);
+
+    $this->actingAs($teacherUser);
 
     Livewire::test(ActivityMonitor::class)
         ->assertOk()
-        ->assertSee('Monitor activitate')
-        ->assertSee('6 luni');
+        ->assertSee('Pulsul activității')
+        ->assertSee('Ultimele 12 săptămâni')
+        ->call('setPeriod', 'orice-altceva')
+        ->assertSet('period', '12w')
+        ->call('setPeriod', '4w')
+        ->assertSet('period', '4w')
+        ->call('toggleCategory', 'grades')
+        ->assertSet('off', ['grades'])
+        ->call('toggleCategory', 'grades')
+        ->assertSet('off', [])
+        ->call('toggleCategory', 'nu-exista')
+        ->assertSet('off', []);
 });

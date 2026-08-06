@@ -8,53 +8,63 @@ use App\Models\Grade;
 use App\Models\GradeCorrection;
 use App\Models\Message;
 use App\Models\User;
-use Filament\Forms\Components\CheckboxList;
-use Filament\Forms\Components\ToggleButtons;
-use Filament\Schemas\Schema;
-use Filament\Support\Enums\GridDirection;
-use Filament\Widgets\ChartWidget;
-use Filament\Widgets\ChartWidget\Concerns\HasFiltersSchema;
+use App\Support\SchoolCalendar;
+use Filament\Widgets\Widget;
 use Illuminate\Support\Carbon;
 
 /**
- * „Monitor activitate" — monitorul PERSONAL de activitate al oricărui membru al staff-ului (userul
- * logat), SECȚIUNE STANDARD a dashboard-ului. O linie principală „Activitate totală" + linii pe
- * categorie, toggle-abile prin bifă. Sursă ENTITY-BASED (coloane de atribuire pe rând), deliberat
- * FĂRĂ jurnalul de audit: auditul amestecă acțiunea umană cu recalcule de sistem (TermAverage scris
- * din queue cu user_id NULL) și nu acoperă GradeCorrection/Message (care nu sunt Auditable).
+ * „PULSUL ACTIVITĂȚII" — monitorul PERSONAL al fiecărui membru al staff-ului, redesenat la cererea
+ * beneficiarului (07.08.2026): linia pe 1/3/6 LUNI ascundea exact ce contează — ritmul ZILNIC al
+ * muncii de școală — și pe date reale arăta „plat, apoi un vârf". Reprezentarea nouă e un calendar
+ * de intensitate (săptămâni × zile, à la contribution graph): fiecare pătrățel = o zi, culoarea =
+ * câte acțiuni a făcut UTILIZATORUL în ziua aceea. Weekendurile golașe și vacanțele se văd singure,
+ * fără nicio axă de explicat.
  *
- * Fiecare serie = numărul de acțiuni ale userului pe interval (axa Y = acțiuni, întregi):
- *   • Note      — note ACTIVE introduse de el (Grade.teacher_id, la created_at);
- *   • Absențe   — absențe CONSEMNATE de el (Absence.teacher_id, la created_at) — activitatea LUI, nu
- *                 toate absențele clasei (acelea includ importul legacy + consemnările altor profesori);
- *   • Corecții  — corecții cerute (requested_by, created_at) + revizuite (reviewed_by, reviewed_at);
- *   • Motivări  — motivări de absență revizuite de el (reviewed_by, reviewed_at);
- *   • Mesaje    — mesaje trimise de el (sender_user_id, created_at).
- * „Total" = suma categoriilor AFIȘATE per interval → tot ce e pe ecran se însumează exact (axa devine
- * lizibilă). Perioadă selectabilă 1/3/6 luni; la 1 lună bucketing săptămânal, la 3/6 lunar.
+ * Sursă ENTITY-BASED, ca înainte (deliberat FĂRĂ jurnalul de audit — acela amestecă omul cu
+ * recalculele de sistem și nu acoperă GradeCorrection/Message):
+ *   • Note      — note ACTIVE introduse de el (Grade.teacher_id, created_at);
+ *   • Absențe   — absențe CONSEMNATE de el (Absence.teacher_id, created_at);
+ *   • Corecții  — cerute (requested_by, created_at) + revizuite (reviewed_by, reviewed_at);
+ *   • Motivări  — revizuite de el (reviewed_by, reviewed_at);
+ *   • Mesaje    — trimise de el (sender_user_id, created_at).
+ *
+ * ⚠️ FUSUL: stocarea e UTC, ziua se judecă în fusul ȘCOLII ({@see SchoolCalendar}) — o notă pusă la
+ * 21:30 UTC aparține zilei URMĂTOARE de catalog. De aceea bucketarea se face în PHP, pe timestamp
+ * convertit, nu cu DATE() în SQL (care ar tăia pe UTC și e și dialect-dependent).
+ *
+ * Operare fără nimic ascuns: perioada = pastile inline (4/12 săptămâni, semestrul curent), nu un
+ * meniu după pâlnie; categoriile = chips cu NUMĂRĂTORI, click = aprinde/stinge; celula își spune
+ * defalcarea în tooltip. Doar categoriile cu activitate în fereastră primesc chip — un director
+ * fără fișă de profesor nu mai vede „Note 0" ca zgomot.
  */
-class ActivityMonitor extends ChartWidget
+class ActivityMonitor extends Widget
 {
-    use HasFiltersSchema;
-
     protected static ?int $sort = 0;
 
     protected int|string|array $columnSpan = 'full';
 
-    // Interogări ușoare (max 6 buckets × 5 categorii, indexate) → reîmprospătare rară e suficientă.
-    protected ?string $pollingInterval = '5m';
+    protected string $view = 'filament.widgets.activity-pulse';
 
-    /** Categoriile toggle-abile (fără „total", care e derivat și mereu desenat). */
+    /** Fereastra activă: 4 / 12 săptămâni sau semestrul curent. */
+    public string $period = '12w';
+
+    /**
+     * Categoriile STINSE de utilizator (chips). Gol = tot ce are activitate e aprins — cu
+     * numărătorile la vedere, „toate aprinse" e implicitul intuitiv; vechea logică pe rol exista
+     * doar fiindcă filtrele stăteau ascunse după pâlnie.
+     *
+     * @var list<string>
+     */
+    public array $off = [];
+
+    private const PERIODS = ['4w', '12w', 'sem'];
+
     private const CATEGORY_KEYS = ['grades', 'absences', 'corrections', 'motivations', 'messages'];
 
-    /** Bifate implicit — cele două acțiuni de bază ale unui profesor. */
-    private const DEFAULT_SERIES = ['grades', 'absences'];
-
-    /** Paletă ancorată în brand (navy/verde/warm-dark + tente/nuanțe + gri). Separare pe luminozitate. */
+    /** Paletă ancorată în brand — folosită la chips și la defalcarea din tooltip. */
     private const COLORS = [
-        'total' => '#0f4d77',        // navy primar — linie de referință
         'grades' => '#9bc31e',       // verde accent
-        'absences' => '#2e2d2c',     // warm-dark
+        'absences' => '#e0a516',     // chihlimbar — absența e „galbenă" peste tot în catalog
         'corrections' => '#3d82b8',  // tentă de navy
         'motivations' => '#5f7a13',  // nuanță de verde (olive)
         'messages' => '#686867',     // gri de brand
@@ -66,239 +76,328 @@ class ActivityMonitor extends ChartWidget
         return auth('web')->check();
     }
 
-    public function getHeading(): string
+    public function setPeriod(string $period): void
     {
-        return __('panel.widgets.activity_monitor.heading_base')
-            .' — '.self::monthsLabel($this->periodMonths());
+        $this->period = in_array($period, self::PERIODS, true) ? $period : '12w';
     }
 
-    public function filtersSchema(Schema $schema): Schema
+    public function toggleCategory(string $key): void
     {
-        return $schema->components([
-            ToggleButtons::make('period')
-                ->label(__('panel.widgets.activity_monitor.filter_period'))
-                ->options([
-                    '1' => self::monthsLabel(1),
-                    '3' => self::monthsLabel(3),
-                    '6' => self::monthsLabel(6),
-                ])
-                ->default('6')
-                ->grouped(),
-            CheckboxList::make('series')
-                ->label(__('panel.widgets.activity_monitor.filter_series'))
-                ->options($this->seriesOptions())
-                ->default($this->defaultSeries())
-                ->columns(3)
-                ->gridDirection(GridDirection::Row)
-                ->bulkToggleable(),
-        ]);
+        if (! in_array($key, self::CATEGORY_KEYS, true)) {
+            return;
+        }
+
+        $this->off = in_array($key, $this->off, true)
+            ? array_values(array_diff($this->off, [$key]))
+            : [...$this->off, $key];
     }
 
     /**
-     * @return array{datasets: array<int, array<string, mixed>>, labels: array<int, string>}
+     * Întreaga stare a pulsului, gata de desen — API-ul public al widget-ului (testabil direct).
+     *
+     * @return array{
+     *     weeks: list<list<array{iso: string, count: int, level: int, today: bool, future: bool, title: string}>>,
+     *     month_marks: array<int, string>,
+     *     weekday_labels: list<string>,
+     *     kpi: array{today: int, week: int, total: int, peak: array{label: string, count: int}|null},
+     *     cats: list<array{key: string, label: string, count: int, color: string, active: bool}>,
+     *     period: string,
+     *     period_options: array<string, string>,
+     *     empty: bool,
+     * }
      */
-    protected function getData(): array
+    public function pulse(): array
     {
-        $selected = $this->selectedSeries();
+        [$start, $end] = $this->window();
 
-        $user = auth('web')->user();
-        $teacher = $user instanceof User ? $user->teacher : null;
-        $teacherId = $teacher?->id;
-        $userId = $user?->getKey();
+        $today = SchoolCalendar::localNow()->startOfDay();
+        $counts = $this->dailyCounts($start, $end);
 
-        $labels = [];
-        $totalData = [];
-        /** @var array<string, list<int>> $categoryData */
-        $categoryData = array_fill_keys($selected, []);
+        // Chips: doar categoriile cu activitate în fereastră; active = neatinse de toggle.
+        $cats = [];
+        $activeKeys = [];
 
-        foreach ($this->buckets() as [$start, $end, $label]) {
-            $labels[] = $label;
-            $bucketTotal = 0;
+        foreach (self::CATEGORY_KEYS as $key) {
+            $categoryTotal = array_sum(array_column($counts, $key));
 
-            foreach ($selected as $key) {
-                $count = $this->categoryCount($key, $start, $end, $teacherId, $userId);
-                $categoryData[$key][] = $count;
-                $bucketTotal += $count;
+            if ($categoryTotal === 0) {
+                continue;
             }
 
-            $totalData[] = $bucketTotal;
+            $active = ! in_array($key, $this->off, true);
+            $cats[] = [
+                'key' => $key,
+                'label' => (string) __("panel.widgets.activity_monitor.series.$key"),
+                'count' => $categoryTotal,
+                'color' => self::COLORS[$key],
+                'active' => $active,
+            ];
+
+            if ($active) {
+                $activeKeys[] = $key;
+            }
         }
 
-        $datasets = [$this->dataset('total', $totalData, 3)];
-        foreach ($selected as $key) {
-            $datasets[] = $this->dataset($key, $categoryData[$key], 2);
+        // Totalul pe zi = suma categoriilor APRINSE — ce e stins dispare și din culori, și din KPI.
+        /** @var array<string, int> $daily */
+        $daily = [];
+
+        foreach ($counts as $iso => $perCategory) {
+            $daily[$iso] = array_sum(array_intersect_key($perCategory, array_flip($activeKeys)));
         }
 
-        return ['datasets' => $datasets, 'labels' => $labels];
-    }
+        $max = $daily === [] ? 0 : max($daily);
 
-    /**
-     * @return array<string, mixed>
-     */
-    protected function getOptions(): array
-    {
+        $weeks = [];
+        $monthMarks = [];
+        $cursor = $start->copy();
+        $weekIndex = 0;
+
+        while ($cursor->lessThanOrEqualTo($end)) {
+            $week = [];
+
+            // Eticheta lunii pe coloana în care începe (prima săptămână sau schimbarea lunii).
+            if ($weekIndex === 0 || $cursor->day <= 7) {
+                $monthMarks[$weekIndex] = ucfirst($this->localized($cursor)->isoFormat('MMM'));
+            }
+
+            foreach (range(0, 6) as $offset) {
+                $day = $cursor->copy()->addDays($offset);
+                $iso = $day->toDateString();
+                $count = $daily[$iso] ?? 0;
+
+                $week[] = [
+                    'iso' => $iso,
+                    'count' => $count,
+                    'level' => $this->level($count, $max),
+                    'today' => $day->isSameDay($today),
+                    'future' => $day->greaterThan($today),
+                    'title' => $this->cellTitle($day, $count, $counts[$iso] ?? [], $activeKeys),
+                ];
+            }
+
+            $weeks[] = $week;
+            $cursor->addWeek();
+            $weekIndex++;
+        }
+
+        $weekStart = $today->copy()->startOfWeek();
+        $todayIso = $today->toDateString();
+
+        $peakIso = null;
+        $peakCount = 0;
+
+        foreach ($daily as $iso => $count) {
+            if ($count > $peakCount) {
+                [$peakIso, $peakCount] = [$iso, $count];
+            }
+        }
+
+        $total = array_sum($daily);
+
         return [
-            'scales' => [
-                'y' => [
-                    'beginAtZero' => true,
-                    'ticks' => ['precision' => 0], // acțiuni = numere întregi
-                    'title' => [
-                        'display' => true,
-                        'text' => __('panel.widgets.activity_monitor.axis_y'),
-                    ],
+            'weeks' => $weeks,
+            'month_marks' => $monthMarks,
+            'weekday_labels' => $this->weekdayLabels(),
+            'kpi' => [
+                'today' => $daily[$todayIso] ?? 0,
+                'week' => array_sum(array_filter(
+                    $daily,
+                    fn (string $iso): bool => $iso >= $weekStart->toDateString() && $iso <= $todayIso,
+                    ARRAY_FILTER_USE_KEY,
+                )),
+                'total' => $total,
+                'peak' => $peakIso === null ? null : [
+                    'label' => $this->localized(Carbon::parse($peakIso))->isoFormat('D MMM'),
+                    'count' => $peakCount,
                 ],
             ],
+            'cats' => $cats,
+            'period' => in_array($this->period, self::PERIODS, true) ? $this->period : '12w',
+            'period_options' => $this->periodOptions(),
+            'empty' => $cats === [],
         ];
     }
 
-    protected function getType(): string
+    /** Copie cu locale-ul aplicației aplicat — `locale()` întoarce static|string și rupe chaining-ul. */
+    private function localized(Carbon $moment): Carbon
     {
-        return 'line';
+        $copy = $moment->copy();
+        $copy->locale(app()->getLocale());
+
+        return $copy;
     }
 
     /**
-     * Numărul de acțiuni ale userului pentru o categorie, într-un interval. Fiecare categorie e
-     * datată la momentul REAL al acțiunii (created_at pentru introduceri, reviewed_at pentru revizuiri).
-     */
-    private function categoryCount(string $key, Carbon $start, Carbon $end, ?int $teacherId, ?int $userId): int
-    {
-        return match ($key) {
-            'grades' => $teacherId === null ? 0 : Grade::query()
-                ->active()
-                ->where('teacher_id', $teacherId)
-                ->whereBetween('created_at', [$start, $end])
-                ->count(),
-            'absences' => $teacherId === null ? 0 : Absence::query()
-                ->where('teacher_id', $teacherId)
-                ->whereBetween('created_at', [$start, $end])
-                ->count(),
-            'corrections' => $userId === null ? 0 : GradeCorrection::query()
-                ->where('requested_by_user_id', $userId)
-                ->whereBetween('created_at', [$start, $end])
-                ->count()
-                + GradeCorrection::query()
-                    ->where('reviewed_by_user_id', $userId)
-                    ->whereBetween('reviewed_at', [$start, $end])
-                    ->count(),
-            'motivations' => $userId === null ? 0 : AbsenceMotivation::query()
-                ->where('reviewed_by_user_id', $userId)
-                ->whereBetween('reviewed_at', [$start, $end])
-                ->count(),
-            'messages' => $userId === null ? 0 : Message::query()
-                ->where('sender_user_id', $userId)
-                ->whereBetween('created_at', [$start, $end])
-                ->count(),
-            default => 0,
-        };
-    }
-
-    /**
-     * @param  list<int>  $data
-     * @return array<string, mixed>
-     */
-    private function dataset(string $key, array $data, int $borderWidth): array
-    {
-        return [
-            'label' => __("panel.widgets.activity_monitor.series.$key"),
-            'data' => $data,
-            'borderColor' => self::COLORS[$key],
-            'backgroundColor' => self::COLORS[$key],
-            'borderWidth' => $borderWidth,
-            'fill' => false, // 6 linii cu fill = supă vizuală
-            'tension' => 0.35,
-        ];
-    }
-
-    /**
-     * Seriile bifate, filtrate prin whitelist și readuse la ordinea canonică. Gol ≠ toate: dacă userul
-     * debifează tot, rămâne doar linia „Total" (plată la 0) — nu reactivăm implicit toate seriile.
+     * Fereastra activă în fusul școlii: [luni-ul primei săptămâni, duminica săptămânii curente].
      *
-     * @return list<string>
+     * @return array{0: Carbon, 1: Carbon}
      */
-    private function selectedSeries(): array
+    private function window(): array
     {
-        $selected = $this->filters['series'] ?? $this->defaultSeries();
+        $today = SchoolCalendar::localNow()->startOfDay();
+        $end = $today->copy()->endOfWeek();
 
-        if (! is_array($selected)) {
-            $selected = $this->defaultSeries();
+        if ($this->period === 'sem') {
+            $termStart = SchoolCalendar::currentTerm()?->starts_on;
+
+            if ($termStart !== null) {
+                return [Carbon::parse($termStart->toDateString(), SchoolCalendar::TIMEZONE)->startOfWeek(), $end];
+            }
         }
 
-        return array_values(array_intersect(self::CATEGORY_KEYS, $selected));
+        $weeks = $this->period === '4w' ? 4 : 12;
+
+        return [$today->copy()->subWeeks($weeks - 1)->startOfWeek(), $end];
     }
 
     /**
-     * Seriile bifate IMPLICIT, relevante rolului: personalul didactic (are fișă de profesor) vede
-     * întâi note + absențe (acțiunile lui de bază); staff-ul non-didactic (conducere / AO / secretariat)
-     * vede corecții + motivări + mesaje — altfel seriile teacher-only i-ar da un grafic plat la 0 (S-3/#35).
+     * Acțiunile pe ZI (fusul școlii) × categorie, în fereastră — o interogare ușoară per sursă
+     * (pluck de timestamps pe coloane indexate), bucketată în PHP ca să respecte fusul.
      *
-     * @return list<string>
+     * @return array<string, array<string, int>>
      */
-    private function defaultSeries(): array
+    private function dailyCounts(Carbon $start, Carbon $end): array
     {
         $user = auth('web')->user();
-        $hasTeacher = $user instanceof User && $user->teacher !== null;
 
-        return $hasTeacher ? self::DEFAULT_SERIES : ['corrections', 'motivations', 'messages'];
+        if (! $user instanceof User) {
+            return [];
+        }
+
+        $teacherId = $user->teacher?->getKey();
+        $userId = (int) $user->getKey();
+
+        // Granițele în UTC pentru interogare: fereastra e în fusul școlii.
+        $utcStart = $start->copy()->timezone('UTC');
+        $utcEnd = $end->copy()->endOfDay()->timezone('UTC');
+
+        /** @var array<string, array<string, int>> $out */
+        $out = [];
+
+        $tally = function (iterable $moments, string $key) use (&$out): void {
+            foreach ($moments as $moment) {
+                $local = SchoolCalendar::local(Carbon::parse((string) $moment));
+
+                if ($local === null) {
+                    continue;
+                }
+
+                $iso = $local->toDateString();
+                $out[$iso][$key] = ($out[$iso][$key] ?? 0) + 1;
+            }
+        };
+
+        if ($teacherId !== null) {
+            $tally(Grade::query()
+                ->active()
+                ->where('teacher_id', $teacherId)
+                ->whereBetween('created_at', [$utcStart, $utcEnd])
+                ->pluck('created_at'), 'grades');
+
+            $tally(Absence::query()
+                ->where('teacher_id', $teacherId)
+                ->whereBetween('created_at', [$utcStart, $utcEnd])
+                ->pluck('created_at'), 'absences');
+        }
+
+        $tally(GradeCorrection::query()
+            ->where('requested_by_user_id', $userId)
+            ->whereBetween('created_at', [$utcStart, $utcEnd])
+            ->pluck('created_at'), 'corrections');
+
+        $tally(GradeCorrection::query()
+            ->where('reviewed_by_user_id', $userId)
+            ->whereBetween('reviewed_at', [$utcStart, $utcEnd])
+            ->pluck('reviewed_at'), 'corrections');
+
+        $tally(AbsenceMotivation::query()
+            ->where('reviewed_by_user_id', $userId)
+            ->whereBetween('reviewed_at', [$utcStart, $utcEnd])
+            ->pluck('reviewed_at'), 'motivations');
+
+        $tally(Message::query()
+            ->where('sender_user_id', $userId)
+            ->whereBetween('created_at', [$utcStart, $utcEnd])
+            ->pluck('created_at'), 'messages');
+
+        return $out;
+    }
+
+    /**
+     * Intensitatea 0–4 a unei zile, RELATIVĂ la vârful ferestrei — scala GitHub: nu contează cifra
+     * absolută, ci „cât de plină e ziua față de zilele mele bune".
+     */
+    private function level(int $count, int $max): int
+    {
+        if ($count === 0 || $max === 0) {
+            return 0;
+        }
+
+        if ($max <= 4) {
+            return min(4, $count);
+        }
+
+        return min(4, 1 + (int) floor(3 * ($count - 1) / ($max - 1)));
+    }
+
+    /**
+     * Tooltip-ul celulei: data + totalul + defalcarea pe categoriile aprinse (doar cele nenule).
+     *
+     * @param  array<string, int>  $perCategory
+     * @param  list<string>  $activeKeys
+     */
+    private function cellTitle(Carbon $day, int $count, array $perCategory, array $activeKeys): string
+    {
+        $label = ucfirst($this->localized($day)->isoFormat('dd, D MMM'));
+
+        if ($count === 0) {
+            return $label.' — '.__('panel.widgets.activity_monitor.tooltip_none');
+        }
+
+        $parts = [];
+
+        foreach ($activeKeys as $key) {
+            $n = $perCategory[$key] ?? 0;
+
+            if ($n > 0) {
+                $parts[] = $n.' '.mb_strtolower((string) __("panel.widgets.activity_monitor.series.$key"));
+            }
+        }
+
+        return $label.' — '.trans_choice('panel.widgets.activity_monitor.tooltip_actions', $count, ['count' => $count])
+            .($parts === [] ? '' : ' ('.implode(', ', $parts).')');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function weekdayLabels(): array
+    {
+        $monday = SchoolCalendar::localNow()->startOfWeek();
+        $labels = [];
+
+        foreach (range(0, 6) as $offset) {
+            $labels[] = ucfirst($this->localized($monday->copy()->addDays($offset))->isoFormat('dd'));
+        }
+
+        return $labels;
     }
 
     /**
      * @return array<string, string>
      */
-    private function seriesOptions(): array
+    private function periodOptions(): array
     {
-        $out = [];
-        foreach (self::CATEGORY_KEYS as $key) {
-            $out[$key] = __("panel.widgets.activity_monitor.series.$key");
+        $options = [
+            '4w' => (string) trans_choice('panel.widgets.activity_monitor.period_weeks', 4, ['count' => 4]),
+            '12w' => (string) trans_choice('panel.widgets.activity_monitor.period_weeks', 12, ['count' => 12]),
+        ];
+
+        if (SchoolCalendar::currentTerm()?->starts_on !== null) {
+            $options['sem'] = (string) __('panel.widgets.activity_monitor.period_term');
         }
 
-        return $out;
-    }
-
-    /**
-     * Intervalele de agregare pentru perioada aleasă. La 1 lună → 4 săptămâni (altfel un singur punct
-     * lunar = linie inutilă); la 3/6 luni → luni calendaristice. Fiecare interval: [start, end, etichetă].
-     *
-     * @return list<array{0: Carbon, 1: Carbon, 2: string}>
-     */
-    private function buckets(): array
-    {
-        $now = Carbon::now();
-        $locale = app()->getLocale();
-        $out = [];
-
-        if ($this->periodMonths() === 1) {
-            for ($i = 3; $i >= 0; $i--) {
-                $start = $now->copy()->subWeeks($i)->startOfWeek();
-                $end = $start->copy()->endOfWeek();
-                $start->locale($locale);
-                $out[] = [$start, $end, $start->isoFormat('D MMM')];
-            }
-
-            return $out;
-        }
-
-        for ($i = $this->periodMonths() - 1; $i >= 0; $i--) {
-            $start = $now->copy()->subMonths($i)->startOfMonth();
-            $end = $start->copy()->endOfMonth();
-            $start->locale($locale);
-            $out[] = [$start, $end, $start->isoFormat('MMM YYYY')];
-        }
-
-        return $out;
-    }
-
-    /**
-     * Perioada validată în luni (whitelist {1,3,6}) — apărare la valori arbitrare din filtrul live.
-     */
-    private function periodMonths(): int
-    {
-        $period = (int) ($this->filters['period'] ?? 6);
-
-        return in_array($period, [1, 3, 6], true) ? $period : 6;
-    }
-
-    private static function monthsLabel(int $months): string
-    {
-        return trans_choice('panel.widgets.activity_monitor.months', $months, ['count' => $months]);
+        return $options;
     }
 }

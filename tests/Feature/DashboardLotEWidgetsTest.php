@@ -3,6 +3,7 @@
 use App\Enums\UserRole;
 use App\Filament\Widgets\ActivityMonitor;
 use App\Filament\Widgets\AudiencesPendingAssignment;
+use App\Models\Grade;
 use App\Models\Message;
 use App\Models\Teacher;
 use App\Models\User;
@@ -39,17 +40,22 @@ it('widgetul „audiențe fără responsabil" e ascuns prim-vicedirectorului, vi
     expect(AudiencesPendingAssignment::canView())->toBeTrue();
 });
 
-// ─── S-3: Monitor activitate — serii implicite relevante rolului ─────────────────────────
+// ─── S-3: Pulsul activității — relevanța pe rol vine din chips-urile cu activitate ────────
+// (Redesenat 07.08.2026: vechea logică „serii implicite pe rol" exista fiindcă filtrele stăteau
+// ascunse după pâlnie. Acum categoriile fără activitate nu primesc chip deloc, deci un director
+// nu vede „Note 0" ca zgomot, iar un profesor își vede exact ce a lucrat.)
 
-it('Monitor activitate: seriile implicite urmează rolul (profesor vs non-didactic)', function () {
-    $method = new ReflectionMethod(ActivityMonitor::class, 'defaultSeries');
-    $method->setAccessible(true);
-
+it('Pulsul activității: doar categoriile cu activitate primesc chip — relevanța pe rol, fără configurare', function () {
     $prof = userWithRoleE(UserRole::Profesor->value);
-    Teacher::factory()->create(['user_id' => $prof->id]);
-    actingAs($prof);
-    expect($method->invoke(new ActivityMonitor))->toBe(['grades', 'absences']);
+    $teacher = Teacher::factory()->create(['user_id' => $prof->id]);
+    Grade::factory()->create(['teacher_id' => $teacher->id]);
 
-    actingAs(userWithRoleE(UserRole::Director->value));
-    expect($method->invoke(new ActivityMonitor))->toBe(['corrections', 'motivations', 'messages']);
+    actingAs($prof);
+    expect(array_column((new ActivityMonitor)->pulse()['cats'], 'key'))->toBe(['grades']);
+
+    $director = userWithRoleE(UserRole::Director->value);
+    Message::factory()->create(['sender_user_id' => $director->id]);
+
+    actingAs($director);
+    expect(array_column((new ActivityMonitor)->pulse()['cats'], 'key'))->toBe(['messages']);
 });
