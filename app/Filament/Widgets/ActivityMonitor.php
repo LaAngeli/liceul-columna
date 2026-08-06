@@ -14,11 +14,11 @@ use Illuminate\Support\Carbon;
 
 /**
  * „PULSUL ACTIVITĂȚII" — monitorul PERSONAL al fiecărui membru al staff-ului, redesenat la cererea
- * beneficiarului (07.08.2026): linia pe 1/3/6 LUNI ascundea exact ce contează — ritmul ZILNIC al
- * muncii de școală — și pe date reale arăta „plat, apoi un vârf". Reprezentarea nouă e un calendar
- * de intensitate (săptămâni × zile, à la contribution graph): fiecare pătrățel = o zi, culoarea =
- * câte acțiuni a făcut UTILIZATORUL în ziua aceea. Weekendurile golașe și vacanțele se văd singure,
- * fără nicio axă de explicat.
+ * beneficiarului (07.08.2026, v2 după feedback-ul pe heatmap: „calendar restrâns, spațiu gol, nu se
+ * încadrează în design"). Reprezentarea: BARE STIVUITE pe TOATĂ lățimea cardului — o bară = o zi
+ * (fereastra de 4 săptămâni) sau o săptămână (12 săptămâni / semestrul), înălțimea = câte acțiuni,
+ * segmentele = categoriile, în culorile chips-urilor de dedesubt. Barele întind flex pe orice
+ * lățime, deci cardul nu mai are pustiu; secțiunea e un `x-filament::section` nativ, ca vecinii.
  *
  * Sursă ENTITY-BASED, ca înainte (deliberat FĂRĂ jurnalul de audit — acela amestecă omul cu
  * recalculele de sistem și nu acoperă GradeCorrection/Message):
@@ -33,7 +33,7 @@ use Illuminate\Support\Carbon;
  * convertit, nu cu DATE() în SQL (care ar tăia pe UTC și e și dialect-dependent).
  *
  * Operare fără nimic ascuns: perioada = pastile inline (4/12 săptămâni, semestrul curent), nu un
- * meniu după pâlnie; categoriile = chips cu NUMĂRĂTORI, click = aprinde/stinge; celula își spune
+ * meniu după pâlnie; categoriile = chips cu NUMĂRĂTORI, click = aprinde/stinge; bara își spune
  * defalcarea în tooltip. Doar categoriile cu activitate în fereastră primesc chip — un director
  * fără fișă de profesor nu mai vede „Note 0" ca zgomot.
  */
@@ -61,7 +61,7 @@ class ActivityMonitor extends Widget
 
     private const CATEGORY_KEYS = ['grades', 'absences', 'corrections', 'motivations', 'messages'];
 
-    /** Paletă ancorată în brand — folosită la chips și la defalcarea din tooltip. */
+    /** Paletă ancorată în brand — segmentele barelor și punctele chips-urilor. */
     private const COLORS = [
         'grades' => '#9bc31e',       // verde accent
         'absences' => '#e0a516',     // chihlimbar — absența e „galbenă" peste tot în catalog
@@ -95,10 +95,12 @@ class ActivityMonitor extends Widget
     /**
      * Întreaga stare a pulsului, gata de desen — API-ul public al widget-ului (testabil direct).
      *
+     * `bars` e gata calculat în PROCENTE pe server (morph-safe, fără JS de măsurat): înălțimea
+     * barei = totalul zilei/săptămânii raportat la vârful ferestrei; segmentele — pe categorie.
+     *
      * @return array{
-     *     weeks: list<list<array{iso: string, count: int, level: int, today: bool, future: bool, title: string}>>,
-     *     month_marks: array<int, string>,
-     *     weekday_labels: list<string>,
+     *     bars: list<array{iso: string, label: string, month_mark: string|null, title: string, total: int, today: bool, future: bool, weekend: bool, segments: list<array{key: string, color: string, height: float}>}>,
+     *     granularity: string,
      *     kpi: array{today: int, week: int, total: int, peak: array{label: string, count: int}|null},
      *     cats: list<array{key: string, label: string, count: int, color: string, active: bool}>,
      *     period: string,
@@ -138,51 +140,63 @@ class ActivityMonitor extends Widget
             }
         }
 
-        // Totalul pe zi = suma categoriilor APRINSE — ce e stins dispare și din culori, și din KPI.
+        // O bară pe ZI la fereastra scurtă (ritmul se citește literal), pe SĂPTĂMÂNĂ la cele
+        // lungi — 12+ bare late umplu lățimea, 84 de bare zilnice ar redeveni ilizibile.
+        $granularity = $this->period === '4w' ? 'day' : 'week';
+
+        $buckets = $this->buckets($granularity, $start, $end, $counts, $activeKeys);
+
+        $max = 0;
+
+        foreach ($buckets as $bucket) {
+            $max = max($max, $bucket['total']);
+        }
+
+        $bars = [];
+        $previousMonth = null;
+
+        foreach ($buckets as $bucket) {
+            $anchor = Carbon::parse($bucket['iso'], SchoolCalendar::TIMEZONE);
+            $month = ucfirst($this->localized($anchor)->isoFormat('MMM'));
+
+            $segments = [];
+
+            foreach ($activeKeys as $key) {
+                $n = $bucket['per_category'][$key] ?? 0;
+
+                if ($n > 0 && $max > 0) {
+                    $segments[] = [
+                        'key' => $key,
+                        'color' => self::COLORS[$key],
+                        'height' => round(100 * $n / $max, 2),
+                    ];
+                }
+            }
+
+            $bars[] = [
+                'iso' => $bucket['iso'],
+                'label' => $bucket['label'],
+                'month_mark' => $month !== $previousMonth ? $month : null,
+                'title' => $bucket['title'],
+                'total' => $bucket['total'],
+                'today' => $bucket['today'],
+                'future' => $bucket['future'],
+                'weekend' => $bucket['weekend'],
+                'segments' => $segments,
+            ];
+
+            $previousMonth = $month;
+        }
+
+        $weekStart = $today->copy()->startOfWeek();
+        $todayIso = $today->toDateString();
+
         /** @var array<string, int> $daily */
         $daily = [];
 
         foreach ($counts as $iso => $perCategory) {
             $daily[$iso] = array_sum(array_intersect_key($perCategory, array_flip($activeKeys)));
         }
-
-        $max = $daily === [] ? 0 : max($daily);
-
-        $weeks = [];
-        $monthMarks = [];
-        $cursor = $start->copy();
-        $weekIndex = 0;
-
-        while ($cursor->lessThanOrEqualTo($end)) {
-            $week = [];
-
-            // Eticheta lunii pe coloana în care începe (prima săptămână sau schimbarea lunii).
-            if ($weekIndex === 0 || $cursor->day <= 7) {
-                $monthMarks[$weekIndex] = ucfirst($this->localized($cursor)->isoFormat('MMM'));
-            }
-
-            foreach (range(0, 6) as $offset) {
-                $day = $cursor->copy()->addDays($offset);
-                $iso = $day->toDateString();
-                $count = $daily[$iso] ?? 0;
-
-                $week[] = [
-                    'iso' => $iso,
-                    'count' => $count,
-                    'level' => $this->level($count, $max),
-                    'today' => $day->isSameDay($today),
-                    'future' => $day->greaterThan($today),
-                    'title' => $this->cellTitle($day, $count, $counts[$iso] ?? [], $activeKeys),
-                ];
-            }
-
-            $weeks[] = $week;
-            $cursor->addWeek();
-            $weekIndex++;
-        }
-
-        $weekStart = $today->copy()->startOfWeek();
-        $todayIso = $today->toDateString();
 
         $peakIso = null;
         $peakCount = 0;
@@ -193,12 +207,9 @@ class ActivityMonitor extends Widget
             }
         }
 
-        $total = array_sum($daily);
-
         return [
-            'weeks' => $weeks,
-            'month_marks' => $monthMarks,
-            'weekday_labels' => $this->weekdayLabels(),
+            'bars' => $bars,
+            'granularity' => $granularity,
             'kpi' => [
                 'today' => $daily[$todayIso] ?? 0,
                 'week' => array_sum(array_filter(
@@ -206,7 +217,7 @@ class ActivityMonitor extends Widget
                     fn (string $iso): bool => $iso >= $weekStart->toDateString() && $iso <= $todayIso,
                     ARRAY_FILTER_USE_KEY,
                 )),
-                'total' => $total,
+                'total' => array_sum($daily),
                 'peak' => $peakIso === null ? null : [
                     'label' => $this->localized(Carbon::parse($peakIso))->isoFormat('D MMM'),
                     'count' => $peakCount,
@@ -219,13 +230,80 @@ class ActivityMonitor extends Widget
         ];
     }
 
-    /** Copie cu locale-ul aplicației aplicat — `locale()` întoarce static|string și rupe chaining-ul. */
-    private function localized(Carbon $moment): Carbon
+    /**
+     * Găleata barelor: pe zi sau pe săptămână, cu totalul categoriilor APRINSE, eticheta scurtă și
+     * tooltip-ul complet. Viitorul (restul săptămânii curente) rămâne în axă — bara e goală și
+     * marcată, ca ritmul să nu pară că se termină brusc azi.
+     *
+     * @param  array<string, array<string, int>>  $counts
+     * @param  list<string>  $activeKeys
+     * @return list<array{iso: string, label: string, title: string, total: int, today: bool, future: bool, weekend: bool, per_category: array<string, int>}>
+     */
+    private function buckets(string $granularity, Carbon $start, Carbon $end, array $counts, array $activeKeys): array
     {
-        $copy = $moment->copy();
-        $copy->locale(app()->getLocale());
+        $today = SchoolCalendar::localNow()->startOfDay();
+        $out = [];
 
-        return $copy;
+        if ($granularity === 'day') {
+            $cursor = $start->copy();
+
+            while ($cursor->lessThanOrEqualTo($end)) {
+                $iso = $cursor->toDateString();
+                $perCategory = array_intersect_key($counts[$iso] ?? [], array_flip($activeKeys));
+                $total = array_sum($perCategory);
+
+                $out[] = [
+                    'iso' => $iso,
+                    'label' => (string) $cursor->day,
+                    'title' => $this->dayTitle($cursor, $total, $perCategory),
+                    'total' => $total,
+                    'today' => $cursor->isSameDay($today),
+                    'future' => $cursor->greaterThan($today),
+                    'weekend' => $cursor->isWeekend(),
+                    'per_category' => $perCategory,
+                ];
+
+                $cursor->addDay();
+            }
+
+            return $out;
+        }
+
+        $cursor = $start->copy()->startOfWeek();
+
+        while ($cursor->lessThanOrEqualTo($end)) {
+            $weekEnd = $cursor->copy()->endOfWeek()->startOfDay();
+
+            /** @var array<string, int> $perCategory */
+            $perCategory = [];
+
+            foreach (range(0, 6) as $offset) {
+                $dayIso = $cursor->copy()->addDays($offset)->toDateString();
+
+                foreach ($counts[$dayIso] ?? [] as $key => $n) {
+                    if (in_array($key, $activeKeys, true)) {
+                        $perCategory[$key] = ($perCategory[$key] ?? 0) + $n;
+                    }
+                }
+            }
+
+            $total = array_sum($perCategory);
+
+            $out[] = [
+                'iso' => $cursor->toDateString(),
+                'label' => $this->localized($cursor)->isoFormat('D MMM'),
+                'title' => $this->weekTitle($cursor, $weekEnd, $total, $perCategory),
+                'total' => $total,
+                'today' => $today->betweenIncluded($cursor, $weekEnd->copy()->endOfDay()),
+                'future' => $cursor->greaterThan($today),
+                'weekend' => false,
+                'per_category' => $perCategory,
+            ];
+
+            $cursor->addWeek();
+        }
+
+        return $out;
     }
 
     /**
@@ -236,7 +314,7 @@ class ActivityMonitor extends Widget
     private function window(): array
     {
         $today = SchoolCalendar::localNow()->startOfDay();
-        $end = $today->copy()->endOfWeek();
+        $end = $today->copy()->endOfWeek()->startOfDay();
 
         if ($this->period === 'sem') {
             $termStart = SchoolCalendar::currentTerm()?->starts_on;
@@ -324,40 +402,49 @@ class ActivityMonitor extends Widget
         return $out;
     }
 
-    /**
-     * Intensitatea 0–4 a unei zile, RELATIVĂ la vârful ferestrei — scala GitHub: nu contează cifra
-     * absolută, ci „cât de plină e ziua față de zilele mele bune".
-     */
-    private function level(int $count, int $max): int
+    /** Copie cu locale-ul aplicației aplicat — `locale()` întoarce static|string și rupe chaining-ul. */
+    private function localized(Carbon $moment): Carbon
     {
-        if ($count === 0 || $max === 0) {
-            return 0;
-        }
+        $copy = $moment->copy();
+        $copy->locale(app()->getLocale());
 
-        if ($max <= 4) {
-            return min(4, $count);
-        }
-
-        return min(4, 1 + (int) floor(3 * ($count - 1) / ($max - 1)));
+        return $copy;
     }
 
     /**
-     * Tooltip-ul celulei: data + totalul + defalcarea pe categoriile aprinse (doar cele nenule).
+     * Tooltip-ul unei zile: data + totalul + defalcarea pe categoriile aprinse (doar cele nenule).
      *
      * @param  array<string, int>  $perCategory
-     * @param  list<string>  $activeKeys
      */
-    private function cellTitle(Carbon $day, int $count, array $perCategory, array $activeKeys): string
+    private function dayTitle(Carbon $day, int $total, array $perCategory): string
     {
-        $label = ucfirst($this->localized($day)->isoFormat('dd, D MMM'));
+        return ucfirst($this->localized($day)->isoFormat('dd, D MMM'))
+            .' — '.$this->tally($total, $perCategory);
+    }
 
-        if ($count === 0) {
-            return $label.' — '.__('panel.widgets.activity_monitor.tooltip_none');
+    /**
+     * @param  array<string, int>  $perCategory
+     */
+    private function weekTitle(Carbon $start, Carbon $end, int $total, array $perCategory): string
+    {
+        return __('panel.widgets.activity_monitor.week_prefix', [
+            'from' => $this->localized($start)->isoFormat('D MMM'),
+            'to' => $this->localized($end)->isoFormat('D MMM'),
+        ]).' — '.$this->tally($total, $perCategory);
+    }
+
+    /**
+     * @param  array<string, int>  $perCategory
+     */
+    private function tally(int $total, array $perCategory): string
+    {
+        if ($total === 0) {
+            return (string) __('panel.widgets.activity_monitor.tooltip_none');
         }
 
         $parts = [];
 
-        foreach ($activeKeys as $key) {
+        foreach (self::CATEGORY_KEYS as $key) {
             $n = $perCategory[$key] ?? 0;
 
             if ($n > 0) {
@@ -365,23 +452,8 @@ class ActivityMonitor extends Widget
             }
         }
 
-        return $label.' — '.trans_choice('panel.widgets.activity_monitor.tooltip_actions', $count, ['count' => $count])
+        return trans_choice('panel.widgets.activity_monitor.tooltip_actions', $total, ['count' => $total])
             .($parts === [] ? '' : ' ('.implode(', ', $parts).')');
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function weekdayLabels(): array
-    {
-        $monday = SchoolCalendar::localNow()->startOfWeek();
-        $labels = [];
-
-        foreach (range(0, 6) as $offset) {
-            $labels[] = ucfirst($this->localized($monday->copy()->addDays($offset))->isoFormat('dd'));
-        }
-
-        return $labels;
     }
 
     /**

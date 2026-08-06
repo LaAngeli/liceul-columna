@@ -1,18 +1,20 @@
-{{-- PULSUL ACTIVITĂȚII — calendarul de intensitate al muncii personale (07.08.2026, înlocuiește
-     linia pe luni a vechiului „Monitor activitate"). Toată judecata stă pe server
-     (ActivityMonitor::pulse()); blade-ul doar desenează. Stilurile trăiesc în theme.css
-     (fi-pulse__*) — un <style> frate ar fi eliminat la morphing (regula fi-welcome). --}}
+{{-- PULSUL ACTIVITĂȚII (v2, 07.08.2026) — bare stivuite pe TOATĂ lățimea cardului: o bară = o zi
+     (4 săptămâni) sau o săptămână (12 săptămâni / semestrul); segmentele = categoriile, în
+     culorile chips-urilor. Secțiunea e `x-filament::section` NATIV — aceeași carcasă ca vecinii
+     de pe dashboard. Toată judecata stă pe server (ActivityMonitor::pulse(), înălțimi în procente
+     gata calculate); blade-ul doar desenează. Stilurile trăiesc în theme.css (fi-pulse__*). --}}
 <x-filament-widgets::widget>
     @php($pulse = $this->pulse())
 
-    <section class="fi-pulse" wire:poll.300s>
-        {{-- Antet: titlu + pastilele de perioadă (inline, nu după pâlnie). --}}
-        <header class="fi-pulse__head">
-            <div>
-                <h2 class="fi-pulse__title">{{ __('panel.widgets.activity_monitor.heading') }}</h2>
-                <p class="fi-pulse__subtitle">{{ __('panel.widgets.activity_monitor.subheading') }}</p>
-            </div>
+    <x-filament::section>
+        <x-slot name="heading">{{ __('panel.widgets.activity_monitor.heading') }}</x-slot>
+        <x-slot name="description">
+            {{ __($pulse['granularity'] === 'day'
+                ? 'panel.widgets.activity_monitor.subheading_day'
+                : 'panel.widgets.activity_monitor.subheading_week') }}
+        </x-slot>
 
+        <x-slot name="afterHeader">
             <div class="fi-pulse__periods" role="group" aria-label="{{ __('panel.widgets.activity_monitor.filter_period') }}">
                 @foreach ($pulse['period_options'] as $value => $label)
                     <button
@@ -22,73 +24,65 @@
                     >{{ $label }}</button>
                 @endforeach
             </div>
-        </header>
+        </x-slot>
 
         @if ($pulse['empty'])
             <p class="fi-pulse__empty">{{ __('panel.widgets.activity_monitor.empty') }}</p>
         @else
-            {{-- KPI: cifrele pe care le cauți de fapt când deschizi „monitorul". --}}
-            <div class="fi-pulse__kpis">
-                <div class="fi-pulse__kpi">
-                    <span class="fi-pulse__kpi-value">{{ $pulse['kpi']['today'] }}</span>
-                    <span class="fi-pulse__kpi-label">{{ __('panel.widgets.activity_monitor.kpi_today') }}</span>
-                </div>
-                <div class="fi-pulse__kpi">
-                    <span class="fi-pulse__kpi-value">{{ $pulse['kpi']['week'] }}</span>
-                    <span class="fi-pulse__kpi-label">{{ __('panel.widgets.activity_monitor.kpi_week') }}</span>
-                </div>
-                <div class="fi-pulse__kpi">
-                    <span class="fi-pulse__kpi-value">{{ $pulse['kpi']['total'] }}</span>
-                    <span class="fi-pulse__kpi-label">{{ __('panel.widgets.activity_monitor.kpi_total') }}</span>
-                </div>
-                @if ($pulse['kpi']['peak'] !== null)
+            <div class="fi-pulse" wire:poll.300s>
+                {{-- KPI: cifrele pe care le cauți de fapt când deschizi „monitorul". --}}
+                <div class="fi-pulse__kpis">
                     <div class="fi-pulse__kpi">
-                        <span class="fi-pulse__kpi-value">{{ $pulse['kpi']['peak']['count'] }}</span>
-                        <span class="fi-pulse__kpi-label">{{ __('panel.widgets.activity_monitor.kpi_peak', ['date' => $pulse['kpi']['peak']['label']]) }}</span>
+                        <span class="fi-pulse__kpi-value">{{ $pulse['kpi']['today'] }}</span>
+                        <span class="fi-pulse__kpi-label">{{ __('panel.widgets.activity_monitor.kpi_today') }}</span>
                     </div>
-                @endif
-            </div>
-
-            {{-- Calendarul de intensitate: coloană = săptămână, rând = zi; se derulează orizontal și
-                 pornește ancorat la PREZENT (capătul din dreapta) — trecutul se descoperă derulând. --}}
-            <div class="fi-pulse__map" x-data x-init="$el.scrollLeft = $el.scrollWidth">
-                <div class="fi-pulse__grid-wrap">
-                    <div class="fi-pulse__weekdays" aria-hidden="true">
-                        @foreach ($pulse['weekday_labels'] as $index => $label)
-                            <span>{{ in_array($index, [0, 2, 4], true) ? $label : '' }}</span>
-                        @endforeach
+                    <div class="fi-pulse__kpi">
+                        <span class="fi-pulse__kpi-value">{{ $pulse['kpi']['week'] }}</span>
+                        <span class="fi-pulse__kpi-label">{{ __('panel.widgets.activity_monitor.kpi_week') }}</span>
                     </div>
-
-                    <div>
-                        <div class="fi-pulse__months" aria-hidden="true">
-                            @foreach ($pulse['weeks'] as $weekIndex => $week)
-                                <span>{{ $pulse['month_marks'][$weekIndex] ?? '' }}</span>
-                            @endforeach
+                    <div class="fi-pulse__kpi">
+                        <span class="fi-pulse__kpi-value">{{ $pulse['kpi']['total'] }}</span>
+                        <span class="fi-pulse__kpi-label">{{ __('panel.widgets.activity_monitor.kpi_total') }}</span>
+                    </div>
+                    @if ($pulse['kpi']['peak'] !== null)
+                        <div class="fi-pulse__kpi">
+                            <span class="fi-pulse__kpi-value">{{ $pulse['kpi']['peak']['count'] }}</span>
+                            <span class="fi-pulse__kpi-label">{{ __('panel.widgets.activity_monitor.kpi_peak', ['date' => $pulse['kpi']['peak']['label']]) }}</span>
                         </div>
+                    @endif
+                </div>
 
-                        <div class="fi-pulse__grid" role="img" aria-label="{{ __('panel.widgets.activity_monitor.heading') }}">
-                            @foreach ($pulse['weeks'] as $week)
-                                <div class="fi-pulse__week">
-                                    @foreach ($week as $day)
+                {{-- Barele: flex-1 → umplu ORICE lățime, fără spațiu mort; tooltip nativ per bară.
+                     Viitorul (restul săptămânii curente) rămâne în axă, punctat — ritmul nu pare
+                     că se rupe azi. Pe telefon, banda derulează orizontal. --}}
+                <div class="fi-pulse__chart-wrap">
+                    <div class="fi-pulse__chart" role="img" aria-label="{{ __('panel.widgets.activity_monitor.heading') }}">
+                        @foreach ($pulse['bars'] as $bar)
+                            <div
+                                @class([
+                                    'fi-pulse__col',
+                                    'fi-pulse__col--today' => $bar['today'],
+                                    'fi-pulse__col--future' => $bar['future'],
+                                    'fi-pulse__col--weekend' => $bar['weekend'],
+                                ])
+                                title="{{ $bar['title'] }}"
+                            >
+                                <div class="fi-pulse__bar">
+                                    @foreach ($bar['segments'] as $segment)
                                         <span
-                                            @class([
-                                                'fi-pulse__day',
-                                                'fi-pulse__day--l'.$day['level'] => ! $day['future'],
-                                                'fi-pulse__day--future' => $day['future'],
-                                                'fi-pulse__day--today' => $day['today'],
-                                            ])
-                                            title="{{ $day['title'] }}"
+                                            class="fi-pulse__seg"
+                                            style="height: {{ $segment['height'] }}%; background: {{ $segment['color'] }}"
                                         ></span>
                                     @endforeach
                                 </div>
-                            @endforeach
-                        </div>
+                                <span class="fi-pulse__tick">{{ $bar['label'] }}</span>
+                                <span class="fi-pulse__month">{{ $bar['month_mark'] ?? '' }}</span>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
-            </div>
 
-            {{-- Chips de categorii (cu numărători) = legendă ȘI filtru: click stinge/aprinde. --}}
-            <footer class="fi-pulse__foot">
+                {{-- Chips de categorii (cu numărători) = legendă ȘI filtru: click stinge/aprinde. --}}
                 <div class="fi-pulse__cats">
                     @foreach ($pulse['cats'] as $cat)
                         <button
@@ -103,15 +97,7 @@
                         </button>
                     @endforeach
                 </div>
-
-                <div class="fi-pulse__legend" aria-hidden="true">
-                    <span>{{ __('panel.widgets.activity_monitor.legend_less') }}</span>
-                    @foreach (range(0, 4) as $level)
-                        <span class="fi-pulse__day fi-pulse__day--l{{ $level }}"></span>
-                    @endforeach
-                    <span>{{ __('panel.widgets.activity_monitor.legend_more') }}</span>
-                </div>
-            </footer>
+            </div>
         @endif
-    </section>
+    </x-filament::section>
 </x-filament-widgets::widget>

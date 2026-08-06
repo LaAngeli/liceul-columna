@@ -202,34 +202,43 @@ it('ziua se judecă în fusul ȘCOLII: o acțiune la 22:30 UTC aparține zilei u
     ]);
 
     $this->actingAs($teacherUser);
-    $pulse = activityPulse();
+    $pulse = activityPulse('4w');
 
     // Ancora e 22.04 → acțiunea de la 01:30 local e „azi", nu „ieri".
     expect($pulse['kpi']['today'])->toBe(1);
 
-    $days = collect($pulse['weeks'])->flatten(1)->keyBy('iso');
+    $bars = collect($pulse['bars'])->keyBy('iso');
 
-    expect($days['2026-04-22']['count'])->toBe(1)
-        ->and($days['2026-04-21']['count'])->toBe(0);
+    expect($bars['2026-04-22']['total'])->toBe(1)
+        ->and($bars['2026-04-21']['total'])->toBe(0);
 });
 
-it('ferestrele: 4w/12w pe săptămâni întregi, valoare străină → 12w, azi marcat, viitorul gol', function () {
+it('granularitatea urmează fereastra: 4w = bare zilnice, 12w = săptămânale; străin → 12w', function () {
     $this->actingAs(activityTeacherUser());
 
-    expect(count(activityPulse('4w')['weeks']))->toBe(4)
-        ->and(count(activityPulse('12w')['weeks']))->toBe(12)
-        ->and(count(activityPulse('bogus')['weeks']))->toBe(12);
+    $scurt = activityPulse('4w');
+    $lung = activityPulse('12w');
 
-    $days = collect(activityPulse('4w')['weeks'])->flatten(1);
+    // 4 săptămâni × 7 = 28 de bare zilnice; 12 săptămâni = 12 bare săptămânale.
+    expect($scurt['granularity'])->toBe('day')
+        ->and(count($scurt['bars']))->toBe(28)
+        ->and($lung['granularity'])->toBe('week')
+        ->and(count($lung['bars']))->toBe(12)
+        ->and(count(activityPulse('bogus')['bars']))->toBe(12);
 
-    // Exact o celulă „azi"; joia-duminica săptămânii curente sunt viitor (ancora e miercuri).
-    expect($days->where('today', true))->toHaveCount(1)
-        ->and($days->where('future', true))->toHaveCount(4)
-        // Fereastra începe luni și se termină duminică — săptămâni pline, mereu 7 rânduri.
-        ->and($days)->toHaveCount(28);
+    $bars = collect($scurt['bars']);
+
+    // Exact o bară „azi"; joia-duminica săptămânii curente sunt viitor (ancora e miercuri).
+    expect($bars->where('today', true))->toHaveCount(1)
+        ->and($bars->where('future', true))->toHaveCount(4)
+        // Weekendurile sunt marcate (8 zile de S+D în 4 săptămâni) — eticheta lor e estompată.
+        ->and($bars->where('weekend', true))->toHaveCount(8);
+
+    // Și pe săptămâni, exact o bară poartă „azi" (cea a săptămânii curente).
+    expect(collect($lung['bars'])->where('today', true))->toHaveCount(1);
 });
 
-it('nivelul de intensitate e relativ la vârful ferestrei, iar vârful intră în KPI', function () {
+it('înălțimile segmentelor sunt relative la vârful ferestrei, iar vârful intră în KPI', function () {
     $teacherUser = activityTeacherUser();
     $teacherId = $teacherUser->teacher->id;
 
@@ -240,13 +249,16 @@ it('nivelul de intensitate e relativ la vârful ferestrei, iar vârful intră î
 
     $this->actingAs($teacherUser);
     $pulse = activityPulse('4w');
-    $days = collect($pulse['weeks'])->flatten(1)->keyBy('iso');
+    $bars = collect($pulse['bars'])->keyBy('iso');
 
-    expect($days['2026-04-20']['level'])->toBe(4)   // vârful = plin
-        ->and($days['2026-04-22']['level'])->toBe(1) // ziua măruntă = abia aprinsă
-        ->and($days['2026-04-19']['level'])->toBe(0) // zi fără nimic
+    expect($bars['2026-04-20']['segments'][0]['height'])->toBe(100.0) // vârful = bară plină
+        ->and($bars['2026-04-21']['segments'][0]['height'])->toBe(25.0)
+        ->and($bars['2026-04-19']['segments'])->toBe([])              // zi fără nimic = ciot
         ->and($pulse['kpi']['peak'])->toMatchArray(['count' => 8])
         ->and($pulse['kpi']['week'])->toBe(11);
+
+    // Tooltip-ul barei poartă defalcarea — acolo se citesc acțiunile exacte.
+    expect($bars['2026-04-20']['title'])->toContain('8')->toContain('note');
 });
 
 it('widget-ul se randează cu titlul nou și pastilele de perioadă; toggle-urile au whitelist', function () {

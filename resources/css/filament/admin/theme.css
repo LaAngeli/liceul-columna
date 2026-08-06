@@ -1405,48 +1405,17 @@ html.fi {
 }
 
 /* ==========================================================================
-   PULSUL ACTIVITĂȚII (ActivityMonitor, 07.08.2026) — calendar de intensitate
-   săptămâni × zile, cu KPI-uri, chips-filtru și legendă „Puțin → Mult".
-   Verdele de brand dă rampa; celula de azi poartă inelul navy.
+   PULSUL ACTIVITĂȚII (ActivityMonitor, v2 — 07.08.2026): bare stivuite pe
+   toată lățimea secțiunii; carcasa e x-filament::section nativ. Segmentele
+   poartă culorile chips-urilor; azi = etichetă navy, viitorul = ciot punctat.
    ========================================================================== */
 .fi-pulse {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    padding: 1.1rem 1.35rem 1.2rem;
-    border-radius: 12px;
-    background: white;
-    box-shadow: 0 1px 3px rgb(15 77 119 / 0.12);
-    border: 1px solid rgb(3 7 18 / 0.05);
-}
-.dark .fi-pulse {
-    background: rgb(17 24 39);
-    border-color: rgb(255 255 255 / 0.08);
-    box-shadow: none;
+    gap: 1.1rem;
 }
 
-.fi-pulse__head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.75rem;
-}
-.fi-pulse__title {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 700;
-    color: rgb(3 7 18);
-}
-.dark .fi-pulse__title { color: white; }
-.fi-pulse__subtitle {
-    margin: 0.15rem 0 0;
-    font-size: 0.8rem;
-    color: rgb(107 114 128);
-}
-.dark .fi-pulse__subtitle { color: rgb(156 163 175); }
-
-/* Pastilele de perioadă — segment control inline, nimic după pâlnie. */
+/* Pastilele de perioadă — segment control inline în antetul secțiunii. */
 .fi-pulse__periods {
     display: inline-flex;
     gap: 2px;
@@ -1460,6 +1429,7 @@ html.fi {
     border-radius: 7px;
     font-size: 0.75rem;
     font-weight: 600;
+    white-space: nowrap;
     color: rgb(75 85 99);
     transition: background 0.1s ease, color 0.1s ease;
 }
@@ -1478,7 +1448,6 @@ html.fi {
 
 .fi-pulse__empty {
     margin: 0;
-    padding: 1.25rem 0 0.5rem;
     font-size: 0.85rem;
     color: rgb(107 114 128);
 }
@@ -1488,7 +1457,7 @@ html.fi {
 .fi-pulse__kpis {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem 2.25rem;
+    gap: 0.5rem 2.5rem;
 }
 .fi-pulse__kpi { display: flex; flex-direction: column; line-height: 1.2; }
 .fi-pulse__kpi-value {
@@ -1506,86 +1475,80 @@ html.fi {
 }
 .dark .fi-pulse__kpi-label { color: rgb(156 163 175); }
 
-/* Harta: derulare orizontală proprie, ancorată la prezent din x-init. */
-.fi-pulse__map {
+/* Banda barelor: umple lățimea (fiecare coloană flex-1); pe îngust derulează. */
+.fi-pulse__chart-wrap {
     overflow-x: auto;
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
-.fi-pulse__map::-webkit-scrollbar { display: none; }
-.fi-pulse__grid-wrap {
+.fi-pulse__chart-wrap::-webkit-scrollbar { display: none; }
+.fi-pulse__chart {
     display: flex;
-    gap: 0.45rem;
-    width: max-content;
-    padding-bottom: 2px;
+    align-items: flex-end;
+    gap: 4px;
+    min-width: 34rem;
 }
 
-.fi-pulse__weekdays {
-    display: grid;
-    grid-template-rows: repeat(7, 13px);
-    gap: 3px;
-    /* Aliniat cu grila: rândul lunilor de deasupra are 16px + 4px spațiu. */
-    margin-top: 20px;
-    font-size: 0.62rem;
-    line-height: 13px;
-    color: rgb(156 163 175);
+.fi-pulse__col {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
 }
-.dark .fi-pulse__weekdays { color: rgb(107 114 128); }
 
-.fi-pulse__months {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 13px;
-    gap: 3px;
-    height: 16px;
-    margin-bottom: 4px;
-    font-size: 0.62rem;
-    color: rgb(156 163 175);
+/* Bara propriu-zisă: segmentele se stivuiesc de JOS în sus (column-reverse);
+   fără fundal-șină — o săptămână goală ar fi arătat ca o coloană plină de gri.
+   Linia de bază vine din border-bottom (punctată în viitor), deci axa rămâne
+   continuă și când nu există nimic de desenat. */
+.fi-pulse__bar {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-start;
+    height: 9rem;
+    border-bottom: 2px solid rgb(3 7 18 / 0.08);
+    border-radius: 0;
+    transition: background 0.1s ease;
+}
+.dark .fi-pulse__bar { border-bottom-color: rgb(255 255 255 / 0.10); }
+.fi-pulse__col:hover .fi-pulse__bar { background: rgb(3 7 18 / 0.04); }
+.dark .fi-pulse__col:hover .fi-pulse__bar { background: rgb(255 255 255 / 0.05); }
+.fi-pulse__col--future .fi-pulse__bar { border-bottom-style: dashed; }
+.fi-pulse__col--today .fi-pulse__bar { border-bottom-color: var(--brand-navy); }
+.dark .fi-pulse__col--today .fi-pulse__bar { border-bottom-color: #7fb2d9; }
+
+.fi-pulse__seg { width: 100%; min-height: 3px; }
+.fi-pulse__seg:last-child { border-radius: 4px 4px 0 0; }
+
+.fi-pulse__tick {
+    margin-top: 0.35rem;
+    font-size: 0.66rem;
+    line-height: 1.1;
+    text-align: center;
     white-space: nowrap;
+    color: rgb(156 163 175);
+    font-variant-numeric: tabular-nums;
 }
-.dark .fi-pulse__months { color: rgb(107 114 128); }
-.fi-pulse__months span { overflow: visible; }
+.dark .fi-pulse__tick { color: rgb(107 114 128); }
+.fi-pulse__month {
+    min-height: 0.9rem;
+    font-size: 0.62rem;
+    line-height: 1.1;
+    text-align: center;
+    white-space: nowrap;
+    font-weight: 600;
+    color: rgb(107 114 128);
+}
+.dark .fi-pulse__month { color: rgb(156 163 175); }
 
-.fi-pulse__grid {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 13px;
-    gap: 3px;
+.fi-pulse__col--weekend .fi-pulse__tick { color: rgb(203 213 225); }
+.dark .fi-pulse__col--weekend .fi-pulse__tick { color: rgb(75 85 99); }
+.fi-pulse__col--today .fi-pulse__tick {
+    color: var(--brand-navy);
+    font-weight: 700;
 }
-.fi-pulse__week {
-    display: grid;
-    grid-template-rows: repeat(7, 13px);
-    gap: 3px;
-}
-
-/* Celula-zi: rampa verdelui de brand; nivelul 0 = suprafață neutră. */
-.fi-pulse__day {
-    width: 13px;
-    height: 13px;
-    border-radius: 3px;
-    background: rgb(3 7 18 / 0.06);
-}
-.dark .fi-pulse__day { background: rgb(255 255 255 / 0.07); }
-.fi-pulse__day--l1 { background: rgb(155 195 30 / 0.30); }
-.fi-pulse__day--l2 { background: rgb(155 195 30 / 0.55); }
-.fi-pulse__day--l3 { background: rgb(155 195 30 / 0.8); }
-.fi-pulse__day--l4 { background: #7ea216; }
-.dark .fi-pulse__day--l1 { background: rgb(155 195 30 / 0.28); }
-.dark .fi-pulse__day--l2 { background: rgb(155 195 30 / 0.5); }
-.dark .fi-pulse__day--l3 { background: rgb(155 195 30 / 0.75); }
-.dark .fi-pulse__day--l4 { background: #9bc31e; }
-.fi-pulse__day--future { background: transparent; outline: 1px dashed rgb(3 7 18 / 0.08); outline-offset: -1px; }
-.dark .fi-pulse__day--future { outline-color: rgb(255 255 255 / 0.10); }
-.fi-pulse__day--today { outline: 2px solid var(--brand-navy); outline-offset: 0; }
-.dark .fi-pulse__day--today { outline-color: #7fb2d9; }
-
-.fi-pulse__foot {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.6rem 1rem;
-}
+.dark .fi-pulse__col--today .fi-pulse__tick { color: #7fb2d9; }
+.fi-pulse__col--future .fi-pulse__tick { opacity: 0.55; }
 
 /* Chips de categorii = legendă + filtru (aria-pressed spune starea). */
 .fi-pulse__cats { display: flex; flex-wrap: wrap; gap: 0.4rem; }
@@ -1623,13 +1586,3 @@ html.fi {
     color: rgb(3 7 18);
 }
 .dark .fi-pulse__cat-count { color: white; }
-
-.fi-pulse__legend {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    font-size: 0.68rem;
-    color: rgb(156 163 175);
-}
-.fi-pulse__legend span:first-child { margin-inline-end: 0.25rem; }
-.fi-pulse__legend span:last-child { margin-inline-start: 0.25rem; }
