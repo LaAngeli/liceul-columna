@@ -11,12 +11,11 @@
         $activeSubject = $this->activeSubject();
         $activeTerm = $this->activeTerm();
         $rows = $this->rows();
-        // Ancorele din DREAPTA (Media + Absente) si coloana elevului: latimi FIXE —
-        // geometria tabelului nu depinde de continut (cerinta beneficiarului, 05.08.2026).
-        $wMedia = 80; $wAbs = 128;
-        $offAbsCol = 0;
-        $offMedia = $wAbs;
-        $rightAnchorsWidth = $offMedia + $wMedia;
+        // Coloana elevului ramane FIXA (geometria stanga nu depinde de nume). Ancorele din
+        // DREAPTA (Media + Absente) se strang insa pe continutul lor si se masoara la runtime
+        // (06.08.2026) — `$wAbs` a ramas doar ca valoare de rezerva pentru offsetul sticky al
+        // Mediei, cat timp Alpine n-a apucat sa masoare (primul cadru, JS dezactivat).
+        $wAbs = 128;
         $studentColWidth = 240;
     @endphp
 
@@ -122,12 +121,24 @@
                          (media / absențe / introducerea). Săgeți în rândul antetului, pași pe
                          PASUL FIX al grilei de zile (36px), scrollbar ascuns — aceeași mecanică
                          validată în hărți; capcanele ei sunt documentate acolo. --}}
+                    {{-- ⚠️ NICIUN comentariu în interiorul lui `x-data`: un ghilimea ASCII din proză
+                         închide atributul HTML, iar Alpine primește o expresie trunchiată („Invalid or
+                         unexpected token") — atunci NIMIC nu se inițializează: săgețile rămân active,
+                         `--anchor-abs` nu se scrie, iar Media se așază pe rezerva de 128px și lasă un gol
+                         față de Absențe. Explicațiile stau AICI, în comentariu Blade.
+
+                         `sync()` măsoară trei lucruri și le publică: lățimea coloanei elevului (marginea
+                         din stânga a barei de zile), lățimile REALE ale ancorelor din dreapta — Media și
+                         Absențe se dimensionează pe conținut, deci nu mai există constante în px de
+                         presupus — și, din ele, pasul unei „pagini" de zile. `--anchor-abs` e offsetul
+                         sticky al Mediei: fără el, o traducere mai lungă (RU „Средний балл" e mult mai
+                         lat decât RO „Media") ar suprapune cele două ancore. --}}
                     <div
                         x-data="{
                             canLeft: false,
                             canRight: false,
                             leftW: 0,
-                            arrowTop: 8,
+                            anchorsW: 0,
                             step: 36,
                             sync() {
                                 const el = this.$refs.scroller;
@@ -140,11 +151,14 @@
                                 this.canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
                                 this.leftW = this.$refs.studentTh?.offsetWidth ?? 0;
 
-                                const zone = el.clientWidth - this.leftW - {{ $rightAnchorsWidth }};
-                                this.step = Math.max(36, Math.floor(zone / 36) * 36);
+                                const absW = this.$refs.absTh?.offsetWidth ?? 0;
+                                const medW = this.$refs.mediaTh?.offsetWidth ?? 0;
 
-                                const headH = el.querySelector('thead')?.offsetHeight ?? 0;
-                                this.arrowTop = Math.max(6, Math.round((headH - 28) / 2));
+                                this.anchorsW = absW + medW;
+                                this.$el.style.setProperty('--anchor-abs', absW + 'px');
+
+                                const zone = el.clientWidth - this.leftW - this.anchorsW;
+                                this.step = Math.max(36, Math.floor(zone / 36) * 36);
                             },
                             nudge(direction) {
                                 const el = this.$refs.scroller;
@@ -162,6 +176,55 @@
                         x-on:resize.window.debounce.150ms="sync()"
                         class="relative overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10"
                     >
+                        {{-- BARA ZILELOR: „‹ Zile ›" — săgețile își au propriul rând, deasupra
+                             tabelului și ÎN AFARA zonei care derulează.
+
+                             Înainte pluteau absolut peste antet și acopereau ultimele coloane de zile
+                             (sesizat de beneficiar, 06.08.2026, a doua oară): orice poziție „la marginea
+                             zonei" cade peste conținut, fiindcă zona e plină până la margine. Aici au
+                             spațiu propriu, deci nu mai pot acoperi nimic — iar eticheta stă între ele,
+                             ca la un paginator. Rămân VIZIBILE mereu, doar dezactivate la capăt: dacă
+                             ar dispărea, gruparea ar sări de la un click la altul.
+
+                             Marginile urmăresc ancorele reale (elevul la stânga, Media+Absențe la
+                             dreapta), ca bara să încadreze exact banda pe care o derulează. --}}
+                        @if ($aligned)
+                        <div
+                            class="flex items-center justify-center gap-3 border-b border-gray-950/5 px-2 py-1.5 dark:border-white/10"
+                            x-bind:style="'padding-inline-start: ' + leftW + 'px; padding-inline-end: ' + anchorsW + 'px'"
+                        >
+                            <button
+                                type="button"
+                                x-on:click="nudge(-1)"
+                                x-bind:disabled="! canLeft"
+                                aria-label="{{ __('absence_map.scroll_left') }}"
+                                title="{{ __('absence_map.scroll_left') }}"
+                                class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-500 ring-1 ring-gray-950/10 transition hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-30 dark:text-gray-400 dark:ring-white/15 dark:hover:bg-white/5"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                                </svg>
+                            </button>
+
+                            <span class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                                {{ __('panel.class_register.days_column') }}
+                            </span>
+
+                            <button
+                                type="button"
+                                x-on:click="nudge(1)"
+                                x-bind:disabled="! canRight"
+                                aria-label="{{ __('absence_map.scroll_right') }}"
+                                title="{{ __('absence_map.scroll_right') }}"
+                                class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-500 ring-1 ring-gray-950/10 transition hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-30 dark:text-gray-400 dark:ring-white/15 dark:hover:bg-white/5"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                                </svg>
+                            </button>
+                        </div>
+                        @endif
+
                         <div
                             x-ref="scroller"
                             x-on:scroll.passive.debounce.50ms="sync()"
@@ -178,9 +241,9 @@
                                              zilei", 05.08.2026); ziua activă poartă inelul. --}}
                                         <th class="px-4 py-3 text-start font-semibold text-gray-950 dark:text-white" style="width: 99%">
                                             @if ($aligned)
-                                                <span class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                                                    {{ __('panel.class_register.days_column') }}
-                                                </span>
+                                                {{-- Eticheta „Zile" NU se repetă aici: stă în bara de
+                                                     deasupra, între săgeți. Ar fi ieșit de două ori, iar
+                                                     cea de aici derula odată cu zilele. --}}
                                                 <span class="grid gap-1" style="grid-template-columns: repeat({{ count($gradeColumns) }}, 2rem);">
                                                     @foreach ($gradeColumns as $column)
                                                         <span class="flex flex-col items-center leading-tight" title="{{ $column['iso'] }}">
@@ -193,10 +256,19 @@
                                                 {{ __('panel.class_register.days_column') }}
                                             @endif
                                         </th>
-                                        <th class="sticky z-[2] border-s border-gray-200 bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:border-white/10 dark:bg-gray-900 dark:text-white" style="right: {{ $offMedia }}px; width: {{ $wMedia }}px; min-width: {{ $wMedia }}px">
+                                        {{-- ANCORELE DIN DREAPTA se strâng pe conținutul lor (cerința
+                                             beneficiarului, 06.08.2026) — `w-px` + `whitespace-nowrap` e
+                                             idiomul prin care o celulă de tabel cere exact min-content:
+                                             lățimea urmează cel mai lat lucru din coloană (eticheta sau o
+                                             valoare), în orice limbă, fără constante calibrate pe română.
+                                             Offsetul sticky al Mediei vine din lățimea MĂSURATĂ a
+                                             Absențelor (`--anchor-abs`, pus de sync()), nu dintr-o
+                                             presupunere — altfel cele două s-ar suprapune la prima
+                                             traducere mai lungă. --}}
+                                        <th x-ref="mediaTh" class="sticky z-[2] w-px whitespace-nowrap border-s border-gray-200 bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:border-white/10 dark:bg-gray-900 dark:text-white" style="right: var(--anchor-abs, {{ $wAbs }}px)">
                                             {{ __('panel.class_register.average_column') }}
                                         </th>
-                                        <th class="sticky z-[2] bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:bg-gray-900 dark:text-white" style="right: {{ $offAbsCol }}px; width: {{ $wAbs }}px; min-width: {{ $wAbs }}px">
+                                        <th x-ref="absTh" class="sticky right-0 z-[2] w-px whitespace-nowrap bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:bg-gray-900 dark:text-white">
                                             {{ __('panel.class_register.absences_column') }}
                                         </th>
 
@@ -289,7 +361,7 @@
                                                  offseturi/lățimi ca antetul: fără asta, celulele corpului
                                                  rămâneau în flux și coloanele „respirau" după conținut
                                                  (raportat pe rolul profesor, 05.08.2026). --}}
-                                            <td class="sticky z-[1] h-12 border-s border-gray-200 bg-white px-3 py-2 text-center align-middle dark:border-white/10 dark:bg-gray-900" style="right: {{ $offMedia }}px; width: {{ $wMedia }}px; min-width: {{ $wMedia }}px">
+                                            <td class="sticky z-[1] h-12 w-px whitespace-nowrap border-s border-gray-200 bg-white px-3 py-2 text-center align-middle dark:border-white/10 dark:bg-gray-900" style="right: var(--anchor-abs, {{ $wAbs }}px)">
                                                 @if ($row['average'] !== null)
                                                     <span @class([
                                                         'font-semibold tabular-nums',
@@ -303,7 +375,7 @@
 
                                             {{-- Absențele la disciplină: total + câte nemotivate + câte încă fără statut;
                                                  datele la survol (✓ motivată, ? fără statut). --}}
-                                            <td class="sticky z-[1] h-12 bg-white px-3 py-2 text-center align-middle dark:bg-gray-900" style="right: {{ $offAbsCol }}px; width: {{ $wAbs }}px; min-width: {{ $wAbs }}px" title="{{ $row['absences']['dates'] }}">
+                                            <td class="sticky right-0 z-[1] h-12 w-px whitespace-nowrap bg-white px-3 py-2 text-center align-middle dark:bg-gray-900" title="{{ $row['absences']['dates'] }}">
                                                 @if ($row['absences']['total'] === 0)
                                                     <span class="text-gray-300 dark:text-gray-600">—</span>
                                                 @else
@@ -326,38 +398,6 @@
                                 </tbody>
                             </table>
                         </div>
-
-                        {{-- SĂGEȚILE de derulare — aceeași mecanică validată în hărți: la capetele
-                             zonei zilelor (stânga după coloana elevului, dreapta înaintea ancorelor),
-                             vizibile doar când există surplus; scrollbar-ul de jos e ASCUNS, ele sunt
-                             singura afordanță — plus derularea nativă (trackpad, shift+rotiță, touch). --}}
-                        <button
-                            type="button"
-                            style="display: none"
-                            x-on:click="nudge(-1)"
-                            aria-label="{{ __('absence_map.scroll_left') }}"
-                            title="{{ __('absence_map.scroll_left') }}"
-                            class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
-                            x-bind:style="'left: ' + (leftW - 14) + 'px; top: ' + arrowTop + 'px; display: ' + (canLeft ? 'flex' : 'none')"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                            </svg>
-                        </button>
-
-                        <button
-                            type="button"
-                            style="display: none"
-                            x-on:click="nudge(1)"
-                            aria-label="{{ __('absence_map.scroll_right') }}"
-                            title="{{ __('absence_map.scroll_right') }}"
-                            class="absolute z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-gray-950/10 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-white/20 dark:hover:bg-gray-700"
-                            x-bind:style="'right: ' + ({{ $rightAnchorsWidth }} - 14) + 'px; top: ' + arrowTop + 'px; display: ' + (canRight ? 'flex' : 'none')"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" width="15" height="15" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                            </svg>
-                        </button>
 
                         <div class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-950/5 px-4 py-2.5 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
                             <span>{{ trans_choice('panel.class_register.students_count', count($rows), ['count' => count($rows)]) }}</span>
