@@ -200,10 +200,26 @@
          absențe — acelea au harta și borderoul lor), deci nu trimite cheile de absențe și
          secțiunea întreagă dispare. Un partial, două alcătuiri — aceeași înfățișare. --}}
     @if (array_key_exists('absences', $panel))
+    @php
+        $timetable = $panel['hours']['timetable'] ?? [];
+    @endphp
     <section>
         <h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
             {{ __('panel.class_register.day_panel.absences_heading') }}
         </h4>
+
+        {{-- DE UNDE vine numărul orei. Raportat ca bug pe 06.08.2026 („prima absență a elevului
+             primește Ora 4") tocmai pentru că panoul arăta cifra fără originea ei: 4 se citea ca
+             a patra absență, când de fapt e ora din orarul zilei. --}}
+        @if ($panel['absences'] !== [] || $panel['can_absent'])
+            <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                @if ($timetable !== [])
+                    {{ trans_choice('panel.class_register.day_panel.hour_from_timetable', count($timetable), ['hours' => implode(', ', $timetable)]) }}
+                @else
+                    {{ __('panel.class_register.day_panel.hour_without_timetable') }}
+                @endif
+            </p>
+        @endif
 
         @if ($panel['absences'] === [])
             <p class="text-gray-500 dark:text-gray-400">{{ __('panel.class_register.day_panel.no_absences') }}</p>
@@ -223,6 +239,15 @@
                                 ? __('panel.forms.absence.lesson_option', ['number' => $absence['lesson']])
                                 : __('panel.forms.absence.lesson_unspecified') }}
                         </span>
+
+                        {{-- O oră care nu e în orarul zilei (oră ținută în plus, orar incomplet)
+                             se spune ca atare — altfel „Ora 5" lângă un orar care are doar ora 4
+                             pare o greșeală a aplicației. --}}
+                        @if ($absence['lesson'] !== null && $timetable !== [] && ! in_array((int) $absence['lesson'], $timetable, true))
+                            <span class="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                                {{ __('panel.class_register.day_panel.lesson_off_timetable') }}
+                            </span>
+                        @endif
 
                         {{-- Statutul îl fixează DOAR cine are dreptul (diriginte/administrație) —
                              aceleași trei stări, aceleași culori ca în harta absențelor. --}}

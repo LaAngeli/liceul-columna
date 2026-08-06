@@ -945,7 +945,18 @@ class ClassRegister extends Page
         // scenariul cerut când orarul e incomplet: o oră dublă neînregistrată în el făcea a doua
         // absență imposibilă, deși profesorul știe că elevul a lipsit la ambele. Ceea ce s-a
         // întâmplat în clasă bate ce scrie în orar.
-        foreach ([...$this->timetableHours($iso), ...range(1, 8)] as $hour) {
+        //
+        // ⚠️ Rezerva merge ÎNAINTE, nu înapoi (06.08.2026): cu orarul la ora 4, a doua apăsare
+        // dădea ora 1 — o oră dinaintea celei dintâi, dintr-o lecție a altei discipline. O oră
+        // ținută peste orar se ține DUPĂ cele din orar; ordinalele dinaintea lor rămân ultima
+        // rezervă, ca ziua să nu devină imposibil de completat.
+        $timetable = $this->timetableHours($iso);
+        $anchor = $timetable === [] ? 0 : max($timetable);
+
+        $after = array_filter(range(1, 8), fn (int $hour): bool => $hour > $anchor);
+        $before = array_filter(range(1, 8), fn (int $hour): bool => $hour <= $anchor);
+
+        foreach ([...$timetable, ...$after, ...$before] as $hour) {
             if (! in_array($hour, $taken, true)) {
                 return $hour;
             }

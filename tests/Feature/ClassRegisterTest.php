@@ -684,7 +684,7 @@ it('două ore consecutive ale aceleiași discipline = două absențe distincte, 
         ->and(Absence::query()->where('student_id', $a->id)->whereNull('is_motivated')->count())->toBe(2);
 });
 
-it('orarul e sugestie, nu gard: o oră dublă nescrisă în el nu blochează a doua absență', function () {
+it('orarul e sugestie, nu gard: o oră dublă nescrisă în el continuă ÎNAINTE, nu de la ora 1', function () {
     // Orarul zice O oră; în realitate au fost două (orar incomplet — cazul obișnuit la import).
     actingAs($this->profUser);
 
@@ -705,9 +705,49 @@ it('orarul e sugestie, nu gard: o oră dublă nescrisă în el nu blochează a d
     $page->call('addDayAbsence', $a->id, $azi);
     $page->call('addDayAbsence', $a->id, $azi);
 
-    // Prima ia ora din orar; a doua continuă pe primul ordinal liber — nu se pierde.
+    // Prima ia ora din orar; a doua se ține DUPĂ ea. Varianta veche dădea [1, 4] — a doua oră
+    // lipsită ateriza înaintea celei dintâi, pe slotul altei discipline (raportat 06.08.2026).
     expect(Absence::query()->where('student_id', $a->id)->orderBy('lesson_number')->pluck('lesson_number')->all())
-        ->toBe([1, 4]);
+        ->toBe([4, 5]);
+});
+
+it('prima absență a unui elev ia ORA DIN ORAR, nu un contor moștenit de la colegi', function () {
+    // Reclamația din 06.08.2026: „prima lipsă a elevului primește Ora 4". Numărul vine din orar
+    // (disciplina e a patra oră a zilei), nu dintr-un contor care curge de la un elev la altul.
+    actingAs($this->profUser);
+
+    [$intai, $alDoilea] = [$this->students->first(), $this->students->get(1)];
+    $azi = Carbon::today()->toDateString();
+    $ieri = Carbon::today()->subDay()->toDateString();
+
+    // Aceeași disciplină, ore diferite în zile diferite — exact ca într-un orar real.
+    foreach ([[Carbon::today()->isoWeekday(), 4], [Carbon::yesterday()->isoWeekday(), 2]] as [$zi, $ora]) {
+        Lesson::query()->create([
+            'academic_year_id' => $this->year->id,
+            'school_class_id' => $this->class->id,
+            'subject_id' => $this->subject->id,
+            'title' => 'x',
+            'teacher_name' => 'x',
+            'day_of_week' => $zi,
+            'lesson_number' => $ora,
+        ]);
+    }
+
+    $page = Livewire::test(ClassRegister::class);
+
+    // Primul elev umple două ore; al doilea vine „curat" — orele lui repornesc din orar.
+    $page->call('addDayAbsence', $intai->id, $azi);
+    $page->call('addDayAbsence', $intai->id, $azi);
+    $page->call('addDayAbsence', $alDoilea->id, $azi);
+
+    expect(Absence::query()->where('student_id', $alDoilea->id)->pluck('lesson_number')->all())->toBe([4])
+        ->and($page->instance()->timetableHours($azi))->toBe([4]);
+
+    // Altă zi a ACELUIAȘI elev: ora ei din orar (2), nu continuarea numărătorii de azi.
+    $page->call('addDayAbsence', $intai->id, $ieri);
+
+    expect(Absence::query()->where('student_id', $intai->id)->orderBy('occurred_on')->orderBy('lesson_number')->pluck('lesson_number')->all())
+        ->toBe([2, 4, 5]);
 });
 
 it('când toate cele opt ore ale zilei sunt consemnate, apăsarea e refuzată', function () {
