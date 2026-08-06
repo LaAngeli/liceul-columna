@@ -16,7 +16,6 @@
         // (06.08.2026) — `$wAbs` a ramas doar ca valoare de rezerva pentru offsetul sticky al
         // Mediei, cat timp Alpine n-a apucat sa masoare (primul cadru, JS dezactivat).
         $wAbs = 128;
-        $studentColWidth = 240;
     @endphp
 
     <div class="space-y-4">
@@ -84,6 +83,13 @@
                      ecranul ăsta (o notă pusă pe altă zi decât cea din cap). --}}
                 @php($gradeColumns = $this->gradeColumns())
                 @php($aligned = $this->gradesAlignedByDate())
+                {{-- INTRODUCEREA ÎN MASĂ trăiește DOAR pe filtrarea „Zi" (cerința 06.08.2026):
+                     acolo ziua-țintă e neambiguă — chiar ziua filtrată. Pe orice alt mod,
+                     coloanele nu există și tabelul rămâne exact cel de până acum. --}}
+                @php($batch = $this->canBatchWrite())
+                @php($batchGrade = $batch && $this->canEnterGrades())
+                @php($batchAbsent = $batch && $this->canRecordAbsences())
+                @php($batchNumeric = $this->gradingType() === \App\Enums\GradingType::Numeric)
                 <div class="space-y-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
                     <div class="flex flex-wrap items-center gap-3">
                         <span class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
@@ -132,7 +138,18 @@
                          Absențe se dimensionează pe conținut, deci nu mai există constante în px de
                          presupus — și, din ele, pasul unei „pagini" de zile. `--anchor-abs` e offsetul
                          sticky al Mediei: fără el, o traducere mai lungă (RU „Средний балл" e mult mai
-                         lat decât RO „Media") ar suprapune cele două ancore. --}}
+                         lat decât RO „Media") ar suprapune cele două ancore.
+
+                         GEOMETRIA E RESPONSIVĂ (măsurat la 390px, 06.08.2026): costul fix era 411px —
+                         elevul 240 plus ancorele 171 — pe 358px utili, deci zona zilelor ieșea NEGATIVĂ
+                         și tabelul arăta doar Elev/Media/Absențe, cu numele tăiate. Cum celula zilei e
+                         SINGURA cale de scriere, catalogul devenea inutilizabil pe telefon. Sub `md`:
+                         coloana elevului 160px, iar ancorele NU se mai pironesc (se ajunge la ele prin
+                         derulare, ca la orice tabel pe telefon) — zilele capătă ~200px, adică 5 coloane.
+                         Nicio dată nu se ascunde; se schimbă doar ce rămâne pironit.
+
+                         De aceea `anchorsW` se ia din poziția CALCULATĂ, nu din breakpoint ghicit în JS:
+                         CSS-ul decide, măsurătoarea îl urmează. --}}
                     <div
                         x-data="{
                             canLeft: false,
@@ -151,10 +168,12 @@
                                 this.canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
                                 this.leftW = this.$refs.studentTh?.offsetWidth ?? 0;
 
-                                const absW = this.$refs.absTh?.offsetWidth ?? 0;
+                                const absTh = this.$refs.absTh;
+                                const absW = absTh?.offsetWidth ?? 0;
                                 const medW = this.$refs.mediaTh?.offsetWidth ?? 0;
+                                const pironite = absTh ? getComputedStyle(absTh).position === 'sticky' : false;
 
-                                this.anchorsW = absW + medW;
+                                this.anchorsW = pironite ? absW + medW : 0;
                                 this.$el.style.setProperty('--anchor-abs', absW + 'px');
 
                                 const zone = el.clientWidth - this.leftW - this.anchorsW;
@@ -233,7 +252,7 @@
                             <table class="w-full text-start text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-950/5 dark:border-white/10">
-                                        <th x-ref="studentTh" class="sticky left-0 z-[2] border-e border-gray-200 bg-white px-4 py-3 text-start font-semibold text-gray-950 dark:border-white/10 dark:bg-gray-900 dark:text-white" style="width: {{ $studentColWidth }}px; min-width: {{ $studentColWidth }}px; max-width: {{ $studentColWidth }}px">
+                                        <th x-ref="studentTh" class="sticky left-0 z-[2] border-e border-gray-200 bg-white px-4 py-3 text-start font-semibold text-gray-950 dark:border-white/10 dark:bg-gray-900 dark:text-white w-44 min-w-44 max-w-44 md:w-60 md:min-w-60 md:max-w-60">
                                             {{ __('panel.fields.student') }}
                                         </th>
                                         {{-- RIGLA de zile — uniunea notelor și absențelor. Un click pe o
@@ -265,13 +284,30 @@
                                              Absențelor (`--anchor-abs`, pus de sync()), nu dintr-o
                                              presupunere — altfel cele două s-ar suprapune la prima
                                              traducere mai lungă. --}}
-                                        <th x-ref="mediaTh" class="sticky z-[2] w-px whitespace-nowrap border-s border-gray-200 bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:border-white/10 dark:bg-gray-900 dark:text-white" style="right: var(--anchor-abs, {{ $wAbs }}px)">
+                                        {{-- În modul de INTRODUCERE (doar „Zi") ancorele NU se mai
+                                             pironesc: nu mai sunt ultimele coloane — dacă ar rămâne
+                                             sticky, ar acoperi coloanele de introducere la derulare.
+                                             sync() vede poziția CALCULATĂ și pune anchorsW = 0. --}}
+                                        <th x-ref="mediaTh" class="static z-[2] w-px {{ $batch ? '' : 'md:sticky' }} whitespace-nowrap border-s border-gray-200 bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:border-white/10 dark:bg-gray-900 dark:text-white" style="right: var(--anchor-abs, {{ $wAbs }}px)">
                                             {{ __('panel.class_register.average_column') }}
                                         </th>
-                                        <th x-ref="absTh" class="sticky right-0 z-[2] w-px whitespace-nowrap bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:bg-gray-900 dark:text-white">
+                                        <th x-ref="absTh" class="static z-[2] w-px {{ $batch ? '' : 'md:sticky md:right-0' }} whitespace-nowrap bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:bg-gray-900 dark:text-white">
                                             {{ __('panel.class_register.absences_column') }}
                                         </th>
 
+                                        {{-- COLOANELE DE INTRODUCERE ÎN MASĂ — exclusiv pe „Zi"
+                                             (cerința 06.08.2026), fiecare doar pentru cine are
+                                             dreptul speciei ei. --}}
+                                        @if ($batchGrade)
+                                            <th class="w-px whitespace-nowrap border-s border-gray-200 bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:border-white/10 dark:bg-gray-900 dark:text-white">
+                                                {{ __('panel.class_register.new_grade_column') }}
+                                            </th>
+                                        @endif
+                                        @if ($batchAbsent)
+                                            <th class="w-px whitespace-nowrap bg-white px-3 py-3 text-center font-semibold text-gray-950 dark:bg-gray-900 dark:text-white">
+                                                {{ __('panel.class_register.absent_column') }}
+                                            </th>
+                                        @endif
                                     </tr>
                                 </thead>
 
@@ -280,7 +316,7 @@
                                         @php($studentId = $row['student']->getKey())
                                         <tr wire:key="borderou-{{ $studentId }}" class="align-middle hover:bg-gray-50 dark:hover:bg-white/5">
                                             {{-- Elevul — lipit la stânga, numerotat (ordinea din catalogul de hârtie). --}}
-                                            <td class="sticky left-0 z-[1] h-12 border-e border-gray-200 bg-white px-4 py-2 align-middle dark:border-white/10 dark:bg-gray-900" style="width: {{ $studentColWidth }}px; min-width: {{ $studentColWidth }}px; max-width: {{ $studentColWidth }}px">
+                                            <td class="sticky left-0 z-[1] h-12 border-e border-gray-200 bg-white px-4 py-2 align-middle dark:border-white/10 dark:bg-gray-900 w-44 min-w-44 max-w-44 md:w-60 md:min-w-60 md:max-w-60">
                                                 <div class="flex items-baseline gap-2">
                                                     <span class="w-5 shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500">{{ $index + 1 }}</span>
                                                     <span class="truncate font-medium text-gray-950 dark:text-white">{{ $row['student']->full_name }}</span>
@@ -361,7 +397,7 @@
                                                  offseturi/lățimi ca antetul: fără asta, celulele corpului
                                                  rămâneau în flux și coloanele „respirau" după conținut
                                                  (raportat pe rolul profesor, 05.08.2026). --}}
-                                            <td class="sticky z-[1] h-12 w-px whitespace-nowrap border-s border-gray-200 bg-white px-3 py-2 text-center align-middle dark:border-white/10 dark:bg-gray-900" style="right: var(--anchor-abs, {{ $wAbs }}px)">
+                                            <td class="static z-[1] h-12 w-px whitespace-nowrap border-s {{ $batch ? '' : 'md:sticky' }} border-gray-200 bg-white px-3 py-2 text-center align-middle dark:border-white/10 dark:bg-gray-900" style="right: var(--anchor-abs, {{ $wAbs }}px)">
                                                 @if ($row['average'] !== null)
                                                     <span @class([
                                                         'font-semibold tabular-nums',
@@ -375,7 +411,7 @@
 
                                             {{-- Absențele la disciplină: total + câte nemotivate + câte încă fără statut;
                                                  datele la survol (✓ motivată, ? fără statut). --}}
-                                            <td class="sticky right-0 z-[1] h-12 w-px whitespace-nowrap bg-white px-3 py-2 text-center align-middle dark:bg-gray-900" title="{{ $row['absences']['dates'] }}">
+                                            <td class="static z-[1] h-12 w-px whitespace-nowrap bg-white {{ $batch ? '' : 'md:sticky md:right-0' }} px-3 py-2 text-center align-middle dark:bg-gray-900" title="{{ $row['absences']['dates'] }}">
                                                 @if ($row['absences']['total'] === 0)
                                                     <span class="text-gray-300 dark:text-gray-600">—</span>
                                                 @else
@@ -393,15 +429,83 @@
                                                 @endif
                                             </td>
 
+                                            {{-- CELULELE DE INTRODUCERE (doar „Zi"): tastezi nota,
+                                                 Enter sare la elevul următor; bifezi absenții.
+                                                 Nimic nu se scrie până la „Salvează tot" — care
+                                                 procesează atomic toată sesiunea curentă. --}}
+                                            @if ($batchGrade)
+                                                <td class="h-12 w-px whitespace-nowrap border-s border-gray-200 bg-white px-3 py-2 text-center align-middle dark:border-white/10 dark:bg-gray-900">
+                                                    <input
+                                                        type="text"
+                                                        wire:model="entries.{{ $studentId }}.value"
+                                                        data-batch-input
+                                                        x-on:keydown.enter.prevent="const list = Array.from(document.querySelectorAll('[data-batch-input]')); list[list.indexOf($el) + 1]?.focus();"
+                                                        @if ($batchNumeric) inputmode="numeric" maxlength="2" placeholder="1–10" @else maxlength="10" placeholder="FB / B / S" @endif
+                                                        aria-label="{{ __('panel.class_register.new_grade_column') }} — {{ $row['student']->full_name }}"
+                                                        @class([
+                                                            'h-9 w-16 rounded-lg border-0 bg-white text-center text-sm font-semibold tabular-nums text-gray-950 shadow-sm ring-1 transition focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white',
+                                                            'ring-danger-600 dark:ring-danger-500' => $errors->has('entries.'.$studentId.'.value'),
+                                                            'ring-gray-950/10 dark:ring-white/20' => ! $errors->has('entries.'.$studentId.'.value'),
+                                                        ])
+                                                    />
+                                                </td>
+                                            @endif
+                                            @if ($batchAbsent)
+                                                <td class="h-12 w-px whitespace-nowrap bg-white px-3 py-2 text-center align-middle dark:bg-gray-900">
+                                                    <input
+                                                        type="checkbox"
+                                                        wire:model="entries.{{ $studentId }}.absent"
+                                                        title="{{ __('panel.class_register.absence_mark_title') }}"
+                                                        aria-label="{{ __('panel.class_register.absent_column') }} — {{ $row['student']->full_name }}"
+                                                        @class([
+                                                            'h-5 w-5 rounded border-gray-300 text-warning-500 shadow-sm focus:ring-warning-500 dark:border-white/20 dark:bg-white/5',
+                                                            'ring-2 ring-danger-600' => $errors->has('entries.'.$studentId.'.absent'),
+                                                        ])
+                                                    />
+                                                </td>
+                                            @endif
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
 
-                        <div class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-950/5 px-4 py-2.5 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
+                        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-950/5 px-4 py-2.5 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
                             <span>{{ trans_choice('panel.class_register.students_count', count($rows), ['count' => count($rows)]) }}</span>
-                            <span>{{ __('panel.class_register.cell_hint') }}</span>
+
+                            @if ($batch)
+                                {{-- UN singur buton salvează toată sesiunea de introducere; tipul
+                                     evaluării e al întregii lecții (o zi = o evaluare), doar la
+                                     disciplinele numerice. --}}
+                                <div class="flex flex-wrap items-center gap-2">
+                                    @if ($batchGrade && $batchNumeric)
+                                        <label for="borderou-batch-tip" class="sr-only">{{ __('panel.fields.evaluation_type') }}</label>
+                                        <select
+                                            id="borderou-batch-tip"
+                                            wire:model="batchType"
+                                            class="h-8 rounded-lg border-0 bg-white py-0 pe-8 ps-2 text-xs text-gray-700 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-200 dark:ring-white/20"
+                                        >
+                                            @foreach ($this->gradeTypeOptions() as $typeValue => $typeLabel)
+                                                <option value="{{ $typeValue }}">{{ $typeLabel }}</option>
+                                            @endforeach
+                                        </select>
+                                    @endif
+
+                                    <button
+                                        type="button"
+                                        wire:click="saveDayBatch"
+                                        wire:loading.attr="disabled"
+                                        wire:target="saveDayBatch"
+                                        class="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary-600 px-3 text-xs font-semibold text-white transition hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <x-filament::icon icon="heroicon-m-check" class="h-4 w-4" wire:loading.remove wire:target="saveDayBatch" />
+                                        <x-filament::loading-indicator class="h-4 w-4" wire:loading wire:target="saveDayBatch" />
+                                        {{ __('panel.class_register.save_all') }}
+                                    </button>
+                                </div>
+                            @else
+                                <span>{{ __('panel.class_register.cell_hint') }}</span>
+                            @endif
                         </div>
                     </div>
                 @endif

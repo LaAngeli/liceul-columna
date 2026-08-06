@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Enums\AbsenceStatus;
+use App\Enums\Calificativ;
 use App\Enums\CorrectionStatus;
 use App\Enums\EvaluationType;
 use App\Enums\GradingType;
@@ -43,6 +44,9 @@ use Livewire\Attributes\Url;
  * absențele acelei zile, cu pârghiile privitorului. Vechea introducere în masă (coloanele „Notă
  * nouă"/„Absent", data globală, „Salvează tot") a fost ELIMINATĂ la cererea explicită a
  * beneficiarului — un singur mecanism de scriere, ancorat vizual în ziua pe care o atinge.
+ * EXCEPȚIA (cerința din 06.08.2026): pe filtrarea „Zi" — și NUMAI acolo — reapare introducerea în
+ * masă ({@see saveDayBatch}), fiindcă ziua-țintă e neambiguă: e chiar ziua filtrată. Restul
+ * modurilor rămân neatinse.
  *
  * SECURITATEA NU E RE-INVENTATĂ: fiecare scriere din panou trece prin ACELEAȘI traituri ca
  * formularele clasice ({@see EnforcesGradeScope}, {@see EnforcesAbsenceScope}) — semestrul
@@ -912,6 +916,233 @@ class ClassRegister extends Page
         Notification::make()
             ->success()
             ->title(__('absence_map.status_saved'))
+            ->send();
+    }
+
+    // ── Introducerea în MASĂ, doar pe filtrarea „Zi" (cerința beneficiarului, 06.08.2026) ──
+    //
+    // Reintrodusă DUPĂ eliminarea din 05.08 fiindcă acum are ancora care lipsea atunci: în modul
+    // „Zi", ziua-țintă e chiar ziua filtrată — nu mai există câmpul global de dată care despărțea
+    // vizual scrierea de ziua ei. În orice alt mod, coloanele nu se randează și salvarea refuză.
+
+    /**
+     * Intrările introducerii rapide: `entries.{studentId}.value` (nota) și `.absent` (bifa).
+     * Doar rândurile VIZIBILE se procesează — id-urile străine strecurate în payload se ignoră.
+     *
+     * @var array<int, array{value?: string, absent?: bool}>
+     */
+    public array $entries = [];
+
+    /** Tipul de evaluare al notelor din batch (doar discipline numerice; altfel forțat „curentă"). */
+    public string $batchType = EvaluationType::Curenta->value;
+
+    /** Ziua-țintă a introducerii în masă — există DOAR pe filtrarea „Zi". */
+    public function batchDayIso(): ?string
+    {
+        if ($this->timeMode() !== 'zi') {
+            return null;
+        }
+
+        $range = $this->timeRange();
+
+        return $range !== null && $range[0] !== null ? $range[0]->toDateString() : null;
+    }
+
+    /**
+     * Coloanele de introducere există doar pe „Zi", pe o zi care nu e în viitor, pentru cine
+     * poate scrie măcar una din specii. Gărzile reale rămân în {@see saveDayBatch} — asta e
+     * doar vizibilitatea.
+     */
+    public function canBatchWrite(): bool
+    {
+        $iso = $this->batchDayIso();
+
+        return $iso !== null
+            && ! Carbon::parse($iso)->startOfDay()->isAfter(Carbon::today())
+            && ($this->canEnterGrades() || $this->canRecordAbsences());
+    }
+
+    /**
+     * Salvează TOT ce s-a completat în sesiunea curentă — un singur buton, o singură tranzacție.
+     *
+     * ATOMIC, ca vechiul batch (regula validată în iulie): ORICE rând invalid → rollback total +
+     * eroarea pe rândul lui — nu rămân jumătăți de clasă salvate. Fiecare rând trece prin
+     * ACELEAȘI gărzi ca panoul zilei ({@see EnforcesGradeScope}/{@see EnforcesAbsenceScope}:
+     * scope pe server, semestru derivat din zi, fără viitor, an închis refuzat) plus ordinalul
+     * de oră ({@see firstFreeDayHour}) — nota și absența aceluiași elev cad NATURAL pe ore
+     * diferite (Ora 1, Ora 2), iar excluderea notă↔absență pe aceeași oră rămâne garantată.
+     * Scrierea prin MODELE: observerii recalculează mediile și notifică familia (pe coadă,
+     * rulată înapoi la eșec — coada e pe database).
+     */
+    public function saveDayBatch(): void
+    {
+        $user = $this->viewer();
+        $class = $this->activeClass();
+        $subject = $this->activeSubject();
+        $iso = $this->batchDayIso();
+
+        if ($user === null || $class === null || $subject === null || $iso === null || ! $this->canBatchWrite()) {
+            $this->denyDayAction();
+
+            return;
+        }
+
+        $numeric = $this->gradingType() === GradingType::Numeric;
+        $canGrade = $this->canEnterGrades();
+        $canAbsent = $this->canRecordAbsences();
+
+        $this->resetErrorBag();
+
+        $savedGrades = 0;
+        $savedAbsences = 0;
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($this->rows() as $row) {
+                $studentId = (int) $row['student']->getKey();
+                $entry = $this->entries[$studentId] ?? null;
+
+                if (! is_array($entry)) {
+                    continue;
+                }
+
+                $value = trim((string) ($entry['value'] ?? ''));
+                $absent = filter_var($entry['absent'] ?? false, FILTER_VALIDATE_BOOL);
+
+                if ($value !== '') {
+                    // Coloana notei nu se randează fără drept — o valoare venită totuși (payload
+                    // manipulat) se refuză explicit, nu se ignoră tăcut.
+                    if (! $canGrade) {
+                        throw ValidationException::withMessages([
+                            "entries.{$studentId}.value" => __('grade_map.action_denied'),
+                        ]);
+                    }
+
+                    // Aceeași validare prietenoasă ca panoul zilei: întreg 1–10 la numerice,
+                    // simbol din scala închisă la calificative.
+                    $calificativ = $numeric ? null : Calificativ::normalize($value);
+
+                    if ($numeric && (! ctype_digit($value) || (int) $value < 1 || (int) $value > 10)) {
+                        throw ValidationException::withMessages([
+                            "entries.{$studentId}.value" => __('panel.class_register.invalid_value'),
+                        ]);
+                    }
+
+                    if (! $numeric && $calificativ === null) {
+                        throw ValidationException::withMessages([
+                            "entries.{$studentId}.value" => __('panel.class_register.invalid_calificativ'),
+                        ]);
+                    }
+
+                    $lesson = $this->firstFreeDayHour($studentId, $iso);
+
+                    if ($lesson === null) {
+                        throw ValidationException::withMessages([
+                            "entries.{$studentId}.value" => __('panel.class_register.day_panel.all_hours_taken'),
+                        ]);
+                    }
+
+                    // Gărzile aruncă pe chei generice (`data.*`) — re-aruncăm pe cheia RÂNDULUI,
+                    // ca eroarea să se aprindă exact pe celula vinovată.
+                    try {
+                        $data = $this->enforceGradeScope([
+                            'student_id' => $studentId,
+                            'subject_id' => (int) $subject->getKey(),
+                            'school_class_id' => (int) $class->getKey(),
+                            'graded_on' => $iso,
+                            'lesson_number' => $lesson,
+                            'evaluation_type' => $numeric && EvaluationType::tryFrom($this->batchType) !== null
+                                ? $this->batchType
+                                : EvaluationType::Curenta->value,
+                            'value' => $numeric ? (int) $value : null,
+                            'calificativ' => $calificativ?->value,
+                            'teacher_id' => $user->teacher?->getKey(),
+                        ]);
+
+                        Grade::query()->create($data);
+                    } catch (ValidationException $exception) {
+                        throw ValidationException::withMessages([
+                            "entries.{$studentId}.value" => (string) collect($exception->errors())->flatten()->first(),
+                        ]);
+                    }
+
+                    $savedGrades++;
+                }
+
+                if ($absent && $canAbsent) {
+                    // DUPĂ nota aceluiași rând (aceeași tranzacție): ordinalul următor e liber —
+                    // notă la Ora 1, absență la Ora 2, exact semantica ordinală a zilei.
+                    $lesson = $this->firstFreeDayHour($studentId, $iso);
+
+                    if ($lesson === null) {
+                        throw ValidationException::withMessages([
+                            "entries.{$studentId}.absent" => __('panel.class_register.day_panel.all_hours_taken'),
+                        ]);
+                    }
+
+                    try {
+                        $data = $this->enforceAbsenceScope([
+                            'student_id' => $studentId,
+                            'subject_id' => (int) $subject->getKey(),
+                            'school_class_id' => (int) $class->getKey(),
+                            'occurred_on' => $iso,
+                            'lesson_number' => $lesson,
+                            // Fără statut — profesorul consemnează, dirigintele decide (04.08.2026).
+                            'is_motivated' => null,
+                            'teacher_id' => $user->teacher?->getKey(),
+                        ]);
+
+                        Absence::query()->create($data);
+                    } catch (ValidationException $exception) {
+                        throw ValidationException::withMessages([
+                            "entries.{$studentId}.absent" => (string) collect($exception->errors())->flatten()->first(),
+                        ]);
+                    }
+
+                    $savedAbsences++;
+                }
+            }
+        } catch (ValidationException $exception) {
+            DB::rollBack();
+
+            $firstMessage = '';
+
+            foreach ($exception->errors() as $key => $messages) {
+                $rowMessage = (string) ($messages[0] ?? '');
+                $firstMessage = $firstMessage === '' ? $rowMessage : $firstMessage;
+                $this->addError($key, $rowMessage);
+            }
+
+            Notification::make()
+                ->danger()
+                ->title(__('panel.class_register.batch_failed'))
+                ->body($firstMessage)
+                ->send();
+
+            return;
+        }
+
+        if ($savedGrades === 0 && $savedAbsences === 0) {
+            DB::rollBack();
+
+            Notification::make()
+                ->info()
+                ->title(__('panel.class_register.nothing_to_save'))
+                ->send();
+
+            return;
+        }
+
+        DB::commit();
+
+        $this->entries = [];
+
+        Notification::make()
+            ->success()
+            ->title(__('panel.class_register.batch_saved'))
+            ->body(trans_choice('panel.class_register.saved_grades', $savedGrades, ['count' => $savedGrades])
+                .' · '.trans_choice('panel.class_register.saved_absences', $savedAbsences, ['count' => $savedAbsences]))
             ->send();
     }
 

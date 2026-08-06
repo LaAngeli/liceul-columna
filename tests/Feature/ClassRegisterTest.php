@@ -1157,3 +1157,194 @@ it('profesorul STRĂIN de pereche nu anulează și nu cere corecție, nici cu ap
     expect($grade->fresh()->annulled_at)->toBeNull()
         ->and(GradeCorrection::query()->count())->toBe(0);
 });
+
+// ── Introducerea în MASĂ, doar pe filtrarea „Zi" (06.08.2026) ──────────────────────────────
+
+it('batch pe Zi: notele și absențele întregii clase intră dintr-un singur buton, pe ordinale', function () {
+    actingAs($this->profUser);
+
+    [$a, $b, $c] = $this->students->all();
+    $azi = Carbon::today()->toDateString();
+
+    $page = Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class);
+
+    expect($page->instance()->canBatchWrite())->toBeTrue();
+
+    // A: notă ȘI absent (a fost la prima oră, a lipsit la a doua); B: doar notă; C: doar absent.
+    $page->set('entries.'.$a->id.'.value', '9')
+        ->set('entries.'.$a->id.'.absent', true)
+        ->set('entries.'.$b->id.'.value', '7')
+        ->set('entries.'.$c->id.'.absent', true)
+        ->call('saveDayBatch');
+
+    $gradeA = Grade::query()->where('student_id', $a->id)->sole();
+    $absenceA = Absence::query()->where('student_id', $a->id)->sole();
+
+    expect((int) $gradeA->value)->toBe(9)
+        // Nota ia Ora 1; absența ACELUIAȘI elev cade natural pe Ora 2 — excluderea pe slot ține.
+        ->and($gradeA->lesson_number)->toBe(1)
+        ->and($absenceA->lesson_number)->toBe(2)
+        // Fără statut: profesorul consemnează, dirigintele decide.
+        ->and($absenceA->is_motivated)->toBeNull()
+        ->and((int) $gradeA->teacher_id)->toBe($this->teacher->id)
+        ->and((int) $gradeA->term_id)->toBe($this->term->id)
+        ->and(Grade::query()->where('student_id', $b->id)->sole()->lesson_number)->toBe(1)
+        ->and(Absence::query()->where('student_id', $c->id)->sole()->lesson_number)->toBe(1)
+        // Intrările s-au golit după salvare — sesiunea următoare pornește curată.
+        ->and($page->get('entries'))->toBe([]);
+});
+
+it('batch-ul e ATOMIC: un singur rând invalid anulează tot, cu eroarea pe rândul lui', function () {
+    actingAs($this->profUser);
+
+    [$a, $b] = $this->students->all();
+    $azi = Carbon::today()->toDateString();
+
+    Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class)
+        ->set('entries.'.$a->id.'.value', '9')
+        ->set('entries.'.$b->id.'.value', '11')
+        ->call('saveDayBatch')
+        ->assertHasErrors(['entries.'.$b->id.'.value']);
+
+    // Nici rândul VALID nu s-a salvat — rollback total, nu jumătăți de clasă.
+    expect(Grade::query()->count())->toBe(0);
+});
+
+it('salvarea în masă refuză orice alt mod decât Zi — iar coloanele nici nu se randează acolo', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+
+    // Pe „Luna": fără coloane de introducere, fără buton, iar apelul forțat nu scrie nimic.
+    $luna = Livewire::withQueryParams(['mod' => 'luna'])->test(ClassRegister::class);
+
+    expect($luna->instance()->canBatchWrite())->toBeFalse();
+
+    $luna->assertDontSeeHtml('wire:model="entries.')
+        ->assertDontSeeHtml('saveDayBatch');
+
+    $luna->set('entries.'.$a->id.'.value', '9')->call('saveDayBatch');
+
+    expect(Grade::query()->count())->toBe(0);
+
+    // Pe „Zi": ambele coloane și butonul există.
+    Livewire::withQueryParams(['mod' => 'zi', 'ref' => Carbon::today()->toDateString()])
+        ->test(ClassRegister::class)
+        ->assertSeeHtml('wire:model="entries.')
+        ->assertSeeHtml('saveDayBatch');
+});
+
+it('elevii străini strecurați în payload se ignoră; fără nimic valid — nimic de salvat', function () {
+    actingAs($this->profUser);
+
+    $other = SchoolClass::factory()->for($this->year)->create(['name' => 'VI', 'section' => 'C', 'grade_level' => 6]);
+    $foreign = Student::factory()->create();
+    Enrollment::factory()->for($foreign)->for($other)->for($this->year)->create(['left_on' => null]);
+
+    Livewire::withQueryParams(['mod' => 'zi', 'ref' => Carbon::today()->toDateString()])
+        ->test(ClassRegister::class)
+        ->set('entries.'.$foreign->id.'.value', '10')
+        ->call('saveDayBatch');
+
+    expect(Grade::query()->count())->toBe(0);
+});
+
+it('dirigintele fără alocare: absențele din batch trec, o notă strecurată blochează tot', function () {
+    $homeroomUser = User::factory()->create();
+    $homeroomUser->assignRole(UserRole::Profesor->value);
+    $homeroom = Teacher::factory()->create(['user_id' => $homeroomUser->id]);
+    $this->class->update(['homeroom_teacher_id' => $homeroom->id]);
+
+    actingAs($homeroomUser->fresh());
+
+    [$a, $b] = $this->students->all();
+    $azi = Carbon::today()->toDateString();
+
+    $params = ['mod' => 'zi', 'ref' => $azi, 'disciplina' => (string) $this->subject->id];
+
+    // Doar absențe: trec (dirigintele consemnează absențe la orice disciplină a clasei lui).
+    Livewire::withQueryParams($params)->test(ClassRegister::class)
+        ->set('entries.'.$a->id.'.absent', true)
+        ->call('saveDayBatch');
+
+    expect(Absence::query()->where('student_id', $a->id)->count())->toBe(1)
+        ->and(Absence::query()->where('student_id', $a->id)->sole()->lesson_number)->toBe(1);
+
+    // O valoare de notă venită totuși (coloana nu se randează pentru el) = payload manipulat →
+    // refuz explicit cu rollback total, inclusiv absența din același batch.
+    Livewire::withQueryParams($params)->test(ClassRegister::class)
+        ->set('entries.'.$b->id.'.value', '9')
+        ->set('entries.'.$b->id.'.absent', true)
+        ->call('saveDayBatch')
+        ->assertHasErrors(['entries.'.$b->id.'.value']);
+
+    expect(Grade::query()->count())->toBe(0)
+        ->and(Absence::query()->where('student_id', $b->id)->count())->toBe(0);
+});
+
+it('disciplina pe calificativ: batch-ul acceptă simbolul scalei și refuză cifrele', function () {
+    $this->subject->update(['grading_type' => 'c']);
+
+    actingAs($this->profUser);
+
+    [$a, $b] = $this->students->all();
+    $azi = Carbon::today()->toDateString();
+
+    // „fb" se normalizează la FB; tipul e forțat „curentă" la calificative.
+    Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class)
+        ->set('entries.'.$a->id.'.value', 'fb')
+        ->set('batchType', 'teza')
+        ->call('saveDayBatch');
+
+    $grade = Grade::query()->where('student_id', $a->id)->sole();
+
+    expect($grade->calificativ)->toBe('FB')
+        ->and($grade->value)->toBeNull()
+        ->and($grade->evaluation_type)->toBe(EvaluationType::Curenta);
+
+    // O cifră pe disciplină cu calificativ — refuz cu rollback.
+    Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class)
+        ->set('entries.'.$b->id.'.value', '9')
+        ->call('saveDayBatch')
+        ->assertHasErrors(['entries.'.$b->id.'.value']);
+
+    expect(Grade::query()->where('student_id', $b->id)->count())->toBe(0);
+});
+
+it('batch-ul continuă ordinalele zilei: peste o absență existentă la Ora 1, nota ia Ora 2', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+
+    Absence::factory()->create([
+        'student_id' => $a->id,
+        'school_class_id' => $this->class->id,
+        'subject_id' => $this->subject->id,
+        'term_id' => $this->term->id,
+        'occurred_on' => $azi,
+        'lesson_number' => 1,
+        'is_motivated' => null,
+    ]);
+
+    Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class)
+        ->set('entries.'.$a->id.'.value', '8')
+        ->call('saveDayBatch');
+
+    expect(Grade::query()->where('student_id', $a->id)->sole()->lesson_number)->toBe(2);
+});
+
+it('pe o zi din VIITOR introducerea în masă nu există și nu scrie', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $maine = Carbon::tomorrow()->toDateString();
+
+    $page = Livewire::withQueryParams(['mod' => 'zi', 'ref' => $maine])->test(ClassRegister::class);
+
+    expect($page->instance()->canBatchWrite())->toBeFalse();
+
+    $page->set('entries.'.$a->id.'.value', '9')->call('saveDayBatch');
+
+    expect(Grade::query()->count())->toBe(0);
+});
