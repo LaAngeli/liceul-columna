@@ -9,6 +9,7 @@ use App\Models\TeachingAssignment;
 use App\Models\User;
 use App\Policies\TeachingAssignmentPolicy;
 use App\Support\ContentTranslator;
+use App\Support\GradeLevels;
 use BackedEnum;
 use Closure;
 use Filament\Actions\CreateAction;
@@ -22,6 +23,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 
@@ -162,23 +164,47 @@ class TeachingAssignmentsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('id')
+            // Lista PLATĂ era de necitit (sesizat de beneficiar, 06.08.2026: „foarte incomod și cu
+            // incertitudini"). Măsurat pe date reale: mediana e 18 alocări per profesor, maximul 54
+            // — iar clasa se repeta pe fiecare rând, o dată per disciplină. Perimetrul se citește
+            // însă pe CLASĂ („la 1B predau: română, matematică, …"), nu pe perechi.
+            //
+            // Gruparea rezolvă și INCERTITUDINEA de fond: 60 din 66 de profesori au alocări în DOI
+            // ani școlari, iar 14 perechi nume+secțiune se repetă între ani — deci „1B B" apărea de
+            // două ori, identic, fără să poți spune care e care. Grupurile sunt pe id-ul clasei
+            // (distincte oricum), iar anul stă scris în descrierea grupului.
+            ->groups([
+                $this->classGroup(),
+                Group::make('schoolClass.academic_year_id')
+                    ->label(__('panel.fields.academic_year'))
+                    ->getTitleFromRecordUsing(fn (TeachingAssignment $record): string => (string) ($record->schoolClass?->academicYear->name ?? __('panel.common.dash')))
+                    ->titlePrefixedWithLabel(false)
+                    ->collapsible(),
+            ])
+            ->defaultGroup($this->classGroup())
             ->columns([
-                TextColumn::make('schoolClass.name')
-                    ->label(__('panel.fields.class'))
-                    ->formatStateUsing(function (TeachingAssignment $record): string {
-                        $class = $record->schoolClass;
-
-                        return $class === null ? '—' : trim($class->name.' '.($class->section ?? ''));
-                    })
-                    ->sortable(),
+                // Clasa NU mai e coloană: e antetul grupului. Rămâne disciplina — informația care
+                // chiar variază de la rând la rând.
                 TextColumn::make('subject.name')
                     ->label(__('panel.fields.subject'))
                     ->formatStateUsing(fn (?string $state): string => $state === null ? '—' : ContentTranslator::subject($state))
+                    // Grupa de engleză, DOAR unde există (10,3% din alocări). Era coloană proprie,
+                    // goală în 9 rânduri din 10, și punea întrebarea „ce grupă?" unui profesor care
+                    // n-are nicio legătură cu engleza. Ca sufix, apare exact acolo unde înseamnă ceva.
+                    ->description(fn (TeachingAssignment $record): ?string => $record->english_group === null
+                        ? null
+                        : __('panel.forms.teaching_assignment.english_group').' '.$record->english_group)
                     ->sortable(),
-                TextColumn::make('english_group')
-                    ->label(__('panel.forms.teaching_assignment.english_group'))
-                    ->placeholder(__('panel.common.dash'))
-                    ->toggleable(),
+                // Alocarea retrasă rămâne în registru (notele consemnate au nevoie de istoric) —
+                // dar trebuie să se DISTINGĂ de una activă, altfel filtrul „arhivate" arată o listă
+                // în care nu se vede ce e ce.
+                TextColumn::make('deleted_at')
+                    ->label(__('panel.fields.status'))
+                    ->badge()
+                    ->state(fn (TeachingAssignment $record): string => $record->trashed()
+                        ? __('panel.resources.teaching_assignments.withdrawn')
+                        : __('panel.resources.teaching_assignments.active'))
+                    ->color(fn (TeachingAssignment $record): string => $record->trashed() ? 'gray' : 'success'),
             ])
             ->filters([
                 TrashedFilter::make()
@@ -206,6 +232,38 @@ class TeachingAssignmentsRelationManager extends RelationManager
                 DeleteAction::make(),
                 RestoreAction::make(),
             ]);
+    }
+
+    /**
+     * Gruparea pe CLASĂ: titlul = clasa așa cum o numesc oamenii, descrierea = treapta și ANUL —
+     * fără an, două clase omonime din ani diferiți arată identic (14 astfel de perechi în date).
+     *
+     * Se construiește într-o metodă, nu inline, fiindcă e folosită de două ori (`groups()` și
+     * `defaultGroup()`) — două definiții ar diverge la prima editare.
+     */
+    private function classGroup(): Group
+    {
+        return Group::make('school_class_id')
+            ->label(__('panel.fields.class'))
+            ->titlePrefixedWithLabel(false)
+            ->getTitleFromRecordUsing(function (TeachingAssignment $record): string {
+                $class = $record->schoolClass;
+
+                return $class === null ? __('panel.common.dash') : trim($class->name.' '.($class->section ?? ''));
+            })
+            ->getDescriptionFromRecordUsing(function (TeachingAssignment $record): ?string {
+                $class = $record->schoolClass;
+
+                if ($class === null) {
+                    return null;
+                }
+
+                // Treapta în cifre romane (limbajul documentelor) + ANUL — fără el, două clase
+                // omonime din ani diferiți au antete identice.
+                return __('panel.fields.class').' '.GradeLevels::roman($class->grade_level)
+                    .' · '.$class->academicYear->name;
+            })
+            ->collapsible();
     }
 
     /** Fișa de profesor a contului deschis — sursa `teacher_id` la creare și în anti-duplicat. */

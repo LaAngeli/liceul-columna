@@ -56,7 +56,7 @@ return [
         'absence_motivations' => ['label' => 'Обоснования пропусков', 'plural' => 'Обоснования пропусков', 'single' => 'заявка на обоснование'],
         'academic_records' => ['label' => 'Академическая карта', 'plural' => 'Академическая карта', 'single' => 'запись в карте'],
         'homework' => ['label' => 'Домашние задания', 'plural' => 'Домашние задания', 'single' => 'домашнее задание'],
-        'teaching_assignments' => ['label' => 'Назначения', 'plural' => 'Назначения (классы и предметы)', 'single' => 'назначение'],
+        'teaching_assignments' => ['label' => 'Назначения', 'plural' => 'Назначения (классы и предметы)', 'active' => 'Активное', 'withdrawn' => 'Отозвано', 'single' => 'назначение'],
         'schedules' => ['label' => 'Расписания', 'plural' => 'Расписания', 'single' => 'расписание'],
         'canteen_menus' => ['label' => 'Меню столовой', 'plural' => 'Меню', 'single' => 'меню'],
         'messages' => ['label' => 'Сообщения', 'plural' => 'Сообщения', 'single' => 'сообщение'],
@@ -690,7 +690,6 @@ return [
         ],
         'enrollments' => [
             'status' => 'Статус',
-            'active' => 'Активен',
             'departed' => 'Выбыл',
             'departure_label' => 'Отметить выбытие',
             'departure_bulk_label' => 'Отметить выбытие выбранных',

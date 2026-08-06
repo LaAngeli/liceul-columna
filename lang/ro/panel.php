@@ -66,7 +66,7 @@ return [
         'absence_motivations' => ['label' => 'Motivări absențe', 'plural' => 'Motivări absențe', 'single' => 'cerere de motivare'],
         'academic_records' => ['label' => 'Foaie matricolă', 'plural' => 'Foaie matricolă', 'single' => 'înregistrare matricolă'],
         'homework' => ['label' => 'Teme', 'plural' => 'Teme', 'single' => 'temă'],
-        'teaching_assignments' => ['label' => 'Alocări', 'plural' => 'Alocări (clase și discipline)', 'single' => 'alocare'],
+        'teaching_assignments' => ['label' => 'Alocări', 'plural' => 'Alocări (clase și discipline)', 'active' => 'Activă', 'withdrawn' => 'Retrasă', 'single' => 'alocare'],
         'schedules' => ['label' => 'Orare', 'plural' => 'Orare', 'single' => 'orar'],
         'canteen_menus' => ['label' => 'Meniul cantinei', 'plural' => 'Meniuri', 'single' => 'meniu'],
         'messages' => ['label' => 'Mesaje', 'plural' => 'Mesaje', 'single' => 'mesaj'],
@@ -704,7 +704,6 @@ return [
         ],
         'enrollments' => [
             'status' => 'Statut',
-            'active' => 'Activ',
             'departed' => 'Plecat',
             'departure_label' => 'Marchează plecarea',
             'departure_bulk_label' => 'Marchează plecarea selecției',

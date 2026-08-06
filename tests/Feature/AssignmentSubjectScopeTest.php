@@ -14,8 +14,10 @@
  */
 
 use App\Filament\Resources\Users\RelationManagers\TeachingAssignmentsRelationManager;
+use App\Models\AcademicYear;
 use App\Models\SchoolClass;
 use App\Models\Subject;
+use App\Models\TeachingAssignment;
 
 beforeEach(function () {
     // Perechea omonimă reală din nomenclator: aceeași denumire, cicluri diferite.
@@ -87,4 +89,38 @@ it('scope-ul de model e aceeași regulă ca predicatul per-instanță', function
 
         expect($prinScope)->toBe($prinPredicat);
     }
+});
+
+// ─── Restructurarea tabelului (06.08.2026) ──────────────────────────────────────────────
+//
+// Lista plată era de necitit: mediana e 18 alocări per profesor (max 54), clasa se repeta pe
+// fiecare rând, iar coloana de grupă era goală în 89,7% din cazuri — punând întrebarea „ce grupă?"
+// unui profesor fără nicio legătură cu engleza.
+
+it('tabelul se grupează pe CLASĂ, iar antetul poartă anul — două clase omonime nu se mai confundă', function () {
+    $manager = new TeachingAssignmentsRelationManager;
+    $grup = (new ReflectionMethod($manager, 'classGroup'))->getClosure($manager)();
+
+    $anVechi = AcademicYear::factory()->create(['name' => '2025–2026']);
+    $anNou = AcademicYear::factory()->create(['name' => '2026–2027']);
+
+    // Aceeași denumire de clasă, ani diferiți — 14 astfel de perechi există în datele reale.
+    $vechi = SchoolClass::factory()->for($anVechi)->create(['name' => '1B', 'section' => 'B', 'grade_level' => 1]);
+    $noua = SchoolClass::factory()->for($anNou)->create(['name' => '1B', 'section' => 'B', 'grade_level' => 1]);
+
+    $alocarea = fn (SchoolClass $clasa) => TeachingAssignment::factory()->create([
+        'school_class_id' => $clasa->id,
+        'subject_id' => $this->faraInterval->id,
+    ]);
+
+    $titluri = [$grup->getTitle($alocarea($vechi)), $grup->getTitle($alocarea($noua))];
+    $descrieri = [$grup->getDescription($alocarea($vechi), $titluri[0]), $grup->getDescription($alocarea($noua), $titluri[1])];
+
+    // Titlurile SUNT identice (aceeași clasă, ca nume) — de aceea anul trebuie să stea în descriere.
+    expect($titluri[0])->toBe('1B B')->and($titluri[1])->toBe('1B B')
+        ->and($descrieri[0])->toContain('2025–2026')
+        ->and($descrieri[1])->toContain('2026–2027')
+        ->and($descrieri[0])->not->toBe($descrieri[1])
+        // Treapta în cifre romane, ca pe documente.
+        ->and($descrieri[0])->toContain('I');
 });
