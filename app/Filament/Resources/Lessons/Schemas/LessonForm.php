@@ -487,8 +487,7 @@ class LessonForm
         }
 
         $onGrade = Subject::query()
-            ->where(fn (Builder $q): Builder => $q->whereNull('min_grade')->orWhere('min_grade', '<=', $grade))
-            ->where(fn (Builder $q): Builder => $q->whereNull('max_grade')->orWhere('max_grade', '>=', $grade))
+            ->coveringGrade((int) $grade)
             ->orderBy('name')
             ->pluck('name', 'id');
 
@@ -529,10 +528,7 @@ class LessonForm
             return false;
         }
 
-        $min = $subject->getAttribute('min_grade');
-        $max = $subject->getAttribute('max_grade');
-
-        return ($min !== null && (int) $min > $grade) || ($max !== null && (int) $max < $grade);
+        return ! $subject->coversGrade((int) $grade);
     }
 
     /**

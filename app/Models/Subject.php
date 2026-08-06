@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\GradingType;
 use App\Enums\SchoolCycle;
 use Database\Factories\SubjectFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -150,6 +151,24 @@ class Subject extends Model implements Auditable
     {
         return ($this->min_grade === null || $gradeLevel >= $this->min_grade)
             && ($this->max_grade === null || $gradeLevel <= $this->max_grade);
+    }
+
+    /**
+     * Forma de INTEROGARE a lui {@see coversGrade} — aceeași regulă, pentru liste de opțiuni.
+     *
+     * DE CE contează atât: zece denumiri din nomenclator există în DOUĂ fișe, una de primar și una
+     * de gimnaziu/liceu, cu tip de notare diferit („Matematică" cl. 1–4 pe calificativ vs cl. 5–12
+     * numeric). Un formular care le arată pe amândouă lasă omul să aleagă ciclul greșit — defect
+     * plătit deja o dată, la importul lecțiilor (219 din 507 lecții au primit fișa altui ciclu).
+     *
+     * @param  Builder<Subject>  $query
+     * @return Builder<Subject>
+     */
+    public function scopeCoveringGrade(Builder $query, int $gradeLevel): Builder
+    {
+        return $query
+            ->where(fn (Builder $q): Builder => $q->whereNull('min_grade')->orWhere('min_grade', '<=', $gradeLevel))
+            ->where(fn (Builder $q): Builder => $q->whereNull('max_grade')->orWhere('max_grade', '>=', $gradeLevel));
     }
 
     /** @return HasMany<TeachingAssignment, $this> */

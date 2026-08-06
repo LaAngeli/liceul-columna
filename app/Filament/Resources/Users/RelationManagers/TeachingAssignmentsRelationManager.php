@@ -18,6 +18,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
@@ -75,16 +76,42 @@ class TeachingAssignmentsRelationManager extends RelationManager
                     ->label(__('panel.fields.class'))
                     ->options(fn (): array => self::classOptions())
                     ->searchable()
-                    ->required(),
+                    ->required()
+                    // Clasa dă TREAPTA, iar treapta decide ce discipline există — deci se alege
+                    // prima, iar schimbarea ei golește disciplina (una rămasă din alt ciclu ar fi
+                    // invalidă tăcut).
+                    ->live()
+                    ->afterStateUpdated(fn (Set $set): mixed => $set('subject_id', null)),
                 Select::make('subject_id')
                     ->label(__('panel.fields.subject'))
-                    ->options(fn (): array => self::subjectOptions())
+                    // Disciplinele TREPTEI, nu toate din nomenclator (sesizat de beneficiar,
+                    // 06.08.2026: „Matematică" apărea de două ori la o clasă a VI-a).
+                    //
+                    // Zece denumiri se repetă în nomenclator — aceeași materie predată la primar
+                    // și la gimnaziu/liceu, cu tip de notare DIFERIT („Matematică" cl. 1–4 pe
+                    // calificativ vs cl. 5–12 numeric). Nu e o eroare de date: e school-ul real.
+                    // Eroarea era că formularul le arăta pe amândouă, identic etichetate, la orice
+                    // clasă — iar alegerea greșită ar fi pus clasa a VI-a pe calificative.
+                    // Filtrarea pe treaptă ({@see Subject::coversGrade}) le desparte: la treapta 6
+                    // rămân 18 discipline și NICIUN omonim.
+                    ->options(fn (Get $get): array => self::subjectOptions($get('school_class_id')))
+                    ->helperText(fn (Get $get): ?string => self::blank($get('school_class_id'))
+                        ? (string) __('panel.forms.lesson.pick_class_first')
+                        : null)
                     ->searchable()
                     ->required()
                     ->live()
                     // Anti-duplicat cu mesaj clar (indexul unic vede ȘI alocările arhivate — un
                     // duplicat mergea direct în eroarea SQL; cel ARHIVAT se restaurează, nu se recreează).
                     ->rules([
+                        // Treapta, pe SERVER: lista filtrată e o comoditate, nu o garanție — o
+                        // alocare compusă altfel (payload vechi, import) ar lega clasa de fișa
+                        // altui ciclu, iar catalogul ar nota pe scala greșită.
+                        fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                            if (self::subjectOutsideGrade($get('school_class_id'), $value)) {
+                                $fail(__('panel.validation.lesson.subject_outside_grade'));
+                            }
+                        },
                         fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
                             $classId = $get('school_class_id');
 
@@ -160,6 +187,10 @@ class TeachingAssignmentsRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->label(__('panel.forms.teaching_assignment.add'))
+                    // Fără „Creați și creați altul": traitul {@see DisablesCreateAnother} acoperă
+                    // paginile de Creare, dar acțiunile din modale au propriul buton — aceeași
+                    // decizie de flux (creare → revizuire), deci se stinge și aici.
+                    ->createAnother(false)
                     // HasManyThrough nu poate crea — alocarea se naște explicit pe fișa
                     // profesorului (prin MODEL: garda de grupă + membria de rol rămân active).
                     ->using(function (array $data): TeachingAssignment {
@@ -210,15 +241,72 @@ class TeachingAssignmentsRelationManager extends RelationManager
         return $options;
     }
 
+    /** Câmpul e gol (null, string vid)? Un id „0" nu există, deci trece tot pe aici. */
+    private static function blank(mixed $value): bool
+    {
+        return $value === null || $value === '' || (int) $value === 0;
+    }
+
+    /** Disciplina cade în afara treptei clasei? Aceeași regulă ca la Lecții, aceeași sursă. */
+    private static function subjectOutsideGrade(mixed $classId, mixed $subjectId): bool
+    {
+        if (self::blank($classId) || self::blank($subjectId)) {
+            return false;
+        }
+
+        $grade = SchoolClass::query()->whereKey((int) $classId)->value('grade_level');
+        $subject = Subject::query()->whereKey((int) $subjectId)->first();
+
+        if ($grade === null || $subject === null) {
+            return false;
+        }
+
+        return ! $subject->coversGrade((int) $grade);
+    }
+
     /**
+     * Disciplinele care se predau la TREAPTA clasei alese. Fără clasă → listă goală: alegerea
+     * disciplinei n-are sens până nu se știe ciclul, iar o listă „toate" ar readuce omonimele.
+     *
+     * Dacă, în ciuda filtrării, două discipline rămân cu ACELAȘI nume (interval editat de școală
+     * ca să se suprapună), eticheta capătă intervalul de clase — o listă cu două rânduri identice
+     * e o alegere pe ghicite.
+     *
      * @return array<int, string>
      */
-    private static function subjectOptions(): array
+    private static function subjectOptions(mixed $classId): array
     {
+        if (self::blank($classId)) {
+            return [];
+        }
+
+        $level = SchoolClass::query()->whereKey((int) $classId)->value('grade_level');
+
+        if ($level === null) {
+            return [];
+        }
+
+        $subjects = Subject::query()
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Subject $subject): bool => $subject->coversGrade((int) $level));
+
+        $omonime = $subjects
+            ->groupBy(fn (Subject $subject): string => ContentTranslator::subject($subject->name))
+            ->filter(fn ($group): bool => $group->count() > 1)
+            ->keys()
+            ->all();
+
         $options = [];
 
-        foreach (Subject::query()->orderBy('name')->get() as $subject) {
-            $options[$subject->id] = ContentTranslator::subject($subject->name);
+        foreach ($subjects as $subject) {
+            $label = ContentTranslator::subject($subject->name);
+
+            if (in_array($label, $omonime, true)) {
+                $label .= ' ('.__('panel.fields.class').' '.($subject->min_grade ?? '—').'–'.($subject->max_grade ?? '—').')';
+            }
+
+            $options[$subject->id] = $label;
         }
 
         return $options;

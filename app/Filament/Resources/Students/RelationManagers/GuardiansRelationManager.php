@@ -59,6 +59,8 @@ class GuardiansRelationManager extends RelationManager
             ->headerActions([
                 AttachAction::make()
                     ->label(__('panel.resources.guardians.attach'))
+                    // Perechea lui „Creați și creați altul" pentru atașare — aceeași decizie.
+                    ->attachAnother(false)
                     ->modalHeading(__('panel.resources.guardians.attach_heading'))
                     ->recordSelectSearchColumns(['name', 'email', 'username'])
                     ->preloadRecordSelect()

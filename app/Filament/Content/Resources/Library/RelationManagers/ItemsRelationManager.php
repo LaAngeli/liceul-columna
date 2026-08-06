@@ -130,7 +130,8 @@ class ItemsRelationManager extends RelationManager
                     ->url(fn (LibraryItem $record): string => $record->url(), shouldOpenInNewTab: true),
             ])
             ->headerActions([
-                CreateAction::make()->label('Adaugă material'),
+                // Fără „Creați și creați altul" — vezi nota din TeachingAssignmentsRelationManager.
+                CreateAction::make()->label('Adaugă material')->createAnother(false),
             ])
             ->recordActions([
                 EditAction::make(),
