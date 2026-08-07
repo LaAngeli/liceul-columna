@@ -94,6 +94,34 @@ class HomeworkAssignment extends Model implements Auditable
         return $entries;
     }
 
+    /**
+     * Poate FAMILIA acestui utilizator să vadă tema? Elevul propriu (contul lui) sau copiii aflați
+     * în tutelă — pe CLASA CURENTĂ, exact criteriul listării temelor în cabinet (vizibilitatea
+     * clasă×disciplină din #homework-visibility). Sursa unică a regulii: o folosesc descărcarea
+     * atașamentelor, previzualizarea și pagina de detaliu — trei uși, o singură cheie.
+     */
+    public function isVisibleToFamilyOf(User $user): bool
+    {
+        $students = Student::query()
+            ->where('user_id', $user->id)
+            ->get()
+            ->concat($user->students()->get());
+
+        foreach ($students as $student) {
+            $class = $student->currentSchoolClass();
+
+            if ($class === null || (int) $class->grade_level !== (int) $this->grade_level) {
+                continue;
+            }
+
+            if ($this->section === null || $class->section === $this->section) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** Calea de storage a fișierului cu indexul dat, sau null dacă indexul nu există. */
     public function attachmentPath(int $index): ?string
     {

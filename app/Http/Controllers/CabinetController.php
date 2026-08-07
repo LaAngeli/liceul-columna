@@ -35,6 +35,7 @@ use App\Models\User;
 use App\Support\ContentTranslator;
 use App\Support\GradeLevels;
 use App\Support\Grades;
+use App\Support\SafeFileResponse;
 use App\Support\SchoolCalendar;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -890,43 +891,36 @@ class CabinetController extends Controller
      */
     public function downloadHomeworkAttachment(Request $request, HomeworkAssignment $homework, int $index): StreamedResponse
     {
+        return $this->serveHomeworkAttachment($request, $homework, $index, preferInline: false);
+    }
+
+    /**
+     * PREVIZUALIZAREA unui atașament (pagina de detaliu a temei): inline DOAR dacă conținutul
+     * fișierului o susține — decizia e a {@see SafeFileResponse}, nu a extensiei sau a numelui.
+     */
+    public function viewHomeworkAttachment(Request $request, HomeworkAssignment $homework, int $index): StreamedResponse
+    {
+        return $this->serveHomeworkAttachment($request, $homework, $index, preferInline: true);
+    }
+
+    /**
+     * Accesul + transportul unui atașament de temă. Vizibilitatea = regula UNICĂ de pe model
+     * (aceeași care listează temele în cabinet); transportul = servirea sigură comună (MIME
+     * re-verificat din conținut, inline doar tipuri pasive, nosniff).
+     */
+    private function serveHomeworkAttachment(Request $request, HomeworkAssignment $homework, int $index, bool $preferInline): StreamedResponse
+    {
         $user = $request->user('web');
         abort_unless($user instanceof User, 403);
         abort_unless(
-            $user->canSeeAcademicData() || $this->familyReachesHomework($user, $homework),
+            $user->canSeeAcademicData() || $homework->isVisibleToFamilyOf($user),
             403,
         );
 
         $path = $homework->attachmentPath($index);
         abort_unless($path !== null && Storage::disk('local')->exists($path), 404);
 
-        return Storage::disk('local')->download($path, $homework->attachmentName($index));
-    }
-
-    /**
-     * Are familia acestui utilizator un elev în clasa vizată de temă? Elevul propriu (contul lui)
-     * sau copiii aflați în tutelă — pe CLASA CURENTĂ, exact criteriul listării temelor în cabinet.
-     */
-    private function familyReachesHomework(User $user, HomeworkAssignment $homework): bool
-    {
-        $students = Student::query()
-            ->where('user_id', $user->id)
-            ->get()
-            ->concat($user->students()->get());
-
-        foreach ($students as $student) {
-            $class = $student->currentSchoolClass();
-
-            if ($class === null || (int) $class->grade_level !== (int) $homework->grade_level) {
-                continue;
-            }
-
-            if ($homework->section === null || $class->section === $homework->section) {
-                return true;
-            }
-        }
-
-        return false;
+        return SafeFileResponse::stream('local', $path, $homework->attachmentName($index), $preferInline);
     }
 
     /**

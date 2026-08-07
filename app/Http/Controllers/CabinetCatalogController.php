@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\BuildsActivityTimeline;
 use App\Http\Controllers\Concerns\BuildsStudentCatalogData;
+use App\Models\HomeworkAssignment;
 use App\Models\Student;
+use App\Support\SafeFileResponse;
+use App\Support\SchoolCalendar;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -116,6 +119,40 @@ class CabinetCatalogController extends Controller
             'module' => $module,
             'timeline' => $student !== null ? $this->activityTimeline($student) : null,
         ]);
+    }
+
+    /**
+     * Pagina de DETALIU a unei teme (cerința 2026-08-07): din fișa disciplinei, cardul temei se
+     * deschide într-o pagină proprie — tot conținutul, cu resursele atașate interactive (linkuri,
+     * resurse tipărite, fișiere cu previzualizare sigură).
+     *
+     * ACCES: 404 — nu 403 — când tema nu e a clasei unui copil al familiei. Regula de vizibilitate
+     * e cea UNICĂ de pe model (aceeași care listează temele și dă drept la fișiere); 404 nu
+     * confirmă unui id iterat că tema există.
+     */
+    public function homeworkShow(Request $request, HomeworkAssignment $homework): Response
+    {
+        $user = $request->user('web');
+
+        abort_unless($homework->isVisibleToFamilyOf($user), 404);
+
+        $row = $this->homeworkRow($homework, SchoolCalendar::localNow()->toDateString());
+
+        // Previzualizarea se decide pe CONȚINUTUL fiecărui fișier (finfo, aceeași regulă ca
+        // servirea — vezi SafeFileResponse): interfața nu promite niciodată ce transportul ar
+        // refuza. Doar aici, pe detaliu (max 5 fișiere) — lista de teme rămâne fără I/O pe disc.
+        $row['files'] = array_map(function (array $entry) use ($homework): array {
+            $path = $homework->attachmentPath($entry['index']);
+
+            return [
+                'name' => $entry['name'],
+                'url' => route('cabinet.homework.attachment', ['homework' => $homework->id, 'index' => $entry['index']]),
+                'preview' => $path !== null ? SafeFileResponse::previewKind('local', $path) : null,
+                'previewUrl' => route('cabinet.homework.attachment.view', ['homework' => $homework->id, 'index' => $entry['index']]),
+            ];
+        }, $homework->attachmentEntries());
+
+        return Inertia::render('cabinet/tema', ['homework' => $row]);
     }
 
     /**

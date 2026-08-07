@@ -11,6 +11,7 @@ use App\Models\MessageAttachment;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\MessageMailbox;
+use App\Support\SafeFileResponse;
 use App\Support\ThreadPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -182,8 +183,13 @@ class MessagesController extends Controller
 
     /**
      * Descarcă un atașament — DOAR pentru cei doi participanți ai firului din care face parte
-     * mesajul (PII de minori). Servit inline (imaginile se randează în interfață); `nosniff`
-     * previne interpretarea greșită a tipului.
+     * mesajul (PII de minori).
+     *
+     * Transportul trece prin {@see SafeFileResponse} (2026-08-07): fișierul vine de la CELĂLALT
+     * capăt al firului — inclusiv dinspre familie către personal, deci e punte de conținut
+     * nedemn de încredere în AMBELE direcții. Înainte se servea inline cu MIME-ul stocat la
+     * upload; acum inline primesc doar tipurile pasive (imagini/PDF), re-verificate din conținut
+     * la fiecare servire — restul se descarcă. Imaginile din interfață se randează la fel.
      */
     public function downloadAttachment(Request $request, MessageAttachment $attachment): StreamedResponse
     {
@@ -197,10 +203,7 @@ class MessagesController extends Controller
 
         abort_unless(Storage::disk($attachment->disk)->exists($attachment->path), 404);
 
-        return Storage::disk($attachment->disk)->response($attachment->path, $attachment->original_name, [
-            'Content-Type' => $attachment->mime,
-            'X-Content-Type-Options' => 'nosniff',
-        ]);
+        return SafeFileResponse::stream($attachment->disk, $attachment->path, $attachment->original_name, preferInline: true);
     }
 
     public function markRead(Request $request, Message $message): RedirectResponse

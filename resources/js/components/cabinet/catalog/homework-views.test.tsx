@@ -12,6 +12,12 @@ import type { HomeworkItem } from './homework-views';
  */
 
 vi.mock('@inertiajs/react', () => ({
+     
+    Link: ({ children, href, ...props }: any) => (
+        <a href={href} {...props}>
+            {children}
+        </a>
+    ),
     usePage: () => ({
         props: {
             locale: 'ro',
@@ -24,6 +30,9 @@ vi.mock('@inertiajs/react', () => ({
                         hw_open_subject: 'Vezi toate temele',
                         hw_last: 'Ultima temă:',
                         hw_pending: 'de făcut',
+                        hw_open_item: 'Deschide tema',
+                        hw_status_today: 'Pentru azi',
+                        hw_status_upcoming: 'De făcut',
                         hw_items_one: 'temă',
                         hw_items_other: 'teme',
                     },
@@ -89,7 +98,7 @@ describe('HomeworkBySubject', () => {
         }
     });
 
-    it('deschide disciplina cu TOATE temele ei, cea mai recentă prima', () => {
+    it('deschide disciplina cu TOATE temele ei, cea mai recentă prima — rânduri care NAVIGHEAZĂ', () => {
         render(<HomeworkBySubject homework={homework} />);
 
         openSubject('Matematică');
@@ -104,8 +113,13 @@ describe('HomeworkBySubject', () => {
         expect(within(dialog).queryByText('Tema 4')).not.toBeInTheDocument();
 
         // Ordine cronologică DESCRESCĂTOARE: 20.05 → 12.05 → 05.05.
-        expect(text.indexOf('20.05.2026')).toBeLessThan(text.indexOf('12.05.2026'));
-        expect(text.indexOf('12.05.2026')).toBeLessThan(text.indexOf('05.05.2026'));
+        expect(text.indexOf('20.05')).toBeLessThan(text.indexOf('12.05'));
+        expect(text.indexOf('12.05')).toBeLessThan(text.indexOf('05.05'));
+
+        // Fiecare rând e un LINK către pagina de detaliu a temei (cerința 2026-08-07).
+        const rows = within(dialog).getAllByRole('link', { name: /Deschide tema/ });
+        expect(rows).toHaveLength(3);
+        expect(rows[0]).toHaveAttribute('href', '/cabinet/teme/5');
     });
 
     it('semnalează pe card temele rămase de făcut (azi sau în viitor)', () => {

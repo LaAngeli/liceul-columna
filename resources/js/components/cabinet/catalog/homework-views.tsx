@@ -1,4 +1,5 @@
-import { ChevronRight, Paperclip } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { BookOpen, ChevronRight, Link2, Paperclip } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { isUrl } from '@/components/cabinet/student-profile/helpers';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -139,12 +140,43 @@ export function HomeworkBySubject({ homework }: { homework: HomeworkItem[] }) {
                                 </DialogDescription>
                             </DialogHeader>
 
-                            {/* Cea mai recentă prima — lista păstrează ordinea serverului. */}
-                            <div className="flex flex-col gap-3">
+                            {/* Cea mai recentă prima — lista păstrează ordinea serverului. Fiecare
+                                rând NAVIGHEAZĂ la pagina de detaliu a temei (cerința 2026-08-07):
+                                fișa e ușa, pagina e locul unde tema se citește și se folosește. */}
+                            <ul className="divide-y overflow-hidden rounded-lg border">
                                 {detail.items.map((item) => (
-                                    <HomeworkCard key={item.id} h={item} muted={item.status === 'past'} />
+                                    <li key={item.id}>
+                                        <Link
+                                            href={`/cabinet/teme/${item.id}`}
+                                            aria-label={`${t('cabinet.hw_open_item')}: ${item.subject}, ${item.date}`}
+                                            className={cn(
+                                                'flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors',
+                                                'hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
+                                                item.status === 'past' && 'opacity-80',
+                                            )}
+                                        >
+                                            <div className="w-16 shrink-0">
+                                                <span className="text-sm font-semibold tabular-nums">{item.date.slice(0, 5)}</span>
+                                                {item.status !== 'past' && (
+                                                    <span className="mt-0.5 block text-[10px] font-medium text-primary">
+                                                        {t(item.status === 'today' ? 'cabinet.hw_status_today' : 'cabinet.hw_status_upcoming')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="min-w-0 flex-1 truncate text-sm">
+                                                {item.topic ?? item.required ?? item.optional ?? '—'}
+                                            </p>
+                                            {/* Semnale de resurse — familia vede din listă ce temă poartă materiale. */}
+                                            <span className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
+                                                {item.links.filter(Boolean).length > 0 && <Link2 className="size-3.5" aria-hidden />}
+                                                {(item.files ?? []).length > 0 && <Paperclip className="size-3.5" aria-hidden />}
+                                                {item.resources.filter(Boolean).length > 0 && <BookOpen className="size-3.5" aria-hidden />}
+                                                <ChevronRight className="size-4" aria-hidden />
+                                            </span>
+                                        </Link>
+                                    </li>
                                 ))}
-                            </div>
+                            </ul>
                         </>
                     )}
                 </DialogContent>

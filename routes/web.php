@@ -194,6 +194,10 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     // controller (personal didactic / familia unui elev din clasa vizată). Indexul, nu calea.
     Route::get('cabinet/tema/{homework}/fisier/{index}', [CabinetController::class, 'downloadHomeworkAttachment'])
         ->whereNumber('index')->name('cabinet.homework.attachment');
+    // Previzualizarea aceluiași fișier (pagina de detaliu a temei) — inline DOAR dacă conținutul
+    // e un tip pasiv (imagine/PDF), re-verificat la servire; altfel cade pe descărcare.
+    Route::get('cabinet/tema/{homework}/fisier/{index}/vezi', [CabinetController::class, 'viewHomeworkAttachment'])
+        ->whereNumber('index')->name('cabinet.homework.attachment.view');
 
     // Comunicare (spec §4): poștă internă cu foldere (Primite/Trimise/Preferate/Șterse) + trimitere
     // filtrată ierarhic + răspuns în fir + stare per-utilizator (stea/coș).
@@ -238,6 +242,11 @@ Route::middleware(['auth', 'verified', SetUserLocale::class])->group(function ()
     Route::get('cabinet/teme', [CabinetCatalogController::class, 'homework'])
         ->middleware(EnsureFamilyCabinet::class)
         ->name('cabinet.homework');
+    // Pagina de DETALIU a unei teme (cerința 2026-08-07): tot conținutul + resursele, interactiv.
+    Route::get('cabinet/teme/{homework}', [CabinetCatalogController::class, 'homeworkShow'])
+        ->whereNumber('homework')
+        ->middleware(EnsureFamilyCabinet::class)
+        ->name('cabinet.homework.show');
 
     Route::get('cabinet/documente', [CabinetDocumentsController::class, 'index'])
         ->middleware(EnsureFamilyCabinet::class)
