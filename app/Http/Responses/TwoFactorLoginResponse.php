@@ -19,6 +19,12 @@ class TwoFactorLoginResponse implements TwoFactorLoginResponseContract
         $user = $request->user('web');
         $target = $user?->homePath() ?? (string) config('fortify.home');
 
+        // Aceeași igienă ca la logarea simplă: ținta de oaspete se uită, ca să nu o culeagă un pas
+        // ulterior al onboardingului (vezi LoginResponse).
+        if ($request->hasSession()) {
+            $request->session()->forget('url.intended');
+        }
+
         if ($request->wantsJson()) {
             return new JsonResponse(['redirect' => $target]);
         }

@@ -40,6 +40,12 @@ class PrivacyConsentController extends Controller
             'privacy_acknowledged_at' => now(),
         ]);
 
-        return redirect()->intended(route('dashboard'));
+        // Acasă la ROLUL LUI, niciodată `intended()`. Ținta memorată în sesiune e a browserului, nu
+        // a contului: dacă cineva a atins /admin cât nu era autentificat, Laravel a reținut-o acolo,
+        // iar logarea o ignoră deliberat ({@see \App\Http\Responses\LoginResponse}) — dar NU o
+        // consumă. Confirmarea notei, ultimul pas al onboardingului, o culegea și trimitea elevul
+        // nou în panou → 403 la prima intrare, dispărut la refresh (ținta se consumă o dată).
+        // Raportat 07.08.2026: „doar pentru elevii noi creați".
+        return redirect()->to($user->homePath());
     }
 }

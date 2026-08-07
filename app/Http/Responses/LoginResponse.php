@@ -18,6 +18,15 @@ class LoginResponse implements LoginResponseContract
         $user = $request->user('web');
         $target = $user?->homePath() ?? (string) config('fortify.home');
 
+        // Ținta memorată de Laravel pentru oaspeți (`url.intended`) se UITĂ aici, nu doar se
+        // ignoră: altfel rămâne în sesiune ca o mină pentru orice pas de mai târziu care ar folosi
+        // `intended()`. Exact așa a apărut 403-ul elevilor noi (07.08.2026) — /admin atins
+        // neautentificat, iar confirmarea notei de informare, la capătul onboardingului, ducea
+        // acolo un cont de familie.
+        if ($request->hasSession()) {
+            $request->session()->forget('url.intended');
+        }
+
         if ($request->wantsJson()) {
             return new JsonResponse(['two_factor' => false, 'redirect' => $target]);
         }

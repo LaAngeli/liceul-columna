@@ -45,6 +45,37 @@ it('personalul NU e blocat de nota de informare', function () {
     $this->actingAs($staff)->get(route('dashboard'))->assertRedirect('/admin');
 });
 
+it('confirmarea duce ACASĂ, nu la ținta rămasă în sesiune de la un oaspete', function () {
+    // Regresie 07.08.2026 („403 doar pentru elevii noi creați"): browserul atinsese /admin
+    // neautentificat, Laravel reținuse `url.intended = /admin`, iar confirmarea notei — ultimul pas
+    // al onboardingului — o consuma cu `redirect()->intended()` și trimitea elevul în panou. 403 la
+    // prima intrare, dispărut la refresh, fiindcă ținta se consumă o singură dată.
+    $user = User::factory()->unacknowledged()->create(['must_change_password' => false]);
+    $user->assignRole(UserRole::Elev->value);
+
+    $this->actingAs($user)
+        ->withSession(['url.intended' => url('/admin')])
+        ->post(route('privacy.consent.store'))
+        ->assertRedirect(route('dashboard'));
+});
+
+it('logarea UITĂ ținta de oaspete, ca să n-o culeagă un pas de mai târziu', function () {
+    // Fixul sistemic: LoginResponse ignora deliberat `intended`, dar îl lăsa în sesiune — o mină
+    // pentru orice `intended()` de mai încolo. Acum se stinge la logare.
+    $user = User::factory()->create([
+        'must_change_password' => false,
+        'privacy_acknowledged_version' => 'test-v1',
+        'password' => 'ParolaTest123!',
+    ]);
+    $user->assignRole(UserRole::Elev->value);
+
+    $this->withSession(['url.intended' => url('/admin')])
+        ->post(route('login'), ['email' => $user->email, 'password' => 'ParolaTest123!'])
+        ->assertRedirect(route('dashboard'));
+
+    expect(session()->has('url.intended'))->toBeFalse();
+});
+
 it('o versiune nouă a notei cere reconfirmare', function () {
     $user = User::factory()->create([
         'must_change_password' => false,
