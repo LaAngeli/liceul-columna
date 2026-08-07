@@ -15,6 +15,7 @@ use App\Calendar\Projectors\StructureProjector;
 use App\Support\Locale;
 use App\Support\SchoolCalendar;
 use Carbon\CarbonImmutable;
+use Filament\Forms\Components\FileUpload;
 use Filament\Schemas\Schema;
 use Filament\Support\Facades\FilamentTimezone;
 use Filament\Tables\Table;
@@ -104,6 +105,33 @@ class AppServiceProvider extends ServiceProvider
         Schema::configureUsing(fn (Schema $schema): Schema => $schema
             ->defaultDateDisplayFormat('d.m.Y')
             ->defaultDateTimeDisplayFormat('d.m.Y H:i'));
+
+        $this->configureFileUploadPlaceholder();
+    }
+
+    /**
+     * Textul zonei de încărcare — al NOSTRU, pe toate câmpurile de fișier deodată.
+     *
+     * Venea din locale-ul RO al FilePond, împachetat în asset-ul publicat de Filament
+     * (`public/js/filament/forms/components/file-upload.js`): „Trage și plasează fișiere sau
+     * Caută-le". Beneficiarul a cerut „Caută" (07.08.2026) — dar acel fișier NU se editează, e
+     * republicat la fiecare `filament:assets`/`filament:upgrade`, deci corectura ar fi dispărut
+     * tăcut la prima actualizare de pachet.
+     *
+     * Calea stabilă e `placeholder()`, pe care componenta îl trimite ca `labelIdle`. Pus o dată
+     * aici, prinde ORICE `FileUpload` din orice panou; un câmp care își cere alt text îl suprascrie
+     * mai departe, ca la orice `configureUsing`.
+     *
+     * `__()` stă ÎN închidere, nu în afara ei: la boot limba încă nu e stabilită (o pune
+     * `SetUserLocale`), iar o traducere citită atunci ar fi înghețat în română pentru toți.
+     * Marcajul `<span>` e cel al FilePond — fără el, cuvântul-acțiune își pierde stilul de link.
+     */
+    protected function configureFileUploadPlaceholder(): void
+    {
+        FileUpload::configureUsing(fn (FileUpload $upload): FileUpload => $upload
+            ->placeholder(fn (): string => __('panel.forms.file_upload.placeholder', [
+                'action' => '<span class="filepond--label-action">'.__('panel.forms.file_upload.browse').'</span>',
+            ])));
     }
 
     /**

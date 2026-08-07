@@ -768,6 +768,10 @@ return [
     ],
 
     'forms' => [
+        'file_upload' => [
+            'placeholder' => 'Перетащите файлы сюда или :action',
+            'browse' => 'Выберите',
+        ],
         'fiche_account' => [
             'section' => 'Учётная запись',
             'section_person' => 'Данные человека',

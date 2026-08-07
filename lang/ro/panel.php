@@ -782,6 +782,10 @@ return [
     ],
 
     'forms' => [
+        'file_upload' => [
+            'placeholder' => 'Trage și plasează fișiere sau :action',
+            'browse' => 'Caută',
+        ],
         'fiche_account' => [
             'section' => 'Cont de acces',
             'section_person' => 'Datele persoanei',

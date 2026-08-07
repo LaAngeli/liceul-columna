@@ -768,6 +768,10 @@ return [
     ],
 
     'forms' => [
+        'file_upload' => [
+            'placeholder' => 'Drag & drop files or :action',
+            'browse' => 'Browse',
+        ],
         'fiche_account' => [
             'section' => 'Sign-in account',
             'section_person' => 'Person details',
