@@ -757,7 +757,7 @@ class ClassRegister extends Page
      *     iso: string,
      *     grades: list<array{id: int, value: string, type_label: string, lesson: int|null, can_move_hour: bool, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>,
      *     absences: list<array{id: int, status: string, color: string, status_label: string, lesson: int|null, can_move_hour: bool}>,
-     *     default_hour: int|null,
+     *     next_slot: int|null|false,
      *     busy_count: int,
      *     hour_menu: list<array{hour: int, busy: string|null}>,
      *     rights: array{is_admin: bool, can_annul: bool, can_request: bool, can_status: bool},
@@ -771,7 +771,7 @@ class ClassRegister extends Page
     {
         $empty = [
             'student' => null, 'iso' => $iso, 'grades' => [], 'absences' => [],
-            'default_hour' => null, 'busy_count' => 0, 'hour_menu' => [],
+            'next_slot' => false, 'busy_count' => 0, 'hour_menu' => [],
             'rights' => $this->dayRights(), 'can_absent' => false,
             'can_grade' => false, 'numeric' => true, 'grade_types' => [],
         ];
@@ -836,8 +836,8 @@ class ClassRegister extends Page
             'iso' => $iso,
             'grades' => $grades,
             'absences' => $absences,
-            'default_hour' => $usage['default'],
-            'busy_count' => $usage['busy_count'],
+            'next_slot' => $this->dayNextSlot((int) $student->getKey(), $iso),
+            'busy_count' => $usage['busy_count'] + ($usage['single'] === null ? 0 : 1),
             'hour_menu' => $this->dayHourMenu((int) $student->getKey(), $iso),
             'rights' => $rights,
             'can_absent' => $this->canRecordAbsences() && $notFuture,
@@ -871,17 +871,22 @@ class ClassRegister extends Page
             return;
         }
 
-        $lesson ??= $this->firstFreeDayHour($studentId, $iso);
-
+        // Fără oră cerută explicit: „O singură oră" pe o zi curată, altfel ordinalul liber.
         if ($lesson === null) {
-            // Toate cele 8 sloturi ale zilei (note + absențe) sunt deja consemnate: a N-a apăsare
-            // nu mai are ce oră să umple — refuz prietenos, nu un rând imposibil.
-            Notification::make()
-                ->warning()
-                ->title(__('panel.class_register.day_panel.all_hours_taken'))
-                ->send();
+            $slot = $this->claimDaySlot($studentId, $iso);
 
-            return;
+            if ($slot === false) {
+                // Ora unică + toate cele 8 ordinale sunt consemnate: a N-a apăsare nu mai are ce
+                // oră să umple — refuz prietenos, nu un rând imposibil.
+                Notification::make()
+                    ->warning()
+                    ->title(__('panel.class_register.day_panel.all_hours_taken'))
+                    ->send();
+
+                return;
+            }
+
+            $lesson = $slot;
         }
 
         try {
@@ -1204,9 +1209,9 @@ class ClassRegister extends Page
                         ]);
                     }
 
-                    $lesson = $this->firstFreeDayHour($studentId, $iso);
+                    $lesson = $this->claimDaySlot($studentId, $iso);
 
-                    if ($lesson === null) {
+                    if ($lesson === false) {
                         throw ValidationException::withMessages([
                             "entries.{$studentId}.value" => __('panel.class_register.day_panel.all_hours_taken'),
                         ]);
@@ -1242,9 +1247,9 @@ class ClassRegister extends Page
                 if ($absent && $canAbsent) {
                     // DUPĂ nota aceluiași rând (aceeași tranzacție): ordinalul următor e liber —
                     // notă la Ora 1, absență la Ora 2, exact semantica ordinală a zilei.
-                    $lesson = $this->firstFreeDayHour($studentId, $iso);
+                    $lesson = $this->claimDaySlot($studentId, $iso);
 
-                    if ($lesson === null) {
+                    if ($lesson === false) {
                         throw ValidationException::withMessages([
                             "entries.{$studentId}.absent" => __('panel.class_register.day_panel.all_hours_taken'),
                         ]);

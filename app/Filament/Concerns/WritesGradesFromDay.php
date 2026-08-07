@@ -116,17 +116,21 @@ trait WritesGradesFromDay
             return;
         }
 
-        $lesson ??= $this->firstFreeDayHour($studentId, $iso);
-
+        // Fără oră cerută explicit (cazul panoului), slotul se rezervă singur: „O singură oră" pe
+        // o zi curată, altfel ordinalul liber. `false` = nu mai e loc deloc.
         if ($lesson === null) {
-            // Toate cele 8 sloturi ale zilei sunt consemnate (note + absențe) — n-a mai rămas
-            // nicio oră pe care nota să poată sta.
-            Notification::make()
-                ->warning()
-                ->title(__('panel.class_register.day_panel.all_hours_taken'))
-                ->send();
+            $slot = $this->claimDaySlot($studentId, $iso);
 
-            return;
+            if ($slot === false) {
+                Notification::make()
+                    ->warning()
+                    ->title(__('panel.class_register.day_panel.all_hours_taken'))
+                    ->send();
+
+                return;
+            }
+
+            $lesson = $slot;
         }
 
         try {
@@ -478,10 +482,44 @@ trait WritesGradesFromDay
         $record?->update(['lesson_number' => $hour]);
     }
 
-    /** Primul ordinal LIBER al zilei pentru (elev, zi) — null = toate cele 8 sunt consemnate. */
-    protected function firstFreeDayHour(int $studentId, string $iso): ?int
+    /**
+     * Slotul pe care va cădea URMĂTOAREA consemnare a zilei — fără să mute nimic (folosit la
+     * AFIȘARE: „se consemnează pe …", butonul de deschidere a orei următoare).
+     *
+     * `null` = „O singură oră" (ziua e curată — decizia beneficiarului, 07.08.2026: în ~90% din
+     * zile disciplina are o singură oră, deci prima consemnare nu trebuie să poarte ordinal);
+     * `int` = ordinalul liber; `false` = nu mai e loc (ora unică + toate cele 8 sunt luate).
+     */
+    protected function dayNextSlot(int $studentId, string $iso): int|null|false
     {
-        return $this->dayHourUsage($studentId, $iso)['default'];
+        $usage = $this->dayHourUsage($studentId, $iso);
+
+        if ($usage['busy'] === []) {
+            // Ziua curată → „O singură oră". Ziua cu DOAR consemnarea unică → a doua o transformă
+            // în Ora 1 (vezi claimDaySlot), iar noua urmează pe Ora 2.
+            return $usage['single'] === null ? null : 2;
+        }
+
+        return $usage['default'] ?? false;
+    }
+
+    /**
+     * Slotul REZERVAT pentru o consemnare nouă — ca {@see dayNextSlot}, dar cu efectul care face
+     * afirmația adevărată: când ziua avea doar consemnarea „O singură oră" și apare a doua, prima
+     * devine Ora 1 (nu mai e „singura"), iar cea nouă primește Ora 2. Fără asta, panoul ar arăta
+     * „O singură oră" lângă „Ora 1" — două rânduri care se contrazic.
+     */
+    protected function claimDaySlot(int $studentId, string $iso): int|null|false
+    {
+        $usage = $this->dayHourUsage($studentId, $iso);
+
+        if ($usage['busy'] === [] && $usage['single'] !== null) {
+            $this->parkDayOccupant($usage['single'], 1);
+
+            return 2;
+        }
+
+        return $this->dayNextSlot($studentId, $iso);
     }
 
     /**

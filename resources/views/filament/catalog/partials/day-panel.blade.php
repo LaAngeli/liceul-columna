@@ -17,8 +17,15 @@
     ];
     // Panoul doar-note (harta Note) nu trimite drepturile de absență — secțiunea lor lipsește.
     $rights = $panel['rights'] ?? ['can_status' => false];
-    $defaultHour = $panel['default_hour'] ?? null;
+    // Slotul pe care va cădea consemnarea următoare: `null` = „O singură oră" (ziua curată — cazul
+    // obișnuit), `int` = ordinalul liber, `false` = nu mai e loc.
+    // ⚠️ NU `?? false`: aici `null` e o valoare cu înțeles (slotul unic), iar `??` ar confunda-o cu
+    // cheia lipsă — ziua curată ar anunța „toate orele sunt consemnate".
+    $nextSlot = array_key_exists('next_slot', $panel) ? $panel['next_slot'] : false;
     $busyCount = $panel['busy_count'] ?? 0;
+    $nextSlotLabel = $nextSlot === null
+        ? __('panel.forms.absence.lesson_unspecified')
+        : __('panel.forms.absence.lesson_option', ['number' => $nextSlot]);
     $canGrade = $panel['can_grade'] ?? false;
     $canAbsent = $panel['can_absent'] ?? false;
     $hourMenu = $panel['hour_menu'] ?? [];
@@ -262,7 +269,7 @@
                              administrație) — aceleași trei stări, aceleași culori ca în harta
                              absențelor. `flex-1` + `justify-center` le ține la mijlocul spațiului
                              rămas între cele două capete, pe aceeași axă. --}}
-                        <div class="flex flex-1 items-center justify-center gap-1">
+                        <div class="flex flex-1 items-center justify-center gap-2.5">
                             @if ($rights['can_status'])
                                 @foreach ($statusChoices as $choice)
                                     @if ($choice->value !== $absence['status'])
@@ -299,19 +306,26 @@
                                 {{ __('panel.actions.annul.label') }}
                             </button>
 
-                            <div x-show="deschis" x-cloak class="mt-1 flex w-full flex-wrap items-center gap-2">
-                                    <input
-                                        type="text"
-                                        x-model="motiv"
-                                        maxlength="255"
-                                        placeholder="{{ __('panel.actions.annul.reason') }}"
-                                        class="min-w-0 flex-1 rounded-lg border-gray-300 text-xs shadow-sm dark:border-white/20 dark:bg-white/5"
-                                    />
+                            {{-- Formular IDENTIC cu anularea notei (cerința 07.08.2026): aceeași
+                                 explicație, aceeași casetă de motiv (textarea pe două rânduri, cu
+                                 px/py explicite — preflight-ul taie padding-ul nativ), aceleași
+                                 butoane. Două formulare gemene în același panou trebuie să arate
+                                 și să spună la fel. --}}
+                            <div x-show="deschis" x-cloak class="w-full space-y-2 border-t border-gray-200 pt-2 dark:border-white/10">
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('panel.actions.annul.absence_description') }}</p>
+                                <textarea
+                                    x-model="motiv"
+                                    rows="2"
+                                    maxlength="255"
+                                    placeholder="{{ __('panel.actions.annul.reason') }}"
+                                    class="w-full rounded-lg border-0 bg-white px-3 py-2 text-sm leading-5 text-gray-950 shadow-sm ring-1 ring-gray-950/10 focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
+                                ></textarea>
+                                <div class="flex items-center gap-2">
                                     <button
                                         type="button"
                                         x-bind:disabled="motiv.trim() === ''"
                                         x-on:click="$wire.annulDayAbsence({{ $absence['id'] }}, motiv); deschis = false; motiv = ''"
-                                        class="rounded-lg bg-danger-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-danger-500 disabled:pointer-events-none disabled:opacity-40"
+                                        class="inline-flex h-8 items-center rounded-lg bg-danger-600 px-3 text-xs font-semibold text-white transition hover:bg-danger-500 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {{ __('panel.actions.annul.label') }}
                                     </button>
@@ -325,6 +339,7 @@
                                              la fel. (`panel.common.cancel` nu există — apărea cheia brută.) --}}
                                         {{ __('panel.class_register.day_panel.cancel') }}
                                     </button>
+                                </div>
                             </div>
                         @endif
                     </li>
@@ -343,7 +358,7 @@
          excluderea o impune serverul, indiferent pe unde vine scrierea. --}}
     @if ($canGrade || $canAbsent)
         <section
-            wire:key="day-write-{{ $panel['iso'] }}-{{ $busyCount }}-{{ $defaultHour ?? 'plin' }}"
+            wire:key="day-write-{{ $panel['iso'] }}-{{ $busyCount }}-{{ $nextSlot === false ? 'plin' : ($nextSlot ?? 'unica') }}"
             class="rounded-lg border border-dashed border-gray-300 p-3 dark:border-white/15"
             x-data="{ open: {{ $busyCount === 0 ? 'true' : 'false' }}, v: '', t: 'curenta' }"
         >
@@ -351,7 +366,7 @@
                 {{ __('panel.class_register.day_panel.write_heading') }}
             </h4>
 
-            @if ($defaultHour === null)
+            @if ($nextSlot === false)
                 <p class="text-sm text-gray-500 dark:text-gray-400">
                     {{ __('panel.class_register.day_panel.all_hours_taken') }}
                 </p>
@@ -366,17 +381,19 @@
                     class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-white px-3 text-xs font-semibold text-primary-700 ring-1 ring-primary-600/40 transition hover:bg-primary-50 dark:bg-white/5 dark:text-primary-300 dark:ring-primary-400/40 dark:hover:bg-primary-400/10"
                 >
                     <x-filament::icon icon="heroicon-o-plus" class="h-4 w-4" />
-                    {{ __('panel.class_register.day_panel.open_next_hour', ['number' => $defaultHour]) }}
+                    {{ __('panel.class_register.day_panel.open_next_hour', ['slot' => $nextSlotLabel]) }}
                 </button>
 
                 <div x-show="open" x-cloak class="space-y-2">
                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ __('panel.class_register.day_panel.hour_target', ['number' => $defaultHour]) }}
+                        {{ __($nextSlot === null
+                            ? 'panel.class_register.day_panel.single_hour_target'
+                            : 'panel.class_register.day_panel.hour_target', ['number' => $nextSlot]) }}
                     </p>
 
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="inline-flex h-9 items-center rounded-lg bg-gray-100 px-2.5 text-xs font-semibold text-gray-700 ring-1 ring-gray-950/10 dark:bg-white/10 dark:text-gray-200 dark:ring-white/15">
-                            {{ __('panel.forms.absence.lesson_option', ['number' => $defaultHour]) }}
+                            {{ $nextSlotLabel }}
                         </span>
 
                         @if ($canGrade)

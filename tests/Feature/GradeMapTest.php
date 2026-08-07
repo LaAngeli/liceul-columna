@@ -408,7 +408,7 @@ it('și în panoul doar-note ora cu ABSENȚĂ e ocupată: slotul o arată, iar n
     $panel = $component->instance()->gradeDayPanel($student->id, $azi);
 
     expect($panel['busy_count'])->toBe(1)
-        ->and($panel['default_hour'])->toBe(1);
+        ->and($panel['next_slot'])->toBe(1);
 
     // Nota forțată pe ora absenței — refuzată de gardă; pe ora liberă trece.
     $component->call('addDayGrade', $student->id, $azi, '9', 'curenta', 2);

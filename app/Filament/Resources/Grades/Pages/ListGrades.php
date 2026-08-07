@@ -526,7 +526,7 @@ class ListGrades extends ListRecords implements CatalogNavigator
      *     student: Student|null,
      *     iso: string,
      *     grades: list<array{id: int, value: string, type_label: string, lesson: int|null, can_move_hour: bool, weighted: bool, pending: bool, annulled: bool, edit_url: string|null, can_annul: bool, can_request: bool}>,
-     *     default_hour: int|null,
+     *     next_slot: int|null|false,
      *     busy_count: int,
      *     hour_menu: list<array{hour: int, busy: string|null}>,
      *     can_grade: bool,
@@ -538,7 +538,7 @@ class ListGrades extends ListRecords implements CatalogNavigator
     {
         $empty = [
             'student' => null, 'iso' => $iso, 'grades' => [],
-            'default_hour' => null, 'busy_count' => 0, 'hour_menu' => [],
+            'next_slot' => false, 'busy_count' => 0, 'hour_menu' => [],
             'can_grade' => false, 'numeric' => true, 'grade_types' => [],
         ];
 
@@ -568,8 +568,8 @@ class ListGrades extends ListRecords implements CatalogNavigator
             'student' => $student,
             'iso' => $iso,
             'grades' => $this->dayGradeEntriesFor((int) $student->getKey(), $iso, $this->gradeMapCycle()),
-            'default_hour' => $usage['default'],
-            'busy_count' => $usage['busy_count'],
+            'next_slot' => $this->dayNextSlot((int) $student->getKey(), $iso),
+            'busy_count' => $usage['busy_count'] + ($usage['single'] === null ? 0 : 1),
             'hour_menu' => $this->dayHourMenu((int) $student->getKey(), $iso),
             'can_grade' => $this->canEnterGrades()
                 && ! Carbon::parse($iso)->startOfDay()->isAfter(Carbon::today()),
