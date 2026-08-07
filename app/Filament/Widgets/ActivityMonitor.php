@@ -373,7 +373,11 @@ class ActivityMonitor extends Widget
                 ->whereBetween('created_at', [$utcStart, $utcEnd])
                 ->pluck('created_at'), 'grades');
 
+            // `active()`, ca la note pe rândul de deasupra (07.08.2026 — absențele au acum
+            // anulare): o consemnare desfăcută nu mai e activitate, iar pulsul ar fi arătat o zi
+            // mai plină decât a fost.
             $tally(Absence::query()
+                ->active()
                 ->where('teacher_id', $teacherId)
                 ->whereBetween('created_at', [$utcStart, $utcEnd])
                 ->pluck('created_at'), 'absences');

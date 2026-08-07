@@ -16,6 +16,7 @@ use App\Actions\ComputeDeferralRisk;
 use App\Enums\UserRole;
 use App\Filament\Pages\ClassRegister;
 use App\Filament\Resources\Absences\Pages\ListAbsences;
+use App\Filament\Widgets\ActivityMonitor;
 use App\Models\Absence;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
@@ -256,4 +257,20 @@ it('harta absențelor nu pune pe pastilă o absență anulată', function () {
 
     expect($harta['rows'])->not->toBeEmpty()
         ->and($totaluri)->toBe(1);
+});
+
+it('pulsul de activitate nu numără consemnarea desfăcută', function () {
+    $zi = Carbon::today()->subDays(1)->toDateString();
+
+    annulmentAbsence($this, $zi, lesson: 1);
+    annulmentApply(annulmentAbsence($this, $zi, lesson: 2));
+
+    actingAs($this->teacherUser);
+
+    $counts = (new ReflectionMethod(ActivityMonitor::class, 'dailyCounts'))
+        ->getClosure(new ActivityMonitor)(Carbon::today()->subDays(7), Carbon::today()->addDay());
+
+    $absente = collect($counts)->sum(fn (array $zi): int => (int) ($zi['absences'] ?? 0));
+
+    expect($absente)->toBe(1);
 });
