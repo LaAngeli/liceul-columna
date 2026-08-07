@@ -76,7 +76,7 @@
                                 x-on:change="$wire.moveDayGradeHour({{ $grade['id'] }}, $event.target.value)"
                                 aria-label="{{ __('panel.class_register.day_panel.hour_select_label') }}"
                                 title="{{ __('panel.class_register.day_panel.hour_select_label') }}"
-                                class="h-7 rounded-md border-0 bg-white py-0 pe-7 ps-2 text-xs text-gray-600 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-300 dark:ring-white/15"
+                                class="h-7 w-40 shrink-0 truncate rounded-md border-0 bg-white py-0 pe-7 ps-2 text-xs text-gray-600 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-300 dark:ring-white/15"
                             >
                                 @if ($grade['lesson'] === null)
                                     <option value="" selected>{{ __('panel.forms.absence.lesson_unspecified') }}</option>
@@ -217,44 +217,58 @@
         @else
             <ul class="space-y-2">
                 @foreach ($panel['absences'] as $absence)
-                    <li class="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/5" wire:key="day-abs-{{ $absence['id'] }}">
-                        <span @class([
-                            'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1',
-                            $statusPalette[$absence['color']] ?? $statusPalette['warning'],
-                        ])>
-                            {{ $absence['status_label'] }}
-                        </span>
-
-                        {{-- Ora absenței, corectabilă la fel ca a notei (07.08.2026). --}}
-                        @if (($absence['can_move_hour'] ?? false) && $hourMenu !== [])
-                            <select
-                                x-on:change="$wire.moveDayAbsenceHour({{ $absence['id'] }}, $event.target.value)"
-                                aria-label="{{ __('panel.class_register.day_panel.hour_select_label') }}"
-                                title="{{ __('panel.class_register.day_panel.hour_select_label') }}"
-                                class="h-7 rounded-md border-0 bg-white py-0 pe-7 ps-2 text-xs text-gray-600 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-300 dark:ring-white/15"
-                            >
-                                @if ($absence['lesson'] === null)
-                                    <option value="" selected>{{ __('panel.forms.absence.lesson_unspecified') }}</option>
-                                @endif
-
-                                @foreach ($hourMenu as $slot)
-                                    <option value="{{ $slot['hour'] }}" @selected($absence['lesson'] === $slot['hour'])>
-                                        {{ $hourOptionLabel($slot, $absence['lesson']) }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        @else
-                            <span class="text-xs text-gray-600 dark:text-gray-300">
-                                {{ $absence['lesson'] !== null
-                                    ? __('panel.forms.absence.lesson_option', ['number' => $absence['lesson']])
-                                    : __('panel.forms.absence.lesson_unspecified') }}
+                    {{-- Rândul absenței, pe TREI zone și o SINGURĂ axă orizontală (07.08.2026):
+                         stânga = statutul + ora, CENTRU = butoanele de statut, dreapta =
+                         „Anulează". Înainte, anularea cădea pe un al doilea rând (`w-full`), iar
+                         rândul arăta rupt în două. Starea Alpine urcă pe `<li>`, ca declanșatorul
+                         (în zona din dreapta) și formularul (bandă full-width dedesubt) să o
+                         împartă. --}}
+                    <li
+                        class="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/5"
+                        wire:key="day-abs-{{ $absence['id'] }}"
+                        x-data="{ deschis: false, motiv: '' }"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span @class([
+                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1',
+                                $statusPalette[$absence['color']] ?? $statusPalette['warning'],
+                            ])>
+                                {{ $absence['status_label'] }}
                             </span>
-                        @endif
 
-                        {{-- Statutul îl fixează DOAR cine are dreptul (diriginte/administrație) —
-                             aceleași trei stări, aceleași culori ca în harta absențelor. --}}
-                        @if ($rights['can_status'])
-                            <span class="ms-auto inline-flex items-center gap-1">
+                            {{-- Ora absenței, corectabilă la fel ca a notei (07.08.2026). --}}
+                            @if (($absence['can_move_hour'] ?? false) && $hourMenu !== [])
+                                <select
+                                    x-on:change="$wire.moveDayAbsenceHour({{ $absence['id'] }}, $event.target.value)"
+                                    aria-label="{{ __('panel.class_register.day_panel.hour_select_label') }}"
+                                    title="{{ __('panel.class_register.day_panel.hour_select_label') }}"
+                                    class="h-7 w-40 shrink-0 truncate rounded-md border-0 bg-white py-0 pe-7 ps-2 text-xs text-gray-600 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-300 dark:ring-white/15"
+                                >
+                                    @if ($absence['lesson'] === null)
+                                        <option value="" selected>{{ __('panel.forms.absence.lesson_unspecified') }}</option>
+                                    @endif
+
+                                    @foreach ($hourMenu as $slot)
+                                        <option value="{{ $slot['hour'] }}" @selected($absence['lesson'] === $slot['hour'])>
+                                            {{ $hourOptionLabel($slot, $absence['lesson']) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            @else
+                                <span class="text-xs text-gray-600 dark:text-gray-300">
+                                    {{ $absence['lesson'] !== null
+                                        ? __('panel.forms.absence.lesson_option', ['number' => $absence['lesson']])
+                                        : __('panel.forms.absence.lesson_unspecified') }}
+                                </span>
+                            @endif
+                        </div>
+
+                        {{-- CENTRU: statutul îl fixează DOAR cine are dreptul (diriginte/
+                             administrație) — aceleași trei stări, aceleași culori ca în harta
+                             absențelor. `flex-1` + `justify-center` le ține la mijlocul spațiului
+                             rămas între cele două capete, pe aceeași axă. --}}
+                        <div class="flex flex-1 items-center justify-center gap-1">
+                            @if ($rights['can_status'])
                                 @foreach ($statusChoices as $choice)
                                     @if ($choice->value !== $absence['status'])
                                         <button
@@ -272,26 +286,25 @@
                                         </button>
                                     @endif
                                 @endforeach
-                            </span>
-                        @endif
+                            @endif
+                        </div>
 
-                        {{-- ANULAREA (07.08.2026): absența consemnată din greșeală se desface AICI,
-                             unde a fost pusă. Formular inline, nu acțiune montată — `mountAction`
-                             peste un modal deja montat nu funcționează (lecția rundei 7).
-                             Motivul e obligatoriu: o absență care iese din totaluri fără explicație
-                             ar fi chiar incertitudinea pe care o reparăm. --}}
+                        {{-- DREAPTA: ANULAREA (07.08.2026) — absența consemnată din greșeală se
+                             desface AICI, unde a fost pusă. Formular inline, nu acțiune montată:
+                             `mountAction` peste un modal deja montat nu funcționează (lecția
+                             rundei 7). Motivul e obligatoriu — o absență care iese din totaluri
+                             fără explicație ar fi chiar incertitudinea pe care o reparăm. --}}
                         @if ($absence['can_annul'] ?? false)
-                            <div class="w-full" x-data="{ deschis: false, motiv: '' }">
-                                <button
-                                    type="button"
-                                    x-show="! deschis"
-                                    x-on:click="deschis = true"
-                                    class="text-xs font-medium text-danger-600 hover:underline dark:text-danger-400"
-                                >
-                                    {{ __('panel.actions.annul.label') }}
-                                </button>
+                            <button
+                                type="button"
+                                x-show="! deschis"
+                                x-on:click="deschis = true"
+                                class="inline-flex h-7 shrink-0 items-center text-xs font-medium text-danger-600 hover:underline dark:text-danger-400"
+                            >
+                                {{ __('panel.actions.annul.label') }}
+                            </button>
 
-                                <div x-show="deschis" x-cloak class="mt-1 flex flex-wrap items-center gap-2">
+                            <div x-show="deschis" x-cloak class="mt-1 flex w-full flex-wrap items-center gap-2">
                                     <input
                                         type="text"
                                         x-model="motiv"
@@ -314,7 +327,6 @@
                                     >
                                         {{ __('panel.common.cancel') }}
                                     </button>
-                                </div>
                             </div>
                         @endif
                     </li>
