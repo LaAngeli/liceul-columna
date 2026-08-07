@@ -7,7 +7,9 @@ use App\Enums\SchoolCycle;
 use App\Models\Grade;
 use App\Models\Subject;
 use App\Models\TeachingAssignment;
+use App\Support\GradeLevels;
 use Closure;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
@@ -16,6 +18,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use WeakMap;
 
 /**
  * Formularul de disciplină, STANDARDIZAT (cerința beneficiarului, 2026-07-21): nimic din ce are
@@ -91,96 +94,82 @@ class SubjectForm
 
                 Section::make(__('panel.forms.subject.section_span'))
                     ->description(__('panel.forms.subject.grade_span_hint'))
-                    ->columns(2)
                     ->schema([
-                        // Treptele se ALEG, nu se tastează (standardizare 2026-07-21): doar clasele
-                        // I–XII din structura școlii; „Până la" oferă numai trepte ≥ „De la", deci
-                        // intervalul nu se poate inversa din interfață.
-                        Select::make('min_grade')
-                            ->label(__('panel.forms.subject.min_grade'))
+                        // Treptele se MARCHEAZĂ una câte una (cerința beneficiarului, 07.08.2026)
+                        // — nu se mai construiește un interval „De la / Până la". Setul poate avea
+                        // goluri (V–IX și XII, fără X–XI), iar debifarea unei trepte cu istoric e
+                        // oprită DIN START: opțiunea e dezactivată vizual, ca la rolurile
+                        // incompatibile, nu corectată după.
+                        CheckboxList::make('grade_levels')
+                            ->hiddenLabel()
+                            ->validationAttribute(__('panel.forms.subject.grade_span'))
                             ->options(SchoolCycle::gradeLevelOptions())
+                            // Pe coloane VERTICALE, treptele curg în ordinea ciclurilor: I–IV
+                            // (primar) în prima coloană, V–VIII în a doua, IX–XII în a treia.
+                            ->columns(['default' => 2, 'xl' => 3])
+                            ->gridDirection('column')
+                            ->bulkToggleable()
                             ->required()
-                            ->native(false)
-                            ->live()
-                            // Treapta de start mutată peste finalul curent → finalul se golește
-                            // (nu păstrăm tăcut un interval invalid în formular).
-                            ->afterStateUpdated(static function (Get $get, Set $set, mixed $state): void {
-                                $min = is_numeric($state) ? (int) $state : null;
-                                $max = is_numeric($maxRaw = $get('max_grade')) ? (int) $maxRaw : null;
-
-                                if ($min !== null && $max !== null && $max < $min) {
-                                    $set('max_grade', null);
-                                }
-                            }),
-                        Select::make('max_grade')
-                            ->label(__('panel.forms.subject.max_grade'))
-                            ->options(static function (Get $get): array {
-                                $options = SchoolCycle::gradeLevelOptions();
-                                $min = is_numeric($minRaw = $get('min_grade')) ? (int) $minRaw : null;
-
-                                return $min === null
-                                    ? $options
-                                    : array_filter($options, static fn (int $grade): bool => $grade >= $min, ARRAY_FILTER_USE_KEY);
-                            })
-                            ->required()
-                            ->native(false)
-                            ->live()
+                            // Treapta cu istoric (alocări sau note) nu se poate DEBIFA — opțiunea
+                            // e blocată cât timp e în setul salvat. Treptele fără istoric rămân
+                            // libere în ambele sensuri.
+                            ->disableOptionWhen(static fn (string $value, ?Model $record): bool => $record instanceof Subject
+                                && in_array((int) $value, self::lockedGrades($record), true))
+                            // ⚠️ Regula `in:` implicită ia DOAR opțiunile active — o treaptă
+                            // blocată-dar-bifată ar pica la salvare exact pentru că e protejată.
+                            // Explicit: orice treaptă din structură e o valoare validă.
+                            ->in(array_keys(SchoolCycle::gradeLevelOptions()))
                             ->rules([
-                                // Dublura pe SERVER a regulilor din UI (POST forjat): interval
-                                // nerăsturnat + fără suprapunere cu o altă disciplină omonimă
-                                // (duplicatele legitime — „Matematică" primar calificativ / gimnaziu
-                                // numerică — trăiesc DOAR pe intervale disjuncte) + fără ÎNGUSTARE
-                                // peste istoricul existent (alocări/note pe trepte care ar ieși din
-                                // interval — coerența cu orarul și catalogul).
+                                // Dublura pe SERVER a regulilor din UI (POST forjat): omonimele
+                                // stau pe seturi DISJUNCTE (duplicatele legitime — „Matematică"
+                                // primar pe calificative / gimnaziu numerică — nu se pot suprapune)
+                                // + nicio treaptă cu istoric nu iese din set (coerența cu orarul și
+                                // catalogul — dezactivarea din UI e doar confort).
                                 static fn (Get $get, ?Model $record): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
-                                    $max = is_numeric($value) ? (int) $value : null;
-                                    $min = is_numeric($minRaw = $get('min_grade')) ? (int) $minRaw : null;
+                                    $selected = collect(is_array($value) ? $value : [])
+                                        ->filter(static fn (mixed $grade): bool => is_numeric($grade))
+                                        ->map(static fn (mixed $grade): int => (int) $grade)
+                                        ->unique()->sort()->values()->all();
 
-                                    if ($max === null || $min === null) {
-                                        return;
-                                    }
-
-                                    if ($max < $min) {
-                                        $fail(__('panel.validation.subject.grade_span_inverted'));
-
-                                        return;
+                                    if ($selected === []) {
+                                        return; // required() dă mesajul lui
                                     }
 
                                     $name = trim((string) $get('name'));
 
                                     if ($name !== '') {
-                                        $conflict = Subject::query()
+                                        $twins = Subject::query()
                                             ->where('name', $name)
                                             ->when($record !== null, fn ($query) => $query->whereKeyNot($record->getKey()))
-                                            ->whereNotNull('min_grade')
-                                            ->whereNotNull('max_grade')
-                                            ->where('min_grade', '<=', $max)
-                                            ->where('max_grade', '>=', $min)
-                                            ->first();
+                                            ->get();
 
-                                        if ($conflict !== null) {
-                                            $fail(__('panel.validation.subject.grade_span_overlap', [
-                                                'min' => $conflict->min_grade,
-                                                'max' => $conflict->max_grade,
-                                            ]));
+                                        foreach ($twins as $twin) {
+                                            // Set nedeclarat = acoperă tot (aceeași lectură ca la coversGrade).
+                                            $shared = array_values(array_intersect(
+                                                $selected,
+                                                $twin->gradeLevelList() ?? range(SchoolCycle::MIN_GRADE_LEVEL, SchoolCycle::MAX_GRADE_LEVEL),
+                                            ));
 
-                                            return;
+                                            if ($shared !== []) {
+                                                $fail(__('panel.validation.subject.grade_levels_overlap', [
+                                                    'grades' => GradeLevels::list($shared),
+                                                ]));
+
+                                                return;
+                                            }
                                         }
                                     }
 
-                                    // DOAR la îngustare față de starea salvată: istoricul care era
-                                    // DEJA în afara intervalului (stare moștenită) nu blochează
-                                    // salvările care nu ating intervalul — același principiu ca la
-                                    // duplicatele legacy de număr matricol.
-                                    if ($record !== null) {
-                                        $originalMin = $record->getRawOriginal('min_grade');
-                                        $originalMax = $record->getRawOriginal('max_grade');
+                                    if ($record instanceof Subject) {
+                                        $blocked = array_values(array_intersect(
+                                            self::lockedGrades($record),
+                                            array_diff($record->gradeLevelList() ?? range(SchoolCycle::MIN_GRADE_LEVEL, SchoolCycle::MAX_GRADE_LEVEL), $selected),
+                                        ));
 
-                                        $narrowing = ($originalMin !== null && $min > (int) $originalMin)
-                                            || ($originalMax !== null && $max < (int) $originalMax);
-
-                                        if ($narrowing) {
-                                            self::failIfNarrowingOverHistory($record, $min, $max, $fail);
+                                        if ($blocked !== []) {
+                                            $fail(__('panel.validation.subject.grade_levels_remove_blocked', [
+                                                'grades' => GradeLevels::list($blocked),
+                                            ]));
                                         }
                                     }
                                 },
@@ -257,40 +246,55 @@ class SubjectForm
     }
 
     /**
-     * Îngustarea intervalului pe o disciplină CU istoric: treptele care ar ieși din interval și
-     * au deja alocări didactice sau note sunt blocate — orarul, catalogul și mediile de acolo ar
-     * rămâne legate de o disciplină care „nu se mai predă" la clasa lor.
+     * Treptele BLOCATE la debifare pe disciplina editată: cele din setul salvat care au deja
+     * istoric — alocări didactice sau note (prin treapta clasei). Scoase din set, orarul,
+     * catalogul și mediile de acolo ar rămâne legate de o disciplină care „nu se mai predă"
+     * la clasa lor.
+     *
+     * O treaptă cu istoric aflată ÎN AFARA setului salvat (stare moștenită) NU se blochează —
+     * ea nu e bifată, iar dezactivarea ei ar împiedica exact re-adăugarea care ar repara datele.
+     *
+     * Memoizat pe INSTANȚA recordului (WeakMap): `disableOptionWhen` evaluează închiderea pentru
+     * fiecare din cele 12 opțiuni — fără memoizare ar însemna 24 de interogări la o singură
+     * randare. NU pe id: sub RefreshDatabase id-urile se refolosesc între teste, iar un cache
+     * static pe id ar servi istoricul altei discipline (leak clasic de proces lung).
+     *
+     * @return list<int>
      */
-    private static function failIfNarrowingOverHistory(Model $record, int $min, int $max, Closure $fail): void
+    private static function lockedGrades(Subject $record): array
     {
+        /** @var WeakMap<Subject, list<int>>|null $cache */
+        static $cache = null;
+
+        $cache ??= new WeakMap;
+
+        if (isset($cache[$record])) {
+            return $cache[$record];
+        }
+
+        $key = (int) $record->getKey();
+
         $assignmentGrades = TeachingAssignment::query()
-            ->where('subject_id', $record->getKey())
+            ->where('subject_id', $key)
             ->join('school_classes', 'school_classes.id', '=', 'teaching_assignments.school_class_id')
             ->whereNotNull('school_classes.grade_level')
-            ->where(fn ($query) => $query
-                ->where('school_classes.grade_level', '<', $min)
-                ->orWhere('school_classes.grade_level', '>', $max))
             ->distinct()
             ->pluck('school_classes.grade_level');
 
         $gradeGrades = Grade::withTrashed()
-            ->where('grades.subject_id', $record->getKey())
+            ->where('grades.subject_id', $key)
             ->join('school_classes', 'school_classes.id', '=', 'grades.school_class_id')
             ->whereNotNull('school_classes.grade_level')
-            ->where(fn ($query) => $query
-                ->where('school_classes.grade_level', '<', $min)
-                ->orWhere('school_classes.grade_level', '>', $max))
             ->distinct()
             ->pluck('school_classes.grade_level');
 
-        $outside = $assignmentGrades->merge($gradeGrades)->unique()->sort()->values();
+        $history = $assignmentGrades->merge($gradeGrades)
+            ->map(static fn ($grade): int => (int) $grade)
+            ->unique()->sort()->values()->all();
 
-        if ($outside->isNotEmpty()) {
-            $fail(__('panel.validation.subject.grade_span_narrow_blocked', [
-                'grades' => $outside
-                    ->map(fn ($grade): string => SchoolCycle::romanNumeral((int) $grade))
-                    ->implode(', '),
-            ]));
-        }
+        return $cache[$record] = array_values(array_intersect(
+            $record->gradeLevelList() ?? range(SchoolCycle::MIN_GRADE_LEVEL, SchoolCycle::MAX_GRADE_LEVEL),
+            $history,
+        ));
     }
 }

@@ -40,7 +40,7 @@ beforeEach(function () {
     $this->year = AcademicYear::factory()->create();
     Term::factory()->for($this->year)->create(['is_current' => true]);
     $this->class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 8]);
-    $this->subject = Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 5, 'max_grade' => 12]);
+    $this->subject = Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(5, 12)]);
 });
 
 afterEach(function () {

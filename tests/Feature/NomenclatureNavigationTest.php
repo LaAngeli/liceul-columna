@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Nomenclatoare — organizare + integritate (2026-07-15):
- *  - Discipline: intervalul de trepte nu se poate inversa și nu se poate suprapune cu o altă
+ * Nomenclatoare — organizare + integritate (2026-07-15; set discret din 07.08.2026):
+ *  - Discipline: treptele sunt un SET marcat (1..12) care nu poate partaja trepte cu o altă
  *    disciplină ACTIVĂ cu același nume (duplicatele pe trepte diferite rămân legitime:
  *    Matematică 1–4 pe calificative / 5–12 numerică).
  *  - Clase: navigator cu CARDURI pe ani școlari („ca la Elevi"), anul CURENT implicit, sărituri
@@ -37,49 +37,48 @@ beforeEach(function () {
     actingAs($user);
 });
 
-// ─── Discipline: integritatea intervalului de trepte ─────────────────────────────────────
+// ─── Discipline: integritatea setului de trepte ──────────────────────────────────────────
 
-it('respinge intervalul de trepte INVERSAT (max < min)', function () {
+it('respinge treapta din AFARA structurii școlii (POST forjat)', function () {
     Livewire::test(CreateSubject::class)
         ->fillForm([
             'name' => 'Disciplină test',
             'grading_type' => 'n',
-            'min_grade' => 9,
-            'max_grade' => 5,
+            'grade_levels' => [13],
         ])
         ->call('create')
-        ->assertHasFormErrors(['max_grade' => __('panel.validation.subject.grade_span_inverted')]);
+        // Regula `in` a CheckboxList se aplică PER ELEMENT → eroarea stă pe indicele lui.
+        ->assertHasFormErrors(['grade_levels.0']);
 
     expect(Subject::query()->where('name', 'Disciplină test')->count())->toBe(0);
 });
 
-it('respinge SUPRAPUNEREA de trepte cu o disciplină activă cu același nume', function () {
-    Subject::factory()->create(['name' => 'Matematică test', 'min_grade' => 1, 'max_grade' => 4]);
+it('respinge treptele COMUNE cu o disciplină activă cu același nume', function () {
+    Subject::factory()->create(['name' => 'Matematică test', 'grade_levels' => range(1, 4)]);
 
     Livewire::test(CreateSubject::class)
         ->fillForm([
             'name' => 'Matematică test',
             'grading_type' => 'n',
-            'min_grade' => 4,
-            'max_grade' => 12,
+            'grade_levels' => range(4, 12),
         ])
         ->call('create')
         ->assertHasFormErrors([
-            'max_grade' => __('panel.validation.subject.grade_span_overlap', ['min' => 1, 'max' => 4]),
+            // Treapta a IV-a e partajată — mesajul o numește în cifra romană a documentelor.
+            'grade_levels' => __('panel.validation.subject.grade_levels_overlap', ['grades' => 'IV']),
         ]);
 
     expect(Subject::query()->where('name', 'Matematică test')->count())->toBe(1);
 });
 
 it('acceptă aceeași disciplină pe trepte DISJUNCTE (duplicatul legitim din nomenclator)', function () {
-    Subject::factory()->create(['name' => 'Matematică test', 'min_grade' => 1, 'max_grade' => 4]);
+    Subject::factory()->create(['name' => 'Matematică test', 'grade_levels' => range(1, 4)]);
 
     Livewire::test(CreateSubject::class)
         ->fillForm([
             'name' => 'Matematică test',
             'grading_type' => 'n',
-            'min_grade' => 5,
-            'max_grade' => 12,
+            'grade_levels' => range(5, 12),
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -87,15 +86,15 @@ it('acceptă aceeași disciplină pe trepte DISJUNCTE (duplicatul legitim din no
     expect(Subject::query()->where('name', 'Matematică test')->count())->toBe(2);
 });
 
-it('la editare, propriul interval nu se auto-conflictează', function () {
-    $subject = Subject::factory()->create(['name' => 'Fizică test', 'min_grade' => 6, 'max_grade' => 12]);
+it('la editare, propriul set nu se auto-conflictează', function () {
+    $subject = Subject::factory()->create(['name' => 'Fizică test', 'grade_levels' => range(6, 12)]);
 
     Livewire::test(EditSubject::class, ['record' => $subject->id])
-        ->fillForm(['max_grade' => 11])
+        ->fillForm(['grade_levels' => range(6, 11)])
         ->call('save')
         ->assertHasNoFormErrors();
 
-    expect($subject->refresh()->max_grade)->toBe(11);
+    expect($subject->refresh()->grade_levels)->toBe(range(6, 11));
 });
 
 // ─── Clase: navigator cu carduri pe ani școlari ──────────────────────────────────────────

@@ -33,7 +33,7 @@ beforeEach(function () {
         ['Matematică', 5, 12, 'n'],
         ['Fizică', 6, 12, 'n'],
     ] as [$name, $min, $max, $type]) {
-        Subject::factory()->create(['name' => $name, 'min_grade' => $min, 'max_grade' => $max, 'grading_type' => $type]);
+        Subject::factory()->create(['name' => $name, 'grade_levels' => range($min, $max), 'grading_type' => $type]);
     }
 
     $this->year = AcademicYear::factory()->create([
@@ -164,7 +164,7 @@ it('lasă contul demo de profesor CU discipline de predat', function () {
 
     DB::table('teaching_assignments')->insert([
         'teacher_id' => $other->id,
-        'subject_id' => Subject::query()->where('name', 'Matematică')->where('min_grade', 5)->value('id'),
+        'subject_id' => Subject::query()->where('name', 'Matematică')->coveringGrade(5)->value('id'),
         'school_class_id' => $gimnaziu->id,
         'created_at' => now(), 'updated_at' => now(),
     ]);
@@ -177,7 +177,7 @@ it('lasă contul demo de profesor CU discipline de predat', function () {
         // Notele DISCIPLINEI îl urmează: catalogul nu poate arăta note puse de cineva care nu predă.
         ->and(DB::table('grades')
             ->where('school_class_id', $gimnaziu->id)
-            ->where('subject_id', Subject::query()->where('name', 'Matematică')->where('min_grade', 5)->value('id'))
+            ->where('subject_id', Subject::query()->where('name', 'Matematică')->coveringGrade(5)->value('id'))
             ->where('teacher_id', '!=', $teacher->id)
             ->count())->toBe(0);
 });
@@ -267,7 +267,7 @@ it('contul demo de director primește dirigenția clasei a II-a, cu trunchiul ei
         // Notele trunchiului îl urmează: catalogul nu poate arăta note puse de cine nu predă.
         ->and(DB::table('grades')
             ->where('school_class_id', $this->class->id)
-            ->where('subject_id', Subject::query()->where('name', 'Matematică')->where('min_grade', 1)->value('id'))
+            ->where('subject_id', Subject::query()->where('name', 'Matematică')->coveringGrade(1)->value('id'))
             ->where('teacher_id', '!=', $teacher->id)
             ->count())->toBe(0);
 });

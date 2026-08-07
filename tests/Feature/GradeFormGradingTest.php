@@ -23,7 +23,7 @@ beforeEach(function () {
 });
 
 it('la disciplină numerică afișează nota și ascunde calificativul', function () {
-    $subject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'min_grade' => 1, 'max_grade' => 10]);
+    $subject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'grade_levels' => range(1, 10)]);
 
     Livewire::test(CreateGrade::class)
         ->fillForm(['subject_id' => $subject->id])

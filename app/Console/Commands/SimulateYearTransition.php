@@ -160,16 +160,14 @@ class SimulateYearTransition extends Command
             $doarPrimar = Subject::query()->create([
                 'name' => self::MARK.' Tainele clasei mici',
                 'abbreviation' => 'DEMO1',
-                'min_grade' => 1,
-                'max_grade' => 4,
+                'grade_levels' => range(1, 4),
                 'report_order' => 9001,
             ]);
 
             $peste = Subject::query()->create([
                 'name' => self::MARK.' Matematica simulării',
                 'abbreviation' => 'DEMO2',
-                'min_grade' => 1,
-                'max_grade' => 12,
+                'grade_levels' => range(1, 12),
                 'report_order' => 9002,
             ]);
 

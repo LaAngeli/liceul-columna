@@ -516,11 +516,14 @@ class SeedDemoCurriculum extends Command
     {
         $grade = $class['grade_level'];
 
+        // „Nu acoperă treapta" pe SETUL discret: trepte declarate, dar fără treapta clasei.
+        // Setul nedeclarat (NULL) nu limitează — nu e niciodată „imposibil".
         $impossible = DB::table('teaching_assignments')
             ->join('subjects', 'subjects.id', '=', 'teaching_assignments.subject_id')
             ->where('teaching_assignments.school_class_id', $class['id'])
             ->whereNull('teaching_assignments.deleted_at')
-            ->where(fn ($q) => $q->where('subjects.min_grade', '>', $grade)->orWhere('subjects.max_grade', '<', $grade))
+            ->whereNotNull('subjects.grade_levels')
+            ->whereJsonDoesntContain('subjects.grade_levels', $grade)
             ->pluck('subjects.id')
             ->all();
 
@@ -859,12 +862,13 @@ class SeedDemoCurriculum extends Command
         $out = [];
 
         foreach ($plan as $subjectName => $byHomeroom) {
+            // Omonimele au seturi DISJUNCTE, deci cel mult o fișă acoperă treapta; orderBy(id)
+            // doar face alegerea deterministă pe eventuale date legacy suprapuse.
             $subject = DB::table('subjects')
                 ->whereNull('deleted_at')
                 ->where('name', $subjectName)
-                ->where(fn ($q) => $q->whereNull('min_grade')->orWhere('min_grade', '<=', $grade))
-                ->where(fn ($q) => $q->whereNull('max_grade')->orWhere('max_grade', '>=', $grade))
-                ->orderBy('min_grade')
+                ->where(fn ($q) => $q->whereNull('grade_levels')->orWhereJsonContains('grade_levels', $grade))
+                ->orderBy('id')
                 ->first(['id', 'grading_type']);
 
             if ($subject === null) {

@@ -361,7 +361,7 @@ class TeachingAssignmentsRelationManager extends RelationManager
             $label = ContentTranslator::subject($subject->name);
 
             if (in_array($label, $omonime, true)) {
-                $label .= ' ('.__('panel.fields.class').' '.($subject->min_grade ?? '—').'–'.($subject->max_grade ?? '—').')';
+                $label .= ' ('.__('panel.fields.class').' '.($subject->gradeLevelsLabel() ?? '—').')';
             }
 
             $options[$subject->id] = $label;

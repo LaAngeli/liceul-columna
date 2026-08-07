@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\GradingType;
 use App\Enums\SchoolCycle;
+use App\Support\GradeLevels;
 use Database\Factories\SubjectFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,8 +19,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 /**
  * @property string $name
  * @property string|null $abbreviation
- * @property int|null $min_grade
- * @property int|null $max_grade
+ * @property list<int>|null $grade_levels
  * @property GradingType $grading_type
  * @property int|null $report_order
  */
@@ -34,17 +34,17 @@ class Subject extends Model implements Auditable
     protected $fillable = [
         'name',
         'abbreviation',
-        'min_grade',
-        'max_grade',
+        'grade_levels',
         'grading_type',
         'report_order',
     ];
 
     /**
-     * Gardă ABSOLUTĂ de consistență (standardizarea 2026-07-21), sub ORICE cale de model
-     * (formular, seeder, tinker): numele se normalizează (spații), iar intervalul de trepte
-     * trebuie să fie valid (I–XII, nerăsturnat) — indiferent de validările din frontend.
-     * Importul legacy scrie prin query builder (date istorice murdare) — deliberat neatins.
+     * Gardă ABSOLUTĂ de consistență (standardizarea 2026-07-21; set discret din 07.08.2026),
+     * sub ORICE cale de model (formular, seeder, tinker): numele se normalizează (spații), iar
+     * treptele se normalizează la o LISTĂ SORTATĂ de întregi unici din structura școlii (I–XII)
+     * — indiferent de validările din frontend. Lista goală devine NULL (nomenclator incomplet,
+     * nu „nu se predă nicăieri"). Importul legacy scrie prin query builder — deliberat neatins.
      */
     protected static function booted(): void
     {
@@ -55,22 +55,42 @@ class Subject extends Model implements Auditable
                 $subject->name = trim((string) preg_replace('/\s+/u', ' ', $rawName));
             }
 
-            $min = $subject->min_grade;
-            $max = $subject->max_grade;
+            $raw = $subject->getAttribute('grade_levels');
 
-            foreach ([$min, $max] as $grade) {
-                if ($grade !== null && ($grade < SchoolCycle::MIN_GRADE_LEVEL || $grade > SchoolCycle::MAX_GRADE_LEVEL)) {
-                    throw ValidationException::withMessages([
-                        'min_grade' => __('panel.validation.subject.grade_out_of_structure'),
-                    ]);
-                }
+            if ($raw === null) {
+                return;
             }
 
-            if ($min !== null && $max !== null && $max < $min) {
+            if (! is_array($raw)) {
                 throw ValidationException::withMessages([
-                    'max_grade' => __('panel.validation.subject.grade_span_inverted'),
+                    'grade_levels' => __('panel.validation.subject.grade_out_of_structure'),
                 ]);
             }
+
+            $levels = [];
+
+            foreach ($raw as $grade) {
+                if (! is_numeric($grade)) {
+                    throw ValidationException::withMessages([
+                        'grade_levels' => __('panel.validation.subject.grade_out_of_structure'),
+                    ]);
+                }
+
+                $grade = (int) $grade;
+
+                if ($grade < SchoolCycle::MIN_GRADE_LEVEL || $grade > SchoolCycle::MAX_GRADE_LEVEL) {
+                    throw ValidationException::withMessages([
+                        'grade_levels' => __('panel.validation.subject.grade_out_of_structure'),
+                    ]);
+                }
+
+                $levels[] = $grade;
+            }
+
+            $levels = array_values(array_unique($levels));
+            sort($levels);
+
+            $subject->grade_levels = $levels === [] ? null : $levels;
         });
     }
 
@@ -124,8 +144,7 @@ class Subject extends Model implements Auditable
     protected function casts(): array
     {
         return [
-            'min_grade' => 'integer',
-            'max_grade' => 'integer',
+            'grade_levels' => 'array',
             'grading_type' => GradingType::class,
             'report_order' => 'integer',
         ];
@@ -142,15 +161,17 @@ class Subject extends Model implements Auditable
     }
 
     /**
-     * Se predă disciplina la treapta dată? Regula intervalului din nomenclator, într-un singur
-     * loc — deschiderea anului nou o folosește ca să nu inventeze ore la granițele de ciclu
-     * (o disciplină de primar nu urcă în gimnaziu). Capătul LIPSĂ (null) nu limitează: un
+     * Se predă disciplina la treapta dată? Regula SETULUI din nomenclator (discret din
+     * 07.08.2026 — treptele se marchează, nu se întind într-un interval), într-un singur loc —
+     * deschiderea anului nou o folosește ca să nu inventeze ore la granițele de ciclu
+     * (o disciplină de primar nu urcă în gimnaziu). Setul LIPSĂ (null) nu limitează: un
      * nomenclator incomplet nu trebuie citit ca „nu se predă".
      */
     public function coversGrade(int $gradeLevel): bool
     {
-        return ($this->min_grade === null || $gradeLevel >= $this->min_grade)
-            && ($this->max_grade === null || $gradeLevel <= $this->max_grade);
+        $levels = $this->grade_levels;
+
+        return $levels === null || in_array($gradeLevel, $levels, true);
     }
 
     /**
@@ -166,9 +187,51 @@ class Subject extends Model implements Auditable
      */
     public function scopeCoveringGrade(Builder $query, int $gradeLevel): Builder
     {
-        return $query
-            ->where(fn (Builder $q): Builder => $q->whereNull('min_grade')->orWhere('min_grade', '<=', $gradeLevel))
-            ->where(fn (Builder $q): Builder => $q->whereNull('max_grade')->orWhere('max_grade', '>=', $gradeLevel));
+        return $query->where(fn (Builder $q): Builder => $q
+            ->whereNull('grade_levels')
+            ->orWhereJsonContains('grade_levels', $gradeLevel));
+    }
+
+    /**
+     * Treptele declarate, ca listă sortată — sau null pe un nomenclator incomplet.
+     *
+     * @return list<int>|null
+     */
+    public function gradeLevelList(): ?array
+    {
+        $levels = $this->grade_levels;
+
+        if ($levels === null || $levels === []) {
+            return null;
+        }
+
+        $levels = array_values(array_unique(array_map(intval(...), $levels)));
+        sort($levels);
+
+        return $levels;
+    }
+
+    /** Treptele în limbajul documentelor („I–IV" / „V–VI, IX") — null când nu-s declarate. */
+    public function gradeLevelsLabel(): ?string
+    {
+        $levels = $this->gradeLevelList();
+
+        return $levels === null ? null : GradeLevels::list($levels);
+    }
+
+    /** Ciclul/ciclurile acoperite („Primar–Liceu"), ca sub-text lămuritor — din capetele setului. */
+    public function cycleSpanLabel(): ?string
+    {
+        $levels = $this->gradeLevelList();
+
+        if ($levels === null) {
+            return null;
+        }
+
+        $from = SchoolCycle::fromGradeLevel($levels[0])->label();
+        $to = SchoolCycle::fromGradeLevel($levels[count($levels) - 1])->label();
+
+        return $from === $to ? $from : $from.'–'.$to;
     }
 
     /** @return HasMany<TeachingAssignment, $this> */

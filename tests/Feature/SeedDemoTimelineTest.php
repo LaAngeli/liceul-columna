@@ -42,7 +42,7 @@ beforeEach(function () {
         'ends_on' => Carbon::today()->addMonth()->toDateString(),
     ]);
 
-    $this->subject = Subject::factory()->create(['min_grade' => 1, 'max_grade' => 12, 'grading_type' => 'n']);
+    $this->subject = Subject::factory()->create(['grade_levels' => range(1, 12), 'grading_type' => 'n']);
     $this->teacher = Teacher::factory()->create(['last_name' => '[DEMO]', 'first_name' => 'Profesor']);
 
     $this->class = SchoolClass::factory()->for($this->year)->create([

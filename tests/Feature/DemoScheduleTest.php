@@ -39,10 +39,10 @@ function demoScheduleZone(): array
     ]);
 
     // Nomenclator pe treapta I + o disciplină de gimnaziu, care NU are ce căuta în orarul clasei I.
-    Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 1, 'max_grade' => 4]);
-    Subject::factory()->create(['name' => 'Limba și literatura română', 'min_grade' => 1, 'max_grade' => 4]);
-    Subject::factory()->create(['name' => 'Educație plastică', 'min_grade' => 1, 'max_grade' => 4]);
-    Subject::factory()->create(['name' => 'Fizică', 'min_grade' => 6, 'max_grade' => 12]);
+    Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(1, 4)]);
+    Subject::factory()->create(['name' => 'Limba și literatura română', 'grade_levels' => range(1, 4)]);
+    Subject::factory()->create(['name' => 'Educație plastică', 'grade_levels' => range(1, 4)]);
+    Subject::factory()->create(['name' => 'Fizică', 'grade_levels' => range(6, 12)]);
 
     $author = User::factory()->create(['email' => 'operational@columna.test']);
     $author->assignRole(UserRole::AdministratorOperational->value);

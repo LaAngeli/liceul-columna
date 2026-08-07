@@ -6,6 +6,7 @@ use App\Filament\Concerns\ManagedByConfigurators;
 use App\Filament\Resources\Subjects\Pages\CreateSubject;
 use App\Filament\Resources\Subjects\Pages\EditSubject;
 use App\Filament\Resources\Subjects\Pages\ListSubjects;
+use App\Filament\Resources\Subjects\RelationManagers\TeachingAssignmentsRelationManager;
 use App\Filament\Resources\Subjects\Schemas\SubjectForm;
 use App\Filament\Resources\Subjects\Tables\SubjectsTable;
 use App\Models\Subject;
@@ -64,7 +65,9 @@ class SubjectResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            // Fișa disciplinei se editează ÎN TOTALITATE (cerința 07.08.2026): pe lângă
+            // identitate și trepte, chiar profesorii și clasele — alocările, dinspre disciplină.
+            TeachingAssignmentsRelationManager::class,
         ];
     }
 

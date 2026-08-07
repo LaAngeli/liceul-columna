@@ -77,8 +77,7 @@ class SummativeDesignationForm
         }
 
         return Subject::query()
-            ->where(fn (Builder $q): Builder => $q->whereNull('min_grade')->orWhere('min_grade', '<=', $grade))
-            ->where(fn (Builder $q): Builder => $q->whereNull('max_grade')->orWhere('max_grade', '>=', $grade))
+            ->coveringGrade((int) $grade)
             ->orderBy('name')
             ->get(['id', 'name'])
             ->mapWithKeys(fn (Subject $subject): array => [$subject->id => ContentTranslator::subject($subject->name)])

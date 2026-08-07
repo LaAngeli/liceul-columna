@@ -48,7 +48,7 @@ function lotBGradingTeacher(SchoolClass $class, Subject $subject): User
 
 it('nota cu dată în VIITOR e respinsă pe server, iar eroarea apare pe câmp', function () {
     $class = SchoolClass::factory()->for($this->year)->create();
-    $subject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'min_grade' => 1, 'max_grade' => 10]);
+    $subject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'grade_levels' => range(1, 10)]);
     $student = Student::factory()->create();
     Enrollment::factory()->for($student)->for($class)->for($this->year)->create();
 
@@ -72,7 +72,7 @@ it('nota cu dată în VIITOR e respinsă pe server, iar eroarea apare pe câmp',
 
 it('nota cu dată în trecut/prezent se acceptă', function () {
     $class = SchoolClass::factory()->for($this->year)->create();
-    $subject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'min_grade' => 1, 'max_grade' => 10]);
+    $subject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'grade_levels' => range(1, 10)]);
     $student = Student::factory()->create();
     Enrollment::factory()->for($student)->for($class)->for($this->year)->create();
 
@@ -131,15 +131,14 @@ it('dirigintele poate anula nota la disciplina LUI, dar nu la o disciplină pe c
 });
 
 // ─── M-5 (+ regresie corectată): modalul de corecție folosește disciplina notei (câmp), dar
-// intervalul e FIX 1–10 — NU Subject::min_grade/max_grade (acelea sunt „De la clasă/Până la
-// clasă": treapta la care se predă disciplina, ex. Chimie reală 7–12 = clasele VII-XII, un
-// concept diferit de notă). Fixtura de mai jos folosește intenționat 7/12 (ca la Chimie) ca
-// să demonstreze că nota 4 (validă pe scala 1–10) NU mai e respinsă — ar fi picat sub bug-ul
-// care confunda „treaptă" cu „interval de notă".
+// intervalul e FIX 1–10 — NU Subject::grade_levels (acelea sunt treptele la care se predă
+// disciplina, ex. Chimie reală = clasele VII–XII, un concept diferit de notă). Fixtura de mai
+// jos folosește intenționat 7–12 (ca la Chimie) ca să demonstreze că nota 4 (validă pe scala
+// 1–10) NU mai e respinsă — ar fi picat sub bug-ul care confunda „treaptă" cu „interval de notă".
 
-it('solicitarea de corecție acceptă scala FIXĂ 1–10, indiferent de min_grade/max_grade („treaptă") al disciplinei', function () {
+it('solicitarea de corecție acceptă scala FIXĂ 1–10, indiferent de treptele (grade_levels) disciplinei', function () {
     $class = SchoolClass::factory()->for($this->year)->create();
-    $subject = Subject::factory()->create(['name' => 'Chimie', 'grading_type' => GradingType::Numeric, 'min_grade' => 7, 'max_grade' => 12]);
+    $subject = Subject::factory()->create(['name' => 'Chimie', 'grading_type' => GradingType::Numeric, 'grade_levels' => range(7, 12)]);
     $student = Student::factory()->create();
     Enrollment::factory()->for($student)->for($class)->for($this->year)->create();
 
@@ -160,13 +159,13 @@ it('solicitarea de corecție acceptă scala FIXĂ 1–10, indiferent de min_grad
     expect(GradeCorrection::query()->where('grade_id', $grade->id)->where('new_value', 4)->count())->toBe(1);
 });
 
-// ─── Regresie: crearea notei acceptă scala FIXĂ 1–10, indiferent de min_grade/max_grade
-// („treaptă") al disciplinei — reproduce exact raportul: Chimie (treaptă VII-XII, min/max_grade
+// ─── Regresie: crearea notei acceptă scala FIXĂ 1–10, indiferent de treptele
+// (grade_levels) disciplinei — reproduce exact raportul: Chimie (treaptă VII-XII, grade_levels
 // 7/12) afișa greșit „Interval permis: 7–12" pe câmpul NOTĂ și respingea valori sub 7. ──────────
 
-it('crearea notei acceptă o valoare joasă (4) la o disciplină cu min_grade/max_grade = treaptă (Chimie 7–12)', function () {
+it('crearea notei acceptă o valoare joasă (4) la o disciplină cu treapta VII–XII (Chimie)', function () {
     $class = SchoolClass::factory()->for($this->year)->create();
-    $subject = Subject::factory()->create(['name' => 'Chimie', 'grading_type' => GradingType::Numeric, 'min_grade' => 7, 'max_grade' => 12]);
+    $subject = Subject::factory()->create(['name' => 'Chimie', 'grading_type' => GradingType::Numeric, 'grade_levels' => range(7, 12)]);
     $student = Student::factory()->create();
     Enrollment::factory()->for($student)->for($class)->for($this->year)->create();
 

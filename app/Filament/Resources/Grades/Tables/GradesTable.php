@@ -185,9 +185,9 @@ class GradesTable
                             // Corecția trebuie să propună o nouă valoare: cel puțin una dintre notă/calificativ
                             // (requiredWithout reciproc → blochează „nicio modificare de valoare"). Intervalul
                             // notei e FIX 1–10 (scala oficială, §3); CÂMPUL (notă vs calificativ) urmează
-                            // disciplina (audit M-5/#11). CORECȚIE: Subject::min_grade/max_grade NU sunt
-                            // limitele notei — sunt „De la clasă / Până la clasă" (treapta la care se predă
-                            // disciplina, ex. Chimie 7–12 = clasele VII-XII); le folosisem greșit ca bounds.
+                            // disciplina (audit M-5/#11). CORECȚIE: Subject::grade_levels NU sunt limitele
+                            // notei — sunt TREPTELE la care se predă disciplina (ex. Chimie = clasele
+                            // VII–XII); intervalul de trepte fusese folosit greșit ca bounds.
                             // `validationAttribute` pe AMBELE câmpuri: fără el, mesajul `requiredWithout`
                             // scurgea calea internă a perechii („mounted actions.0.data.new calificativ").
                             TextInput::make('new_value')

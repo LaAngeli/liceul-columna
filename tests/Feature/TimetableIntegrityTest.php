@@ -47,8 +47,8 @@ function publishedTimetable(SchoolClass $class, array $cells): Schedule
 
 it('leagă disciplina de fișa TREPTEI clasei, nu de omonima altui ciclu', function () {
     // Aceeași denumire, două fișe — situația reală pentru zece discipline din nomenclator.
-    $primar = Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 1, 'max_grade' => 4]);
-    $gimnaziu = Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 5, 'max_grade' => 12]);
+    $primar = Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(1, 4)]);
+    $gimnaziu = Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(5, 12)]);
 
     $clasaMare = SchoolClass::factory()->for($this->year)->create(['grade_level' => 8]);
     publishedTimetable($clasaMare, ['Matematică , Damian Iu. (s. 20)']);
@@ -64,7 +64,7 @@ it('leagă disciplina de fișa TREPTEI clasei, nu de omonima altui ciclu', funct
 
 it('nu inventează o disciplină când nimic nu se potrivește pe treaptă — păstrează ora ca text', function () {
     // „Chimie" există DOAR pentru treptele mari; clasa e a treia.
-    Subject::factory()->create(['name' => 'Chimie', 'min_grade' => 7, 'max_grade' => 12]);
+    Subject::factory()->create(['name' => 'Chimie', 'grade_levels' => range(7, 12)]);
 
     $clasaMica = SchoolClass::factory()->for($this->year)->create(['grade_level' => 3]);
     publishedTimetable($clasaMica, ['Chimie , Cociurca N.']);
@@ -84,8 +84,8 @@ it('nu inventează o disciplină când nimic nu se potrivește pe treaptă — p
 });
 
 it('recunoaște denumirea colocvială din orar prin alias, dar nu peste una reală', function () {
-    $romana = Subject::factory()->create(['name' => 'Limba și literatura română', 'min_grade' => 5, 'max_grade' => 12]);
-    $straina2 = Subject::factory()->create(['name' => 'Limba străină 2', 'min_grade' => 5, 'max_grade' => 12]);
+    $romana = Subject::factory()->create(['name' => 'Limba și literatura română', 'grade_levels' => range(5, 12)]);
+    $straina2 = Subject::factory()->create(['name' => 'Limba străină 2', 'grade_levels' => range(5, 12)]);
 
     $class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 9]);
     publishedTimetable($class, ['Limba română , Russu T.', 'Limba franceză , Golban O. (s. 28)']);
@@ -100,8 +100,8 @@ it('recunoaște denumirea colocvială din orar prin alias, dar nu peste una real
 });
 
 it('două grupe cu limbi diferite rămân ACEEAȘI disciplină; două discipline reale se separă pe grupe', function () {
-    $straina2 = Subject::factory()->create(['name' => 'Limba străină 2', 'min_grade' => 5, 'max_grade' => 12]);
-    Subject::factory()->create(['name' => 'Informatică', 'min_grade' => 5, 'max_grade' => 12]);
+    $straina2 = Subject::factory()->create(['name' => 'Limba străină 2', 'grade_levels' => range(5, 12)]);
+    Subject::factory()->create(['name' => 'Informatică', 'grade_levels' => range(5, 12)]);
 
     $class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 10]);
     publishedTimetable($class, [
@@ -132,8 +132,8 @@ it('două grupe cu limbi diferite rămân ACEEAȘI disciplină; două discipline
 it('o disciplină al cărei nume e cuprins în alta nu strică detecția grupelor', function () {
     // „Fizică" ⊂ „Educație fizică": căutarea naivă respingea slotul pe grupe al educației fizice,
     // găsind „Fizică" în a doua apariție a ACELEIAȘI discipline.
-    $educatieFizica = Subject::factory()->create(['name' => 'Educație fizică', 'min_grade' => 5, 'max_grade' => 12]);
-    Subject::factory()->create(['name' => 'Fizică', 'min_grade' => 6, 'max_grade' => 12]);
+    $educatieFizica = Subject::factory()->create(['name' => 'Educație fizică', 'grade_levels' => range(5, 12)]);
+    Subject::factory()->create(['name' => 'Fizică', 'grade_levels' => range(6, 12)]);
 
     $class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 7]);
     publishedTimetable($class, [
@@ -155,7 +155,7 @@ it('o disciplină al cărei nume e cuprins în alta nu strică detecția grupelo
 });
 
 it('majusculele din orar nu pierd disciplina', function () {
-    $mate = Subject::factory()->create(['name' => 'În împărăția lui Mate', 'min_grade' => 1, 'max_grade' => 4]);
+    $mate = Subject::factory()->create(['name' => 'În împărăția lui Mate', 'grade_levels' => range(1, 4)]);
 
     $class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 2]);
     publishedTimetable($class, ['ÎN ÎMPĂRĂȚIA LUI MATE']);
@@ -208,8 +208,8 @@ it('formularul oferă doar disciplinele treptei clasei, iar suprapunerea de slot
     $ao->assignRole(UserRole::AdministratorOperational->value);
     actingAs($ao);
 
-    $primar = Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 1, 'max_grade' => 4]);
-    $gimnaziu = Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 5, 'max_grade' => 12]);
+    $primar = Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(1, 4)]);
+    $gimnaziu = Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(5, 12)]);
 
     $class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 8]);
 

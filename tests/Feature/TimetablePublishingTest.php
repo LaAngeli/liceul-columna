@@ -50,7 +50,7 @@ function publishingClass(): SchoolClass
 it('un slot nou recompune celula din tabelul publicat, fără să atingă rândurile de program', function () {
     $class = publishingClass();
     $schedule = publishingSchedule($class);
-    $subject = Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 5, 'max_grade' => 12]);
+    $subject = Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(5, 12)]);
     $teacher = Teacher::factory()->create(['last_name' => 'Damian', 'first_name' => 'Iurie']);
 
     Lesson::factory()->create([
@@ -80,7 +80,7 @@ it('un slot nou recompune celula din tabelul publicat, fără să atingă rându
 it('ștergerea slotului golește celula, nu lasă în urmă textul publicat', function () {
     $class = publishingClass();
     $schedule = publishingSchedule($class);
-    $subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 12]);
+    $subject = Subject::factory()->create(['grade_levels' => range(5, 12)]);
 
     $lesson = Lesson::factory()->create([
         'school_class_id' => $class->id,
@@ -103,8 +103,8 @@ it('ștergerea slotului golește celula, nu lasă în urmă textul publicat', fu
 it('două grupe în același interval ajung amândouă în celulă', function () {
     $class = publishingClass();
     $schedule = publishingSchedule($class);
-    $english = Subject::factory()->create(['name' => 'Limba engleză', 'min_grade' => 5, 'max_grade' => 12]);
-    $it = Subject::factory()->create(['name' => 'Informatică', 'min_grade' => 5, 'max_grade' => 12]);
+    $english = Subject::factory()->create(['name' => 'Limba engleză', 'grade_levels' => range(5, 12)]);
+    $it = Subject::factory()->create(['name' => 'Informatică', 'grade_levels' => range(5, 12)]);
 
     foreach ([['1', $english], ['2', $it]] as [$group, $subject]) {
         Lesson::factory()->create([
@@ -154,7 +154,7 @@ it('un rând-lecție lipsă se adaugă, cu intervalul din orarul sunetelor', fun
         'rows' => [['Lecția 1', '08.15 - 09.00'], ['Lecția 3', '10.10 - 10.55']],
     ]);
 
-    $subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 12]);
+    $subject = Subject::factory()->create(['grade_levels' => range(5, 12)]);
 
     Lesson::factory()->create([
         'school_class_id' => $class->id,
@@ -178,7 +178,7 @@ it('un rând-lecție lipsă se adaugă, cu intervalul din orarul sunetelor', fun
 it('publicarea suspendată lasă tabelul neatins — cine suspendă, publică', function () {
     $class = publishingClass();
     $schedule = publishingSchedule($class);
-    $subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 12]);
+    $subject = Subject::factory()->create(['grade_levels' => range(5, 12)]);
 
     PublishClassTimetable::withoutAutoPublish(fn () => Lesson::factory()->create([
         'school_class_id' => $class->id,

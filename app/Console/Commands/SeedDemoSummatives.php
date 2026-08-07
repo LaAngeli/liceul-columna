@@ -182,10 +182,12 @@ class SeedDemoSummatives extends Command
     private function subjects(): array
     {
         $find = function (string $name): ?int {
+            // Fișa de GIMNAZIU/LICEU a denumirii (clasa a IX-a e mereu în ea) — omonimul de
+            // primar are set disjunct, deci nu poate răspunde la aceeași interogare.
             $id = Subject::query()
                 ->where('name', $name)
-                ->where(fn ($query) => $query->whereNull('max_grade')->orWhere('max_grade', '>=', 9))
-                ->orderBy('min_grade')
+                ->coveringGrade(9)
+                ->orderBy('id')
                 ->value('id');
 
             return $id === null ? null : (int) $id;

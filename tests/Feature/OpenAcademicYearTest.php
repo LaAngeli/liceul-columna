@@ -91,9 +91,9 @@ it('preia alocările doar unde disciplina se predă la treapta nouă', function 
     $teacher = Teacher::factory()->create();
 
     // Disciplină de PRIMAR (I–IV): nu urcă în gimnaziu.
-    $primary = Subject::factory()->create(['min_grade' => 1, 'max_grade' => 4]);
+    $primary = Subject::factory()->create(['grade_levels' => range(1, 4)]);
     // Disciplină care acoperă treapta nouă.
-    $continues = Subject::factory()->create(['min_grade' => 1, 'max_grade' => 9]);
+    $continues = Subject::factory()->create(['grade_levels' => range(1, 9)]);
 
     TeachingAssignment::factory()->create([
         'teacher_id' => $teacher->id, 'school_class_id' => $class->id, 'subject_id' => $primary->id,
@@ -117,7 +117,7 @@ it('poate crea DOAR clasele, fără alocări, când operatorul alege așa', func
     TeachingAssignment::factory()->create([
         'teacher_id' => Teacher::factory()->create()->id,
         'school_class_id' => $class->id,
-        'subject_id' => Subject::factory()->create(['min_grade' => 1, 'max_grade' => 12])->id,
+        'subject_id' => Subject::factory()->create(['grade_levels' => range(1, 12)])->id,
     ]);
 
     $result = app(OpenAcademicYear::class)->handle($this->target, $this->source, withAssignments: false);

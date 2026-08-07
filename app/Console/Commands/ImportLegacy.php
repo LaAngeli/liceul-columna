@@ -85,11 +85,18 @@ class ImportLegacy extends Command
 
         $this->info('2/9 Discipline…');
         foreach ($legacy->table('bdn_disc')->get() as $d) {
+            // Intervalul legacy (de_la/pana_la) devine SET discret; capătul lipsă nu limitează
+            // (aceeași lectură ca la migrarea coloanelor). Ambele goale → NULL (nomenclator
+            // incomplet), nu „nu se predă nicăieri".
+            $from = (int) $d->de_la ?: null;
+            $to = (int) $d->pana_la ?: null;
+
             $this->subjectMap[(int) $d->id] = DB::table('subjects')->insertGetId([
                 'name' => $d->n_d,
                 'abbreviation' => $d->abr ?: null,
-                'min_grade' => (int) $d->de_la ?: null,
-                'max_grade' => (int) $d->pana_la ?: null,
+                'grade_levels' => ($from === null && $to === null)
+                    ? null
+                    : json_encode(range(max(1, min($from ?? 1, $to ?? 12)), min(12, max($from ?? 1, $to ?? 12)))),
                 'grading_type' => in_array($d->notare, ['n', 'c', 'cd', 'd'], true) ? $d->notare : 'n',
                 'created_at' => $now,
                 'updated_at' => $now,

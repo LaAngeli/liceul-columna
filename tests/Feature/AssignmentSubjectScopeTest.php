@@ -21,10 +21,10 @@ use App\Models\TeachingAssignment;
 
 beforeEach(function () {
     // Perechea omonimă reală din nomenclator: aceeași denumire, cicluri diferite.
-    $this->matePrimar = Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 1, 'max_grade' => 4]);
-    $this->mateGimnaziu = Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 5, 'max_grade' => 12]);
+    $this->matePrimar = Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(1, 4)]);
+    $this->mateGimnaziu = Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(5, 12)]);
     // O disciplină fără interval: nomenclator incomplet NU înseamnă „nu se predă".
-    $this->faraInterval = Subject::factory()->create(['name' => 'Dezvoltare personală', 'min_grade' => null, 'max_grade' => null]);
+    $this->faraInterval = Subject::factory()->create(['name' => 'Dezvoltare personală', 'grade_levels' => null]);
 });
 
 /** Opțiunile de disciplină pe care le oferă formularul pentru clasa dată. */
@@ -68,16 +68,17 @@ it('fără clasă aleasă nu se oferă nicio disciplină — ciclul nu e încă 
     expect(assignmentSubjectOptions(null))->toBe([]);
 });
 
-it('dacă intervalele se suprapun, eticheta spune treptele — o listă cu rânduri identice e o ghicitoare', function () {
-    // Școala editează intervalele și cele două fișe ajung să acopere amândouă treapta 5.
-    $this->matePrimar->update(['max_grade' => 6]);
+it('dacă seturile se suprapun, eticheta spune treptele — o listă cu rânduri identice e o ghicitoare', function () {
+    // Stare legacy: cele două fișe ajung să acopere amândouă treapta 5 (prin query builder —
+    // formularul refuză azi suprapunerea, dar datele istorice o pot purta).
+    Subject::query()->whereKey($this->matePrimar->id)->update(['grade_levels' => json_encode(range(1, 6))]);
 
     $clasa = SchoolClass::factory()->create(['grade_level' => 5]);
     $optiuni = assignmentSubjectOptions($clasa->id);
 
     expect($optiuni[$this->matePrimar->id])->not->toBe($optiuni[$this->mateGimnaziu->id])
-        ->and($optiuni[$this->matePrimar->id])->toContain('1–6')
-        ->and($optiuni[$this->mateGimnaziu->id])->toContain('5–12');
+        ->and($optiuni[$this->matePrimar->id])->toContain('I–VI')
+        ->and($optiuni[$this->mateGimnaziu->id])->toContain('V–XII');
 });
 
 it('scope-ul de model e aceeași regulă ca predicatul per-instanță', function () {

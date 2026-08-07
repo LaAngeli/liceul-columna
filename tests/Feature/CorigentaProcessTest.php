@@ -42,7 +42,7 @@ beforeEach(function () {
     $this->year = AcademicYear::factory()->create();
     $this->term = Term::factory()->for($this->year)->create(['number' => 2, 'is_current' => true]);
     $this->class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 8]);
-    $this->subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 12]);
+    $this->subject = Subject::factory()->create(['grade_levels' => range(5, 12)]);
 });
 
 /** Elev înmatriculat, cu o medie restantă la disciplina testului. */
@@ -125,8 +125,8 @@ it('sesiunea își adună examenele nelegate din același an și sezon, nu pe al
 
     $student = failingStudent($this);
     // Discipline distincte: examenul e unic pe (elev, disciplină, semestru).
-    $altaDisciplina = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 12]);
-    $aTreiaDisciplina = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 12]);
+    $altaDisciplina = Subject::factory()->create(['grade_levels' => range(5, 12)]);
+    $aTreiaDisciplina = Subject::factory()->create(['grade_levels' => range(5, 12)]);
 
     // Examen din anul și sezonul sesiunii (sem. II → vară) — trebuie atras.
     $alSesiunii = CorigentaExam::create([

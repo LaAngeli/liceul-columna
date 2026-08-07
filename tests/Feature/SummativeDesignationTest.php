@@ -184,7 +184,7 @@ it('aterizarea grupează clasele pe cicluri și arată disciplinele ca etichete'
     $gimnaziu = SchoolClass::factory()->for($year)->create(['grade_level' => 7, 'name' => 'VII', 'section' => 'A']);
     $liceu = SchoolClass::factory()->for($year)->create(['grade_level' => 11, 'name' => 'XI', 'section' => 'R']);
 
-    $subject = Subject::factory()->create(['name' => 'Fizică', 'min_grade' => 6, 'max_grade' => 12]);
+    $subject = Subject::factory()->create(['name' => 'Fizică', 'grade_levels' => range(6, 12)]);
     SummativeDesignation::query()->create(['school_class_id' => $liceu->id, 'subject_id' => $subject->id]);
 
     $page = Livewire::test(ListSummativeDesignations::class)->instance();
@@ -228,7 +228,7 @@ it('contextul unei clase restrânge tabelul, iar o clasă străină nu deschide 
 
     $classA = SchoolClass::factory()->for($year)->create(['grade_level' => 7, 'name' => 'VII', 'section' => 'A']);
     $classB = SchoolClass::factory()->for($year)->create(['grade_level' => 7, 'name' => 'VII', 'section' => 'B']);
-    $subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 12]);
+    $subject = Subject::factory()->create(['grade_levels' => range(5, 12)]);
 
     $designationA = SummativeDesignation::query()->create(['school_class_id' => $classA->id, 'subject_id' => $subject->id]);
     $designationB = SummativeDesignation::query()->create(['school_class_id' => $classB->id, 'subject_id' => $subject->id]);
@@ -260,8 +260,8 @@ it('desemnarea în masă creează perechile lipsă, sare peste existente și ref
     $vii = SchoolClass::factory()->for($year)->create(['grade_level' => 7, 'name' => 'VII', 'section' => 'A']);
     $xi = SchoolClass::factory()->for($year)->create(['grade_level' => 11, 'name' => 'XI', 'section' => 'R']);
 
-    $peste = Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 5, 'max_grade' => 12]);
-    $doarLiceu = Subject::factory()->create(['name' => 'Astronomie', 'min_grade' => 11, 'max_grade' => 12]);
+    $peste = Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(5, 12)]);
+    $doarLiceu = Subject::factory()->create(['name' => 'Astronomie', 'grade_levels' => range(11, 12)]);
 
     // O pereche există deja: trebuie sărită, nu dublată.
     SummativeDesignation::query()->create(['school_class_id' => $vii->id, 'subject_id' => $peste->id]);

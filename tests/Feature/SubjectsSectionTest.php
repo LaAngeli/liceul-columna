@@ -35,8 +35,8 @@ beforeEach(function () {
     $this->classA = SchoolClass::factory()->for($this->year)->create(['name' => 'VII', 'grade_level' => 7, 'section' => 'A']);
     $this->classB = SchoolClass::factory()->for($this->year)->create(['name' => 'IX', 'grade_level' => 9, 'section' => 'B']);
 
-    $this->chemistry = Subject::factory()->create(['name' => 'SUBJ-Chimie', 'min_grade' => 7, 'max_grade' => 12]);
-    $this->unrelated = Subject::factory()->create(['name' => 'SUBJ-Alta', 'min_grade' => 1, 'max_grade' => 4]);
+    $this->chemistry = Subject::factory()->create(['name' => 'SUBJ-Chimie', 'grade_levels' => range(7, 12)]);
+    $this->unrelated = Subject::factory()->create(['name' => 'SUBJ-Alta', 'grade_levels' => range(1, 4)]);
 
     // Profesorul MEU: predă Chimie DOAR în VII A.
     $this->user = User::factory()->create();

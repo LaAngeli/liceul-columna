@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Subjects\Tables;
 
-use App\Enums\SchoolCycle;
 use App\Models\Subject;
 use App\Models\TeachingAssignment;
 use App\Support\ContentTranslator;
@@ -49,13 +48,13 @@ class SubjectsTable
                     ->searchable()
                     ->sortable()
                     ->description(fn (Subject $record): ?string => $record->abbreviation),
-                // TREPTELE la care se predă (cifre romane + ciclul) — nu scara de note.
+                // TREPTELE la care se predă (set discret din 07.08.2026 — rulajele consecutive
+                // se compresează: „I–IV", „V–VI, IX") — nu scara de note.
                 // Mobile-first: pe telefon rămân disciplina, tipul de notare și acoperirea.
-                TextColumn::make('min_grade')
+                TextColumn::make('grade_levels')
                     ->label(__('panel.forms.subject.grade_span'))
-                    ->state(fn (Subject $record): string => self::gradeSpan($record))
-                    ->description(fn (Subject $record): ?string => self::cycleSpan($record))
-                    ->sortable()
+                    ->state(fn (Subject $record): string => $record->gradeLevelsLabel() ?? (string) __('panel.common.dash'))
+                    ->description(fn (Subject $record): ?string => $record->cycleSpanLabel())
                     ->visibleFrom('md'),
                 TextColumn::make('grading_type')
                     ->label(__('panel.forms.subject.grading_type_short'))
@@ -91,31 +90,5 @@ class SubjectsTable
                     RestoreBulkAction::make(),
                 ]),
             ]);
-    }
-
-    /** Treptele „V–XII" (o singură valoare când min = max). */
-    private static function gradeSpan(Subject $record): string
-    {
-        if ($record->min_grade === null || $record->max_grade === null) {
-            return (string) __('panel.common.dash');
-        }
-
-        $min = SchoolCycle::romanNumeral((int) $record->min_grade);
-        $max = SchoolCycle::romanNumeral((int) $record->max_grade);
-
-        return $min === $max ? $min : $min.'–'.$max;
-    }
-
-    /** Ciclul/ciclurile acoperite („Primar–Liceu"), ca sub-text lămuritor. */
-    private static function cycleSpan(Subject $record): ?string
-    {
-        if ($record->min_grade === null || $record->max_grade === null) {
-            return null;
-        }
-
-        $from = SchoolCycle::fromGradeLevel((int) $record->min_grade)->label();
-        $to = SchoolCycle::fromGradeLevel((int) $record->max_grade)->label();
-
-        return $from === $to ? $from : $from.'–'.$to;
     }
 }

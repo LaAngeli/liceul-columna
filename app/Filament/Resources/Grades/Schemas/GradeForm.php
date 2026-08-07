@@ -88,10 +88,10 @@ class GradeForm
                     ->placeholder(__('panel.forms.absence.lesson_unspecified')),
                 // Câmpul de NOTĂ NUMERICĂ: vizibil + obligatoriu DOAR pentru disciplinele numerice
                 // (sau cât timp disciplina nu e aleasă). Intervalul e FIX 1–10 (scala oficială, §3) —
-                // Subject::min_grade/max_grade NU sunt limitele notei: sunt „De la clasă / Până la
-                // clasă" (treapta la care se predă disciplina, ex. Chimie 7–12 = clasele VII-XII), un
-                // concept diferit. Vizibilitatea pe grading_type asigură structural că NU pot coexista
-                // notă și calificativ (rezolvă regula „notă SAU calificativ").
+                // Subject::grade_levels NU sunt limitele notei: sunt TREPTELE la care se predă
+                // disciplina (ex. Chimie = clasele VII–XII), un concept diferit. Vizibilitatea pe
+                // grading_type asigură structural că NU pot coexista notă și calificativ (rezolvă
+                // regula „notă SAU calificativ").
                 TextInput::make('value')
                     ->label(__('panel.fields.value'))
                     ->numeric()

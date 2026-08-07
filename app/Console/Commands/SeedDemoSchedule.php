@@ -219,8 +219,7 @@ class SeedDemoSchedule extends Command
     private function subjectsForGrade(int $grade): array
     {
         $names = Subject::query()
-            ->where(fn ($q) => $q->whereNull('min_grade')->orWhere('min_grade', '<=', $grade))
-            ->where(fn ($q) => $q->whereNull('max_grade')->orWhere('max_grade', '>=', $grade))
+            ->coveringGrade($grade)
             ->orderBy('name')
             ->pluck('name')
             ->unique()

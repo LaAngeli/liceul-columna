@@ -44,7 +44,7 @@ beforeEach(function () {
     $this->classV = SchoolClass::factory()->for($this->source)->create(['grade_level' => 5, 'name' => 'V', 'section' => 'A']);
     $this->classXII = SchoolClass::factory()->for($this->source)->create(['grade_level' => 12, 'name' => 'XII', 'section' => 'R']);
 
-    $subject = Subject::factory()->create(['min_grade' => 1, 'max_grade' => 12]);
+    $subject = Subject::factory()->create(['grade_levels' => range(1, 12)]);
     TeachingAssignment::factory()->create([
         'teacher_id' => Teacher::factory()->create()->id,
         'school_class_id' => $this->classV->id,

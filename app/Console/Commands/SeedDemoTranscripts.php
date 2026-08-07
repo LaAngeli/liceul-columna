@@ -138,8 +138,8 @@ class SeedDemoTranscripts extends Command
     }
 
     /**
-     * Disciplinele valabile pe fiecare treaptă 1–12, după intervalul propriu (`min_grade` /
-     * `max_grade` = „de la clasa / până la clasa", NU limite de notă).
+     * Disciplinele valabile pe fiecare treaptă 1–12, după setul propriu (`grade_levels` =
+     * treptele la care se predă, NU limite de notă).
      *
      * @return array<int, list<array{id: int, grading_type: GradingType}>>
      */
@@ -151,7 +151,7 @@ class SeedDemoTranscripts extends Command
         $subjects = DB::table('subjects')
             ->whereNull('deleted_at')
             ->whereExists(fn ($q) => $q->selectRaw(1)->from('teaching_assignments')->whereColumn('teaching_assignments.subject_id', 'subjects.id'))
-            ->select('id', 'min_grade', 'max_grade', 'grading_type')
+            ->select('id', 'grade_levels', 'grading_type')
             ->orderBy('id')
             ->get();
 
@@ -159,10 +159,12 @@ class SeedDemoTranscripts extends Command
 
         foreach (range(1, 12) as $level) {
             foreach ($subjects as $subject) {
-                $from = $subject->min_grade !== null ? (int) $subject->min_grade : 1;
-                $to = $subject->max_grade !== null ? (int) $subject->max_grade : 12;
+                /** @var list<int>|null $levels set discret; NULL = nomenclator incomplet, nu limitează */
+                $levels = $subject->grade_levels === null
+                    ? null
+                    : array_map(intval(...), (array) json_decode((string) $subject->grade_levels, true));
 
-                if ($level < $from || $level > $to) {
+                if ($levels !== null && ! in_array($level, $levels, true)) {
                     continue;
                 }
 

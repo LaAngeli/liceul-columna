@@ -58,7 +58,7 @@ function rosterStudent(SchoolClass $class, ?string $number, ?int $group = null):
 /** Clasa lucrează pe grupe la engleză (are alocări pe grupă). */
 function splitEnglishClass(SchoolClass $class): void
 {
-    $english = Subject::factory()->create(['name' => 'Limba străină 1 (engleza)', 'min_grade' => 1, 'max_grade' => 12]);
+    $english = Subject::factory()->create(['name' => 'Limba străină 1 (engleza)', 'grade_levels' => range(1, 12)]);
 
     foreach ([1, 2] as $group) {
         TeachingAssignment::factory()->create([

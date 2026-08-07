@@ -48,7 +48,7 @@ beforeEach(function () {
     ]);
 
     $this->class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 7, 'name' => 'VII', 'section' => 'A']);
-    $this->subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 9]);
+    $this->subject = Subject::factory()->create(['grade_levels' => range(5, 9)]);
 
     $this->student = Student::factory()->create();
     Enrollment::factory()->for($this->student)->for($this->class)->for($this->year)->create();

@@ -22,9 +22,9 @@ use Illuminate\Support\Facades\DB;
  * Ce NU se preia, deliberat — și de ce:
  *   • clasele de treaptă maximă (a XII-a): promovarea lor e absolvirea, nu o clasă a XIII-a;
  *   • clasa I: cohorta nouă nu are sursă în anul trecut — se adaugă manual, e o decizie de admitere;
- *   • alocările a căror DISCIPLINĂ nu se predă la treapta nouă (nomenclatorul, `min_grade`/
- *     `max_grade`, decide): la granițele de ciclu (IV→V, IX→X) curriculumul se schimbă, iar o
- *     copiere oarbă ar inventa ore care nu există;
+ *   • alocările a căror DISCIPLINĂ nu se predă la treapta nouă (nomenclatorul, `grade_levels`,
+ *     decide): la granițele de ciclu (IV→V, IX→X) curriculumul se schimbă, iar o copiere oarbă
+ *     ar inventa ore care nu există;
  *   • dirigintele arhivat între ani: clasa se creează fără diriginte și apare în „Clase fără diriginte";
  *   • clasele care există deja în anul-țintă (inclusiv arhivate — indexul unic le vede): se sar,
  *     nu se dublează, deci acțiunea se poate relua fără teamă.

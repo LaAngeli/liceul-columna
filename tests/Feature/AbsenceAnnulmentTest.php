@@ -45,7 +45,7 @@ beforeEach(function () {
         'ends_on' => Carbon::today()->addMonth(),
     ]);
     $this->class = SchoolClass::factory()->for($this->year)->create(['grade_level' => 6]);
-    $this->subject = Subject::factory()->create(['min_grade' => 1, 'max_grade' => 12]);
+    $this->subject = Subject::factory()->create(['grade_levels' => range(1, 12)]);
 
     $teacherUser = User::factory()->create();
     $teacherUser->assignRole(UserRole::Profesor->value);

@@ -43,7 +43,7 @@ it('selectul de an școlar a DISPĂRUT — anul e derivat din clasă, afișat do
         ->assertFormFieldDoesNotExist('academic_year_id');
 
     // Invariantul rămâne pe observer: lecția creată poartă anul clasei, nu ce s-a trimis.
-    $subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 9]);
+    $subject = Subject::factory()->create(['grade_levels' => range(5, 9)]);
 
     Livewire::test(CreateLesson::class)
         ->fillForm([
@@ -82,7 +82,7 @@ it('clasele se aleg doar din anii DESCHIȘI — clasa unui an închis nu apare l
 });
 
 it('profesorul se COMPLETEAZĂ AUTOMAT din alocarea didactică unică a perechii (clasă, disciplină)', function () {
-    $subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 9]);
+    $subject = Subject::factory()->create(['grade_levels' => range(5, 9)]);
     $teacher = Teacher::factory()->create();
 
     TeachingAssignment::factory()->create([
@@ -101,7 +101,7 @@ it('profesorul se COMPLETEAZĂ AUTOMAT din alocarea didactică unică a perechii
 });
 
 it('la predarea pe GRUPE (mai mulți profesori alocați) alegerea rămâne a omului — nu se auto-completează', function () {
-    $subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 9]);
+    $subject = Subject::factory()->create(['grade_levels' => range(5, 9)]);
     [$teacherA, $teacherB] = Teacher::factory()->count(2)->create();
 
     TeachingAssignment::factory()->create([
@@ -126,8 +126,8 @@ it('la predarea pe GRUPE (mai mulți profesori alocați) alegerea rămâne a omu
 });
 
 it('disciplinele cu alocare didactică apar GRUPATE în fruntea listei', function () {
-    $assigned = Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 5, 'max_grade' => 12]);
-    $other = Subject::factory()->create(['name' => 'Chimie', 'min_grade' => 7, 'max_grade' => 12]);
+    $assigned = Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(5, 12)]);
+    $other = Subject::factory()->create(['name' => 'Chimie', 'grade_levels' => range(7, 12)]);
 
     TeachingAssignment::factory()->create([
         'school_class_id' => $this->class->id,
@@ -150,7 +150,7 @@ it('disciplinele cu alocare didactică apar GRUPATE în fruntea listei', functio
 });
 
 it('sloturile OCUPATE nu se pot alege: lipsesc din opțiuni, iar POST-ul forjat e respins', function () {
-    $subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 9]);
+    $subject = Subject::factory()->create(['grade_levels' => range(5, 9)]);
 
     Lesson::factory()->create([
         'school_class_id' => $this->class->id,
@@ -180,7 +180,7 @@ it('sloturile OCUPATE nu se pot alege: lipsesc din opțiuni, iar POST-ul forjat 
 });
 
 it('schimbarea zilei păstrează numărul doar dacă noul context îl arată liber', function () {
-    $subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 9]);
+    $subject = Subject::factory()->create(['grade_levels' => range(5, 9)]);
 
     Lesson::factory()->create([
         'school_class_id' => $this->class->id,
@@ -204,7 +204,7 @@ it('schimbarea zilei păstrează numărul doar dacă noul context îl arată lib
 });
 
 it('POST-ul forjat cu disciplină din afara treptei clasei e respins pe server', function () {
-    $primar = Subject::factory()->create(['name' => 'Abecedar', 'min_grade' => 1, 'max_grade' => 4]);
+    $primar = Subject::factory()->create(['name' => 'Abecedar', 'grade_levels' => range(1, 4)]);
 
     Livewire::test(CreateLesson::class)
         ->fillForm([

@@ -167,12 +167,11 @@ class ImportLessonsFromSchedules extends Command
      */
     private function loadNomenclature(): void
     {
-        $subjects = Subject::query()->get(['id', 'name', 'min_grade', 'max_grade']);
+        $subjects = Subject::query()->get(['id', 'name', 'grade_levels']);
 
         foreach (range(1, 12) as $grade) {
             $forGrade = $subjects
-                ->filter(fn (Subject $subject): bool => ($subject->min_grade === null || $subject->min_grade <= $grade)
-                    && ($subject->max_grade === null || $subject->max_grade >= $grade))
+                ->filter(fn (Subject $subject): bool => $subject->coversGrade($grade))
                 ->sortByDesc(fn (Subject $subject): int => strlen($subject->name));
 
             $map = [];

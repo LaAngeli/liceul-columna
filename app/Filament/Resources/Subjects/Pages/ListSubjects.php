@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Subjects\Pages;
 
-use App\Enums\SchoolCycle;
 use App\Enums\UserRole;
 use App\Filament\Resources\Absences\AbsenceResource;
 use App\Filament\Resources\Grades\GradeResource;
@@ -14,7 +13,6 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Support\ContentTranslator;
-use App\Support\GradeLevels;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
@@ -271,10 +269,8 @@ class ListSubjects extends ListRecords
             'title' => ContentTranslator::subject($subject->name),
             'abbreviation' => $subject->abbreviation,
             'grading' => (string) $subject->grading_type->getLabel(),
-            'grades' => ($subject->min_grade !== null && $subject->max_grade !== null)
-                ? GradeLevels::span((int) $subject->min_grade, (int) $subject->max_grade)
-                : null,
-            'cycles' => self::cycleSpan($subject),
+            'grades' => $subject->gradeLevelsLabel(),
+            'cycles' => $subject->cycleSpanLabel(),
             'coverage' => (string) __('panel.tables.subjects.coverage_value', [
                 'classes' => (int) $subject->getAttribute('classes_count'),
                 'teachers' => (int) $subject->getAttribute('teachers_count'),
@@ -335,10 +331,8 @@ class ListSubjects extends ListRecords
             'title' => ContentTranslator::subject($subject->name),
             'abbreviation' => $subject->abbreviation,
             'grading' => (string) $subject->grading_type->getLabel(),
-            'grades' => ($subject->min_grade !== null && $subject->max_grade !== null)
-                ? GradeLevels::span((int) $subject->min_grade, (int) $subject->max_grade)
-                : null,
-            'cycles' => self::cycleSpan($subject),
+            'grades' => $subject->gradeLevelsLabel(),
+            'cycles' => $subject->cycleSpanLabel(),
             'teachers' => $teachers->all(),
             'links' => [
                 (string) __('panel.resources.grades.label') => GradeResource::getUrl('index', $context),
@@ -349,18 +343,5 @@ class ListSubjects extends ListRecords
                 ? SubjectResource::getUrl('edit', ['record' => $subject])
                 : null,
         ];
-    }
-
-    /** Ciclul/ciclurile acoperite („Primar–Liceu"), ca sub-text lămuritor. */
-    private static function cycleSpan(Subject $subject): ?string
-    {
-        if ($subject->min_grade === null || $subject->max_grade === null) {
-            return null;
-        }
-
-        $from = SchoolCycle::fromGradeLevel((int) $subject->min_grade)->label();
-        $to = SchoolCycle::fromGradeLevel((int) $subject->max_grade)->label();
-
-        return $from === $to ? $from : $from.'–'.$to;
     }
 }

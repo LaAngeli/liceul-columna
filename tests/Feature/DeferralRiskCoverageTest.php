@@ -41,8 +41,8 @@ beforeEach(function () {
 });
 
 it('disciplina cu absențe dar fără ore în orar se raportează ca NEDETERMINATĂ, nu se pierde', function () {
-    $inOrar = Subject::factory()->create(['name' => 'Matematică', 'min_grade' => 5, 'max_grade' => 12]);
-    $faraOrar = Subject::factory()->create(['name' => 'Limba străină 1 (engleza)', 'min_grade' => 5, 'max_grade' => 12]);
+    $inOrar = Subject::factory()->create(['name' => 'Matematică', 'grade_levels' => range(5, 12)]);
+    $faraOrar = Subject::factory()->create(['name' => 'Limba străină 1 (engleza)', 'grade_levels' => range(5, 12)]);
 
     Lesson::factory()->create([
         'school_class_id' => $this->class->id,
@@ -69,7 +69,7 @@ it('disciplina cu absențe dar fără ore în orar se raportează ca NEDETERMINA
 });
 
 it('elevul fără goluri de orar nu primește nicio mențiune de nedeterminare', function () {
-    $subject = Subject::factory()->create(['min_grade' => 5, 'max_grade' => 12]);
+    $subject = Subject::factory()->create(['grade_levels' => range(5, 12)]);
 
     Lesson::factory()->create([
         'school_class_id' => $this->class->id,
@@ -93,7 +93,7 @@ it('elevul fără goluri de orar nu primește nicio mențiune de nedeterminare',
 });
 
 it('clasa fără orar deloc nu ascunde disciplinele: le raportează pe toate ca nedeterminate', function () {
-    $subject = Subject::factory()->create(['name' => 'Chimie', 'min_grade' => 7, 'max_grade' => 12]);
+    $subject = Subject::factory()->create(['name' => 'Chimie', 'grade_levels' => range(7, 12)]);
 
     Absence::factory()->count(3)->create([
         'student_id' => $this->student->id,
@@ -113,8 +113,8 @@ it('clasa fără orar deloc nu ascunde disciplinele: le raportează pe toate ca 
 });
 
 it('REMEDIUL LA SURSĂ: marcarea „(opț)" în orar dezambiguizează singură cele două engleze', function () {
-    $l1 = Subject::factory()->create(['name' => 'Limba străină 1 (engleza)', 'min_grade' => 5, 'max_grade' => 12]);
-    $opt = Subject::factory()->create(['name' => 'Limba engleză (opț)', 'min_grade' => 5, 'max_grade' => 11]);
+    $l1 = Subject::factory()->create(['name' => 'Limba străină 1 (engleza)', 'grade_levels' => range(5, 12)]);
+    $opt = Subject::factory()->create(['name' => 'Limba engleză (opț)', 'grade_levels' => range(5, 11)]);
 
     Schedule::factory()->create([
         'type' => ScheduleType::Lessons,

@@ -39,7 +39,7 @@ beforeEach(function () {
     // Două clase în anul curent: profesorul predă doar în prima.
     $this->ownClass = SchoolClass::factory()->for($this->year)->create(['name' => 'NAV-A', 'section' => null]);
     $this->foreignClass = SchoolClass::factory()->for($this->year)->create(['name' => 'NAV-B', 'section' => null]);
-    $this->subject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'min_grade' => 1, 'max_grade' => 10]);
+    $this->subject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'grade_levels' => range(1, 10)]);
 
     $this->ownStudent = Student::factory()->create();
     Enrollment::factory()->for($this->ownStudent)->for($this->ownClass)->for($this->year)->create();
@@ -213,7 +213,7 @@ it('contextul de perioadă (semestru) restrânge tabelul', function () {
 it('chip-ul de disciplină restrânge suplimentar contextul clasei', function () {
     actingAs(navigatorDirector());
 
-    $otherSubject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'min_grade' => 1, 'max_grade' => 10]);
+    $otherSubject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'grade_levels' => range(1, 10)]);
     $mathGrade = navigatorGrade($this->ownStudent, $this->ownClass, $this->subject, $this->term);
     $otherGrade = navigatorGrade($this->ownStudent, $this->ownClass, $otherSubject, $this->term);
 
@@ -230,7 +230,7 @@ it('dirigintele vede în clasa lui și disciplinele altor profesori (badge + chi
     $user = navigatorTeacher($this->ownClass, $this->subject, homeroom: $this->ownClass);
 
     // Alt profesor predă altă disciplină în aceeași clasă.
-    $otherSubject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'min_grade' => 1, 'max_grade' => 10]);
+    $otherSubject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'grade_levels' => range(1, 10)]);
     $otherTeacherUser = navigatorTeacher($this->ownClass, $otherSubject);
 
     actingAs($user);
@@ -248,7 +248,7 @@ it('dirigintele vede în clasa lui și disciplinele altor profesori (badge + chi
 });
 
 it('profesorul (ne-diriginte) primește chips DOAR pentru disciplinele lui în clasă', function () {
-    $otherSubject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'min_grade' => 1, 'max_grade' => 10]);
+    $otherSubject = Subject::factory()->create(['grading_type' => GradingType::Numeric, 'grade_levels' => range(1, 10)]);
     navigatorTeacher($this->ownClass, $otherSubject); // colegul predă altceva în aceeași clasă
 
     actingAs(navigatorTeacher($this->ownClass, $this->subject));
