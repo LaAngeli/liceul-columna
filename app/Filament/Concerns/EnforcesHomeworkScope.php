@@ -5,6 +5,7 @@ namespace App\Filament\Concerns;
 use App\Models\HomeworkAssignment;
 use App\Models\SchoolClass;
 use App\Models\Subject;
+use App\Support\WebLink;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -176,6 +177,14 @@ trait EnforcesHomeworkScope
                     static fn (mixed $value): bool => filled($value),
                 ));
             }
+        }
+
+        // Linkurile se stochează ABSOLUT (07.08.2026): profesorul scrie „test.md", noi punem
+        // schema. Aici, nu în formular — e singurul punct prin care trec și crearea, și editarea,
+        // deci nicio cale de scriere nu poate lăsa un link relativ. Un `href` fără schemă s-ar
+        // rezolva față de pagina curentă, iar cabinetul l-ar coborî la text simplu.
+        if (array_key_exists('links', $data)) {
+            $data['links'] = WebLink::normalizeAll($data['links']);
         }
 
         return $data;

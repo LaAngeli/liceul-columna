@@ -10,6 +10,8 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Support\ContentTranslator;
+use App\Support\WebLink;
+use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
@@ -98,14 +100,24 @@ class HomeworkAssignmentForm
                     ->hint(__('panel.forms.homework.links_hint'))
                     ->simple(
                         TextInput::make('url')
-                            // Regula `url` pe SERVER — NU `->url()`, care ar seta `type="url"` și
-                            // ar lăsa browserul să blocheze cu mesajul lui generic („Please enter a
+                            // Validare pe SERVER — NU `->url()`, care ar seta `type="url"` și ar
+                            // lăsa browserul să blocheze cu mesajul lui generic („Please enter a
                             // URL", în engleză, fără îndrumare). Așa apare mesajul NOSTRU, localizat,
                             // care trimite un text obișnuit („Manualul digital, cap. 4") spre câmpul
                             // „Resurse tipărite" de mai jos.
-                            ->rule('url')
-                            ->validationMessages(['url' => __('panel.forms.homework.link_invalid')])
-                            ->placeholder('https://…')
+                            //
+                            // SCHEMA NU SE MAI CERE (cerința beneficiarului, 07.08.2026): „test.md"
+                            // se acceptă ca atare. Regula `url` a Laravel o impunea, iar profesorul
+                            // tasta de fiecare dată șapte caractere care nu-i spun nimic. Structura
+                            // de domeniu rămâne verificată ({@see WebLink}), iar schema se adaugă
+                            // la salvare — linkul stocat trebuie să fie ABSOLUT, altfel `href`-ul
+                            // din cabinet s-ar rezolva relativ la pagină.
+                            ->rule(fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
+                                if (filled($value) && ! WebLink::isValid(is_string($value) ? $value : null)) {
+                                    $fail(__('panel.forms.homework.link_invalid'));
+                                }
+                            })
+                            ->placeholder(__('panel.forms.homework.link_placeholder'))
                             // Sincronizare la ieșirea din câmp, ca butonul „deschide" să vadă
                             // valoarea proaspăt introdusă (fără asta, la creare linkul nou nu ar
                             // avea încă state pe server când se randează acțiunea).
@@ -183,13 +195,10 @@ class HomeworkAssignmentForm
      */
     public static function openableUrl(?string $state): ?string
     {
-        $state = trim((string) $state);
-
-        if ($state === '') {
-            return null;
-        }
-
-        return preg_match('#^[a-z][a-z0-9+.\-]*://#i', $state) === 1 ? $state : 'https://'.$state;
+        // Aceeași normalizare ca la salvare ({@see WebLink}): butonul „deschide" trebuie să ducă
+        // exact unde va duce și linkul salvat. Rândurile vechi, scrise înainte de normalizare,
+        // trec tot pe aici.
+        return WebLink::normalize($state);
     }
 
     private static function currentTeacher(): ?Teacher
