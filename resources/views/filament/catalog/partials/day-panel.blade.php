@@ -325,7 +325,10 @@
                                         x-on:click="deschis = false; motiv = ''"
                                         class="text-xs text-gray-500 hover:underline dark:text-gray-400"
                                     >
-                                        {{ __('panel.common.cancel') }}
+                                        {{-- Aceeași cheie ca la anularea NOTEI, câteva rânduri mai sus:
+                                             două formulare gemene în același panou trebuie să spună
+                                             la fel. (`panel.common.cancel` nu există — apărea cheia brută.) --}}
+                                        {{ __('panel.class_register.day_panel.cancel') }}
                                     </button>
                             </div>
                         @endif
