@@ -906,6 +906,8 @@ class ClassRegister extends Page
             return;
         }
 
+        $this->afterDayPanelChange();
+
         Notification::make()
             ->success()
             ->title(__('panel.class_register.day_panel.absence_added'))
@@ -937,6 +939,8 @@ class ClassRegister extends Page
         }
 
         $absence->update(['is_motivated' => $target->motivatedValue()]);
+
+        $this->afterDayPanelChange();
 
         Notification::make()
             ->success()
@@ -983,6 +987,8 @@ class ClassRegister extends Page
             'annulled_by_user_id' => $user->getKey(),
             'annulment_reason' => mb_substr($reason, 0, 255),
         ]);
+
+        $this->afterDayPanelChange();
 
         Notification::make()
             ->success()
@@ -1073,6 +1079,8 @@ class ClassRegister extends Page
 
             $absence->update(['lesson_number' => $target]);
         });
+
+        $this->afterDayPanelChange();
 
         Notification::make()
             ->success()

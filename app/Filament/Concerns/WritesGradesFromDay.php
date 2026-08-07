@@ -17,6 +17,7 @@ use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Support\Holidays;
 use App\Support\SchoolCalendar;
+use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +55,23 @@ trait WritesGradesFromDay
 
     /** Hook după orice scriere reușită — gazda își invalidează memoizarea (no-op implicit). */
     protected function afterDayGradeWrite(): void {}
+
+    /**
+     * De chemat după ORICE schimbare făcută din panoul zilei (notă sau absență).
+     *
+     * ⚠️ Cât timp un modal Filament e montat, componenta răspunde DOAR cu partiala modalului
+     * (`effects.partials['action-modals.N']`), nu cu HTML-ul paginii — deci tabelul din spate
+     * rămâne cu valorile vechi până la o randare completă (prins live pe rolul profesor,
+     * 07.08.2026: ora mutată se vedea în panou, dar pastila din celulă rămânea pe ora precedentă).
+     * `forceRender()` ({@see InteractsWithActions}) cere randarea întreagă în ACEEAȘI cerere, deci
+     * celula și panoul spun același lucru în același moment. Metoda vine din traitul de acțiuni al
+     * Filament, pe care ambele gazde (pagina borderoului / lista Note) îl au prin definiție.
+     */
+    protected function afterDayPanelChange(): void
+    {
+        $this->afterDayGradeWrite();
+        $this->forceRender();
+    }
 
     /**
      * Adaugă o NOTĂ pe ziua celulei — pe primul ORDINAL liber al zilei (Ora 1 = prima consemnare
@@ -136,7 +154,7 @@ trait WritesGradesFromDay
             return;
         }
 
-        $this->afterDayGradeWrite();
+        $this->afterDayPanelChange();
 
         Notification::make()
             ->success()
@@ -180,7 +198,7 @@ trait WritesGradesFromDay
             'annulment_reason' => mb_substr($reason, 0, 255),
         ]);
 
-        $this->afterDayGradeWrite();
+        $this->afterDayPanelChange();
 
         Notification::make()->success()->title(__('panel.actions.annul.success'))->send();
     }
@@ -235,7 +253,7 @@ trait WritesGradesFromDay
             'reason' => mb_substr($reason, 0, 255),
         ]);
 
-        $this->afterDayGradeWrite();
+        $this->afterDayPanelChange();
 
         Notification::make()
             ->success()
@@ -404,7 +422,7 @@ trait WritesGradesFromDay
             $grade->update(['lesson_number' => $target]);
         });
 
-        $this->afterDayGradeWrite();
+        $this->afterDayPanelChange();
 
         Notification::make()
             ->success()
