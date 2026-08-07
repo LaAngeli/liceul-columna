@@ -310,7 +310,7 @@ return [
             ],
         ],
         'activity_monitor' => [
-            'heading' => 'Activity pulse',
+            'heading' => 'Activity monitor',
             'subheading_day' => 'Your catalog actions — one bar = one day.',
             'subheading_week' => 'Your catalog actions — one bar = one week.',
             'week_prefix' => 'Week :from – :to',

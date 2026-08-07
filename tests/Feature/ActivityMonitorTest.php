@@ -269,7 +269,7 @@ it('widget-ul se randează cu titlul nou și pastilele de perioadă; toggle-uril
 
     Livewire::test(ActivityMonitor::class)
         ->assertOk()
-        ->assertSee('Pulsul activității')
+        ->assertSee('Monitor activitate')
         ->assertSee('Ultimele 12 săptămâni')
         ->call('setPeriod', 'orice-altceva')
         ->assertSet('period', '12w')

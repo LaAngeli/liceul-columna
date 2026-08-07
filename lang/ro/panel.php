@@ -321,7 +321,7 @@ return [
             ],
         ],
         'activity_monitor' => [
-            'heading' => 'Pulsul activității',
+            'heading' => 'Monitor activitate',
             'subheading_day' => 'Acțiunile tale în catalog — o bară = o zi.',
             'subheading_week' => 'Acțiunile tale în catalog — o bară = o săptămână.',
             'week_prefix' => 'Săptămâna :from – :to',
