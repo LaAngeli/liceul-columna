@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { BookOpen, ChevronRight, Link2, Paperclip } from 'lucide-react';
+import { ChevronRight, Paperclip } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { isUrl } from '@/components/cabinet/student-profile/helpers';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -140,43 +140,14 @@ export function HomeworkBySubject({ homework }: { homework: HomeworkItem[] }) {
                                 </DialogDescription>
                             </DialogHeader>
 
-                            {/* Cea mai recentă prima — lista păstrează ordinea serverului. Fiecare
-                                rând NAVIGHEAZĂ la pagina de detaliu a temei (cerința 2026-08-07):
-                                fișa e ușa, pagina e locul unde tema se citește și se folosește. */}
-                            <ul className="divide-y overflow-hidden rounded-lg border">
+                            {/* Cea mai recentă prima — CARDURILE COMPLETE ale temelor (corecția
+                                2026-08-07: popupul rămâne cum era), fiecare clicabil ÎNTREG →
+                                pagina de detaliu; resursele de pe card rămân active deasupra. */}
+                            <div className="flex flex-col gap-3">
                                 {detail.items.map((item) => (
-                                    <li key={item.id}>
-                                        <Link
-                                            href={`/cabinet/teme/${item.id}`}
-                                            aria-label={`${t('cabinet.hw_open_item')}: ${item.subject}, ${item.date}`}
-                                            className={cn(
-                                                'flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors',
-                                                'hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
-                                                item.status === 'past' && 'opacity-80',
-                                            )}
-                                        >
-                                            <div className="w-16 shrink-0">
-                                                <span className="text-sm font-semibold tabular-nums">{item.date.slice(0, 5)}</span>
-                                                {item.status !== 'past' && (
-                                                    <span className="mt-0.5 block text-[10px] font-medium text-primary">
-                                                        {t(item.status === 'today' ? 'cabinet.hw_status_today' : 'cabinet.hw_status_upcoming')}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <p className="min-w-0 flex-1 truncate text-sm">
-                                                {item.topic ?? item.required ?? item.optional ?? '—'}
-                                            </p>
-                                            {/* Semnale de resurse — familia vede din listă ce temă poartă materiale. */}
-                                            <span className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
-                                                {item.links.filter(Boolean).length > 0 && <Link2 className="size-3.5" aria-hidden />}
-                                                {(item.files ?? []).length > 0 && <Paperclip className="size-3.5" aria-hidden />}
-                                                {item.resources.filter(Boolean).length > 0 && <BookOpen className="size-3.5" aria-hidden />}
-                                                <ChevronRight className="size-4" aria-hidden />
-                                            </span>
-                                        </Link>
-                                    </li>
+                                    <HomeworkCard key={item.id} h={item} muted={item.status === 'past'} href={`/cabinet/teme/${item.id}`} />
                                 ))}
-                            </ul>
+                            </div>
                         </>
                     )}
                 </DialogContent>
@@ -185,11 +156,20 @@ export function HomeworkBySubject({ homework }: { homework: HomeworkItem[] }) {
     );
 }
 
-export function HomeworkCard({ h, muted = false }: { h: HomeworkItem; muted?: boolean }) {
+export function HomeworkCard({ h, muted = false, href }: { h: HomeworkItem; muted?: boolean; href?: string }) {
     const t = useTranslations();
 
     return (
-        <article className={`rounded-xl border bg-card p-4 shadow-sm ${muted ? 'opacity-80' : ''}`}>
+        <article
+            className={cn(
+                'rounded-xl border bg-card p-4 shadow-sm',
+                muted && 'opacity-80',
+                // Cu țintă de navigare, cardul ÎNTREG e clicabil (link „întins" mai jos) și o
+                // spune: chenar + umbră la hover, săgeată în colț. Resursele de pe card rămân
+                // deasupra linkului (z-10), deci se deschid în continuare direct.
+                href !== undefined && 'group relative transition-[border-color,box-shadow] hover:border-primary hover:shadow-md',
+            )}
+        >
             <div className="mb-1 flex flex-wrap items-center gap-2">
                 <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{h.subject}</span>
                 {/* Cine a dat tema — context, nu decor: la teme neclare, familia știe pe cine întreabă. */}
@@ -197,6 +177,12 @@ export function HomeworkCard({ h, muted = false }: { h: HomeworkItem; muted?: bo
                 <span className="text-xs text-muted-foreground">
                     {t('cabinet.homework_assigned_on')} {h.date}
                 </span>
+                {href !== undefined && (
+                    <ChevronRight
+                        className="ml-auto size-4 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-primary"
+                        aria-hidden
+                    />
+                )}
             </div>
             {h.topic && <p className="font-medium">{h.topic}</p>}
             {h.required && (
@@ -212,7 +198,7 @@ export function HomeworkCard({ h, muted = false }: { h: HomeworkItem; muted?: bo
                 </p>
             )}
             {(h.links.filter(Boolean).length > 0 || h.resources.filter(Boolean).length > 0 || (h.files ?? []).length > 0) && (
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="relative z-10 mt-2 flex flex-wrap gap-2">
                     {/* Linkuri deschizabile (URL) — restul intrărilor rămase în `links` (legacy)
                         se afișează tot ca chip gri, la fel ca resursele tipărite. */}
                     {h.links.filter(Boolean).map((link, i) =>
@@ -251,6 +237,16 @@ export function HomeworkCard({ h, muted = false }: { h: HomeworkItem; muted?: bo
                         </a>
                     ))}
                 </div>
+            )}
+
+            {/* Linkul „întins": acoperă tot cardul (ancorele nu se pot imbrica, deci resursele de
+                mai sus stau DEASUPRA lui, pe z-10) — clic oriunde altundeva deschide pagina temei. */}
+            {href !== undefined && (
+                <Link
+                    href={href}
+                    aria-label={`${t('cabinet.hw_open_item')}: ${h.subject}, ${h.date}`}
+                    className="absolute inset-0 rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                />
             )}
         </article>
     );

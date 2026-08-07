@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import HomeworkDetailPage from './tema';
+import HomeworkDetailPage from '@/pages/cabinet/tema';
 
 /**
  * Pagina de detaliu a temei: resursele interactive + gărzile de securitate din frontend —
