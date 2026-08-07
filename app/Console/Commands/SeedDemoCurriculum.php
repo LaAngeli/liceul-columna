@@ -12,6 +12,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 /**
@@ -129,6 +130,27 @@ class SeedDemoCurriculum extends Command
         'director@columna.test' => self::MARK.' 2A',
     ];
 
+    /**
+     * Elevul unui cont demo stă în clasa unde ÎNVĂȚĂTOR e fișa altui cont demo — cerința
+     * beneficiarului (07.08.2026): „[DEMO] Moraru Denis" (contul `elev@`) să facă parte din clasa
+     * predată ȘI dirijată de „[DEMO] Ursu Valentin" (contul `director@`).
+     *
+     * Rostul e demonstrația cap-coadă pe UN singur cont cu trei roluri ({@see UserRole}): comuți
+     * pe „profesor" și vezi notele lui Denis, pe „diriginte" clasa lui, pe „director" școala.
+     * Înainte, contul `director@` nu avea nicio tangență cu elevul demo — se comuta rolul și nu se
+     * schimba nimic vizibil.
+     *
+     * ⚠️ Se mută UN singur copil, deliberat: `elev2@` rămâne la „[DEMO] 1A", a cărei dirigenție e a
+     * contului `diriginte@`. Altfel fluxurile familiei (motivări, mesaje) ar fi rămas fără
+     * destinatarul așteptat. Contul `parinte@` îi are pe amândoi, deci câștigă și cazul real al
+     * părintelui cu copii în clase diferite.
+     *
+     * @var array<string, string> e-mail cont ELEV → e-mail contul al cărui profesor e dirigintele
+     */
+    private const ACCOUNT_STUDENT_HOMEROOMS = [
+        'elev@columna.test' => 'director@columna.test',
+    ];
+
     /** Nume pentru boboci — interne, ca în {@see SeedDemoZone} (faker lipsește în producție). */
     private const LAST_NAMES = ['Popescu', 'Rusu', 'Ciobanu', 'Moraru', 'Ungureanu', 'Rotaru', 'Munteanu', 'Cojocaru', 'Bejan', 'Lungu', 'Cebotari', 'Sandu', 'Vieru', 'Cazacu', 'Bivol', 'Botnaru', 'Frunză', 'Zaharia', 'Dragomir', 'Balan', 'Croitoru', 'Guțu', 'Melnic', 'Grosu', 'Damian', 'Racu', 'Ursu'];
 
@@ -219,6 +241,11 @@ class SeedDemoCurriculum extends Command
                 ->all();
 
             $newClasses = $newYearId === null ? [] : $this->adoptPromotedClasses($newYearId, $now);
+
+            // Aici, nu mai devreme: elevul se așază în clasa învățătorului DUPĂ ce ambii ani au
+            // clase cu dirigenția pusă, dar ÎNAINTE de generarea vieții anului — așa notele se
+            // nasc direct în clasa bună, fără să mai fie mutate după aceea.
+            $this->adoptAccountStudentHomerooms();
 
             // ── 2. Clasele I ale anului nou + boboci ─────────────────────────────────────────
             $firstGrade = $newYearId === null
@@ -632,6 +659,116 @@ class SeedDemoCurriculum extends Command
         }
 
         return $moved;
+    }
+
+    /**
+     * Mută elevul contului demo în clasa dirijată de fișa altui cont demo — {@see ACCOUNT_STUDENT_HOMEROOMS}.
+     *
+     * Mutarea se face pe FIECARE an în care elevul e înscris (anul curent și cel deschis), în clasa
+     * de ACEEAȘI treaptă a dirigintelui-țintă: elevul îl urmează pe învățător prin ani, nu sare o
+     * clasă. Dacă în anul acela dirigintele n-are o clasă pe treapta lui, înscrierea rămâne cum e.
+     *
+     * DE CE se mută și notele, spre deosebire de un transfer real ({@see TransferEnrollment}, unde
+     * `school_class_id` e snapshotul istoric al consemnării): aici nu s-a întâmplat niciun transfer
+     * — reparăm o repartizare de date demo. Lăsate pe clasa veche, notele l-ar fi arătat pe Denis
+     * cu catalogul GOL exact la profesorul căruia i-l dăm, adică fix ce trebuia demonstrat.
+     * Odată cu ele trece și profesorul: la primar trunchiul îl ține învățătorul, deci în clasa nouă
+     * notele lui trebuie să fie ale învățătorului nou, nu ale celui pe care l-a lăsat în urmă.
+     *
+     * Idempotentă: rulată a doua oară nu mai are ce muta (elevul e deja în clasa-țintă).
+     *
+     * @return int câți elevi demo au fost mutați (înscrieri, nu persoane)
+     */
+    private function adoptAccountStudentHomerooms(): int
+    {
+        $moved = 0;
+
+        foreach (self::ACCOUNT_STUDENT_HOMEROOMS as $studentEmail => $homeroomEmail) {
+            $studentId = DB::table('students')
+                ->join('users', 'users.id', '=', 'students.user_id')
+                ->where('users.email', $studentEmail)
+                ->whereNull('students.deleted_at')
+                ->value('students.id');
+
+            $teacherId = $this->accountTeacherId($homeroomEmail);
+
+            if ($studentId === null || $teacherId === null) {
+                continue; // unul dintre conturi lipsește din baza asta
+            }
+
+            $enrollments = DB::table('enrollments as e')
+                ->join('school_classes as c', 'c.id', '=', 'e.school_class_id')
+                ->where('e.student_id', $studentId)
+                ->whereNull('e.left_on')
+                ->whereNull('e.deleted_at')
+                ->get(['e.id', 'e.school_class_id', 'e.academic_year_id', 'c.grade_level']);
+
+            foreach ($enrollments as $enrollment) {
+                $target = DB::table('school_classes')
+                    ->where('academic_year_id', $enrollment->academic_year_id)
+                    ->where('grade_level', $enrollment->grade_level)
+                    ->where('homeroom_teacher_id', $teacherId)
+                    ->whereNull('deleted_at')
+                    ->orderBy('id')
+                    ->value('id');
+
+                if ($target === null || (int) $target === (int) $enrollment->school_class_id) {
+                    continue;
+                }
+
+                DB::table('enrollments')
+                    ->where('id', $enrollment->id)
+                    ->update(['school_class_id' => $target, 'updated_at' => Carbon::now()]);
+
+                $this->moveStudentRecordsToClass(
+                    (int) $studentId,
+                    (int) $enrollment->school_class_id,
+                    (int) $target,
+                );
+
+                $moved++;
+            }
+        }
+
+        return $moved;
+    }
+
+    /**
+     * Duce în clasa nouă TOT ce elevul avea consemnat în cea veche, cu profesorul de acolo.
+     *
+     * Fără re-atribuirea profesorului, catalogul ar afirma că nota a fost pusă de cineva care nu
+     * predă disciplina în clasa aceea — o incoerență pe care panoul o arată direct. Disciplinele
+     * fără alocare în clasa nouă își păstrează profesorul: e mai puțin greșit decât să-l ștergem.
+     */
+    private function moveStudentRecordsToClass(int $studentId, int $fromClassId, int $toClassId): void
+    {
+        /** @var array<int, int> $teacherBySubject */
+        $teacherBySubject = DB::table('teaching_assignments')
+            ->where('school_class_id', $toClassId)
+            ->whereNull('deleted_at')
+            ->pluck('teacher_id', 'subject_id')
+            ->map(intval(...))
+            ->all();
+
+        foreach (['grades', 'absences', 'term_averages'] as $table) {
+            $rows = DB::table($table)
+                ->where('student_id', $studentId)
+                ->where('school_class_id', $fromClassId)
+                ->get(['id', 'subject_id']);
+
+            foreach ($rows as $row) {
+                $values = ['school_class_id' => $toClassId];
+                $subjectId = $row->subject_id === null ? null : (int) $row->subject_id;
+
+                if ($subjectId !== null
+                    && isset($teacherBySubject[$subjectId])
+                    && Schema::hasColumn($table, 'teacher_id')) {
+                    $values['teacher_id'] = $teacherBySubject[$subjectId];
+                }
+
+                DB::table($table)->where('id', $row->id)->update($values);
+            }
+        }
     }
 
     /**
@@ -1108,6 +1245,7 @@ class SeedDemoCurriculum extends Command
         DB::transaction(function () use ($currentTerm, &$moved): void {
             $moved = $this->adoptAccountHomerooms((int) $currentTerm->academic_year_id, Carbon::now());
             $this->adoptAccountAssignments($this->accountCatedra());
+            $moved += $this->adoptAccountStudentHomerooms();
         });
 
         $this->components->info($moved > 0
