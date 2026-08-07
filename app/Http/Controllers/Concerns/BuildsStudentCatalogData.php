@@ -1042,12 +1042,13 @@ trait BuildsStudentCatalogData
             })
             ->when($yearStart !== null, fn (Builder $query) => $query->where('assigned_on', '>=', $yearStart));
 
-        // Aceeași ordine ca vederea implicită: viitorul cronologic ASC, apoi trecutul DESC (fără
-        // limită). Filtrul de calendar re-taie oricum client-side pe fereastra aleasă.
-        $upcoming = $base()->where('assigned_on', '>=', $today)->orderBy('assigned_on')->get();
-        $past = $base()->where('assigned_on', '<', $today)->orderByDesc('assigned_on')->get();
-
-        return $upcoming->concat($past)
+        // CRONOLOGIC DESCRESCĂTOR, o singură ordine: vederea grupează pe discipline, iar în fiecare
+        // disciplină cea mai recentă temă trebuie să fie prima (cerința 2026-08-04). Împărțirea de
+        // dinainte în „viitor ASC + trecut DESC" servea vederea pe zile, care nu mai există.
+        return $base()
+            ->orderByDesc('assigned_on')
+            ->orderByDesc('id')
+            ->get()
             ->map(fn (HomeworkAssignment $homework): array => $this->homeworkRow($homework, $today))
             ->all();
     }

@@ -224,6 +224,36 @@ it('modulul Teme se randează cu lista temelor', function () {
             ->has('homework'));
 });
 
+it('temele vin CRONOLOGIC DESCRESCĂTOR — vederea pe discipline le arată în ordinea asta', function () {
+    [$parent, $student] = catalogFamily();
+    $class = $student->currentSchoolClass();
+
+    Carbon::setTestNow(Carbon::parse('2026-03-12 10:00', SchoolCalendar::TIMEZONE));
+
+    // Inserate amestecat, inclusiv una în viitor: ordinea trebuie să vină din interogare.
+    foreach (['2026-03-05', '2026-03-20', '2026-03-12'] as $date) {
+        HomeworkAssignment::query()->create([
+            'subject_name' => 'Matematică',
+            'author_name' => 'Damian Iu.',
+            'grade_level' => $class->grade_level,
+            'section' => $class->section,
+            'assigned_on' => $date,
+            'topic' => 'Tema '.$date,
+        ]);
+    }
+
+    $this->actingAs($parent)->get(route('cabinet.homework'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('homework', 3)
+            // Cea mai recentă prima — pe asta se sprijină lista din interiorul disciplinei.
+            ->where('homework.0.effectiveDate', '2026-03-20')
+            ->where('homework.1.effectiveDate', '2026-03-12')
+            ->where('homework.2.effectiveDate', '2026-03-05'));
+
+    Carbon::setTestNow();
+});
+
 it('tema cu termen AZI e „today" și noaptea, când ziua UTC e încă cea precedentă', function () {
     [$parent, $student] = catalogFamily();
     $class = $student->currentSchoolClass();

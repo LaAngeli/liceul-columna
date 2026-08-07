@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { HomeworkByDay } from '@/components/cabinet/catalog/homework-views';
+import { HomeworkBySubject } from '@/components/cabinet/catalog/homework-views';
 import type { HomeworkItem } from '@/components/cabinet/catalog/homework-views';
 import { ModuleShell } from '@/components/cabinet/catalog/module-shell';
 import type { ModuleContext } from '@/components/cabinet/catalog/module-shell';
@@ -12,7 +12,7 @@ interface Props {
     homework: HomeworkItem[] | null;
 }
 
-/** Modulul „Teme": temele clasei, cronologic — de făcut întâi (Azi/Mâine/…), istoricul pliat. */
+/** Modulul „Teme": disciplinele clasei; în fiecare, toate temele ei, cea mai recentă prima. */
 export default function HomeworkModulePage({ module, homework }: Props) {
     const t = useTranslations();
 
@@ -29,8 +29,7 @@ export default function HomeworkModulePage({ module, homework }: Props) {
                     (homework.length === 0 ? (
                         <EmptyState title={t('cabinet.no_homework')} />
                     ) : (
-                        // Modulul dedicat primește tot setul anului → activăm filtrul de calendar.
-                        <HomeworkByDay homework={homework} showCalendar />
+                        <HomeworkBySubject homework={homework} />
                     ))}
             </ModuleShell>
         </>

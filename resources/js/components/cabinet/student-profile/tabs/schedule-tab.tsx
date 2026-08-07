@@ -1,4 +1,4 @@
-import { HomeworkByDay } from '@/components/cabinet/catalog/homework-views';
+import { HomeworkBySubject } from '@/components/cabinet/catalog/homework-views';
 import type { HomeworkItem } from '@/components/cabinet/catalog/homework-views';
 import { DayPlan, WeeklyScheduleView } from '@/components/cabinet/catalog/schedule-views';
 import type { WeeklyData } from '@/components/cabinet/catalog/schedule-views';
@@ -38,7 +38,7 @@ export function ScheduleTab({
                 <WeeklyScheduleView weekly={weekly} />
             )}
 
-            {/* === TEME — organizate CRONOLOGIC pe zile (timpul e axa modulului). === */}
+            {/* === TEME — organizate PE DISCIPLINE, ca notele: aceeași citire în fișă și în modul. === */}
             <section>
                 <SectionHeading title={t('cabinet.homework')} />
                 {homework === undefined ? (
@@ -46,7 +46,7 @@ export function ScheduleTab({
                 ) : homework.length === 0 ? (
                     <EmptyState title={t('cabinet.no_homework')} />
                 ) : (
-                    <HomeworkByDay homework={homework} />
+                    <HomeworkBySubject homework={homework} />
                 )}
             </section>
         </div>

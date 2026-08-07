@@ -1,15 +1,14 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { HomeworkByDay, HomeworkCard, localIso } from './homework-views';
+import { HomeworkBySubject } from './homework-views';
 import type { HomeworkItem } from './homework-views';
 
 /**
- * Filtrul de calendar din modulul „Teme": navigarea la o zi anume sau la un interval, compunerea
- * cu filtrul de disciplină și absența lui pe fișa elevului (showCalendar implicit off).
+ * Temele, ORGANIZATE PE DISCIPLINE (ca la Note): întâi lista disciplinelor, apoi toate temele
+ * disciplinei alese, cea mai recentă prima. Testul pinuiește exact promisiunile restructurării —
+ * o singură cale de navigare, fără filtre de dată, și ordinea descrescătoare înăuntru.
  *
- * Fără fake timers (userEvent se blochează sub ele) — folosim `fireEvent` sincron și construim
- * datele RELATIV la ziua curentă, toate în luna curentă, ca ancorele să fie deterministe indiferent
- * când rulează suita. Etichetele RO sunt injectate mai jos; paritatea RO/RU/EN e verificată în PHP.
+ * Etichetele RO sunt injectate mai jos; paritatea RO/RU/EN e verificată separat, în PHP.
  */
 
 vi.mock('@inertiajs/react', () => ({
@@ -19,25 +18,12 @@ vi.mock('@inertiajs/react', () => ({
             messages: {
                 ro: {
                     cabinet: {
-                        subject: 'Disciplina',
-                        homework_today: 'Astăzi',
-                        homework_tomorrow: 'Mâine',
-                        homework_none_upcoming: 'Nimic de predat momentan.',
-                        homework_past: 'Teme anterioare',
-                        homework_assigned_on: 'atribuită',
+                        homework_assigned_on: '· atribuită',
                         required: 'Obligatoriu:',
                         optional: 'Suplimentar:',
-                        hw_dates_all: 'Toate zilele',
-                        hw_date_today: 'Azi',
-                        hw_dates_week: 'Săptămâna aceasta',
-                        hw_dates_calendar: 'Calendar',
-                        hw_dates_hint: 'Alege o zi sau două.',
-                        hw_clear_dates: 'Șterge',
-                        hw_none_day: 'Nicio temă în această zi.',
-                        hw_none_range: 'Nicio temă în perioada aleasă.',
-                        hw_has_homework: 'are teme',
-                        hw_prev_month: 'Luna anterioară',
-                        hw_next_month: 'Luna următoare',
+                        hw_open_subject: 'Vezi toate temele',
+                        hw_last: 'Ultima temă:',
+                        hw_pending: 'de făcut',
                         hw_items_one: 'temă',
                         hw_items_other: 'teme',
                     },
@@ -49,20 +35,6 @@ vi.mock('@inertiajs/react', () => ({
     }),
     router: { get: vi.fn(), post: vi.fn() },
 }));
-
-const now = new Date();
-const todayIso = localIso(now);
-/** Ziua `d` a lunii CURENTE ca ISO (d ≤ 28 → există în orice lună). */
-const dayIso = (d: number): string => localIso(new Date(now.getFullYear(), now.getMonth(), d));
-/** ISO → d.m.Y (pentru a găsi celula/antetul după eticheta afișată). */
-const dmy = (iso: string): string => {
-    const [y, m, d] = iso.split('-');
-
-    return `${d}.${m}.${y}`;
-};
-/** Butonul-celulă al unei zile (aria-label începe cu d.m.Y). */
-const dayCell = (iso: string): HTMLElement =>
-    screen.getByRole('button', { name: new RegExp(`^${dmy(iso).replace(/\./g, '\\.')}`) });
 
 function hw(over: Partial<HomeworkItem> & Pick<HomeworkItem, 'id' | 'effectiveDate' | 'subject'>): HomeworkItem {
     const [y, m, d] = over.effectiveDate.split('-');
@@ -81,133 +53,66 @@ function hw(over: Partial<HomeworkItem> & Pick<HomeworkItem, 'id' | 'effectiveDa
     };
 }
 
-describe('HomeworkByDay — filtrul de calendar', () => {
-    it('nu afișează filtrul de dată fără showCalendar (fișa elevului)', () => {
-        render(<HomeworkByDay homework={[hw({ id: 1, effectiveDate: dayIso(3), subject: 'Chimie' })]} />);
+// Serverul trimite lista deja CRONOLOGIC DESCRESCĂTOR — fixtura respectă acel contract.
+const homework: HomeworkItem[] = [
+    hw({ id: 5, effectiveDate: '2026-05-20', subject: 'Matematică', teacher: 'Popescu Ion', status: 'upcoming' }),
+    hw({ id: 4, effectiveDate: '2026-05-18', subject: 'Chimie' }),
+    hw({ id: 3, effectiveDate: '2026-05-12', subject: 'Matematică', teacher: 'Popescu Ion' }),
+    hw({ id: 2, effectiveDate: '2026-05-05', subject: 'Matematică', teacher: 'Popescu Ion' }),
+    hw({ id: 1, effectiveDate: '2026-04-28', subject: 'Chimie' }),
+];
 
-        expect(screen.queryByRole('button', { name: 'Calendar' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Toate zilele' })).not.toBeInTheDocument();
-    });
+const openSubject = (name: string) => fireEvent.click(screen.getByRole('button', { name: new RegExp(`Vezi toate temele: ${name}`) }));
 
-    it('scurtătura „Azi" arată doar temele zilei curente', () => {
-        render(
-            <HomeworkByDay
-                showCalendar
-                homework={[
-                    hw({ id: 1, effectiveDate: todayIso, subject: 'Matematică', status: 'today' }),
-                    hw({ id: 2, effectiveDate: dayIso(now.getDate() === 5 ? 6 : 5), subject: 'Chimie' }),
-                ]}
-            />,
-        );
+describe('HomeworkBySubject', () => {
+    it('arată întâi DISCIPLINELE, cu numărul de teme și ultima dată', () => {
+        render(<HomeworkBySubject homework={homework} />);
 
-        fireEvent.click(screen.getByRole('button', { name: 'Azi' }));
+        const matematica = screen.getByRole('button', { name: /Vezi toate temele: Matematică/ });
+        const text = matematica.textContent ?? '';
 
-        expect(screen.getByText(dmy(todayIso))).toBeInTheDocument();
-        expect(screen.getByText('Tema 1')).toBeInTheDocument();
-        expect(screen.queryByText('Tema 2')).not.toBeInTheDocument();
-    });
+        expect(text).toContain('3');
+        expect(text).toContain('teme');
+        expect(text).toContain('Popescu Ion');
+        // Ultima temă = cea mai recentă a disciplinei, nu prima din listă.
+        expect(text).toContain('20.05.2026');
 
-    it('selectează o zi din calendar, apoi un interval la al doilea click', () => {
-        render(
-            <HomeworkByDay
-                showCalendar
-                homework={[
-                    hw({ id: 1, effectiveDate: dayIso(3), subject: 'Chimie' }),
-                    hw({ id: 2, effectiveDate: dayIso(3), subject: 'Fizică' }),
-                    hw({ id: 3, effectiveDate: dayIso(10), subject: 'Matematică' }),
-                    hw({ id: 4, effectiveDate: dayIso(25), subject: 'Istorie' }),
-                ]}
-            />,
-        );
-        fireEvent.click(screen.getByRole('button', { name: 'Calendar' }));
-
-        // O zi: cele două teme de pe 3 (Chimie + Fizică); nu cele din 10/25.
-        fireEvent.click(dayCell(dayIso(3)));
-        expect(screen.getByText(dmy(dayIso(3)))).toBeInTheDocument();
-        expect(screen.getByText('Tema 1')).toBeInTheDocument();
-        expect(screen.getByText('Tema 2')).toBeInTheDocument();
+        // Temele nu se văd până nu alegi disciplina — asta e simplificarea.
         expect(screen.queryByText('Tema 3')).not.toBeInTheDocument();
-
-        // Al doilea click (pe 10) închide intervalul 3–10 → intră și tema din 10, nu cea din 25.
-        fireEvent.click(dayCell(dayIso(10)));
-        expect(screen.getByText(`${dmy(dayIso(3))} – ${dmy(dayIso(10))}`)).toBeInTheDocument();
-        expect(screen.getByText('Tema 3')).toBeInTheDocument();
-        expect(screen.queryByText('Tema 4')).not.toBeInTheDocument();
     });
 
-    it('compune cu filtrul de disciplină: o zi fără temă la disciplina activă → gol', () => {
-        render(
-            <HomeworkByDay
-                showCalendar
-                homework={[
-                    hw({ id: 1, effectiveDate: dayIso(3), subject: 'Fizică' }),
-                    hw({ id: 2, effectiveDate: dayIso(10), subject: 'Chimie' }),
-                ]}
-            />,
-        );
+    it('NU mai oferă filtre de dată (azi / săptămâna aceasta / calendar)', () => {
+        render(<HomeworkBySubject homework={homework} />);
 
-        // Fizica are temă doar pe 3; alegem ziua de 10 (doar Chimie) → gol pentru Fizică.
-        fireEvent.click(screen.getByRole('button', { name: /^Fizică/ }));
-        fireEvent.click(screen.getByRole('button', { name: 'Calendar' }));
-        fireEvent.click(dayCell(dayIso(10)));
-
-        expect(screen.getByText('Nicio temă în această zi.')).toBeInTheDocument();
+        for (const label of [/Azi/, /Săptămâna/, /Calendar/, /Toate zilele/]) {
+            expect(screen.queryByRole('button', { name: label })).not.toBeInTheDocument();
+        }
     });
 
-    it('„Șterge" readuce vederea implicită', () => {
-        render(
-            <HomeworkByDay
-                showCalendar
-                homework={[
-                    hw({ id: 1, effectiveDate: todayIso, subject: 'Matematică', status: 'today' }),
-                    hw({ id: 2, effectiveDate: dayIso(3), subject: 'Chimie', status: 'past' }),
-                ]}
-            />,
-        );
+    it('deschide disciplina cu TOATE temele ei, cea mai recentă prima', () => {
+        render(<HomeworkBySubject homework={homework} />);
 
-        fireEvent.click(screen.getByRole('button', { name: 'Azi' }));
-        const clear = screen.getByRole('button', { name: /Șterge/ });
-        expect(clear).toBeInTheDocument();
+        openSubject('Matematică');
 
-        fireEvent.click(clear);
+        const dialog = screen.getByRole('dialog');
+        const text = dialog.textContent ?? '';
 
-        expect(screen.getByRole('button', { name: 'Toate zilele' })).toHaveAttribute('aria-pressed', 'true');
-        // Istoricul pliat reapare (item cu status „past").
-        expect(screen.getByText(/Teme anterioare/)).toBeInTheDocument();
-    });
-});
+        // Doar temele disciplinei alese.
+        expect(text).toContain('Tema 5');
+        expect(text).toContain('Tema 3');
+        expect(text).toContain('Tema 2');
+        expect(within(dialog).queryByText('Tema 4')).not.toBeInTheDocument();
 
-describe('HomeworkCard — linkuri + resurse tipărite', () => {
-    it('linkul URL e clickabil, iar resursa fizică apare ca chip gri, pe aceeași linie', () => {
-        render(
-            <HomeworkCard
-                h={hw({
-                    id: 9,
-                    effectiveDate: dayIso(3),
-                    subject: 'Istorie',
-                    links: ['https://www.digitaliada.ro/'],
-                    resources: ['Manualul Istoria Românilor, pag. 20, cap. 4'],
-                })}
-            />,
-        );
-
-        // URL → ancoră care se deschide în tab nou.
-        const link = screen.getByRole('link');
-        expect(link).toHaveAttribute('href', 'https://www.digitaliada.ro/');
-        expect(link).toHaveAttribute('target', '_blank');
-
-        // Resursa tipărită → text simplu (nu link).
-        expect(screen.getByText('Manualul Istoria Românilor, pag. 20, cap. 4')).toBeInTheDocument();
+        // Ordine cronologică DESCRESCĂTOARE: 20.05 → 12.05 → 05.05.
+        expect(text.indexOf('20.05.2026')).toBeLessThan(text.indexOf('12.05.2026'));
+        expect(text.indexOf('12.05.2026')).toBeLessThan(text.indexOf('05.05.2026'));
     });
 
-    it('resursa fizică se afișează și fără niciun link', () => {
-        render(
-            <HomeworkCard
-                h={hw({ id: 10, effectiveDate: dayIso(3), subject: 'Literatură', resources: ['Manualul de literatură, pag. 60'] })}
-            />,
-        );
+    it('semnalează pe card temele rămase de făcut (azi sau în viitor)', () => {
+        render(<HomeworkBySubject homework={homework} />);
 
-        expect(screen.queryByRole('link')).not.toBeInTheDocument();
-        expect(screen.getByText('Manualul de literatură, pag. 60')).toBeInTheDocument();
+        // Matematica are una „upcoming"; Chimia, niciuna.
+        expect(screen.getByRole('button', { name: /Vezi toate temele: Matematică/ }).textContent).toContain('de făcut');
+        expect(screen.getByRole('button', { name: /Vezi toate temele: Chimie/ }).textContent).not.toContain('de făcut');
     });
 });
