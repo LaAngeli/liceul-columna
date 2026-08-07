@@ -1448,6 +1448,65 @@ it('mutarea pe o oră LIBERĂ e simplă, iar ora eliberată redevine disponibil�
         ->and($page->instance()->dayPanel($a->id, $azi)['default_hour'])->toBe(1);
 });
 
+it('slotul „oră unică" rămâne în meniu și se poate REVENI la el după ce s-a ales un ordinal', function () {
+    // Reclamația din 07.08.2026: după prima alegere de ordinal, opțiunea fără ordinal dispărea
+    // din listă, deci o apăsare greșită devenea ireversibilă din panou.
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+    $page = Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class);
+
+    $page->call('addDayGrade', $a->id, $azi, '9', 'curenta');
+    $grade = Grade::query()->where('student_id', $a->id)->sole();
+
+    expect($grade->lesson_number)->toBe(1);
+
+    // Meniul poartă slotul fără ordinal PRIMUL, chiar dacă nota stă deja pe Ora 1.
+    $menu = Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class)
+        ->instance()->dayPanel($a->id, $azi)['hour_menu'];
+
+    expect($menu[0])->toBe(['hour' => null, 'busy' => null])
+        ->and(count($menu))->toBe(9);
+
+    // Revenirea: valoarea goală a selectului înseamnă „o singură oră în această zi".
+    $page->call('moveDayGradeHour', $grade->id, '');
+
+    expect($grade->fresh()->lesson_number)->toBeNull();
+
+    // Ora 1 s-a eliberat, iar slotul unic apare acum ocupat de notă.
+    $panel = Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class)
+        ->instance()->dayPanel($a->id, $azi);
+
+    expect($panel['hour_menu'][0])->toBe(['hour' => null, 'busy' => 'grade'])
+        ->and($panel['default_hour'])->toBe(1);
+});
+
+it('schimbul de locuri merge și cu slotul „oră unică", în ambele sensuri', function () {
+    actingAs($this->profUser);
+
+    $a = $this->students->first();
+    $azi = Carbon::today()->toDateString();
+    $page = Livewire::withQueryParams(['mod' => 'zi', 'ref' => $azi])->test(ClassRegister::class);
+
+    // Nota pe ora unică, absența pe Ora 1.
+    $page->call('addDayGrade', $a->id, $azi, '9', 'curenta');
+    $grade = Grade::query()->where('student_id', $a->id)->sole();
+    $page->call('moveDayGradeHour', $grade->id, '');
+    $page->call('addDayAbsence', $a->id, $azi);
+
+    $absence = Absence::query()->where('student_id', $a->id)->sole();
+
+    expect($grade->fresh()->lesson_number)->toBeNull()
+        ->and($absence->lesson_number)->toBe(1);
+
+    // Absența cere ora unică → cele două fac schimb, fără să ajungă amândouă pe același slot.
+    $page->call('moveDayAbsenceHour', $absence->id, '');
+
+    expect($absence->fresh()->lesson_number)->toBeNull()
+        ->and($grade->fresh()->lesson_number)->toBe(1);
+});
+
 it('ora se corectează doar de cine are dreptul, și doar între 1 și 8', function () {
     actingAs($this->profUser);
 

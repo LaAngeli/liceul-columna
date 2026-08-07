@@ -254,7 +254,12 @@ trait WritesGradesFromDay
      * `default` = primul ordinal liber de AMBELE; anulatele nu ocupă (anularea eliberează ora).
      * `busy` spune CINE ocupă fiecare oră — combustibilul corectării de oră ({@see moveDayGradeHour}).
      *
-     * @return array{busy: array<int, array{kind: string, id: int}>, default: int|null, busy_count: int}
+     * Slotul „ORĂ UNICĂ" (`lesson_number` null) e un slot cu drepturi depline, nu absența unuia
+     * (07.08.2026): înseamnă „ziua a avut o singură oră la disciplina asta, deci ordinalul n-are ce
+     * deosebi". Îl poartă rândurile istorice (import legacy) și oricine îl alege explicit; se
+     * întoarce în `single`, fiindcă nu are ordinal sub care să stea în `busy`.
+     *
+     * @return array{busy: array<int, array{kind: string, id: int}>, single: array{kind: string, id: int}|null, default: int|null, busy_count: int}
      */
     public function dayHourUsage(int $studentId, string $iso): array
     {
@@ -262,10 +267,11 @@ trait WritesGradesFromDay
         $subject = $this->dayGradeSubject();
 
         if ($class === null || $subject === null || preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso) !== 1) {
-            return ['busy' => [], 'default' => null, 'busy_count' => 0];
+            return ['busy' => [], 'single' => null, 'default' => null, 'busy_count' => 0];
         }
 
         $busy = [];
+        $single = null;
 
         foreach (Grade::query()
             ->where('school_class_id', $class->getKey())
@@ -273,9 +279,14 @@ trait WritesGradesFromDay
             ->where('student_id', $studentId)
             ->whereDate('graded_on', $iso)
             ->whereNull('annulled_at')
-            ->whereNotNull('lesson_number')
             ->get(['id', 'lesson_number']) as $grade) {
-            $busy[(int) $grade->lesson_number] = ['kind' => 'grade', 'id' => (int) $grade->getKey()];
+            $slot = ['kind' => 'grade', 'id' => (int) $grade->getKey()];
+
+            if ($grade->lesson_number === null) {
+                $single = $slot;
+            } else {
+                $busy[(int) $grade->lesson_number] = $slot;
+            }
         }
 
         foreach (Absence::query()
@@ -284,9 +295,14 @@ trait WritesGradesFromDay
             ->where('subject_id', $subject->getKey())
             ->where('student_id', $studentId)
             ->whereDate('occurred_on', $iso)
-            ->whereNotNull('lesson_number')
             ->get(['id', 'lesson_number']) as $absence) {
-            $busy[(int) $absence->lesson_number] = ['kind' => 'absence', 'id' => (int) $absence->getKey()];
+            $slot = ['kind' => 'absence', 'id' => (int) $absence->getKey()];
+
+            if ($absence->lesson_number === null) {
+                $single = $slot;
+            } else {
+                $busy[(int) $absence->lesson_number] = $slot;
+            }
         }
 
         $default = null;
@@ -299,23 +315,31 @@ trait WritesGradesFromDay
             }
         }
 
-        return ['busy' => $busy, 'default' => $default, 'busy_count' => count($busy)];
+        return ['busy' => $busy, 'single' => $single, 'default' => $default, 'busy_count' => count($busy)];
     }
 
     /**
-     * Meniul de ore al unei înregistrări: toate cele 8 ordinale, cu ocupantul fiecăruia — blade-ul
-     * arată din el un selector, iar ora ocupată devine „schimbă locul cu …", nu opțiune interzisă.
+     * Meniul de ore al unei înregistrări: slotul „oră unică" (hour null) + cele 8 ordinale, fiecare
+     * cu ocupantul lui — blade-ul arată din el un selector, iar slotul ocupat devine „schimbă locul
+     * cu …", nu opțiune interzisă.
      *
-     * @return list<array{hour: int, busy: string|null}>
+     * „Oră unică" stă PRIMA și e MEREU în listă (07.08.2026): din ea se pleacă (rândurile istorice,
+     * importul legacy) și la ea se poate REVENI — înainte dispărea după prima alegere de ordinal,
+     * deci o apăsare greșită devenea ireversibilă din panou.
+     *
+     * @return list<array{hour: int|null, busy: string|null}>
      */
     protected function dayHourMenu(int $studentId, string $iso): array
     {
-        $busy = $this->dayHourUsage($studentId, $iso)['busy'];
+        $usage = $this->dayHourUsage($studentId, $iso);
 
-        return array_map(fn (int $hour): array => [
-            'hour' => $hour,
-            'busy' => $busy[$hour]['kind'] ?? null,
-        ], range(1, 8));
+        return [
+            ['hour' => null, 'busy' => $usage['single']['kind'] ?? null],
+            ...array_map(fn (int $hour): array => [
+                'hour' => $hour,
+                'busy' => $usage['busy'][$hour]['kind'] ?? null,
+            ], range(1, 8)),
+        ];
     }
 
     /**
@@ -343,9 +367,9 @@ trait WritesGradesFromDay
         $grade = $this->dayActionGrade(['id' => $gradeId]);
         $user = auth('web')->user();
         $isAdmin = $user?->canAdministerCatalog() ?? false;
-        $target = is_numeric($hour) ? (int) $hour : 0;
+        $target = $this->parseDayHourTarget($hour);
 
-        if ($grade === null || $grade->isAnnulled() || $target < 1 || $target > 8
+        if ($grade === null || $grade->isAnnulled() || $target === false
             || ! ($isAdmin || GradesTable::teacherTeachesGrade($grade))) {
             $this->denyDayAction();
 
@@ -359,13 +383,14 @@ trait WritesGradesFromDay
         }
 
         $iso = $grade->graded_on->toDateString();
-        $occupant = $this->dayHourUsage((int) $grade->student_id, $iso)['busy'][$target] ?? null;
+        $usage = $this->dayHourUsage((int) $grade->student_id, $iso);
+        $occupant = $target === null ? $usage['single'] : ($usage['busy'][$target] ?? null);
 
-        if ($occupant !== null && ($current === null
-            || ($occupant['kind'] === 'absence' && ! $this->canMoveAbsences()))) {
+        // Slotul ocupat de CEALALTĂ specie se cedează doar dacă privitorul o poate mișca și pe ea.
+        if ($occupant !== null && $occupant['kind'] === 'absence' && ! $this->canMoveAbsences()) {
             Notification::make()
                 ->warning()
-                ->title(__('panel.class_register.day_panel.hour_taken', ['number' => $target]))
+                ->title($this->dayHourTakenMessage($target))
                 ->send();
 
             return;
@@ -383,8 +408,41 @@ trait WritesGradesFromDay
 
         Notification::make()
             ->success()
-            ->title(__('panel.class_register.day_panel.hour_moved', ['number' => $target]))
+            ->title($this->dayHourMovedMessage($target))
             ->send();
+    }
+
+    /**
+     * Ținta unei mutări de oră, validată: `null` = slotul „oră unică" (alegere legitimă, nu lipsa
+     * unei alegeri), 1–8 = ordinalul, `false` = valoare străină (se refuză).
+     */
+    protected function parseDayHourTarget(mixed $hour): int|null|false
+    {
+        if ($hour === null || $hour === '' || $hour === 'null') {
+            return null;
+        }
+
+        if (! is_numeric($hour)) {
+            return false;
+        }
+
+        $value = (int) $hour;
+
+        return ($value >= 1 && $value <= 8) ? $value : false;
+    }
+
+    protected function dayHourTakenMessage(?int $target): string
+    {
+        return (string) ($target === null
+            ? __('panel.class_register.day_panel.single_hour_taken')
+            : __('panel.class_register.day_panel.hour_taken', ['number' => $target]));
+    }
+
+    protected function dayHourMovedMessage(?int $target): string
+    {
+        return (string) ($target === null
+            ? __('panel.class_register.day_panel.single_hour_moved')
+            : __('panel.class_register.day_panel.hour_moved', ['number' => $target]));
     }
 
     /**

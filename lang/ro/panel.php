@@ -846,7 +846,7 @@ return [
             'helper_value_range' => 'Interval permis: :min–:max.',
             'helper_pick_subject' => 'Alege întâi disciplina — câmpul de notare se adaptează la ea.',
             'lesson_number' => 'Ora (lecția)',
-            'lesson_number_hint' => 'Opțional — a câta oră a disciplinei în ziua aleasă (Ora 1 = prima). Fiecare oră își poartă nota ei; o oră cu absență nu poate primi notă.',
+            'lesson_number_hint' => 'Opțional — a câta oră a disciplinei în ziua aleasă (Ora 1 = prima). Necompletat = ziua a avut o singură oră.Fiecare oră își poartă nota ei; o oră cu absență nu poate primi notă.',
         ],
         'absence' => [
             'motivate_now' => 'Motivează acum (cu dovadă)',
@@ -855,9 +855,12 @@ return [
             'status_teacher_note' => 'Consemnați doar absența — statutul (motivată/nemotivată) îl fixează dirigintele clasei, care află motivul pe parcursul zilei.',
             'free_day_warning' => '⚠ Data aleasă e zi liberă („:name") — verifică dacă nu e o greșeală; pentru recuperări e în regulă.',
             'lesson_number' => 'Ora (lecția)',
-            'lesson_number_hint' => 'Opțional — a câta oră a disciplinei în ziua aleasă (Ora 1 = prima). Permite două absențe la aceeași disciplină în aceeași zi; o oră cu notă nu poate primi absență.',
+            'lesson_number_hint' => 'Opțional — a câta oră a disciplinei în ziua aleasă (Ora 1 = prima). Necompletat = ziua a avut o singură oră.Permite două absențe la aceeași disciplină în aceeași zi; o oră cu notă nu poate primi absență.',
             'lesson_option' => 'Ora :number',
-            'lesson_unspecified' => 'Fără oră precizată',
+            // NU „fără oră precizată" (07.08.2026): slotul ăsta nu e o lipsă de informație, ci o
+            // afirmație — ziua a avut o singură oră la disciplina asta, deci ordinalul n-are ce
+            // deosebi. Îl poartă și rândurile istorice (import legacy), unde chiar așa era.
+            'lesson_unspecified' => 'O singură oră',
         ],
         'student' => [
             'second_language' => 'Limba străină 2',
@@ -2514,6 +2517,8 @@ return [
             'hour_swap_grade' => 'schimbă locul cu nota',
             'hour_swap_absence' => 'schimbă locul cu absența',
             'hour_moved' => 'Consemnarea a trecut pe Ora :number.',
+            'single_hour_moved' => 'Consemnarea a trecut pe ora unică a zilei.',
+            'single_hour_taken' => 'Ora unică a zilei e ocupată, iar schimbul de locuri nu se poate face aici.',
             'hour_taken' => 'Ora :number e ocupată, iar schimbul de locuri nu se poate face aici.',
             'open_next_hour' => 'Deschide Ora :number pentru încă o consemnare',
             'write_hint' => 'O oră poartă o singură consemnare: notă SAU absență. Nota greșită se anulează — anularea îi eliberează ora.',

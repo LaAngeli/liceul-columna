@@ -1032,7 +1032,7 @@ class ClassRegister extends Page
     {
         $class = $this->activeClass();
         $subject = $this->activeSubject();
-        $target = is_numeric($hour) ? (int) $hour : 0;
+        $target = $this->parseDayHourTarget($hour);
 
         $absence = ($class === null || $subject === null) ? null : Absence::query()
             ->whereKey($absenceId)
@@ -1040,7 +1040,7 @@ class ClassRegister extends Page
             ->where('subject_id', $subject->getKey())
             ->first();
 
-        if ($absence === null || $target < 1 || $target > 8 || ! $this->canRecordAbsences()) {
+        if ($absence === null || $target === false || ! $this->canRecordAbsences()) {
             $this->denyDayAction();
 
             return;
@@ -1053,15 +1053,14 @@ class ClassRegister extends Page
         }
 
         $iso = $absence->occurred_on->toDateString();
-        $occupant = $this->dayHourUsage((int) $absence->student_id, $iso)['busy'][$target] ?? null;
+        $usage = $this->dayHourUsage((int) $absence->student_id, $iso);
+        $occupant = $target === null ? $usage['single'] : ($usage['busy'][$target] ?? null);
 
-        // Nota altcuiva nu se mișcă de mâna cuiva care nu poate nota perechea; iar o absență
-        // fără oră nu are ce ceda la schimb.
-        if ($occupant !== null && ($current === null
-            || ($occupant['kind'] === 'grade' && ! $this->canEnterGrades()))) {
+        // Nota altcuiva nu se mișcă de mâna cuiva care nu poate nota perechea.
+        if ($occupant !== null && $occupant['kind'] === 'grade' && ! $this->canEnterGrades()) {
             Notification::make()
                 ->warning()
-                ->title(__('panel.class_register.day_panel.hour_taken', ['number' => $target]))
+                ->title($this->dayHourTakenMessage($target))
                 ->send();
 
             return;
@@ -1077,7 +1076,7 @@ class ClassRegister extends Page
 
         Notification::make()
             ->success()
-            ->title(__('panel.class_register.day_panel.hour_moved', ['number' => $target]))
+            ->title($this->dayHourMovedMessage($target))
             ->send();
     }
 

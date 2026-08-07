@@ -23,11 +23,14 @@
     $canAbsent = $panel['can_absent'] ?? false;
     $hourMenu = $panel['hour_menu'] ?? [];
 
-    // Eticheta unei opțiuni de oră: liberă = „Ora N"; ocupată = „Ora N · schimbă cu nota/absența"
-    // — ora ocupată RĂMÂNE selectabilă, fiindcă acțiunea firească acolo e schimbul de locuri
-    // (altfel inversarea a două consemnări ar cere trei mutări printr-un ordinal liber).
+    // Eticheta unei opțiuni de oră: liberă = „Ora N" (ori „O singură oră în această zi" pentru
+    // slotul fără ordinal); ocupată = „… · schimbă cu nota/absența" — slotul ocupat RĂMÂNE
+    // selectabil, fiindcă acțiunea firească acolo e schimbul de locuri (altfel inversarea a două
+    // consemnări ar cere trei mutări printr-un ordinal liber).
     $hourOptionLabel = function (array $slot, ?int $own): string {
-        $label = (string) __('panel.forms.absence.lesson_option', ['number' => $slot['hour']]);
+        $label = (string) ($slot['hour'] === null
+            ? __('panel.forms.absence.lesson_unspecified')
+            : __('panel.forms.absence.lesson_option', ['number' => $slot['hour']]));
 
         if ($slot['hour'] === $own || $slot['busy'] === null) {
             return $label;
@@ -78,12 +81,8 @@
                                 title="{{ __('panel.class_register.day_panel.hour_select_label') }}"
                                 class="h-7 w-40 shrink-0 truncate rounded-md border-0 bg-white py-0 pe-7 ps-2 text-xs text-gray-600 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-300 dark:ring-white/15"
                             >
-                                @if ($grade['lesson'] === null)
-                                    <option value="" selected>{{ __('panel.forms.absence.lesson_unspecified') }}</option>
-                                @endif
-
                                 @foreach ($hourMenu as $slot)
-                                    <option value="{{ $slot['hour'] }}" @selected($grade['lesson'] === $slot['hour'])>
+                                    <option value="{{ $slot['hour'] ?? '' }}" @selected($grade['lesson'] === $slot['hour'])>
                                         {{ $hourOptionLabel($slot, $grade['lesson']) }}
                                     </option>
                                 @endforeach
@@ -244,12 +243,8 @@
                                     title="{{ __('panel.class_register.day_panel.hour_select_label') }}"
                                     class="h-7 w-40 shrink-0 truncate rounded-md border-0 bg-white py-0 pe-7 ps-2 text-xs text-gray-600 shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:text-gray-300 dark:ring-white/15"
                                 >
-                                    @if ($absence['lesson'] === null)
-                                        <option value="" selected>{{ __('panel.forms.absence.lesson_unspecified') }}</option>
-                                    @endif
-
                                     @foreach ($hourMenu as $slot)
-                                        <option value="{{ $slot['hour'] }}" @selected($absence['lesson'] === $slot['hour'])>
+                                        <option value="{{ $slot['hour'] ?? '' }}" @selected($absence['lesson'] === $slot['hour'])>
                                             {{ $hourOptionLabel($slot, $absence['lesson']) }}
                                         </option>
                                     @endforeach
