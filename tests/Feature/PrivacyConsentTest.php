@@ -45,19 +45,23 @@ it('personalul NU e blocat de nota de informare', function () {
     $this->actingAs($staff)->get(route('dashboard'))->assertRedirect('/admin');
 });
 
-it('confirmarea duce ACASĂ, nu la ținta rămasă în sesiune de la un oaspete', function () {
+it('confirmarea duce ACASĂ, nu la ținta rămasă în sesiune de la un oaspete', function (UserRole $role) {
     // Regresie 07.08.2026 („403 doar pentru elevii noi creați"): browserul atinsese /admin
     // neautentificat, Laravel reținuse `url.intended = /admin`, iar confirmarea notei — ultimul pas
     // al onboardingului — o consuma cu `redirect()->intended()` și trimitea elevul în panou. 403 la
     // prima intrare, dispărut la refresh, fiindcă ținta se consumă o singură dată.
+    // AMBELE roluri de familie: nota de informare e a lor deopotrivă, deci și capcana era.
     $user = User::factory()->unacknowledged()->create(['must_change_password' => false]);
-    $user->assignRole(UserRole::Elev->value);
+    $user->assignRole($role->value);
 
     $this->actingAs($user)
         ->withSession(['url.intended' => url('/admin')])
         ->post(route('privacy.consent.store'))
         ->assertRedirect(route('dashboard'));
-});
+})->with([
+    'elev' => UserRole::Elev,
+    'părinte' => UserRole::Parinte,
+]);
 
 it('logarea UITĂ ținta de oaspete, ca să n-o culeagă un pas de mai târziu', function () {
     // Fixul sistemic: LoginResponse ignora deliberat `intended`, dar îl lăsa în sesiune — o mină
