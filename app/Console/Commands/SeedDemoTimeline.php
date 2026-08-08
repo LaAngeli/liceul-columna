@@ -50,6 +50,32 @@ class SeedDemoTimeline extends Command
     /** Subiecte de temă — scurte, plauzibile, marcate ca demo. */
     private const TOPICS = ['recapitulare', 'exerciții de consolidare', 'lucru individual', 'pregătire pentru evaluare', 'lectură și analiză', 'aplicații practice', 'proiect de grup', 'fișă de lucru'];
 
+    /** @var array<int, string> id profesor → numele complet (sursa pentru `author_name`) */
+    private array $teacherNames = [];
+
+    /**
+     * Numele profesorului, pentru `author_name`.
+     *
+     * Snapshot-ul TEXTUAL nu e redundanță: FK-ul `homework_assignments.teacher_id` e
+     * `ON DELETE SET NULL`, deci când fișa profesorului dispare (reconstruirea zonei demo, plecarea
+     * unui cadru didactic) legătura se pierde. Fără nume salvat, tema rămâne FĂRĂ NICIUN autor —
+     * exact starea găsită pe local la 2026-08-07: 932 de teme orfane, afișate în cabinet fără
+     * profesor. Modelul o spune de mult („rămâne valabil și dacă fișa profesorului dispare");
+     * seeder-ele erau cele care nu scriau câmpul.
+     */
+    private function teacherName(int $teacherId): string
+    {
+        if (! array_key_exists($teacherId, $this->teacherNames)) {
+            $row = DB::table('teachers')->where('id', $teacherId)->first(['last_name', 'first_name']);
+
+            $this->teacherNames[$teacherId] = $row === null
+                ? '—'
+                : trim(((string) $row->last_name).' '.((string) $row->first_name));
+        }
+
+        return $this->teacherNames[$teacherId];
+    }
+
     /** @var array<string, list<int>> */
     private array $manifest = ['grades' => [], 'absences' => [], 'homework' => []];
 
@@ -423,6 +449,8 @@ class SeedDemoTimeline extends Command
                     'subject_id' => $assignment['subject_id'],
                     'teacher_id' => $assignment['teacher_id'],
                     'subject_name' => $subjectName,
+                    // Numele autorului, salvat ca TEXT — vezi `teacherName()`.
+                    'author_name' => $this->teacherName((int) $assignment['teacher_id']),
                     'grade_level' => $class['grade_level'],
                     'section' => $class['section'],
                     'assigned_on' => $from->copy()->addDays(random_int(0, $span))->toDateString(),

@@ -10,6 +10,7 @@
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
+use App\Models\HomeworkAssignment;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
@@ -87,6 +88,26 @@ it('populează ȘI semestrul precedent, ȘI ultimele săptămâni ale celui cure
     $earliestPresent = DB::table('grades')->where('term_id', $this->current->id)->min('graded_on');
 
     expect(Carbon::parse($earliestPresent)->greaterThanOrEqualTo(Carbon::today()->subDays(22)))->toBeTrue();
+});
+
+it('temele seedate poartă NUMELE autorului, nu doar legătura care se poate pierde', function () {
+    $this->artisan('app:seed-demo-timeline')->assertSuccessful();
+
+    $homework = HomeworkAssignment::query()->whereNotNull('teacher_id')->get();
+
+    expect($homework)->not->toBeEmpty()
+        ->and($homework->every(fn (HomeworkAssignment $h): bool => filled($h->author_name)))->toBeTrue();
+
+    // Proba adevărată: FK-ul `teacher_id` e ON DELETE SET NULL, deci la dispariția fișei tema ar
+    // rămâne fără autor. Numele salvat e singurul care supraviețuiește. `forceDelete` — fișa are
+    // soft delete, iar o ștergere logică nu declanșează constrângerea.
+    $sample = $homework->first();
+    Teacher::query()->whereKey($sample->teacher_id)->forceDelete();
+
+    $sample->refresh();
+
+    expect($sample->teacher_id)->toBeNull()
+        ->and($sample->author_name)->not->toBeNull();
 });
 
 it('un semestru încheiat nu poartă absențe „fără statut"', function () {
