@@ -262,7 +262,18 @@ class HomeworkAssignmentForm
     }
 
     /**
-     * Clasele-țintă ale rolului: alocările proprii (profesor) / anul curent (administrația).
+     * Clasele-țintă ale rolului: alocările proprii (profesor) / toate (administrația) — în AMBELE
+     * cazuri restrânse la ANUL CURENT.
+     *
+     * Anul se aplica până acum doar administrației, iar profesorul primea orice clasă în care a
+     * avut vreodată o alocare. Cu un singur an școlar în bază diferența nu se vedea; de la trecerea
+     * în 2026–2027 (07.08.2026) însemna că profesorul putea posta o temă într-o clasă care nu mai
+     * există ca activă. Formularul e singura gardă: `EnforcesHomeworkScope` verifică perechea
+     * (clasă, disciplină), nu anul.
+     *
+     * Fără revenire la „toate" când anul curent nu-i dă nimic — spre deosebire de navigatorul de
+     * catalog, care doar RĂSFOIEȘTE. Aici se SCRIE: un profesor fără alocare în anul curent chiar
+     * nu are unde posta, iar o listă goală e adevărul, nu o clasă din anul trecut.
      *
      * @return Collection<int, SchoolClass>
      */
@@ -273,6 +284,10 @@ class HomeworkAssignmentForm
             ->orderBy('name')
             ->orderBy('section');
 
+        if (($yearId = Term::query()->where('is_current', true)->value('academic_year_id')) !== null) {
+            $query->where('academic_year_id', $yearId);
+        }
+
         if (($teacher = self::currentTeacher()) !== null) {
             $classIds = TeachingAssignment::query()
                 ->where('teacher_id', $teacher->id)
@@ -280,8 +295,6 @@ class HomeworkAssignmentForm
                 ->pluck('school_class_id');
 
             $query->whereKey($classIds->all());
-        } elseif (($yearId = Term::query()->where('is_current', true)->value('academic_year_id')) !== null) {
-            $query->where('academic_year_id', $yearId);
         }
 
         return $query->get();

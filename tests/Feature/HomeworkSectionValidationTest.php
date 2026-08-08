@@ -70,6 +70,22 @@ it('profesorul vede drept ținte DOAR clasele din alocările lui — fără „t
         ->toBe(['class:'.$this->class->id]);
 });
 
+it('clasa din ANUL TRECUT nu mai e țintă, chiar dacă alocarea a rămas', function () {
+    // Trecerea în anul nou (07.08.2026): profesorul păstrează alocările vechi în istoric, dar nu
+    // poate posta o temă într-o clasă care nu mai există ca activă. Formularul e singura gardă —
+    // EnforcesHomeworkScope verifică perechea (clasă, disciplină), nu anul.
+    $pastYear = AcademicYear::factory()->create(['starts_on' => '2024-09-01', 'ends_on' => '2025-07-31']);
+    $pastClass = SchoolClass::factory()->for($pastYear)->create(['grade_level' => 6, 'section' => '1']);
+    TeachingAssignment::factory()->create([
+        'teacher_id' => $this->teacher->id,
+        'school_class_id' => $pastClass->id,
+        'subject_id' => $this->subject->id,
+    ]);
+
+    expect(array_keys(HomeworkAssignmentForm::classTargetOptions()))
+        ->toBe(['class:'.$this->class->id]);
+});
+
 it('dirigintele FĂRĂ alocare proprie în clasa lui nu o are drept țintă (vede ≠ postează)', function () {
     $this->class->update(['homeroom_teacher_id' => $this->teacher->id]);
     $homeroomOnly = SchoolClass::factory()->for($this->year)->create(['grade_level' => 9, 'section' => 'A', 'homeroom_teacher_id' => $this->teacher->id]);

@@ -22,8 +22,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Spatie\Permission\Models\Role;
 
+/** Manifestele axei — toate, oricâți ani ar fi (numele poartă anul de la 07.08.2026). */
+function timelineManifests(): array
+{
+    return array_merge(
+        File::glob(storage_path('app/demo/timeline-*.json')) ?: [],
+        File::exists(storage_path('app/demo/timeline.json')) ? [storage_path('app/demo/timeline.json')] : [],
+    );
+}
+
 beforeEach(function () {
-    File::delete(storage_path('app/demo/timeline.json'));
+    foreach (timelineManifests() as $path) {
+        File::delete($path);
+    }
 
     foreach (UserRole::cases() as $role) {
         Role::findOrCreate($role->value, 'web');
@@ -71,7 +82,10 @@ beforeEach(function () {
 });
 
 afterEach(function () {
-    File::delete(storage_path('app/demo/timeline.json'));
+    foreach (timelineManifests() as $path) {
+        File::delete($path);
+    }
+
     Carbon::setTestNow();
 });
 
@@ -150,7 +164,62 @@ it('„--remove" șterge exact ce a adăugat', function () {
     expect(DB::table('grades')->count())->toBe($before['grades'])
         ->and(DB::table('absences')->count())->toBe($before['absences'])
         ->and(DB::table('homework_assignments')->count())->toBe($before['homework'])
-        ->and(File::exists(storage_path('app/demo/timeline.json')))->toBeFalse();
+        ->and(timelineManifests())->toBe([]);
+});
+
+it('a doua rulare pe ACELAȘI an e refuzată — ar dubla notele', function () {
+    $this->artisan('app:seed-demo-timeline')->assertSuccessful();
+
+    $seeded = DB::table('grades')->count();
+
+    $this->artisan('app:seed-demo-timeline')->assertFailed();
+
+    expect(DB::table('grades')->count())->toBe($seeded);
+});
+
+it('anul NOU se seamănă fără să distrugă istoricul anului trecut', function () {
+    // Scenariul real al trecerii în anul nou (07.08.2026): axa fusese populată pentru 2025–2026,
+    // iar cabinetul avea nevoie de conținut în 2026–2027. Cu un singur manifest, popularea anului
+    // nou cerea `--remove` — adică exact ștergerea istoricului care alimentează evoluția multi-an.
+    $this->artisan('app:seed-demo-timeline')->assertSuccessful();
+
+    $historical = DB::table('grades')->pluck('id')->all();
+
+    expect($historical)->not->toBeEmpty();
+
+    // Anul următor: structura urcă (clasă + înmatriculare + alocare), semestrul lui devine curentul.
+    $nextYear = AcademicYear::factory()->create([
+        'name' => '2026–2027', 'starts_on' => Carbon::today()->subMonth()->toDateString(),
+        'ends_on' => Carbon::today()->addMonths(10)->toDateString(),
+    ]);
+    $this->current->update(['is_current' => false]);
+    Term::factory()->for($nextYear)->create([
+        'number' => 1, 'is_current' => true,
+        'starts_on' => Carbon::today()->subMonth()->toDateString(),
+        'ends_on' => Carbon::today()->addMonths(4)->toDateString(),
+    ]);
+
+    $nextClass = SchoolClass::factory()->for($nextYear)->create([
+        'name' => '[DEMO] 6A', 'section' => 'A', 'grade_level' => 6,
+    ]);
+    DB::table('teaching_assignments')->insert([
+        'teacher_id' => $this->teacher->id, 'subject_id' => $this->subject->id,
+        'school_class_id' => $nextClass->id, 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    Enrollment::factory()->for($this->accountStudent)->for($nextClass)->for($nextYear)->create(['left_on' => null]);
+
+    $this->artisan('app:seed-demo-timeline')->assertSuccessful();
+
+    // Istoricul e INTACT, iar clasa anului nou are conținut propriu.
+    expect(DB::table('grades')->whereIn('id', $historical)->count())->toBe(count($historical))
+        ->and(DB::table('grades')->where('school_class_id', $nextClass->id)->count())->toBeGreaterThan(0)
+        ->and(count(timelineManifests()))->toBe(2);
+
+    // `--remove` mătură AMBII ani — niciun rând demo nu rămâne fără cheie de ștergere.
+    $this->artisan('app:seed-demo-timeline', ['--remove' => true])->assertSuccessful();
+
+    expect(DB::table('grades')->count())->toBe(0)
+        ->and(timelineManifests())->toBe([]);
 });
 
 it('recalculul mediilor retrage mediile rămase fără note', function () {

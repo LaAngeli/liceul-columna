@@ -30,8 +30,11 @@ use Illuminate\Support\Facades\File;
  * Scrie prin query builder (fără observers/audit/notificări), ca toate seederele demo; mediile se
  * recalculează la final cu `app:compute-averages`, deci semestrul I capătă și medii, nu doar note.
  *
- * CURĂȚARE: marcaj `[DEMO]` moștenit de la clase/elevi + manifest propriu
- * (`storage/app/demo/timeline.json`) cu id-urile fiecărui rând; `--remove` le șterge exact.
+ * CURĂȚARE: marcaj `[DEMO]` moștenit de la clase/elevi + manifest PER AN ȘCOLAR
+ * (`storage/app/demo/timeline-{an}.json`) cu id-urile fiecărui rând; `--remove` le șterge exact,
+ * pe toate. Manifestul poartă anul pentru că axa se populează o dată pentru fiecare an: după
+ * trecerea în anul nou trebuie să se poată semăna 2026–2027 fără a distruge istoricul lui
+ * 2025–2026, care e chiar ce alimentează evoluția multi-an și foaia matricolă.
  */
 class SeedDemoTimeline extends Command
 {
@@ -42,7 +45,10 @@ class SeedDemoTimeline extends Command
 
     private const MARK = '[DEMO]';
 
+    /** Manifestul VECHI, fără an — rămâne doar ca `--remove` să curețe ce s-a semănat înainte. */
     private const MANIFEST = 'demo/timeline.json';
+
+    private const MANIFEST_GLOB = 'demo/timeline-{an}.json';
 
     /** Câte zile înapoi de la finalul semestrului curent înseamnă „prezent". */
     private const RECENT_DAYS = 21;
@@ -88,16 +94,20 @@ class SeedDemoTimeline extends Command
             return $this->remove();
         }
 
-        if (File::exists(storage_path('app/'.self::MANIFEST))) {
-            $this->components->error('Există deja un manifest ('.self::MANIFEST.'). Rulează întâi `--remove`.');
-
-            return self::FAILURE;
-        }
-
         $current = SchoolCalendar::currentTerm();
 
         if ($current === null) {
             $this->components->error('Nu există un semestru curent — axa de timp nu poate fi stabilită.');
+
+            return self::FAILURE;
+        }
+
+        // Garda e pe ANUL curent, nu pe comandă: a semăna de două ori același an dublează notele,
+        // dar a semăna anul NOU după trecerea în el e tocmai ce trebuie să se poată face.
+        $manifestPath = self::manifestFor((int) $current->academic_year_id);
+
+        if (File::exists(storage_path('app/'.$manifestPath))) {
+            $this->components->error('Anul curent are deja manifest ('.$manifestPath.'). Rulează întâi `--remove`.');
 
             return self::FAILURE;
         }
@@ -173,7 +183,7 @@ class SeedDemoTimeline extends Command
 
         File::ensureDirectoryExists(storage_path('app/demo'));
         File::put(
-            storage_path('app/'.self::MANIFEST),
+            storage_path('app/'.$manifestPath),
             (string) json_encode($this->manifest, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR),
         );
 
@@ -186,7 +196,7 @@ class SeedDemoTimeline extends Command
             ['Teme (ambele semestre)', (string) $counts['homework']],
         ]);
 
-        $this->line('  <fg=gray>Manifest: storage/app/'.self::MANIFEST.'</>');
+        $this->line('  <fg=gray>Manifest: storage/app/'.$manifestPath.'</>');
         $this->line('  <fg=gray>Curățare: php artisan app:seed-demo-timeline --remove</>');
 
         $this->components->info('Recalculez mediile semestriale…');
@@ -545,30 +555,64 @@ class SeedDemoTimeline extends Command
 
     private function remove(): int
     {
-        $path = storage_path('app/'.self::MANIFEST);
+        $paths = self::manifestPaths();
 
-        if (! File::exists($path)) {
-            $this->components->warn('Fără manifest ('.self::MANIFEST.') — nimic de șters.');
+        if ($paths === []) {
+            $this->components->warn('Fără manifest ('.self::MANIFEST_GLOB.') — nimic de șters.');
 
             return self::SUCCESS;
         }
 
-        /** @var array<string, list<int>> $m */
-        $m = json_decode((string) File::get($path), true) ?: [];
+        foreach ($paths as $path) {
+            /** @var array<string, list<int>> $m */
+            $m = json_decode((string) File::get($path), true) ?: [];
 
-        DB::transaction(function () use ($m): void {
-            foreach (['grades' => 'grades', 'absences' => 'absences', 'homework' => 'homework_assignments'] as $key => $table) {
-                foreach (array_chunk($m[$key] ?? [], 1000) as $chunk) {
-                    DB::table($table)->whereIn('id', array_map(intval(...), $chunk))->delete();
+            DB::transaction(function () use ($m): void {
+                foreach (['grades' => 'grades', 'absences' => 'absences', 'homework' => 'homework_assignments'] as $key => $table) {
+                    foreach (array_chunk($m[$key] ?? [], 1000) as $chunk) {
+                        DB::table($table)->whereIn('id', array_map(intval(...), $chunk))->delete();
+                    }
                 }
-            }
-        });
+            });
 
-        File::delete($path);
+            File::delete($path);
+            $this->line('  <fg=gray>șters: '.basename($path).'</>');
+        }
 
         $this->components->info('Activitatea demo de pe axa timpului a fost ștearsă.');
         $this->call('app:compute-averages');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Manifestul anului curent. Numele poartă ANUL pentru că axa timpului se populează o dată
+     * pentru fiecare an școlar: la trecerea în anul nou trebuie să se poată semăna 2026–2027 FĂRĂ
+     * a șterge istoricul lui 2025–2026 — istoricul e chiar ce testează evoluția multi-an, foaia
+     * matricolă și comparația „semestrul curent vs anul trecut".
+     */
+    private static function manifestFor(int $academicYearId): string
+    {
+        return 'demo/timeline-'.$academicYearId.'.json';
+    }
+
+    /**
+     * TOATE manifestele axei, oricâți ani ar fi — plus cel vechi, fără an (`demo/timeline.json`),
+     * ca datele semănate înainte de 07.08.2026 să rămână curățabile. Un rând demo fără cheie de
+     * ștergere e exact scurgerea de go-live pe care manifestele o previn.
+     *
+     * @return list<string>
+     */
+    private static function manifestPaths(): array
+    {
+        $paths = File::glob(storage_path('app/demo/timeline-*.json')) ?: [];
+
+        $legacy = storage_path('app/'.self::MANIFEST);
+
+        if (File::exists($legacy)) {
+            $paths[] = $legacy;
+        }
+
+        return array_values($paths);
     }
 }

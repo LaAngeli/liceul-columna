@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
+use App\Models\Term;
 use App\Support\ContentTranslator;
 use App\Support\Holidays;
 use App\Support\PanelGuide;
@@ -216,6 +217,14 @@ class AbsenceForm
     private static function classOptions(): array
     {
         $query = SchoolClass::query()->orderBy('grade_level')->orderBy('name');
+
+        // ANUL CURENT, pentru toate rolurile. Lipsea cu totul: cu un singur an în bază nu se vedea,
+        // dar de la trecerea în 2026–2027 (07.08.2026) lista oferea și clasele anului încheiat —
+        // adică se putea consemna într-un an închis. Formularul e garda: scoping-ul de pe server
+        // verifică perechea (clasă, disciplină), nu anul.
+        if (($yearId = Term::query()->where('is_current', true)->value('academic_year_id')) !== null) {
+            $query->where('academic_year_id', $yearId);
+        }
 
         if ($teacher = self::currentTeacher()) {
             $query->whereKey($teacher->contextSchoolClassIds(auth('web')->user()?->teachingContext())); // contextul pedagogic activ (F3)

@@ -187,3 +187,50 @@ it('corecția aprobată trece și într-un an închis — calea cu urmă rămân
 
     expect($grade->refresh()->value)->toBe('7.00');
 });
+
+/**
+ * Anul TRECUT nu se mai oferă în formulare (07.08.2026).
+ *
+ * Închiderea explicită apără anul arhivat, dar între „anul s-a terminat" și „anul a fost arhivat"
+ * există o fereastră în care anul vechi e doar… vechi. Cu un singur an școlar în bază diferența nu
+ * se vedea; de la trecerea în 2026–2027 listele de clase ale formularelor ofereau ambii ani, deci
+ * se putea consemna într-un an care nu mai rulează. Garda e chiar lista de opțiuni: scoping-ul de
+ * pe server verifică perechea (clasă, disciplină), nu anul.
+ */
+it('formularele de notă și absență nu mai acceptă clasele anului trecut', function () {
+    catalogAuthority();
+
+    // Anul vechi, cu structura lui completă: clasă, elev, alocare — nimic nu lipsește în afară de
+    // faptul că anul nu mai e cel curent. Dacă trece, garda nu există.
+    $pastYear = AcademicYear::factory()->create(['starts_on' => '2024-09-01', 'ends_on' => '2025-05-31']);
+    $pastClass = SchoolClass::factory()->for($pastYear)->create(['grade_level' => 8]);
+    $pastStudent = Student::factory()->create();
+    Enrollment::factory()->for($pastStudent)->for($pastClass)->for($pastYear)->create();
+    TeachingAssignment::factory()->create([
+        'teacher_id' => $this->teacher->id,
+        'school_class_id' => $pastClass->id,
+        'subject_id' => $this->subject->id,
+    ]);
+
+    Livewire::test(CreateGrade::class)
+        ->fillForm(['school_class_id' => $pastClass->id, 'subject_id' => $this->subject->id])
+        ->fillForm(['student_id' => $pastStudent->id, 'value' => 9, 'graded_on' => '2026-03-10'])
+        ->call('create')
+        ->assertHasFormErrors(['school_class_id']);
+
+    Livewire::test(CreateAbsence::class)
+        ->fillForm(['school_class_id' => $pastClass->id, 'subject_id' => $this->subject->id])
+        ->fillForm(['student_id' => $pastStudent->id, 'occurred_on' => '2026-03-10'])
+        ->call('create')
+        ->assertHasFormErrors(['school_class_id']);
+
+    expect(Grade::query()->count())->toBe(0);
+});
+
+it('clasa anului CURENT trece prin aceeași gardă — nu s-a blocat activitatea', function () {
+    catalogAuthority();
+
+    gradeForm($this)->call('create')->assertHasNoFormErrors();
+
+    expect(Grade::query()->count())->toBe(1);
+});
