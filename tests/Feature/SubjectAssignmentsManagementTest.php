@@ -11,14 +11,15 @@
  * pre-completat la deschidere, ar retrage la salvare orice alocare adăugată din tabel după.
  */
 
+use App\Actions\BuildSubjectTeamRegistry;
 use App\Actions\SyncSubjectTeachers;
 use App\Enums\GradingType;
 use App\Enums\UserRole;
 use App\Filament\Resources\Subjects\Pages\CreateSubject;
 use App\Filament\Resources\Subjects\Pages\EditSubject;
-use App\Filament\Resources\Subjects\RelationManagers\TeachingAssignmentsRelationManager;
 use App\Filament\Resources\Subjects\Schemas\SubjectForm;
 use App\Filament\Resources\Subjects\SubjectResource;
+use App\Filament\Resources\Subjects\Widgets\SubjectTeamRegistry;
 use App\Models\AcademicYear;
 use App\Models\Grade;
 use App\Models\SchoolClass;
@@ -28,7 +29,6 @@ use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\User;
-use Filament\Tables\Table;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -59,11 +59,17 @@ function teacherRows(array ...$rows): array
 }
 
 it('pagina de editare se randează ÎNTREAGĂ, cu registrul alocărilor cu tot', function () {
-    // GET-ul real al paginii — o eroare de descoperire/înregistrare a relation manager-ului
-    // apare DOAR aici, nu în testele Livewire izolate pe componentă.
+    // GET-ul real al paginii — o eroare de montare a widgetului apare DOAR aici, nu în testele
+    // Livewire izolate. Se cere și CONȚINUT real (numele profesorului din registru), nu doar
+    // numele componentei: acela apare și când widgetul se montează gol (review 08.08.2026).
+    TeachingAssignment::factory()->create([
+        'subject_id' => $this->subject->id, 'teacher_id' => $this->teacher->id, 'school_class_id' => $this->clasa7->id,
+    ]);
+
     $this->get(SubjectResource::getUrl('edit', ['record' => $this->subject]))
         ->assertOk()
-        ->assertSee('teaching-assignments-relation-manager');
+        ->assertSee('subject-team-registry')
+        ->assertSee($this->teacher->last_name);
 });
 
 it('disciplina se CREEAZĂ cu profesorii ei — echipa se declară din prima', function () {
@@ -257,32 +263,23 @@ it('grupa trăiește doar la limba engleză: pe rânduri separate per grupă; pe
     expect(TeachingAssignment::query()->where('subject_id', $this->subject->id)->sole()->english_group)->toBeNull();
 });
 
-it('registrul de pe fișă e DOAR consultativ — fără acțiuni de scriere', function () {
-    // Suprafața de scriere e formularul (sincronizat la salvare); tabelul de dedesubt doar arată.
-    $manager = new TeachingAssignmentsRelationManager;
-    $manager->ownerRecord = $this->subject;
-    $manager->pageClass = EditSubject::class;
-
-    $table = $manager->table(Table::make($manager));
-
-    expect($table->getHeaderActions())->toBe([])
-        ->and($table->getRecordActions())->toBe([]);
-});
+// ── Registrul echipei v3 (08.08.2026): widget cu FILE de ani, nu tabel filtrat ─────────────────
 
 function registrul(Subject $subject): Testable
 {
-    return Livewire::test(TeachingAssignmentsRelationManager::class, [
-        'ownerRecord' => $subject,
-        'pageClass' => EditSubject::class,
-    ]);
+    return Livewire::test(SubjectTeamRegistry::class, ['record' => $subject]);
 }
 
-it('registrul arată UN rând per profesor, cu clasele lui ca pastile — implicit doar anul curent', function () {
-    // Restructurarea 08.08.2026: forma veche = rând per alocare, toți anii, grupat pe clasă
-    // (la Matematică: 67 de rânduri pe 7 pagini). Forma nouă = rând per (profesor, grupă),
-    // filtrat pe anul CURENT.
+it('registrul e un rând per profesor, implicit pe anul CURENT — cu retrasele la vedere', function () {
+    // v3: forma veche = rând per alocare, toți anii, grupat pe clasă (la Matematică: 67 de
+    // rânduri pe 7 pagini). Forma nouă = file de ani + echipa anului ales, per (profesor, grupă).
     $coleg = Teacher::factory()->create(['last_name' => 'Zamfir']);
-    $anTrecut = AcademicYear::factory()->create(['is_current' => false]);
+    // Datele EXPLICIT în urmă: factory-ul generează ani arbitrari, iar ordinea filelor
+    // (starts_on desc) ar deveni loterie.
+    $anTrecut = AcademicYear::factory()->create([
+        'is_current' => false, 'name' => '1999–2000',
+        'starts_on' => '1999-09-01', 'ends_on' => '2000-06-30',
+    ]);
     $clasaVeche = SchoolClass::factory()->for($anTrecut)->create(['grade_level' => 7, 'section' => 'V']);
 
     // Profesorul: două clase în anul curent (una retrasă) + una în anul trecut.
@@ -300,22 +297,32 @@ it('registrul arată UN rând per profesor, cu clasele lui ca pastile — implic
         'subject_id' => $this->subject->id, 'teacher_id' => $coleg->id, 'school_class_id' => $clasaVeche->id,
     ]);
 
-    $registru = registrul($this->subject);
+    $date = app(BuildSubjectTeamRegistry::class)->execute($this->subject->fresh());
 
-    // Implicit (anul curent): un singur rând — al profesorului; pastila retrasă e tot acolo,
-    // cu sufixul ei (starea nu se mai ascunde după un filtru de arhivă).
-    $registru->assertCountTableRecords(1)
+    // Implicit = anul curent: un singur profesor, cu pastila retrasă tot acolo (starea nu se
+    // ascunde după un filtru de arhivă — o spune eticheta).
+    expect($date['selected']['id'])->toBe($this->year->id)
+        ->and($date['teachers'])->toHaveCount(1)
+        ->and($date['teachers'][0]['name'])->toContain($this->teacher->last_name)
+        ->and($date['teachers'][0]['active'])->toBe(1)
+        ->and($date['teachers'][0]['withdrawn'])->toBe(1)
+        ->and(collect($date['teachers'][0]['classes'])->firstWhere('withdrawn', true))->not->toBeNull()
+        // Filele: ambii ani cu alocări, cel mai nou primul.
+        ->and(array_column($date['years'], 'id'))->toBe([$this->year->id, $anTrecut->id]);
+
+    // Anul trecut, la o FILĂ distanță: ambii profesori.
+    $trecut = app(BuildSubjectTeamRegistry::class)->execute($this->subject->fresh(), $anTrecut->id);
+
+    expect($trecut['teachers'])->toHaveCount(2)
+        ->and(collect($trecut['teachers'])->pluck('name')->join(' '))->toContain('Zamfir');
+
+    // Și prin widget-ul montat: implicitul se vede, comutarea pe filă schimbă echipa.
+    registrul($this->subject)
         ->assertSee($this->teacher->last_name)
         ->assertDontSee('Zamfir')
-        ->assertSee(trans('panel.resources.teaching_assignments.withdrawn_suffix'));
-
-    // Anul trecut, la un filtru distanță: ambii profesori, câte un rând fiecare.
-    $registru->filterTable('year', $anTrecut->id)
-        ->assertCountTableRecords(2)
+        ->assertSee(trans('panel.resources.teaching_assignments.withdrawn_suffix'))
+        ->call('alegeAnul', $anTrecut->id)
         ->assertSee('Zamfir');
-
-    // Filtrul golit = toți anii — tot agregat pe profesor (2 rânduri, nu 4 alocări).
-    $registru->filterTable('year', null)->assertCountTableRecords(2);
 });
 
 it('registrul desparte grupele de engleză în rânduri distincte — perechea (profesor, grupă) e identitatea', function () {
@@ -326,30 +333,81 @@ it('registrul desparte grupele de engleză în rânduri distincte — perechea (
         ['teacher_id' => $this->teacher->id, 'english_group' => 2, 'class_ids' => [$this->clasa7->id, $this->clasa8->id]],
     ));
 
-    registrul($engleza)->assertCountTableRecords(2);
+    $date = app(BuildSubjectTeamRegistry::class)->execute($engleza);
+
+    // Rândurile = perechi (profesor, grupă); statisticile spun însă ce PROMIT etichetele:
+    // oameni DISTINCȚI (un profesor, oricâte grupe) și clase DISTINCTE (VII A pe ambele grupe
+    // se numără o dată) — review 08.08.2026.
+    expect($date['teachers'])->toHaveCount(2)
+        ->and(array_column($date['teachers'], 'group'))->toBe([1, 2])
+        ->and($date['stats'])->toBe(['teachers' => 1, 'active' => 2, 'withdrawn' => 0]);
 });
 
-it('filtrul de an oferă DOAR anii cu alocări la disciplină, iar implicitul e anul curent', function () {
+it('clasa ARHIVATĂ nu înghite istoria: alocarea ei rămâne în registru, cu fila anului cu tot', function () {
+    TeachingAssignment::factory()->create([
+        'subject_id' => $this->subject->id, 'teacher_id' => $this->teacher->id, 'school_class_id' => $this->clasa7->id,
+    ]);
+
+    // Clasa se arhivează (soft delete) — alocarea profesorului pe ea e istorie legitimă.
+    $this->clasa7->delete();
+
+    $date = app(BuildSubjectTeamRegistry::class)->execute($this->subject->fresh());
+
+    expect(array_column($date['years'], 'id'))->toBe([$this->year->id])
+        ->and($date['teachers'])->toHaveCount(1)
+        ->and($date['teachers'][0]['classes'])->toHaveCount(1)
+        // Treapta romană din etichetă („… · VII") — numele clasei îl dă factory-ul, treapta noi.
+        ->and($date['teachers'][0]['classes'][0]['label'])->toContain('· VII');
+});
+
+it('registrul se REÎMPROSPĂTEAZĂ la semnalul salvării formularului — nu rămâne cu pastile vechi', function () {
+    // Widget-ul e copil Livewire cu cheie stabilă: re-randarea paginii nu-l atinge. EditSubject
+    // emite `subject-team-registry-updated` după sincronizare, iar widget-ul re-randează.
+    TeachingAssignment::factory()->create([
+        'subject_id' => $this->subject->id, 'teacher_id' => $this->teacher->id, 'school_class_id' => $this->clasa7->id,
+    ]);
+
+    $widget = registrul($this->subject);
+    $widget->assertDontSee('Zamfir');
+
+    // Între timp, echipa se schimbă (ca la salvarea formularului de deasupra).
+    $coleg = Teacher::factory()->create(['last_name' => 'Zamfir']);
+    TeachingAssignment::factory()->create([
+        'subject_id' => $this->subject->id, 'teacher_id' => $coleg->id, 'school_class_id' => $this->clasa8->id,
+    ]);
+
+    $widget->dispatch('subject-team-registry-updated')->assertSee('Zamfir');
+
+    // Iar pagina chiar emite semnalul la salvare.
+    Livewire::test(EditSubject::class, ['record' => $this->subject->getRouteKey()])
+        ->fillForm(['teachers' => teacherRows(['teacher_id' => $this->teacher->id, 'class_ids' => [$this->clasa7->id]])])
+        ->call('save')
+        ->assertDispatched('subject-team-registry-updated');
+});
+
+it('filele oferă DOAR anii cu alocări; un an cerut dar inexistent cade pe implicit', function () {
     $anGol = AcademicYear::factory()->create(['is_current' => false, 'name' => '2010–2011']);
 
     TeachingAssignment::factory()->create([
         'subject_id' => $this->subject->id, 'teacher_id' => $this->teacher->id, 'school_class_id' => $this->clasa7->id,
     ]);
 
-    $manager = new TeachingAssignmentsRelationManager;
-    $manager->ownerRecord = $this->subject;
-    $manager->pageClass = EditSubject::class;
+    $date = app(BuildSubjectTeamRegistry::class)->execute($this->subject->fresh(), $anGol->id);
 
-    $filter = $manager->table(Table::make($manager))->getFilter('year');
+    // Anul fără alocări nu e filă — iar cererea lui (stare veche/forjată) cade pe anul curent.
+    expect(array_column($date['years'], 'id'))->toBe([$this->year->id])
+        ->and($date['selected']['id'])->toBe($this->year->id);
+});
 
-    // Opțiunile stau pe Select-ul intern al filtrului, fără getter public — le citim de la sursă.
-    $optiuni = new ReflectionMethod(TeachingAssignmentsRelationManager::class, 'yearOptions');
-    $optiuni->setAccessible(true);
+it('registrul cere context academic — administratorul tehnic nu îl vede', function () {
+    $tehnic = User::factory()->create();
+    $tehnic->assignRole(UserRole::AdministratorTehnic->value);
 
-    expect($filter)->not->toBeNull()
-        ->and($filter->getDefaultState())->toBe($this->year->id)
-        ->and(array_keys($optiuni->invoke($manager)))->toContain($this->year->id)
-        ->and(array_keys($optiuni->invoke($manager)))->not->toContain($anGol->id);
+    actingAs($tehnic);
+    expect(SubjectTeamRegistry::canView())->toBeFalse();
+
+    actingAs($this->admin);
+    expect(SubjectTeamRegistry::canView())->toBeTrue();
 });
 
 it('treptele blocate se explică sub bifă: istoricul definitiv altfel decât alocările eliberabile', function () {

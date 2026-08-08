@@ -297,7 +297,13 @@ class SubjectForm
 
                                 $classes = is_array($state['class_ids'] ?? null) ? count($state['class_ids']) : 0;
 
-                                return $teacher.' · '.trans_choice('panel.forms.subject.teacher_classes_count', $classes, ['count' => $classes]);
+                                // Zeroul are cheia lui: amestecul {0} explicit cu formele implicite
+                                // de plural se dezaliniază (MessageSelector le indexează împreună).
+                                $count = $classes === 0
+                                    ? (string) __('panel.forms.subject.teacher_classes_none')
+                                    : trans_choice('panel.forms.subject.teacher_classes_count', $classes, ['count' => $classes]);
+
+                                return $teacher.' · '.$count;
                             })
                             ->rules([
                                 // Același profesor (cu aceeași grupă) de două ori = două rânduri

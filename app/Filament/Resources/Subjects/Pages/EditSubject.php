@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Subjects\Pages;
 use App\Actions\SyncSubjectTeachers;
 use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Resources\Subjects\SubjectResource;
+use App\Filament\Resources\Subjects\Widgets\SubjectTeamRegistry;
 use App\Models\Subject;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -18,6 +19,19 @@ class EditSubject extends EditRecord
     use PlacesRecordActionsWithForm;
 
     protected static string $resource = SubjectResource::class;
+
+    /**
+     * Registrul echipei (v3) — widget de SUBSOL, nu relation manager: file de ani + echipa
+     * anului ales, consultativ. Recordul ajunge la widget prin {@see self::getWidgetData()}.
+     *
+     * @return array<int, class-string>
+     */
+    protected function getFooterWidgets(): array
+    {
+        return [
+            SubjectTeamRegistry::class,
+        ];
+    }
 
     /**
      * Secțiunea „Profesorii disciplinei" pornește de la starea REALĂ: alocările vii ale anului
@@ -73,6 +87,10 @@ class EditSubject extends EditRecord
         // creare / restaurare geamăn arhivat / retragere soft) — vezi SyncSubjectTeachers.
         $teachers = $this->data['teachers'] ?? [];
         app(SyncSubjectTeachers::class)->execute($record, is_array($teachers) ? $teachers : []);
+
+        // Registrul din subsol e un copil Livewire cu cheie stabilă — re-randarea paginii NU-l
+        // atinge. Fără semnalul ăsta, clasa tocmai retrasă rămânea pastilă verde în registru.
+        $this->dispatch('subject-team-registry-updated');
 
         if (! $record->wasChanged('name')) {
             return;
