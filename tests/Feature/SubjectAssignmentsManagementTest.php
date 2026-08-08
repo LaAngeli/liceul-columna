@@ -29,6 +29,7 @@ use App\Models\TeachingAssignment;
 use App\Models\Term;
 use App\Models\User;
 use Filament\Tables\Table;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
@@ -266,6 +267,89 @@ it('registrul de pe fișă e DOAR consultativ — fără acțiuni de scriere', f
 
     expect($table->getHeaderActions())->toBe([])
         ->and($table->getRecordActions())->toBe([]);
+});
+
+function registrul(Subject $subject): Testable
+{
+    return Livewire::test(TeachingAssignmentsRelationManager::class, [
+        'ownerRecord' => $subject,
+        'pageClass' => EditSubject::class,
+    ]);
+}
+
+it('registrul arată UN rând per profesor, cu clasele lui ca pastile — implicit doar anul curent', function () {
+    // Restructurarea 08.08.2026: forma veche = rând per alocare, toți anii, grupat pe clasă
+    // (la Matematică: 67 de rânduri pe 7 pagini). Forma nouă = rând per (profesor, grupă),
+    // filtrat pe anul CURENT.
+    $coleg = Teacher::factory()->create(['last_name' => 'Zamfir']);
+    $anTrecut = AcademicYear::factory()->create(['is_current' => false]);
+    $clasaVeche = SchoolClass::factory()->for($anTrecut)->create(['grade_level' => 7, 'section' => 'V']);
+
+    // Profesorul: două clase în anul curent (una retrasă) + una în anul trecut.
+    TeachingAssignment::factory()->create([
+        'subject_id' => $this->subject->id, 'teacher_id' => $this->teacher->id, 'school_class_id' => $this->clasa7->id,
+    ]);
+    TeachingAssignment::factory()->create([
+        'subject_id' => $this->subject->id, 'teacher_id' => $this->teacher->id, 'school_class_id' => $this->clasa8->id,
+    ])->delete();
+    TeachingAssignment::factory()->create([
+        'subject_id' => $this->subject->id, 'teacher_id' => $this->teacher->id, 'school_class_id' => $clasaVeche->id,
+    ]);
+    // Colegul: DOAR în anul trecut — nu are ce căuta în vederea implicită.
+    TeachingAssignment::factory()->create([
+        'subject_id' => $this->subject->id, 'teacher_id' => $coleg->id, 'school_class_id' => $clasaVeche->id,
+    ]);
+
+    $registru = registrul($this->subject);
+
+    // Implicit (anul curent): un singur rând — al profesorului; pastila retrasă e tot acolo,
+    // cu sufixul ei (starea nu se mai ascunde după un filtru de arhivă).
+    $registru->assertCountTableRecords(1)
+        ->assertSee($this->teacher->last_name)
+        ->assertDontSee('Zamfir')
+        ->assertSee(trans('panel.resources.teaching_assignments.withdrawn_suffix'));
+
+    // Anul trecut, la un filtru distanță: ambii profesori, câte un rând fiecare.
+    $registru->filterTable('year', $anTrecut->id)
+        ->assertCountTableRecords(2)
+        ->assertSee('Zamfir');
+
+    // Filtrul golit = toți anii — tot agregat pe profesor (2 rânduri, nu 4 alocări).
+    $registru->filterTable('year', null)->assertCountTableRecords(2);
+});
+
+it('registrul desparte grupele de engleză în rânduri distincte — perechea (profesor, grupă) e identitatea', function () {
+    $engleza = Subject::factory()->create(['name' => 'Limba străină 1 (engleza)', 'grade_levels' => range(5, 12)]);
+
+    app(SyncSubjectTeachers::class)->execute($engleza, teacherRows(
+        ['teacher_id' => $this->teacher->id, 'english_group' => 1, 'class_ids' => [$this->clasa7->id]],
+        ['teacher_id' => $this->teacher->id, 'english_group' => 2, 'class_ids' => [$this->clasa7->id, $this->clasa8->id]],
+    ));
+
+    registrul($engleza)->assertCountTableRecords(2);
+});
+
+it('filtrul de an oferă DOAR anii cu alocări la disciplină, iar implicitul e anul curent', function () {
+    $anGol = AcademicYear::factory()->create(['is_current' => false, 'name' => '2010–2011']);
+
+    TeachingAssignment::factory()->create([
+        'subject_id' => $this->subject->id, 'teacher_id' => $this->teacher->id, 'school_class_id' => $this->clasa7->id,
+    ]);
+
+    $manager = new TeachingAssignmentsRelationManager;
+    $manager->ownerRecord = $this->subject;
+    $manager->pageClass = EditSubject::class;
+
+    $filter = $manager->table(Table::make($manager))->getFilter('year');
+
+    // Opțiunile stau pe Select-ul intern al filtrului, fără getter public — le citim de la sursă.
+    $optiuni = new ReflectionMethod(TeachingAssignmentsRelationManager::class, 'yearOptions');
+    $optiuni->setAccessible(true);
+
+    expect($filter)->not->toBeNull()
+        ->and($filter->getDefaultState())->toBe($this->year->id)
+        ->and(array_keys($optiuni->invoke($manager)))->toContain($this->year->id)
+        ->and(array_keys($optiuni->invoke($manager)))->not->toContain($anGol->id);
 });
 
 it('treptele blocate se explică sub bifă: istoricul definitiv altfel decât alocările eliberabile', function () {

@@ -66,7 +66,7 @@ return [
         'absence_motivations' => ['label' => 'Motivări absențe', 'plural' => 'Motivări absențe', 'single' => 'cerere de motivare'],
         'academic_records' => ['label' => 'Foaie matricolă', 'plural' => 'Foaie matricolă', 'single' => 'înregistrare matricolă'],
         'homework' => ['label' => 'Teme', 'plural' => 'Teme', 'single' => 'temă'],
-        'teaching_assignments' => ['label' => 'Alocări', 'plural' => 'Alocări (clase și discipline)', 'registry' => 'Registrul alocărilor (toți anii)', 'active' => 'Activă', 'withdrawn' => 'Retrasă', 'single' => 'alocare'],
+        'teaching_assignments' => ['label' => 'Alocări', 'plural' => 'Alocări (clase și discipline)', 'registry' => 'Registrul alocărilor', 'registry_hint' => 'Cine predă disciplina în anul ales — fiecare profesor cu clasele lui, inclusiv alocările retrase (gri). Golește filtrul ca să vezi toți anii.', 'registry_empty' => 'Nicio alocare în anul ales.', 'withdrawn_suffix' => ' — retrasă', 'active' => 'Activă', 'withdrawn' => 'Retrasă', 'single' => 'alocare'],
         'schedules' => ['label' => 'Orare', 'plural' => 'Orare', 'single' => 'orar'],
         'canteen_menus' => ['label' => 'Meniul cantinei', 'plural' => 'Meniuri', 'single' => 'meniu'],
         'messages' => ['label' => 'Mesaje', 'plural' => 'Mesaje', 'single' => 'mesaj'],

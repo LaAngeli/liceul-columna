@@ -56,7 +56,7 @@ return [
         'absence_motivations' => ['label' => 'Absence justifications', 'plural' => 'Absence justifications', 'single' => 'justification request'],
         'academic_records' => ['label' => 'Academic record', 'plural' => 'Academic record', 'single' => 'record entry'],
         'homework' => ['label' => 'Homework', 'plural' => 'Homework', 'single' => 'assignment'],
-        'teaching_assignments' => ['label' => 'Assignments', 'plural' => 'Assignments (classes & subjects)', 'registry' => 'Assignments registry (all years)', 'active' => 'Active', 'withdrawn' => 'Withdrawn', 'single' => 'assignment'],
+        'teaching_assignments' => ['label' => 'Assignments', 'plural' => 'Assignments (classes & subjects)', 'registry' => 'Assignments registry', 'registry_hint' => 'Who teaches the subject in the chosen year — each teacher with their classes, including withdrawn assignments (gray). Clear the filter to see all years.', 'registry_empty' => 'No assignments in the chosen year.', 'withdrawn_suffix' => ' — withdrawn', 'active' => 'Active', 'withdrawn' => 'Withdrawn', 'single' => 'assignment'],
         'schedules' => ['label' => 'Schedules', 'plural' => 'Schedules', 'single' => 'schedule'],
         'canteen_menus' => ['label' => 'Canteen menu', 'plural' => 'Menus', 'single' => 'menu'],
         'messages' => ['label' => 'Messages', 'plural' => 'Messages', 'single' => 'message'],
