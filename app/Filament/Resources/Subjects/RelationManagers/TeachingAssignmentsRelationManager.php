@@ -2,21 +2,13 @@
 
 namespace App\Filament\Resources\Subjects\RelationManagers;
 
-use App\Models\SchoolClass;
+use App\Actions\SyncSubjectTeachers;
+use App\Filament\Resources\Subjects\Schemas\SubjectForm;
 use App\Models\Subject;
-use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Support\GradeLevels;
 use BackedEnum;
-use Closure;
-use Filament\Actions\CreateAction;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\RestoreAction;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Schemas\Components\Utilities\Get;
-use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Grouping\Group;
@@ -24,16 +16,16 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * ALOCĂRILE disciplinei (profesor ↔ clasă ± grupă) — perechea managerului de pe fișa persoanei
- * ({@see \App\Filament\Resources\Users\RelationManagers\TeachingAssignmentsRelationManager}),
- * văzută dinspre DISCIPLINĂ (cerința beneficiarului, 07.08.2026: „după creare nu mai poți
- * modifica profesorii, clasele" — fișa disciplinei devine editabilă în totalitate).
+ * REGISTRUL alocărilor disciplinei (profesor ↔ clasă ± grupă) — strict CONSULTATIV: toți anii,
+ * inclusiv alocările retrase (TrashedFilter), grupate pe clasă cu anul în descriere.
  *
- * Aceleași reguli, alt punct de intrare: aici disciplina e FIXĂ (fișa deschisă), se aleg clasa
- * și profesorul. Clasele oferite = doar cele de pe treptele MARCATE ale disciplinei; grupa
- * apare doar când disciplina e limba engleză; duplicatul (inclusiv arhivat) e refuzat cu
- * îndrumare spre restaurare. Retragerea = soft delete: notele consemnate rămân (autorul e pe
- * notă), profesorul pierde doar scoping-ul viitor.
+ * ⚠️ FĂRĂ acțiuni de scriere, deliberat (07.08.2026): echipa ANULUI CURENT se gestionează în
+ * secțiunea „Profesorii disciplinei" din formularul fișei ({@see SubjectForm}
+ * → {@see SyncSubjectTeachers}). Două suprafețe de scriere pe aceeași pagină s-ar
+ * călca una pe alta: formularul se pre-completează la DESCHIDERE, deci orice alocare adăugată
+ * din tabel după aceea ar fi retrasă la prima salvare a formularului (starea lui, rămasă în
+ * urmă, ar „câștiga"). Restaurarea și arhiva pe persoană rămân pe fișa utilizatorului
+ * ({@see \App\Filament\Resources\Users\RelationManagers\TeachingAssignmentsRelationManager}).
  */
 class TeachingAssignmentsRelationManager extends RelationManager
 {
@@ -43,7 +35,7 @@ class TeachingAssignmentsRelationManager extends RelationManager
 
     public static function getTitle(Model $ownerRecord, string $pageClass): string
     {
-        return __('panel.resources.teaching_assignments.plural');
+        return __('panel.resources.teaching_assignments.registry');
     }
 
     public static function getModelLabel(): ?string
@@ -61,79 +53,6 @@ class TeachingAssignmentsRelationManager extends RelationManager
     {
         return $ownerRecord instanceof Subject
             && (auth('web')->user()?->canSeeAcademicData() ?? false);
-    }
-
-    public function form(Schema $schema): Schema
-    {
-        return $schema
-            ->components([
-                Select::make('school_class_id')
-                    ->label(__('panel.fields.class'))
-                    // DOAR clasele de pe treptele marcate ale disciplinei — o alocare pe o
-                    // treaptă nemarcată ar pune clasa pe fișa altui ciclu (scala greșită).
-                    ->options(fn (): array => $this->classOptions())
-                    ->searchable()
-                    ->required()
-                    ->rules([
-                        // Dublura pe SERVER a filtrării de mai sus (payload forjat).
-                        fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
-                            if ($this->classOutsideSubjectGrades($value)) {
-                                $fail(__('panel.validation.lesson.subject_outside_grade'));
-                            }
-                        },
-                    ]),
-                Select::make('teacher_id')
-                    ->label(__('panel.fields.teacher'))
-                    ->options(fn (): array => Teacher::query()
-                        ->orderBy('last_name')->orderBy('first_name')
-                        ->get()
-                        ->mapWithKeys(fn (Teacher $teacher): array => [(int) $teacher->getKey() => $teacher->full_name])
-                        ->all())
-                    ->searchable()
-                    ->required()
-                    ->live()
-                    // Anti-duplicat cu mesaj clar (indexul unic vede ȘI alocările arhivate — un
-                    // duplicat mergea direct în eroarea SQL; cel ARHIVAT se restaurează, nu se recreează).
-                    ->rules([
-                        fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
-                            $classId = $get('school_class_id');
-
-                            if (! filled($value) || ! filled($classId)) {
-                                return;
-                            }
-
-                            $group = $get('english_group');
-
-                            $conflict = TeachingAssignment::withTrashed()
-                                ->where('teacher_id', (int) $value)
-                                ->where('subject_id', (int) $this->getOwnerRecord()->getKey())
-                                ->where('school_class_id', (int) $classId)
-                                ->when(
-                                    $group !== null && $group !== '',
-                                    fn ($query) => $query->where('english_group', (int) $group),
-                                    fn ($query) => $query->whereNull('english_group'),
-                                )
-                                ->first();
-
-                            if ($conflict !== null) {
-                                $fail($conflict->trashed()
-                                    ? __('panel.validation.teaching_assignment.archived_duplicate')
-                                    : __('panel.validation.teaching_assignment.duplicate'));
-                            }
-                        },
-                    ]),
-                TextInput::make('english_group')
-                    ->label(__('panel.forms.teaching_assignment.english_group'))
-                    ->helperText(__('panel.forms.teaching_assignment.english_group_hint'))
-                    ->numeric()
-                    ->minValue(1)
-                    ->maxValue(9)
-                    // Grupa există DOAR la limba engleză — disciplina e fixă aici, deci
-                    // vizibilitatea se decide o dată, din fișa deschisă (garda de pe model
-                    // o impune oricum, pe orice cale).
-                    ->visible(fn (): bool => $this->ownerSubject()?->isEnglishLanguage() ?? false)
-                    ->dehydrated(fn (): bool => $this->ownerSubject()?->isEnglishLanguage() ?? false),
-            ]);
     }
 
     public function table(Table $table): Table
@@ -172,16 +91,6 @@ class TeachingAssignmentsRelationManager extends RelationManager
             ->filters([
                 TrashedFilter::make()
                     ->visible(fn (): bool => auth('web')->user()?->canConfigureSchool() ?? false),
-            ])
-            ->headerActions([
-                CreateAction::make()
-                    ->label(__('panel.forms.teaching_assignment.add'))
-                    // Aceeași decizie de flux ca peste tot: creare → revizuire, fără „și încă unul".
-                    ->createAnother(false),
-            ])
-            ->recordActions([
-                DeleteAction::make(),
-                RestoreAction::make(),
             ]);
     }
 
@@ -207,56 +116,5 @@ class TeachingAssignmentsRelationManager extends RelationManager
                     .' · '.$class->academicYear->name;
             })
             ->collapsible();
-    }
-
-    private function ownerSubject(): ?Subject
-    {
-        $owner = $this->getOwnerRecord();
-
-        return $owner instanceof Subject ? $owner : null;
-    }
-
-    /**
-     * Clasele de pe treptele MARCATE ale disciplinei, cu anul în etichetă. Un set nedeclarat
-     * (nomenclator incomplet) nu limitează — aceeași lectură ca {@see Subject::coversGrade}.
-     *
-     * @return array<int, string>
-     */
-    private function classOptions(): array
-    {
-        $levels = $this->ownerSubject()?->gradeLevelList();
-
-        $classes = SchoolClass::query()
-            ->with('academicYear')
-            ->when($levels !== null, fn ($query) => $query->whereIn('grade_level', $levels))
-            ->orderBy('grade_level')->orderBy('name')->orderBy('section')
-            ->get();
-
-        $options = [];
-
-        foreach ($classes as $class) {
-            $label = trim($class->name.' '.($class->section ?? ''));
-            $year = $class->academicYear?->name;
-            $options[(int) $class->getKey()] = $year === null ? $label : "{$label} ({$year})";
-        }
-
-        return $options;
-    }
-
-    /** Clasa aleasă cade pe o treaptă nemarcată? Dublura pe server a listei filtrate. */
-    private function classOutsideSubjectGrades(mixed $classId): bool
-    {
-        if (! filled($classId) || ! is_numeric($classId)) {
-            return false;
-        }
-
-        $grade = SchoolClass::query()->whereKey((int) $classId)->value('grade_level');
-        $subject = $this->ownerSubject();
-
-        if ($grade === null || $subject === null) {
-            return false;
-        }
-
-        return ! $subject->coversGrade((int) $grade);
     }
 }

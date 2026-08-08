@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Subjects\Pages;
 
+use App\Actions\SyncSubjectTeachers;
 use App\Filament\Concerns\DisablesCreateAnother;
 use App\Filament\Resources\Subjects\SubjectResource;
 use App\Models\Subject;
@@ -15,9 +16,12 @@ class CreateSubject extends CreateRecord
     protected static string $resource = SubjectResource::class;
 
     /**
-     * Poziția în foaia matricolă se aplică DUPĂ creare, prin singura cale de scriere
+     * (1) Poziția în foaia matricolă se aplică DUPĂ creare, prin singura cale de scriere
      * ({@see Subject::placeInReportOrder}) — câmpul din formular nu se dehidratează,
      * deci inserarea pe o poziție ocupată împinge restul tranzacțional, fără duplicate.
+     * (2) Profesorii disciplinei (cerința 07.08.2026: echipa se declară DE LA CREARE, nu abia
+     * pe fișă) — rândurile repeater-ului, tot nedehidratate, trec prin
+     * {@see SyncSubjectTeachers} și devin alocări didactice pe anul curent.
      */
     protected function afterCreate(): void
     {
@@ -27,6 +31,9 @@ class CreateSubject extends CreateRecord
         $subject = $this->getRecord();
 
         Subject::placeInReportOrder($subject, is_numeric($raw) ? (int) $raw : null);
+
+        $teachers = $this->data['teachers'] ?? [];
+        app(SyncSubjectTeachers::class)->execute($subject, is_array($teachers) ? $teachers : []);
     }
 
     /**

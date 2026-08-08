@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Subjects\Pages;
 
+use App\Actions\SyncSubjectTeachers;
 use App\Filament\Concerns\PlacesRecordActionsWithForm;
 use App\Filament\Resources\Subjects\SubjectResource;
 use App\Models\Subject;
@@ -17,6 +18,25 @@ class EditSubject extends EditRecord
     use PlacesRecordActionsWithForm;
 
     protected static string $resource = SubjectResource::class;
+
+    /**
+     * Secțiunea „Profesorii disciplinei" pornește de la starea REALĂ: alocările vii ale anului
+     * curent, grupate (profesor, grupă) cu clasele fiecăruia — nu de la un formular gol care ar
+     * retrage totul la prima salvare.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $record = $this->getRecord();
+
+        if ($record instanceof Subject) {
+            $data['teachers'] = app(SyncSubjectTeachers::class)->rowsFor($record);
+        }
+
+        return $data;
+    }
 
     /**
      * @return array<int, Action>
@@ -48,6 +68,11 @@ class EditSubject extends EditRecord
 
         $raw = $this->data['report_order'] ?? null;
         Subject::placeInReportOrder($record, is_numeric($raw) ? (int) $raw : null);
+
+        // Echipa disciplinei, adusă la declarația formularului (diff pe anul curent:
+        // creare / restaurare geamăn arhivat / retragere soft) — vezi SyncSubjectTeachers.
+        $teachers = $this->data['teachers'] ?? [];
+        app(SyncSubjectTeachers::class)->execute($record, is_array($teachers) ? $teachers : []);
 
         if (! $record->wasChanged('name')) {
             return;

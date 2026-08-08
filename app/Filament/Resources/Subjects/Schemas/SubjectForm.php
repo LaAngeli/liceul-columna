@@ -4,12 +4,17 @@ namespace App\Filament\Resources\Subjects\Schemas;
 
 use App\Enums\GradingType;
 use App\Enums\SchoolCycle;
+use App\Models\Absence;
+use App\Models\AcademicYear;
 use App\Models\Grade;
+use App\Models\SchoolClass;
 use App\Models\Subject;
+use App\Models\Teacher;
 use App\Models\TeachingAssignment;
 use App\Support\GradeLevels;
 use Closure;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
@@ -108,13 +113,62 @@ class SubjectForm
                             // (primar) în prima coloană, V–VIII în a doua, IX–XII în a treia.
                             ->columns(['default' => 2, 'xl' => 3])
                             ->gridDirection('column')
-                            ->bulkToggleable()
+                            // „Selectează/Debifează toate" doar când chiar are pe ce lucra: cu
+                            // toate treptele blocate de istoric, linkul era un buton mort —
+                            // exact reclamația din 07.08.2026 („nu execută nicio acțiune").
+                            ->bulkToggleable(static fn (?Model $record): bool => ! $record instanceof Subject
+                                || count(self::lockedGrades($record)) < count(SchoolCycle::gradeLevelOptions()))
                             ->required()
                             // Treapta cu istoric (alocări sau note) nu se poate DEBIFA — opțiunea
                             // e blocată cât timp e în setul salvat. Treptele fără istoric rămân
                             // libere în ambele sensuri.
                             ->disableOptionWhen(static fn (string $value, ?Model $record): bool => $record instanceof Subject
                                 && in_array((int) $value, self::lockedGrades($record), true))
+                            // Blocajul se și EXPLICĂ, sub fiecare treaptă dezactivată — cu ce o
+                            // ține pe loc și, când e cazul, cu pasul care o eliberează (retragerea
+                            // claselor din secțiunea profesorilor). O bifă „moartă" fără motiv se
+                            // citește ca defect, nu ca protecție (raportat 07.08.2026).
+                            ->descriptions(static function (?Model $record): array {
+                                if (! $record instanceof Subject) {
+                                    return [];
+                                }
+
+                                $details = self::lockedGradeDetails($record);
+                                $descriptions = [];
+
+                                foreach ($details['history'] as $grade) {
+                                    $descriptions[$grade] = __('panel.forms.subject.grade_locked_history');
+                                }
+
+                                foreach ($details['assignments'] as $grade) {
+                                    $descriptions[$grade] = __('panel.forms.subject.grade_locked_assignments');
+                                }
+
+                                return $descriptions;
+                            })
+                            // Clasele oferite profesorilor (secțiunea de mai jos) urmează bifele
+                            // în timp real; tot aici, plasa de siguranță: orice stare venită din
+                            // client fără treptele blocate le primește înapoi — protecția nu
+                            // depinde de ce a lăsat browserul să se debifeze.
+                            ->live()
+                            ->afterStateUpdated(static function (Set $set, ?Model $record, mixed $state): void {
+                                if (! $record instanceof Subject) {
+                                    return;
+                                }
+
+                                $current = collect(is_array($state) ? $state : [])
+                                    ->filter(static fn (mixed $grade): bool => is_numeric($grade))
+                                    ->map(static fn (mixed $grade): int => (int) $grade)
+                                    ->unique()->values()->all();
+
+                                $missing = array_values(array_diff(self::lockedGrades($record), $current));
+
+                                if ($missing !== []) {
+                                    $merged = [...$current, ...$missing];
+                                    sort($merged);
+                                    $set('grade_levels', $merged);
+                                }
+                            })
                             // ⚠️ Regula `in:` implicită ia DOAR opțiunile active — o treaptă
                             // blocată-dar-bifată ar pica la salvare exact pentru că e protejată.
                             // Explicit: orice treaptă din structură e o valoare validă.
@@ -173,6 +227,101 @@ class SubjectForm
                                         }
                                     }
                                 },
+                            ]),
+                    ]),
+
+                Section::make(__('panel.forms.subject.section_teachers'))
+                    ->description(__('panel.forms.subject.section_teachers_hint'))
+                    ->schema([
+                        // ECHIPA disciplinei, per profesor (cerința beneficiarului, 07.08.2026):
+                        // fiecare rând = un profesor cu clasele LUI, atât la creare cât și la
+                        // editare. Starea NU se dehidratează pe model (alocările nu-s coloane pe
+                        // subjects) — paginile o citesc din formular și o duc în
+                        // {@see \App\Actions\SyncSubjectTeachers} (diff pe anul curent:
+                        // creare / restaurare geamăn arhivat / retragere soft).
+                        Repeater::make('teachers')
+                            ->hiddenLabel()
+                            ->validationAttribute(__('panel.forms.subject.section_teachers'))
+                            ->dehydrated(false)
+                            ->defaultItems(0)
+                            ->reorderable(false)
+                            ->addActionLabel(__('panel.forms.subject.teachers_add'))
+                            ->itemLabel(static fn (array $state): ?string => is_numeric($state['teacher_id'] ?? null)
+                                ? (self::teacherOptions()[(int) $state['teacher_id']] ?? null)
+                                : null)
+                            ->rules([
+                                // Același profesor (cu aceeași grupă) de două ori = două rânduri
+                                // care s-ar sincroniza unul peste altul — refuzat cu mesaj, nu
+                                // rezolvat tăcut prin „câștigă ultimul".
+                                static fn (): Closure => static function (string $attribute, mixed $value, Closure $fail): void {
+                                    $seen = [];
+
+                                    foreach (is_array($value) ? $value : [] as $row) {
+                                        if (! is_array($row) || ! is_numeric($row['teacher_id'] ?? null)) {
+                                            continue;
+                                        }
+
+                                        $group = is_numeric($row['english_group'] ?? null)
+                                            ? (int) $row['english_group']
+                                            : '';
+                                        $key = ((int) $row['teacher_id']).'|'.$group;
+
+                                        if (isset($seen[$key])) {
+                                            $fail(__('panel.validation.subject.teachers_duplicate'));
+
+                                            return;
+                                        }
+
+                                        $seen[$key] = true;
+                                    }
+                                },
+                            ])
+                            ->schema([
+                                Select::make('teacher_id')
+                                    ->label(__('panel.fields.teacher'))
+                                    ->options(self::teacherOptions())
+                                    ->searchable()
+                                    ->required()
+                                    ->live(),
+                                // Grupa există DOAR la limba engleză (singura disciplină pe
+                                // grupe). Numele e live — secțiunea reacționează și la creare,
+                                // înainte ca fișa să existe. Un profesor cu grupe diferite în
+                                // clase diferite = două rânduri (grupa e a perechii, nu a lui).
+                                TextInput::make('english_group')
+                                    ->label(__('panel.forms.teaching_assignment.english_group'))
+                                    ->helperText(__('panel.forms.teaching_assignment.english_group_hint'))
+                                    ->numeric()
+                                    ->minValue(1)
+                                    ->maxValue(9)
+                                    ->visible(static fn (Get $get): bool => self::isEnglishName((string) $get('../../name'))),
+                                CheckboxList::make('class_ids')
+                                    ->label(__('panel.forms.subject.teacher_classes'))
+                                    // DOAR clasele ANULUI CURENT de pe treptele bifate mai sus —
+                                    // lista urmează bifele în timp real (grade_levels e live).
+                                    ->options(static fn (Get $get): array => self::classOptionsForLevels($get('../../grade_levels')))
+                                    ->columns(['default' => 2, 'xl' => 3])
+                                    ->bulkToggleable()
+                                    ->searchable()
+                                    ->required()
+                                    ->validationAttribute(__('panel.forms.subject.teacher_classes'))
+                                    ->helperText(static fn (Get $get): ?string => self::classOptionsForLevels($get('../../grade_levels')) === []
+                                        ? (string) __('panel.forms.subject.teacher_classes_empty')
+                                        : null)
+                                    ->rules([
+                                        // Dublura pe SERVER a listei filtrate (payload forjat):
+                                        // clasa din alt an sau de pe o treaptă nebifată nu trece.
+                                        static fn (Get $get): Closure => static function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                                            $allowed = self::classOptionsForLevels($get('../../grade_levels'));
+
+                                            foreach (is_array($value) ? $value : [] as $classId) {
+                                                if (! is_numeric($classId) || ! array_key_exists((int) $classId, $allowed)) {
+                                                    $fail(__('panel.validation.lesson.subject_outside_grade'));
+
+                                                    return;
+                                                }
+                                            }
+                                        },
+                                    ]),
                             ]),
                     ]),
 
@@ -246,24 +395,25 @@ class SubjectForm
     }
 
     /**
-     * Treptele BLOCATE la debifare pe disciplina editată: cele din setul salvat care au deja
-     * istoric — alocări didactice sau note (prin treapta clasei). Scoase din set, orarul,
-     * catalogul și mediile de acolo ar rămâne legate de o disciplină care „nu se mai predă"
-     * la clasa lor.
+     * Treptele BLOCATE la debifare pe disciplina editată, ÎMPĂRȚITE după ce le ține pe loc:
+     * `history` = note sau absențe în catalog (definitiv — istoricul nu se rescrie);
+     * `assignments` = doar alocări didactice active (eliberabile: retragi clasele profesorului
+     * din secțiunea de mai jos și treapta se deschide). Împărțirea hrănește explicațiile de sub
+     * opțiunile dezactivate — un blocaj mut se citea ca defect (raportat 07.08.2026).
      *
      * O treaptă cu istoric aflată ÎN AFARA setului salvat (stare moștenită) NU se blochează —
      * ea nu e bifată, iar dezactivarea ei ar împiedica exact re-adăugarea care ar repara datele.
      *
-     * Memoizat pe INSTANȚA recordului (WeakMap): `disableOptionWhen` evaluează închiderea pentru
-     * fiecare din cele 12 opțiuni — fără memoizare ar însemna 24 de interogări la o singură
-     * randare. NU pe id: sub RefreshDatabase id-urile se refolosesc între teste, iar un cache
-     * static pe id ar servi istoricul altei discipline (leak clasic de proces lung).
+     * Memoizat pe INSTANȚA recordului (WeakMap): `disableOptionWhen` + `descriptions` evaluează
+     * închiderile pentru fiecare din cele 12 opțiuni — fără memoizare ar însemna zeci de
+     * interogări la o singură randare. NU pe id: sub RefreshDatabase id-urile se refolosesc
+     * între teste, iar un cache static pe id ar servi istoricul altei discipline.
      *
-     * @return list<int>
+     * @return array{history: list<int>, assignments: list<int>}
      */
-    private static function lockedGrades(Subject $record): array
+    private static function lockedGradeDetails(Subject $record): array
     {
-        /** @var WeakMap<Subject, list<int>>|null $cache */
+        /** @var WeakMap<Subject, array{history: list<int>, assignments: list<int>}>|null $cache */
         static $cache = null;
 
         $cache ??= new WeakMap;
@@ -273,6 +423,7 @@ class SubjectForm
         }
 
         $key = (int) $record->getKey();
+        $marked = $record->gradeLevelList() ?? range(SchoolCycle::MIN_GRADE_LEVEL, SchoolCycle::MAX_GRADE_LEVEL);
 
         $assignmentGrades = TeachingAssignment::query()
             ->where('subject_id', $key)
@@ -288,13 +439,107 @@ class SubjectForm
             ->distinct()
             ->pluck('school_classes.grade_level');
 
-        $history = $assignmentGrades->merge($gradeGrades)
+        $absenceGrades = Absence::withTrashed()
+            ->where('absences.subject_id', $key)
+            ->join('school_classes', 'school_classes.id', '=', 'absences.school_class_id')
+            ->whereNotNull('school_classes.grade_level')
+            ->distinct()
+            ->pluck('school_classes.grade_level');
+
+        $history = $gradeGrades->merge($absenceGrades)
             ->map(static fn ($grade): int => (int) $grade)
+            ->unique()->sort()->values();
+
+        $assignments = $assignmentGrades
+            ->map(static fn ($grade): int => (int) $grade)
+            ->unique()->sort()->values()
+            ->reject(static fn (int $grade): bool => $history->contains($grade));
+
+        return $cache[$record] = [
+            'history' => array_values(array_intersect($marked, $history->all())),
+            'assignments' => array_values(array_intersect($marked, $assignments->values()->all())),
+        ];
+    }
+
+    /**
+     * Reuniunea treptelor blocate — forma cerută de gardă (`disableOptionWhen`, plasa din
+     * `afterStateUpdated` și dublura de pe server).
+     *
+     * @return list<int>
+     */
+    private static function lockedGrades(Subject $record): array
+    {
+        $details = self::lockedGradeDetails($record);
+
+        $locked = [...$details['history'], ...$details['assignments']];
+        sort($locked);
+
+        return $locked;
+    }
+
+    /** Aceeași lectură ca {@see Subject::isEnglishLanguage}, dar pe numele DIN FORMULAR — la creare fișa nu există încă. */
+    private static function isEnglishName(string $name): bool
+    {
+        return str_contains(mb_strtolower($name), 'englez');
+    }
+
+    /**
+     * Profesorii, ca opțiuni — inclusiv fișele arhivate (o alocare vie poate arăta spre una),
+     * marcate ca atare. Memoizat cu `once()` — repeater-ul cere lista pentru FIECARE rând la
+     * fiecare randare (opțiuni + itemLabel), iar `once()` se golește între teste și requesturi
+     * (un `static` clasic ar servi profesorii altui test sub RefreshDatabase).
+     *
+     * @return array<int, string>
+     */
+    private static function teacherOptions(): array
+    {
+        return once(static fn (): array => Teacher::withTrashed()
+            ->orderBy('last_name')->orderBy('first_name')
+            ->get()
+            ->mapWithKeys(static fn (Teacher $teacher): array => [
+                (int) $teacher->getKey() => $teacher->trashed()
+                    ? $teacher->full_name.' ('.__('panel.forms.subject.teacher_archived').')'
+                    : $teacher->full_name,
+            ])
+            ->all());
+    }
+
+    /**
+     * Clasele ANULUI CURENT de pe treptele date („5A · V"), pentru lista de clase a unui rând de
+     * profesor. Memoizat cu `once()` pe semnătura treptelor (variabila capturată intră în cheia
+     * memoizării): aceeași listă se cere pentru fiecare rând — opțiuni + validare + helper —
+     * la fiecare randare.
+     *
+     * @return array<int, string>
+     */
+    private static function classOptionsForLevels(mixed $levels): array
+    {
+        $levels = collect(is_array($levels) ? $levels : [])
+            ->filter(static fn (mixed $grade): bool => is_numeric($grade))
+            ->map(static fn (mixed $grade): int => (int) $grade)
             ->unique()->sort()->values()->all();
 
-        return $cache[$record] = array_values(array_intersect(
-            $record->gradeLevelList() ?? range(SchoolCycle::MIN_GRADE_LEVEL, SchoolCycle::MAX_GRADE_LEVEL),
-            $history,
-        ));
+        if ($levels === []) {
+            return [];
+        }
+
+        return once(static function () use ($levels): array {
+            $yearId = AcademicYear::query()->where('is_current', true)->value('id');
+
+            if ($yearId === null) {
+                return [];
+            }
+
+            return SchoolClass::query()
+                ->where('academic_year_id', $yearId)
+                ->whereIn('grade_level', $levels)
+                ->orderBy('grade_level')->orderBy('name')->orderBy('section')
+                ->get()
+                ->mapWithKeys(static fn (SchoolClass $class): array => [
+                    (int) $class->getKey() => trim($class->name.' '.($class->section ?? ''))
+                        .' · '.GradeLevels::roman((int) $class->grade_level),
+                ])
+                ->all();
+        });
     }
 }
