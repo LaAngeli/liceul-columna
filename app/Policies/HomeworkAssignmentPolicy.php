@@ -42,19 +42,26 @@ class HomeworkAssignmentPolicy
     }
 
     /**
-     * Tema vizează exact clasa de dirigenție a userului (treaptă + literă)? Temele pe TOATĂ
-     * treapta (litera goală) NU intră: ar afecta și clasele altor diriginți — rămân pe
-     * autor/administrație.
+     * Tema vizează exact clasa de dirigenție a userului? Temele pe TOATĂ treapta NU intră: ar
+     * afecta și clasele altor diriginți — rămân pe autor/administrație.
+     *
+     * Când tema poartă clasa (de la 2026-08-07), răspunsul e o comparație de id-uri — inclusiv
+     * pentru clasele fără literă, pe care regula veche le refuza pentru că perechea era ambiguă.
+     * Fără clasă se cade pe pereche, unde litera goală rămâne „toată treapta".
      */
     private function isHomeroomTeacherOfClass(User $user, HomeworkAssignment $homework): bool
     {
-        if ($homework->section === null) {
-            return false;
-        }
-
         $classIds = $user->contextHomeroomClassIds();
 
         if ($classIds === []) {
+            return false;
+        }
+
+        if ($homework->school_class_id !== null) {
+            return in_array((int) $homework->school_class_id, array_map(intval(...), $classIds), true);
+        }
+
+        if ($homework->section === null) {
             return false;
         }
 

@@ -6,11 +6,13 @@ use App\Console\Commands\SendHomeworkDigest;
 use App\Observers\HomeworkAssignmentObserver;
 use Database\Factories\HomeworkAssignmentFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -51,6 +53,7 @@ class HomeworkAssignment extends Model implements Auditable
     protected $fillable = [
         'subject_id',
         'teacher_id',
+        'school_class_id',
         'subject_name',
         'author_name',
         'grade_level',
@@ -95,6 +98,61 @@ class HomeworkAssignment extends Model implements Auditable
     }
 
     /**
+     * Temele care se adresează unei CLASE — regula de potrivire, într-un singur loc.
+     *
+     * Două ramuri, ambele necesare:
+     *   • `school_class_id` = clasa → ținta EXACTĂ (temele scrise de la 2026-08-07 încoace);
+     *   • fără clasă → se cade pe (treaptă, literă), care acoperă temele pe TOATĂ treapta
+     *     (literă NULL, dreptul administrației) și rândurile vechi pe care backfill-ul nu le-a
+     *     putut rezolva.
+     *
+     * Prima ramură e cea care închide scurgerea între clasele omonime din ani diferiți: perechea
+     * (treaptă, literă) nu mai e unică de când există al doilea an școlar.
+     *
+     * @param  Builder<HomeworkAssignment>  $query
+     * @return Builder<HomeworkAssignment>
+     */
+    public function scopeForClass(Builder $query, SchoolClass $class): Builder
+    {
+        return $query->where(function (Builder $inner) use ($class): void {
+            $inner->where('school_class_id', $class->id)
+                ->orWhere(function (Builder $legacy) use ($class): void {
+                    $legacy->whereNull('school_class_id')
+                        ->where('grade_level', (int) $class->grade_level)
+                        ->where(function (Builder $section) use ($class): void {
+                            $section->whereNull('section');
+
+                            if ($class->section !== null) {
+                                $section->orWhere('section', $class->section);
+                            }
+                        });
+                });
+        });
+    }
+
+    /**
+     * ACEEAȘI regulă ca {@see scopeForClass}, dar exprimată între COLOANE — pentru interogările în
+     * care clasa vine dintr-un join corelat (`whereExists` peste `school_classes`), nu ca obiect.
+     * Traducerea, nu o a doua regulă: dacă una se schimbă, se schimbă amândouă, aici, alături.
+     *
+     * @param  QueryBuilder  $query  interogarea în care `$classAlias` e tabelul claselor
+     */
+    public static function constrainByClassColumns(QueryBuilder $query, string $classAlias): void
+    {
+        $query->where(function (QueryBuilder $inner) use ($classAlias): void {
+            $inner->whereColumn($classAlias.'.id', 'homework_assignments.school_class_id')
+                ->orWhere(function (QueryBuilder $legacy) use ($classAlias): void {
+                    $legacy->whereNull('homework_assignments.school_class_id')
+                        ->whereColumn($classAlias.'.grade_level', 'homework_assignments.grade_level')
+                        ->where(function (QueryBuilder $section) use ($classAlias): void {
+                            $section->whereNull('homework_assignments.section')
+                                ->orWhereColumn($classAlias.'.section', 'homework_assignments.section');
+                        });
+                });
+        });
+    }
+
+    /**
      * Poate FAMILIA acestui utilizator să vadă tema? Elevul propriu (contul lui) sau copiii aflați
      * în tutelă — pe CLASA CURENTĂ, exact criteriul listării temelor în cabinet (vizibilitatea
      * clasă×disciplină din #homework-visibility). Sursa unică a regulii: o folosesc descărcarea
@@ -110,11 +168,13 @@ class HomeworkAssignment extends Model implements Auditable
         foreach ($students as $student) {
             $class = $student->currentSchoolClass();
 
-            if ($class === null || (int) $class->grade_level !== (int) $this->grade_level) {
+            if ($class === null) {
                 continue;
             }
 
-            if ($this->section === null || $class->section === $this->section) {
+            // Aceeași regulă ca listarea — prin scope, ca să nu existe două definiții ale
+            // apartenenței (una pentru afișare, alta pentru acces la fișiere).
+            if (self::query()->whereKey($this->getKey())->forClass($class)->exists()) {
                 return true;
             }
         }
@@ -155,6 +215,16 @@ class HomeworkAssignment extends Model implements Auditable
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(Teacher::class)->withTrashed();
+    }
+
+    /**
+     * Clasa vizată; null la temele pe toată treapta și la rândurile vechi.
+     *
+     * @return BelongsTo<SchoolClass, $this>
+     */
+    public function schoolClass(): BelongsTo
+    {
+        return $this->belongsTo(SchoolClass::class)->withTrashed();
     }
 
     /** @return HasMany<HomeworkCorrection, $this> */

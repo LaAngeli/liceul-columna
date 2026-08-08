@@ -146,6 +146,10 @@ trait EnforcesHomeworkScope
         }
 
         // ── Câmpuri derivate ────────────────────────────────────────────────────────────────
+        // Ținta EXACTĂ, alături de pereche: `$classId` e chiar clasa pe care tocmai am verificat
+        // dreptul de a preda — de acum tema o și poartă, deci ținta și permisiunea vorbesc aceeași
+        // cheie. NULL = temă pe toată treapta (administrația), unde perechea rămâne singura țintă.
+        $data['school_class_id'] = $classId;
         $data['subject_name'] = Subject::query()->whereKey($subjectId)->value('name') ?? '';
 
         if ($creating) {

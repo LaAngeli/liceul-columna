@@ -32,14 +32,22 @@ class EditHomeworkAssignment extends EditRecord
     }
 
     /**
-     * Ținta stocată (treaptă + literă) → câmpul unic al formularului. Secția NULL = toată
-     * treapta; o secție istorică se mapează pe clasa reală cu acea pereche (cel mai recent an).
+     * Ținta stocată → câmpul unic al formularului. Clasa salvată pe temă e răspunsul EXACT; fără
+     * ea se cade pe pereche, unde secția NULL = toată treapta, iar o secție istorică se mapează pe
+     * clasa cu acea pereche din cel mai recent an — ghicit care, pentru clasele omonime, putea
+     * re-ținta tăcut tema la salvare. De aceea coloana: aici se vede cel mai clar de ce lipsea.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     protected function mutateFormDataBeforeFill(array $data): array
     {
+        if (($data['school_class_id'] ?? null) !== null) {
+            $data['class_target'] = 'class:'.(int) $data['school_class_id'];
+
+            return $data;
+        }
+
         $section = $data['section'] ?? null;
         $gradeLevel = (int) ($data['grade_level'] ?? 0);
 

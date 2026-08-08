@@ -6,6 +6,7 @@ use App\Filament\Concerns\HasCatalogNavigator;
 use App\Filament\Concerns\HasTimeNavigator;
 use App\Filament\Contracts\CatalogNavigator;
 use App\Filament\Resources\HomeworkAssignments\HomeworkAssignmentResource;
+use App\Models\HomeworkAssignment;
 use App\Models\SchoolClass;
 use App\Models\Term;
 use Filament\Actions\CreateAction;
@@ -17,10 +18,10 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Pagina „Teme" folosește navigatorul drill-down, ADAPTAT modelului temelor: tema țintește o
- * treaptă + literă (nu un school_class_id) și nu are semestru — deci dimensiunile sunt Clase /
- * Discipline / Profesori (fără „Perioade"), iar constrângerea de clasă se traduce în
- * (grade_level, section), incluzând temele date pe TOATĂ treapta (litera goală).
+ * Pagina „Teme" folosește navigatorul drill-down, ADAPTAT modelului temelor: tema nu are semestru
+ * — deci dimensiunile sunt Clase / Discipline / Profesori (fără „Perioade") — iar ținta ei e clasa
+ * (`school_class_id`) SAU, la temele pe toată treapta și la rândurile vechi, perechea
+ * (grade_level, section). Ambele găleți se adună în agregatele și cipurile de mai jos.
  *
  * TIMPUL e a doua axă ({@see HasTimeNavigator}): bara Toate / Zi / Săptămână / Lună filtrează
  * pe DATA LECȚIEI (assigned_on) — axa unică după eliminarea „termenului" (2026-07-31).
@@ -86,8 +87,8 @@ class ListHomeworkAssignments extends ListRecords implements CatalogNavigator
     }
 
     /**
-     * Clasa contextului → (treaptă, literă): tema clasei = tema cu litera ei SAU pe toată treapta
-     * (litera goală). O clasă fără literă acceptă doar temele fără literă.
+     * Clasa contextului: tema ei EXACTĂ (school_class_id) sau, pentru rândurile fără clasă, cele
+     * pe toată treapta. Regula trăiește într-un singur loc — scope-ul modelului.
      *
      * @param  Builder<Model>  $query
      */
@@ -97,15 +98,8 @@ class ListHomeworkAssignments extends ListRecords implements CatalogNavigator
             return;
         }
 
-        $query
-            ->where('grade_level', (int) $class->grade_level)
-            ->where(function (Builder $q) use ($class) {
-                $q->whereNull('section');
-
-                if ($class->section !== null) {
-                    $q->orWhere('section', $class->section);
-                }
-            });
+        /** @var Builder<HomeworkAssignment> $query */
+        $query->forClass($class);
     }
 
     /**
@@ -128,15 +122,27 @@ class ListHomeworkAssignments extends ListRecords implements CatalogNavigator
     }
 
     /**
-     * Agregatele cardurilor de clasă: numărate pe (treaptă, literă) și mapate înapoi pe clasele
-     * navigabile — tema pe toată treapta contribuie la FIECARE clasă a treptei.
+     * Agregatele cardurilor de clasă, din DOUĂ găleți care se adună:
+     *   • temele cu clasă → numărate pe `school_class_id`, exact clasa lor;
+     *   • temele fără clasă → pe (treaptă, literă), mapate pe clasele navigabile; cele pe toată
+     *     treapta contribuie la FIECARE clasă a treptei.
+     * Separarea e ce împiedică cardurile claselor omonime din ani diferiți să afișeze același număr.
      *
      * @return Collection<int|string, \stdClass>
      */
     protected function classAggregates(): Collection
     {
+        $byClass = $this->catalogCountableQuery()
+            ->toBase()
+            ->whereNotNull('school_class_id')
+            ->selectRaw('school_class_id, COUNT(*) AS aggregate, MAX(assigned_on) AS last_on')
+            ->groupBy('school_class_id')
+            ->get()
+            ->keyBy('school_class_id');
+
         $rows = $this->catalogCountableQuery()
             ->toBase()
+            ->whereNull('school_class_id')
             ->selectRaw('grade_level, section, COUNT(*) AS aggregate, MAX(assigned_on) AS last_on')
             ->groupBy('grade_level', 'section')
             ->get();
@@ -152,18 +158,21 @@ class ListHomeworkAssignments extends ListRecords implements CatalogNavigator
         $aggregates = collect();
 
         foreach ($this->navigatorClasses() as $class) {
+            $exact = $byClass[(int) $class->id] ?? null;
             $own = $byPair[$class->grade_level.'|'.($class->section ?? '')] ?? null;
             // Bucket-ul „toată treapta" se adaugă doar claselor CU literă (cele fără literă SUNT bucketul).
             $wholeGrade = $class->section !== null ? ($byPair[$class->grade_level.'|'] ?? null) : null;
 
-            if ($own === null && $wholeGrade === null) {
+            if ($exact === null && $own === null && $wholeGrade === null) {
                 continue;
             }
 
-            $lastDates = array_filter([$own->last_on ?? null, $wholeGrade->last_on ?? null]);
+            $lastDates = array_filter([$exact->last_on ?? null, $own->last_on ?? null, $wholeGrade->last_on ?? null]);
 
             $aggregates->put((int) $class->id, (object) [
-                'aggregate' => (int) ($own->aggregate ?? 0) + (int) ($wholeGrade->aggregate ?? 0),
+                'aggregate' => (int) ($exact->aggregate ?? 0)
+                    + (int) ($own->aggregate ?? 0)
+                    + (int) ($wholeGrade->aggregate ?? 0),
                 'last_on' => $lastDates === [] ? null : max($lastDates),
             ]);
         }
@@ -172,7 +181,8 @@ class ListHomeworkAssignments extends ListRecords implements CatalogNavigator
     }
 
     /**
-     * Grupul-țintă distinct al unei teme = perechea treaptă+literă (nu un id de clasă).
+     * Grupul-țintă distinct al unei teme: clasa, când o poartă, altfel perechea treaptă+literă.
+     * COALESCE alege prima ramură pentru că, la ambele motoare, concatenarea cu NULL dă NULL.
      *
      * @return literal-string
      */
@@ -180,8 +190,8 @@ class ListHomeworkAssignments extends ListRecords implements CatalogNavigator
     {
         // Concatenare portabilă: SQLite folosește `||`, MySQL — CONCAT().
         return DB::connection()->getDriverName() === 'sqlite'
-            ? "(grade_level || '|' || COALESCE(section, ''))"
-            : "CONCAT(grade_level, '|', COALESCE(section, ''))";
+            ? "COALESCE('c' || school_class_id, grade_level || '|' || COALESCE(section, ''))"
+            : "COALESCE(CONCAT('c', school_class_id), CONCAT(grade_level, '|', COALESCE(section, '')))";
     }
 
     /**
@@ -199,9 +209,9 @@ class ListHomeworkAssignments extends ListRecords implements CatalogNavigator
         $query = $this->catalogCountableQuery();
         $constraint($query);
 
-        $pairs = $query
+        $targets = $query
             ->toBase()
-            ->selectRaw('DISTINCT grade_level, section')
+            ->selectRaw('DISTINCT school_class_id, grade_level, section')
             ->get();
 
         $chips = [];
@@ -209,13 +219,17 @@ class ListHomeworkAssignments extends ListRecords implements CatalogNavigator
         foreach ($this->navigatorClasses() as $class) {
             $eligible = in_array((int) $class->id, $extraClassIds, true);
 
-            foreach ($pairs as $pair) {
+            foreach ($targets as $target) {
                 if ($eligible) {
                     break;
                 }
 
-                $eligible = (int) $pair->grade_level === (int) $class->grade_level
-                    && ($pair->section === null || $pair->section === $class->section);
+                // Tema cu clasă aprinde EXACT clasa ei; cea fără clasă, perechea (litera goală =
+                // toată treapta). Aceeași ramificare ca scopul modelului.
+                $eligible = $target->school_class_id !== null
+                    ? (int) $target->school_class_id === (int) $class->id
+                    : (int) $target->grade_level === (int) $class->grade_level
+                        && ($target->section === null || $target->section === $class->section);
             }
 
             if ($eligible) {

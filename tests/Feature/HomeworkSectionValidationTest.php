@@ -111,6 +111,8 @@ it('crearea pe perechea proprie reușește: treapta+litera derivă din clasă, a
 
     expect($homework->grade_level)->toBe(7)
         ->and($homework->section)->toBe('1')
+        // Ținta EXACTĂ, alături de pereche: clasa pe care s-a verificat dreptul e clasa salvată.
+        ->and($homework->school_class_id)->toBe($this->class->id)
         ->and($homework->teacher_id)->toBe($this->teacher->id)
         ->and($homework->author_name)->toBe($this->teacher->full_name)
         ->and($homework->subject_name)->toBe($this->subject->name);
@@ -314,6 +316,8 @@ it('administrația poate da temă pentru toată treapta, iar secția intră NULL
 
     // NULL strict — cabinetul, scoping-ul resursei și navigatorul caută whereNull('section').
     expect($homework->section)->toBeNull()
+        // Fără clasă: ținta e treapta ÎNTREAGĂ, deci perechea rămâne singurul criteriu.
+        ->and($homework->school_class_id)->toBeNull()
         ->and($homework->grade_level)->toBe(7)
         ->and($homework->teacher_id)->toBeNull()
         ->and($homework->author_name)->not->toBeNull()

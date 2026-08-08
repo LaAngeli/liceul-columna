@@ -451,6 +451,8 @@ class SeedDemoTimeline extends Command
                     'subject_name' => $subjectName,
                     // Numele autorului, salvat ca TEXT — vezi `teacherName()`.
                     'author_name' => $this->teacherName((int) $assignment['teacher_id']),
+                    // Ținta EXACTĂ (vezi HomeworkAssignment::scopeForClass).
+                    'school_class_id' => $class['id'],
                     'grade_level' => $class['grade_level'],
                     'section' => $class['section'],
                     'assigned_on' => $from->copy()->addDays(random_int(0, $span))->toDateString(),

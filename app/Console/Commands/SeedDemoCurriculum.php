@@ -1133,6 +1133,8 @@ class SeedDemoCurriculum extends Command
                 // Numele autorului, salvat ca TEXT — vezi `teacherName()`: `teacher_id` se pierde
                 // la ștergerea fișei (FK ON DELETE SET NULL), numele rămâne.
                 'author_name' => $this->teacherName((int) $assignment['teacher_id']),
+                // Ținta EXACTĂ: fără ea, tema clasei demo apărea și la clasa omonimă din alt an.
+                'school_class_id' => $class['id'],
                 'grade_level' => $class['grade_level'],
                 'section' => $class['section'],
                 'assigned_on' => Carbon::today()->subDays(random_int(0, 20))->toDateString(),

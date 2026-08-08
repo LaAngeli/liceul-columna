@@ -60,6 +60,7 @@ class CalendarDemoSeeder extends Seeder
                 'subject_id' => $subject?->id,
                 'subject_name' => $subjectName,
                 'author_name' => 'Demo',
+                'school_class_id' => $class->id,
                 'grade_level' => $class->grade_level,
                 'section' => $class->section,
                 'assigned_on' => $on($day),

@@ -983,11 +983,7 @@ trait BuildsStudentCatalogData
         // TIMPUL e axa: temele pe DATA LECȚIEI (assigned_on — axa unică după eliminarea
         // „termenului", 2026-07-31): cele de azi/viitor vin TOATE, cronologic ASC — elevul vede
         // întâi ce urmează; istoricul recent (DESC) vine separat, limitat, și e pliat în UI.
-        $base = fn (): Builder => HomeworkAssignment::query()
-            ->where('grade_level', $class->grade_level)
-            ->where(function (Builder $query) use ($class): void {
-                $query->where('section', $class->section)->orWhereNull('section');
-            });
+        $base = fn (): Builder => HomeworkAssignment::query()->forClass($class);
 
         // Ziua ȘCOLII, nu UTC (regula de fus a proiectului): `today()` e cu 2–3 ore în urmă, deci
         // între 00:00 și 03:00 ora Chișinăului temele DE AZI cădeau în „viitor", iar fereastra
@@ -1018,9 +1014,9 @@ trait BuildsStudentCatalogData
      * ar întoarce gol chiar dacă tema există. Volumul e mic per clasă (~230 teme/an), deci se
      * încarcă o dată și se filtrează client-side, ca la {@see gradeBook}/{@see absenceOverview}.
      *
-     * Mărginit inferior la începutul anului școlar: temele nu au `academic_year_id` (se leagă pe
-     * grade_level+section), iar aceeași clasă „VII 1" există în fiecare an — fără limită am amesteca
-     * anii.
+     * Mărginit inferior la începutul anului școlar: temele nu au `academic_year_id`, iar rândurile
+     * vechi (fără `school_class_id`) se leagă tot pe grade_level+section, aceeași în fiecare an —
+     * fără limită am amesteca anii.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -1036,10 +1032,7 @@ trait BuildsStudentCatalogData
         $yearStart = $this->currentAcademicYearStart();
 
         $base = fn (): Builder => HomeworkAssignment::query()
-            ->where('grade_level', $class->grade_level)
-            ->where(function (Builder $query) use ($class): void {
-                $query->where('section', $class->section)->orWhereNull('section');
-            })
+            ->forClass($class)
             ->when($yearStart !== null, fn (Builder $query) => $query->where('assigned_on', '>=', $yearStart));
 
         // CRONOLOGIC DESCRESCĂTOR, o singură ordine: vederea grupează pe discipline, iar în fiecare

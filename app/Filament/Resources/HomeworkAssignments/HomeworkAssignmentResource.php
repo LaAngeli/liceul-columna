@@ -170,12 +170,9 @@ class HomeworkAssignmentResource extends Resource
                 $q->orWhereExists(function (QueryBuilder $sub) use ($homeroomClassIds) {
                     $sub->selectRaw('1')
                         ->from('school_classes as sc')
-                        ->whereIn('sc.id', $homeroomClassIds)
-                        ->whereColumn('sc.grade_level', 'homework_assignments.grade_level')
-                        ->where(function (QueryBuilder $w) {
-                            $w->whereColumn('sc.section', 'homework_assignments.section')
-                                ->orWhereNull('homework_assignments.section');
-                        });
+                        ->whereIn('sc.id', $homeroomClassIds);
+
+                    HomeworkAssignment::constrainByClassColumns($sub, 'sc');
                 });
             }
 
@@ -187,12 +184,9 @@ class HomeworkAssignmentResource extends Resource
                         ->where('ta.teacher_id', $teacher->id)
                         ->whereNull('ta.deleted_at')
                         // Disciplina e condiția care lipsea — inima alinierii.
-                        ->whereColumn('ta.subject_id', 'homework_assignments.subject_id')
-                        ->whereColumn('sc.grade_level', 'homework_assignments.grade_level')
-                        ->where(function (QueryBuilder $w) {
-                            $w->whereColumn('sc.section', 'homework_assignments.section')
-                                ->orWhereNull('homework_assignments.section');
-                        });
+                        ->whereColumn('ta.subject_id', 'homework_assignments.subject_id');
+
+                    HomeworkAssignment::constrainByClassColumns($sub, 'sc');
                 });
             }
         });

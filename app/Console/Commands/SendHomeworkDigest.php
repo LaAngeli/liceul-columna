@@ -35,23 +35,35 @@ class SendHomeworkDigest extends Command
 
         $notified = 0;
 
-        // Grupează pe clasă (treaptă + literă) → un singur digest per clasă.
+        // Grupează pe clasă → un singur digest per clasă. Cheia e `school_class_id` când tema o
+        // poartă (ținta exactă) și perechea treaptă+literă doar pentru temele pe toată treapta și
+        // rândurile vechi — acolo clasa se caută, cu riscul asumat al claselor omonime.
         $groups = $homework->groupBy(
-            static fn (HomeworkAssignment $item): string => $item->grade_level.'|'.($item->section ?? ''),
+            static fn (HomeworkAssignment $item): string => $item->school_class_id !== null
+                ? 'c'.$item->school_class_id
+                : $item->grade_level.'|'.($item->section ?? ''),
         );
 
         foreach ($groups as $key => $items) {
-            [$gradeLevel, $section] = explode('|', (string) $key, 2);
+            $key = (string) $key;
 
-            $class = SchoolClass::query()
-                ->where('grade_level', (int) $gradeLevel)
-                ->when(
-                    $section === '',
-                    fn ($query) => $query->whereNull('section'),
-                    fn ($query) => $query->where('section', $section),
-                )
-                ->latest('academic_year_id')
-                ->first();
+            if (str_starts_with($key, 'c')) {
+                $class = SchoolClass::query()->find((int) substr($key, 1));
+                $gradeLevel = (string) ($class->grade_level ?? '');
+                $section = (string) ($class->section ?? '');
+            } else {
+                [$gradeLevel, $section] = explode('|', $key, 2);
+
+                $class = SchoolClass::query()
+                    ->where('grade_level', (int) $gradeLevel)
+                    ->when(
+                        $section === '',
+                        fn ($query) => $query->whereNull('section'),
+                        fn ($query) => $query->where('section', $section),
+                    )
+                    ->latest('academic_year_id')
+                    ->first();
+            }
 
             if ($class === null) {
                 continue;

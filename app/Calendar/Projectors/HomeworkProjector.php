@@ -33,14 +33,8 @@ class HomeworkProjector implements CalendarProjector
             // Tema se proiectează pe DATA LECȚIEI (assigned_on) — axa unică a modulului după
             // eliminarea „termenului" (2026-07-31).
             $query = HomeworkAssignment::query()
-                ->where('grade_level', $class->grade_level)
+                ->forClass($class)
                 ->whereBetween('assigned_on', [$from->toDateString(), $to->toDateString()]);
-
-            if ($class->section === null) {
-                $query->whereNull('section');
-            } else {
-                $query->where('section', $class->section);
-            }
 
             foreach ($query->get() as $homework) {
                 // Garda de transfer: tema îi aparține elevului care era în clasă când s-a dat.

@@ -738,6 +738,7 @@ class DemoTestDataSeeder extends Seeder
                     'teacher_id' => $teacher->id,
                     'subject_name' => $subject->name,
                     'author_name' => $teacher->full_name,
+                    'school_class_id' => $class->id,
                     'grade_level' => $class->grade_level,
                     'section' => $class->section,
                     'assigned_on' => $lessonOn->toDateString(),
