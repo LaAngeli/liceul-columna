@@ -958,7 +958,7 @@ return [
             'rename_translation_body' => 'Dicționarele de traducere sunt cheiate pe numele RO exact — după redenumire, lipsesc traducerile: :locales. Până se adaugă în lang/{ru,en}/subjects.php, cabinetul și site-ul afișează numele RO.',
             'grading_type_short' => 'Mod notare',
             'grade_span' => 'Se predă la clasele',
-            'grade_span_hint' => 'Marchează clasele (I–XII) la care se predă disciplina — nu scara de note (notele sunt 1–10). Treptele pot fi și răzlețe (cu goluri). Treapta blocată își spune motivul chiar sub bifă.',
+            'grade_span_hint' => 'Marchează clasele (I–XII) la care se predă disciplina dată',
             'grade_locked_history' => 'Are note sau absențe în catalog — istoricul o ține marcată.',
             'grade_locked_assignments' => 'Are alocări active — retrage întâi clasele profesorilor (secțiunea „Profesorii disciplinei"), salvează, apoi treapta se deschide.',
             'created_assignments_title' => 'Disciplina a fost creată',

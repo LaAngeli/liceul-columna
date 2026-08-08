@@ -941,7 +941,7 @@ return [
             'rename_translation_title' => 'Subject translations broken',
             'rename_translation_body' => 'Translation dictionaries are keyed on the exact Romanian name — after the rename, translations are missing for: :locales. Until added to lang/{ru,en}/subjects.php, the cabinet and site show the Romanian name.',
             'grade_span' => 'Taught in grades',
-            'grade_span_hint' => 'Mark the grades (I–XII) in which the subject is taught — not the marking scale (marks are 1–10). Grades may be non-contiguous (with gaps). A locked grade explains why right under its checkbox.',
+            'grade_span_hint' => 'Mark the grades (I–XII) in which this subject is taught',
             'grade_locked_history' => 'Has marks or absences in the register — history keeps it marked.',
             'grade_locked_assignments' => 'Has active assignments — first remove the classes from the teachers (the “Subject teachers” section), save, and the grade unlocks.',
             'created_assignments_title' => 'Subject created',
