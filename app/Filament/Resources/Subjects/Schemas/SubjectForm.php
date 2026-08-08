@@ -38,13 +38,24 @@ class SubjectForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            // O SINGURĂ coloană de secțiuni (restructurare 08.08.2026, cerința beneficiarului:
+            // „secțiunile sunt împrăștiate haotic și există foarte multe goluri"). Implicit,
+            // formularul de resursă are 2 coloane, iar secțiunile cădeau alături două câte două,
+            // cu înălțimi foarte diferite — un bloc de 12 bife lângă unul cu un singur select
+            // lăsa jumătate de ecran gol. Acum fiecare secțiune ia toată lățimea, iar densitatea
+            // se face PE ORIZONTALĂ, în interiorul ei.
+            ->columns(1)
             ->components([
+                // Identitatea + clasarea în documente: patru câmpuri scurte, un singur rând pe
+                // ecran lat (2+1+1+2 din 6). „Foaia matricolă" nu mai e secțiune separată —
+                // era o cutie întreagă pentru un singur select, adică exact golul reclamat.
                 Section::make(__('panel.forms.subject.section_identity'))
                     ->description(__('panel.forms.subject.section_identity_hint'))
-                    ->columns(2)
+                    ->columns(['default' => 1, 'md' => 2, 'xl' => 6])
                     ->schema([
                         TextInput::make('name')
                             ->label(__('panel.forms.subject.name'))
+                            ->columnSpan(['md' => 2, 'xl' => 2])
                             ->required()
                             ->maxLength(255)
                             // Numele e cheia dicționarelor RU/EN — spus DINAINTE, nu doar la redenumire.
@@ -60,6 +71,7 @@ class SubjectForm
                         TextInput::make('abbreviation')
                             ->label(__('panel.forms.subject.abbreviation'))
                             ->helperText(__('panel.forms.subject.abbreviation_hint'))
+                            ->columnSpan(['xl' => 1])
                             ->maxLength(30),
                         Select::make('grading_type')
                             ->label(__('panel.forms.subject.grading_type'))
@@ -67,6 +79,7 @@ class SubjectForm
                             ->default(GradingType::Numeric->value)
                             ->required()
                             ->native(false)
+                            ->columnSpan(['xl' => 1])
                             ->helperText(__('panel.forms.subject.grading_type_hint'))
                             // Invariantul „notă SAU calificativ" trăia doar în UI-ul formularului de notă:
                             // comutarea numeric↔calificativ pe o disciplină CU note existente de tip
@@ -95,6 +108,19 @@ class SubjectForm
                                     }
                                 },
                             ]),
+                        // Poziția se ALEGE dintre pozițiile VALIDE (1..N+1) — nu se tastează un
+                        // număr arbitrar. Ocupată = inserare (restul se împing); scrierea reală o
+                        // face Subject::placeInReportOrder (paginile Create/Edit), de aceea câmpul
+                        // NU se dehidratează — nicio stare intermediară cu duplicate.
+                        Select::make('report_order')
+                            ->label(__('panel.forms.subject.report_order_long'))
+                            ->options(static fn (?Model $record): array => self::positionOptions($record))
+                            ->default(static fn (): string => (string) Subject::nextReportOrderPosition())
+                            ->placeholder(__('panel.forms.subject.report_order_unassigned'))
+                            ->native(false)
+                            ->dehydrated(false)
+                            ->columnSpan(['md' => 2, 'xl' => 2])
+                            ->helperText(__('panel.forms.subject.report_order_hint')),
                     ]),
 
                 Section::make(__('panel.forms.subject.section_span'))
@@ -111,7 +137,10 @@ class SubjectForm
                             ->options(SchoolCycle::gradeLevelOptions())
                             // Pe coloane VERTICALE, treptele curg în ordinea ciclurilor: I–IV
                             // (primar) în prima coloană, V–VIII în a doua, IX–XII în a treia.
-                            ->columns(['default' => 2, 'xl' => 3])
+                            // Rămân TREI chiar pe ecran lat: secțiunea ocupă acum toată lățimea,
+                            // deci celulele sunt late, iar explicația unei trepte blocate încape
+                            // pe un rând-două în loc de cinci (înainte se înghesuia în 1/6 de ecran).
+                            ->columns(['default' => 2, 'md' => 3])
                             ->gridDirection('column')
                             // „Selectează/Debifează toate" doar când chiar are pe ce lucra: cu
                             // toate treptele blocate de istoric, linkul era un buton mort —
@@ -245,10 +274,31 @@ class SubjectForm
                             ->dehydrated(false)
                             ->defaultItems(0)
                             ->reorderable(false)
+                            // Rândurile se PLIAZĂ, iar cele existente vin plial: o disciplină
+                            // predată de 4 profesori cu zeci de clase fiecare făcea o secțiune de
+                            // ~2700px (măsurat pe Matematică). Plial, fiecare profesor e un rând
+                            // cu numele lui — se desface doar cel la care lucrezi. Rândul NOU se
+                            // adaugă desfăcut (n-are ce plia: tocmai îl completezi).
+                            ->collapsible()
+                            ->collapsed(static fn (?Model $record): bool => $record instanceof Subject)
                             ->addActionLabel(__('panel.forms.subject.teachers_add'))
-                            ->itemLabel(static fn (array $state): ?string => is_numeric($state['teacher_id'] ?? null)
-                                ? (self::teacherOptions()[(int) $state['teacher_id']] ?? null)
-                                : null)
+                            // Titlul rândului plial trebuie să spună tot ce ai nevoie ca să NU-l
+                            // desfaci: cine e profesorul și câte clase are la disciplină.
+                            ->itemLabel(static function (array $state): ?string {
+                                if (! is_numeric($state['teacher_id'] ?? null)) {
+                                    return null;
+                                }
+
+                                $teacher = self::teacherOptions()[(int) $state['teacher_id']] ?? null;
+
+                                if ($teacher === null) {
+                                    return null;
+                                }
+
+                                $classes = is_array($state['class_ids'] ?? null) ? count($state['class_ids']) : 0;
+
+                                return $teacher.' · '.trans_choice('panel.forms.subject.teacher_classes_count', $classes, ['count' => $classes]);
+                            })
                             ->rules([
                                 // Același profesor (cu aceeași grupă) de două ori = două rânduri
                                 // care s-ar sincroniza unul peste altul — refuzat cu mesaj, nu
@@ -276,12 +326,21 @@ class SubjectForm
                                     }
                                 },
                             ])
+                            // Rândul unui profesor: identitatea pe UN rând (profesor + grupă),
+                            // clasele dedesubt pe toată lățimea. Fără grid, cele trei câmpuri
+                            // curgeau unul sub altul și un rând ocupa cât un ecran.
+                            ->columns(['default' => 1, 'md' => 6])
                             ->schema([
                                 Select::make('teacher_id')
                                     ->label(__('panel.fields.teacher'))
                                     ->options(self::teacherOptions())
                                     ->searchable()
                                     ->required()
+                                    // Fără grupă (adică peste tot în afară de engleză) selectorul
+                                    // ia rândul întreg — altfel ar rămâne jumătate de rând gol.
+                                    ->columnSpan(static fn (Get $get): array => [
+                                        'md' => self::isEnglishName((string) $get('../../name')) ? 4 : 6,
+                                    ])
                                     ->live(),
                                 // Grupa există DOAR la limba engleză (singura disciplină pe
                                 // grupe). Numele e live — secțiunea reacționează și la creare,
@@ -293,13 +352,17 @@ class SubjectForm
                                     ->numeric()
                                     ->minValue(1)
                                     ->maxValue(9)
+                                    ->columnSpan(['md' => 2])
                                     ->visible(static fn (Get $get): bool => self::isEnglishName((string) $get('../../name'))),
                                 CheckboxList::make('class_ids')
                                     ->label(__('panel.forms.subject.teacher_classes'))
                                     // DOAR clasele ANULUI CURENT de pe treptele bifate mai sus —
                                     // lista urmează bifele în timp real (grade_levels e live).
                                     ->options(static fn (Get $get): array => self::classOptionsForLevels($get('../../grade_levels')))
-                                    ->columns(['default' => 2, 'xl' => 3])
+                                    ->columnSpanFull()
+                                    // Etichete scurte („VII A · VII") → încap patru pe rând pe
+                                    // ecran lat, deci o clasă întreagă de trepte se vede dintr-o privire.
+                                    ->columns(['default' => 2, 'md' => 3, 'xl' => 4])
                                     ->bulkToggleable()
                                     ->searchable()
                                     ->required()
@@ -325,22 +388,6 @@ class SubjectForm
                             ]),
                     ]),
 
-                Section::make(__('panel.forms.subject.section_transcript'))
-                    ->description(__('panel.forms.subject.section_transcript_hint'))
-                    ->schema([
-                        // Poziția se ALEGE dintre pozițiile VALIDE (1..N+1) — nu se tastează un
-                        // număr arbitrar. Ocupată = inserare (restul se împing); scrierea reală o
-                        // face Subject::placeInReportOrder (paginile Create/Edit), de aceea câmpul
-                        // NU se dehidratează — nicio stare intermediară cu duplicate.
-                        Select::make('report_order')
-                            ->label(__('panel.forms.subject.report_order_long'))
-                            ->options(static fn (?Model $record): array => self::positionOptions($record))
-                            ->default(static fn (): string => (string) Subject::nextReportOrderPosition())
-                            ->placeholder(__('panel.forms.subject.report_order_unassigned'))
-                            ->native(false)
-                            ->dehydrated(false)
-                            ->helperText(__('panel.forms.subject.report_order_hint')),
-                    ]),
             ]);
     }
 

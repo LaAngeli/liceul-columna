@@ -33,6 +33,14 @@ class TeachingAssignmentsRelationManager extends RelationManager
 
     protected static string|BackedEnum|null $icon = 'heroicon-o-briefcase';
 
+    /**
+     * Randat ODATĂ cu pagina, nu la derulare (restructurarea 08.08.2026): implicit, un relation
+     * manager e „lazy" și până la intersecție lasă în josul fișei o casetă goală — adică exact
+     * golul reclamat de beneficiar. Costul e o interogare în plus pe o pagină de configurare
+     * (tabel paginat), nu pe un ecran de lucru zilnic.
+     */
+    protected static bool $isLazy = false;
+
     public static function getTitle(Model $ownerRecord, string $pageClass): string
     {
         return __('panel.resources.teaching_assignments.registry');

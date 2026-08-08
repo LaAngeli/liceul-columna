@@ -213,7 +213,10 @@ it('selectoarele de trepte vin din structura școlii (I–XII), etichetate cu ci
 
     foreach (['ro', 'ru', 'en'] as $locale) {
         expect(Lang::hasForLocale('panel.forms.subject.grade_option', $locale))->toBeTrue("Lipsește grade_option [{$locale}]")
-            ->and(Lang::hasForLocale('panel.forms.subject.section_transcript_hint', $locale))->toBeTrue("Lipsește section_transcript_hint [{$locale}]")
+            // Poziția în foaia matricolă a intrat în secțiunea de identitate (restructurarea
+            // 08.08.2026) — explicația ei trăiește acum în helper-ul câmpului, nu într-o secțiune.
+            ->and(Lang::hasForLocale('panel.forms.subject.report_order_hint', $locale))->toBeTrue("Lipsește report_order_hint [{$locale}]")
+            ->and(Lang::hasForLocale('panel.forms.subject.section_teachers_hint', $locale))->toBeTrue("Lipsește section_teachers_hint [{$locale}]")
             ->and(Lang::hasForLocale('panel.forms.subject.created_assignments_body', $locale))->toBeTrue("Lipsește created_assignments_body [{$locale}]")
             ->and(Lang::hasForLocale('panel.validation.subject.grade_levels_overlap', $locale))->toBeTrue("Lipsește grade_levels_overlap [{$locale}]")
             ->and(Lang::hasForLocale('panel.validation.subject.grade_levels_remove_blocked', $locale))->toBeTrue("Lipsește grade_levels_remove_blocked [{$locale}]");
